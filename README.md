@@ -18,26 +18,18 @@ TODO
 ## 开发
 > [!NOTE]
 > 建议使用 VSCode 进行开发。
+
+首先安装 [just](https://github.com/casey/just#packages)，然后：
 ```bash
 git clone https://github.com/XcantloadX/KotonesAutoAssistant.git
 cd KotonesAutoAssistant
-```
-
-### 后端
-```bash
-python -m venv venv
-source venv/bin/activate # Windows 系统: venv\Scripts\activate
-pip install -r requirements.txt
-pip install -r requirements.dev.txt
-python tools/make_resources.py
+just env
 ```
 然后打开 VSCode 设置，搜索“SupportRestructured Text”并勾选。
 
-### 前端
+### 打包
 ```bash
-cd kotonebot-ui
-npm install
-npm run dev
+just package <版本号>
 ```
 
 ### 截图

@@ -1,3 +1,4 @@
 -r requirements.txt
 jinja2==3.1.5
 pyinstaller==6.11.1
+twine==6.1.0
