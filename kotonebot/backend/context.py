@@ -39,6 +39,7 @@ from kotonebot.backend.color import find_rgb
 from kotonebot.backend.ocr import Ocr, OcrResult, jp, en, StringMatchFunction
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig
+from kotonebot.backend.core import Image
 
 OcrLanguage = Literal['jp', 'en']
 DEFAULT_TIMEOUT = 120
@@ -270,7 +271,7 @@ class ContextImage:
 
     def wait_for(
             self,
-            template: MatLike | str,
+            template: MatLike | str | Image,
             mask: MatLike | str | None = None,
             threshold: float = 0.8,
             timeout: float = DEFAULT_TIMEOUT,
@@ -294,7 +295,7 @@ class ContextImage:
 
     def wait_for_any(
             self,
-            templates: list[str],
+            templates: list[str | Image],
             masks: list[str | None] | None = None,
             threshold: float = 0.8,
             timeout: float = DEFAULT_TIMEOUT,
@@ -321,7 +322,7 @@ class ContextImage:
 
     def expect_wait(
             self,
-            template: str,
+            template: str | Image,
             mask: str | None = None,
             threshold: float = 0.8,
             timeout: float = DEFAULT_TIMEOUT,
@@ -345,7 +346,7 @@ class ContextImage:
 
     def expect_wait_any(
             self,
-            templates: list[str],
+            templates: list[str | Image],
             masks: list[str | None] | None = None,
             threshold: float = 0.8,
             timeout: float = DEFAULT_TIMEOUT,

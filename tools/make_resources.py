@@ -31,16 +31,16 @@ def main():
                     if not path.endswith('.png') and not path.endswith('.jpg'):
                         continue
                     attr_name = to_camel_case(current.replace('.png', '').replace('.jpg', ''))
-                    rel_path = os.path.join(dir_path, current)
+                    rel_path = os.path.join(dir_path, current).replace('\\', '/')
                     abs_path = os.path.abspath(os.path.join(dir_path, current))
                     print(current, attr_name)
                     parent_class[attr_name] = {
                         'type': 'image',
-                        'value': 'res_path("' + rel_path.replace('\\', '/') + '")',
+                        'value': f'image(res_path("{rel_path}"))',
                         'name': attr_name,
                         'abspath': abs_path.replace('\\', '/'),
                         'class_path': class_path,
-                        'rel_path': rel_path.replace('\\', '/'),
+                        'rel_path': rel_path,
                     }
                 elif os.path.isdir(path):
                     class_name = to_camel_case(current)

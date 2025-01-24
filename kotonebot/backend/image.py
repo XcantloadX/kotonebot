@@ -3,6 +3,7 @@ from typing import NamedTuple, Protocol, TypeVar, Sequence, runtime_checkable
 from logging import getLogger
 
 from .debug import result as debug_result, debug, img
+from .core import Image
 
 import cv2
 import numpy as np
@@ -13,7 +14,7 @@ logger = getLogger(__name__)
 
 class TemplateNoMatchError(Exception):
     """模板未找到异常。"""
-    def __init__(self, image: MatLike, template: MatLike | str):
+    def __init__(self, image: MatLike | Image, template: MatLike | str | Image):
         self.image = image
         self.template = template
         super().__init__(f"Template not found: {template}")
@@ -81,12 +82,17 @@ class CropResult(NamedTuple):
     def rect(self) -> Rect:
         return (self.position[0], self.position[1], self.size[0], self.size[1])
 
-def _unify_image(image: MatLike | str, transparent: bool = False) -> MatLike:
+def _unify_image(image: MatLike | str | Image, transparent: bool = False) -> MatLike:
     if isinstance(image, str):
         if not transparent:
             image = cv2.imread(image)
         else:
             image = cv2.imread(image, cv2.IMREAD_UNCHANGED)
+    elif isinstance(image, Image):
+        if transparent:
+            image = image.data_with_alpha
+        else:
+            image = image.data
     return image
 
 def _draw_result(image: MatLike, matches: Sequence[ResultProtocol] | ResultProtocol | None) -> MatLike:
@@ -100,7 +106,7 @@ def _draw_result(image: MatLike, matches: Sequence[ResultProtocol] | ResultProto
         cv2.rectangle(result_image, match.rect, (0, 0, 255), 2)
     return result_image
 
-def _img2str(image: MatLike | str | None) -> str:
+def _img2str(image: MatLike | str | Image | None) -> str:
     if image is None:
         return 'None'
     if isinstance(image, str):
@@ -110,10 +116,12 @@ def _img2str(image: MatLike | str | None) -> str:
             # ValueError: path is on mount 'C:', start on mount 'E:'
             # 程序路径与资源路径不在同一个地方的情况
             return image
+    elif isinstance(image, Image):
+        return f'<Image: {image.name} at {image.path}>'
     else:
         return '<opencv Mat>'
 
-def _imgs2str(images: Sequence[MatLike | str | None] | None) -> str:
+def _imgs2str(images: Sequence[MatLike | str | Image | None] | None) -> str:
     if images is None:
         return 'None'
     return ', '.join([_img2str(image) for image in images])
@@ -129,9 +137,9 @@ def _results2str(results: Sequence[TemplateMatchResult | MultipleTemplateMatchRe
     return ', '.join([_result2str(result) for result in results])
 
 def template_match(
-    template: MatLike | str,
-    image: MatLike | str,
-    mask: MatLike | str | None = None,
+    template: MatLike | str | Image,
+    image: MatLike | str | Image,
+    mask: MatLike | str | Image | None = None,
     *,
     transparent: bool = False,
     threshold: float = 0.8,
@@ -304,9 +312,9 @@ def hist_match(
     return avg_score >= threshold
 
 def find_all_crop(
-    image: MatLike | str,
-    template: MatLike | str,
-    mask: MatLike | str | None = None,
+    image: MatLike | str | Image,
+    template: MatLike | str | Image,
+    mask: MatLike | str | Image | None = None,
     transparent: bool = False,
     threshold: float = 0.8,
     *,
@@ -347,8 +355,8 @@ def find_all_crop(
 
 def find(
     image: MatLike,
-    template: MatLike | str,
-    mask: MatLike | str | None = None,
+    template: MatLike | str | Image,
+    mask: MatLike | str | Image | None = None,
     *,
     transparent: bool = False,
     threshold: float = 0.8,
@@ -398,8 +406,8 @@ def find(
 
 def find_all(
     image: MatLike,
-    template: MatLike | str,
-    mask: MatLike | str | None = None,
+    template: MatLike | str | Image,
+    mask: MatLike | str | Image | None = None,
     *,
     transparent: bool = False,
     threshold: float = 0.8,
@@ -444,8 +452,8 @@ def find_all(
 
 def find_multi(
     image: MatLike,
-    templates: list[MatLike | str],
-    masks: list[MatLike | str | None] | None = None,
+    templates: list[MatLike | str | Image],
+    masks: list[MatLike | str | Image | None] | None = None,
     *,
     transparent: bool = False,
     threshold: float = 0.8,
@@ -511,8 +519,8 @@ def find_multi(
 
 def find_all_multi(
     image: MatLike,
-    templates: list[MatLike | str],
-    masks: list[MatLike | str | None] | None = None,
+    templates: list[MatLike | str | Image],
+    masks: list[MatLike | str | Image | None] | None = None,
     *,
     transparent: bool = False,
     threshold: float = 0.8,
@@ -594,8 +602,8 @@ def find_all_multi(
 
 def count(
     image: MatLike,
-    template: MatLike | str,
-    mask: MatLike | str | None = None,
+    template: MatLike | str | Image,
+    mask: MatLike | str | Image | None = None,
     *,
     transparent: bool = False,
     threshold: float = 0.8,
@@ -644,8 +652,8 @@ def count(
 
 def expect(
     image: MatLike,
-    template: MatLike | str,
-    mask: MatLike | str | None = None,
+    template: MatLike | str | Image,
+    mask: MatLike | str | Image | None = None,
     *,
     transparent: bool = False,
     threshold: float = 0.8,

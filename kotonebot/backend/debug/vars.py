@@ -14,6 +14,8 @@ from typing import NamedTuple, TextIO, Literal
 import cv2
 from cv2.typing import MatLike
 
+from ..core import Image
+
 class Result(NamedTuple):
     title: str
     image: list[str]
@@ -62,8 +64,10 @@ _images: dict[str, MatLike] = {}
 """存放临时图片的字典。"""
 _result_file: TextIO | None = None
 
-def _save_image(image: MatLike) -> str:
+def _save_image(image: MatLike | Image) -> str:
     """缓存图片数据到 _images 字典中。返回 key。"""
+    if isinstance(image, Image):
+        image = image.data
     # 计算 key
     if debug.hash_image:
         key = hashlib.md5(image.tobytes()).hexdigest()
@@ -83,7 +87,7 @@ def _save_images(images: list[MatLike]) -> list[str]:
     """缓存图片数据到 _images 字典中。返回 key 列表。"""
     return [_save_image(image) for image in images]
 
-def img(image: str | MatLike | None) -> str:
+def img(image: str | MatLike | Image | None) -> str:
     """
     用于在 `result()` 函数中嵌入图片。
 
@@ -95,11 +99,15 @@ def img(image: str | MatLike | None) -> str:
     if debug.auto_save_to_folder:
         if isinstance(image, str):
             image = cv2.imread(image)
+        elif isinstance(image, Image):
+            image = image.data
         key = _save_image(image)
         return f'[img]{key}[/img]'
     else:
         if isinstance(image, str):
             return f'<img src="/api/read_file?path={image}" />'
+        elif isinstance(image, Image) and image.path:
+            return f'<img src="/api/read_file?path={image.path}" />'
         else:
             key = _save_image(image)
             return f'<img src="/api/read_memory?key={key}" />'
