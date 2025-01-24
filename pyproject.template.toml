@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "kaa"
+name = "ksaa"
 version = "<<<version>>>"
 description = "Kotones Auto Assistant"
 readme = "README.md"
@@ -37,4 +37,4 @@ package-dir = { "kotonebot" = "kotonebot", "kotonebot.res" = "res" }
 include-package-data = true
 
 [project.scripts]
-kaa = "kotonebot.ui.gr:main"
+ksaa = "kotonebot.ui.gr:main"

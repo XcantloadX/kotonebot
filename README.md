@@ -1,4 +1,4 @@
-# KotonesAutoAssistant 琴音小助手
+# Kotone's Auto Assistant 琴音小助手
 ## 功能
 * 自动日常，包括
     * 领取礼物（邮件）

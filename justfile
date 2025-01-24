@@ -37,6 +37,7 @@ env:
     } else {
         ./.venv/bin/pip install -r requirements.dev.txt
     }
+    {{venv}} python tools/make_resources.py
 
 # Build the project using pyinstaller
 build: env
@@ -48,7 +49,8 @@ generate-pyproject-toml version:
     from datetime import datetime
 
     today = datetime.now()
-    version = today.strftime("%Y.%m.%d")
+    # version = today.strftime("%Y.%m.%d")
+    version = "{{version}}"
 
     with open("pyproject.template.toml", "r", encoding="utf-8") as f:
         template = f.read()
@@ -62,7 +64,7 @@ generate-pyproject-toml version:
     if (Test-Path dist) { rm -r -fo dist }
     if (Test-Path build) { rm -r -fo build }
     Write-Host "Generating pyproject.toml..."
-    just generate-pyproject-toml version
+    just generate-pyproject-toml {{version}}
     Write-Host "Packaging KAA {{version}}..."
     @{{venv}} python -m build
     Write-Host "Removing pyproject.toml..."
@@ -78,3 +80,6 @@ publish version: (package version)
 publish-test version: (package version)
     @Write-Host "Uploading to PyPI-Test..."
     twine upload --repository testpypi dist/* -u __token__ -p $env:PYPI_TEST_TOKEN
+
+# 
+build-bootstrap:
