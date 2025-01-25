@@ -1,14 +1,14 @@
 import re
-import time
 import unicodedata
-from os import PathLike
-from typing import TYPE_CHECKING, Callable, NamedTuple, overload
+from functools import lru_cache
+from typing import Callable, NamedTuple
 
 from .util import Rect, grayscaled, res_path
 from .debug import result as debug_result, debug
 
 import cv2
 from cv2.typing import MatLike
+from thefuzz import fuzz as _fuzz
 from rapidocr_onnxruntime import RapidOCR
 
 _engine_jp = RapidOCR(
@@ -40,6 +40,30 @@ class TextNotFoundError(Exception):
         else:
             super().__init__(f"Expected text not found: {pattern.__name__}")
 
+
+@lru_cache(maxsize=1000)
+def fuzz(text: str) -> Callable[[str], bool]:
+    """返回 fuzzy 算法的字符串匹配函数。"""
+    f = lambda s: _fuzz.ratio(s, text) > 90
+    f.__repr__ = lambda: f"fuzzy({text})"
+    f.__name__ = f"fuzzy({text})"
+    return f
+
+@lru_cache(maxsize=1000)
+def regex(regex: str) -> Callable[[str], bool]:
+    """返回正则表达式字符串匹配函数。"""
+    f = lambda s: re.match(regex, s) is not None
+    f.__repr__ = lambda: f"regex('{regex}')"
+    f.__name__ = f"regex('{regex}')"
+    return f
+
+@lru_cache(maxsize=1000)
+def contains(text: str) -> Callable[[str], bool]:
+    """返回包含指定文本的函数。"""
+    f = lambda s: text in s
+    f.__repr__ = lambda: f"contains('{text}')"
+    f.__name__ = f"contains('{text}')"
+    return f
 
 def _is_match(text: str, pattern: re.Pattern | str | StringMatchFunction) -> bool:
     if isinstance(pattern, re.Pattern):

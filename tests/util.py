@@ -7,19 +7,6 @@ from cv2.typing import MatLike
 
 from kotonebot.client.protocol import ClickableObjectProtocol, DeviceABC
 
-def _unify_click(self, *args, **kwargs) -> tuple[int, int] | None:
-    if len(args) == 0:
-        return None
-    elif len(args) == 2:
-        x, y = args
-        assert isinstance(x, int) and isinstance(y, int)
-        return (x, y)
-    elif len(args) == 1:
-        assert isinstance(args[0], ClickableObjectProtocol)
-        return args[0].rect
-    else:
-        raise ValueError("Invalid arguments")
-
 class MockDevice(DeviceABC):
     def __init__(
         self,
