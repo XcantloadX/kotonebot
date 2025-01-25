@@ -1,6 +1,7 @@
 from time import sleep
 from typing import Callable, Protocol, TYPE_CHECKING, overload, runtime_checkable, Literal
 from abc import ABC
+from typing_extensions import deprecated
 
 from cv2.typing import MatLike
 
@@ -210,6 +211,7 @@ class DeviceABC(ABC):
         """
         return HookContextManager(self, func)
 
+    @deprecated('改用 @task/@action 装饰器中的 screenshot_mode 参数')
     def pinned(self) -> PinContextManager:
         """
         记住下次截图结果，并将截图调整为手动挡。

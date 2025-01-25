@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 import cv2
 
 from kotonebot.backend.context import init_context, vars
-from kotonebot.backend.core import task_registry, action_registry, current_callstack, Task, Action
+from kotonebot.backend.context import task_registry, action_registry, current_callstack, Task, Action
 
 log_stream = io.StringIO()
 stream_handler = logging.StreamHandler(log_stream)

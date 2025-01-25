@@ -20,7 +20,7 @@ from typing import (
 import cv2
 from cv2.typing import MatLike
 
-from kotonebot.client import DeviceABC
+from kotonebot.client.protocol import DeviceABC
 from kotonebot.backend.util import Rect
 import kotonebot.backend.image as raw_image
 from kotonebot.client.device.adb import AdbDevice
@@ -42,6 +42,7 @@ from kotonebot.config.base_config import UserConfig
 from kotonebot.backend.core import Image
 
 OcrLanguage = Literal['jp', 'en']
+ScreenshotMode = Literal['auto', 'manual', 'manual-inherit']
 DEFAULT_TIMEOUT = 120
 DEFAULT_INTERVAL = 0.4
 logger = logging.getLogger(__name__)
@@ -150,6 +151,67 @@ class ContextGlobalVars:
         """用户请求中断事件"""
 
 
+class ContextStackVars:
+    stack: list['ContextStackVars'] = []
+
+    def __init__(self):
+        self.screenshot_mode: ScreenshotMode = 'auto'
+        """
+        截图模式。
+
+        * `auto`
+            自动截图。即调用 `color`、`image`、`ocr` 上的方法时，会自动更新截图。
+        * `manual`
+            完全手动截图，不自动截图。如果在没有截图数据的情况下调用 `color` 等的方法，会抛出异常。
+        * `manual-inherit`：
+            第一张截图继承自调用者，此后同手动截图。
+            如果调用者没有截图数据，则继承的截图数据为空。
+            如果在没有截图数据的情况下调用 `color` 等的方法，会抛出异常。
+        """
+        self._screenshot: MatLike | None = None
+        """截图数据"""
+
+    @property
+    def screenshot(self) -> MatLike:
+        match self.screenshot_mode:
+            case 'manual' | 'manual-inherit':
+                if self._screenshot is None:
+                    raise ValueError("No screenshot data found.")
+                return self._screenshot
+            case 'auto':
+                self._screenshot = device.screenshot()
+                return self._screenshot
+            case _:
+                raise ValueError(f"Invalid screenshot mode: {self.screenshot_mode}")
+
+    @staticmethod
+    def push(*, screenshot_mode: ScreenshotMode | None = None) -> 'ContextStackVars':
+        vars = ContextStackVars()
+        if screenshot_mode is not None:
+            vars.screenshot_mode = screenshot_mode
+        current = ContextStackVars.current()
+        if current and vars.screenshot_mode == 'manual-inherit':
+            vars._screenshot = current._screenshot
+        ContextStackVars.stack.append(vars)
+        return vars
+
+    @staticmethod
+    def pop() -> 'ContextStackVars':
+        last = ContextStackVars.stack.pop()
+        return last
+    
+    @staticmethod
+    def current() -> 'ContextStackVars | None':
+        if len(ContextStackVars.stack) == 0:
+            return None
+        return ContextStackVars.stack[-1]
+
+    @staticmethod
+    def ensure_current() -> 'ContextStackVars':
+        if len(ContextStackVars.stack) == 0:
+            raise ValueError("No context stack found.")
+        return ContextStackVars.stack[-1]
+
 @interruptible_class
 class ContextOcr:
     def __init__(self, context: 'Context'):
@@ -182,7 +244,7 @@ class ContextOcr:
     def ocr(self, img: 'MatLike | None' = None) -> list[OcrResult]:
         """OCR 当前设备画面或指定图像。"""
         if img is None:
-            return self.__engine.ocr(self.context.device.screenshot())
+            return self.__engine.ocr(ContextStackVars.ensure_current().screenshot)
         return self.__engine.ocr(img)
     
     @overload
@@ -196,7 +258,7 @@ class ContextOcr:
     def find(self, *args, **kwargs) -> OcrResult | None:
         """检查指定图像是否包含指定文本。"""
         if len(args) == 1 and len(kwargs) == 0:
-            ret = self.__engine.find(self.context.device.screenshot(), args[0])
+            ret = self.__engine.find(ContextStackVars.ensure_current().screenshot, args[0])
             self.context.device.last_find = ret
             return ret
         elif len(args) == 2 and len(kwargs) == 0:
@@ -215,7 +277,7 @@ class ContextOcr:
 
         与 `find()` 的区别在于，`expect()` 未找到时会抛出异常。
         """
-        ret = self.__engine.expect(self.context.device.screenshot(), pattern)
+        ret = self.__engine.expect(ContextStackVars.ensure_current().screenshot, pattern)
         self.context.device.last_find = ret
         return ret
     
@@ -375,33 +437,33 @@ class ContextImage:
 
     @context(expect)
     def expect(self, *args, **kwargs):
-        ret = expect(self.context.device.screenshot(), *args, **kwargs)
+        ret = expect(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
         self.context.device.last_find = ret
         return ret
 
     @context(find)
     def find(self, *args, **kwargs):
-        ret = find(self.context.device.screenshot(), *args, **kwargs)
+        ret = find(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
         self.context.device.last_find = ret
         return ret
 
     @context(find_all)
     def find_all(self, *args, **kwargs):
-        return find_all(self.context.device.screenshot(), *args, **kwargs)
+        return find_all(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
     @context(find_multi)
     def find_multi(self, *args, **kwargs):
-        ret = find_multi(self.context.device.screenshot(), *args, **kwargs)
+        ret = find_multi(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
         self.context.device.last_find = ret
         return ret
 
     @context(find_all_multi)
     def find_all_multi(self, *args, **kwargs):
-        return find_all_multi(self.context.device.screenshot(), *args, **kwargs)
+        return find_all_multi(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
     @context(find_all_crop)
     def find_all_crop(self, *args, **kwargs):
-        return find_all_crop(self.context.device.screenshot(), *args, **kwargs)
+        return find_all_crop(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
 
 @interruptible_class
@@ -414,7 +476,7 @@ class ContextColor:
 
     @context(find_rgb)
     def find_rgb(self, *args, **kwargs):
-        return find_rgb(self.context.device.screenshot(), *args, **kwargs)
+        return find_rgb(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
 
 class ContextDebug:
@@ -513,6 +575,21 @@ class Forwarded:
             raise ValueError(f"Forwarded object {self._FORWARD_name} called before initialization.")
         setattr(self._FORWARD_getter(), name, value)
 
+# HACK: 这应该要有个更好的实现方式
+class ContextDevice(DeviceABC):
+    def __init__(self, device: DeviceABC):
+        self._device = device
+
+    def update_screenshot(self):
+        ContextStackVars.ensure_current()._screenshot = self._device.screenshot()
+
+    def __getattribute__(self, name: str) -> Any:
+        if name in ['update_screenshot', '_device']:
+            return object.__getattribute__(self, name)
+        else:
+            return getattr(self._device, name)
+
+
 class Context(Generic[T]):
     def __init__(self, config_type: Type[T]):
         self.__ocr = ContextOcr(self)
@@ -527,13 +604,13 @@ class Context(Generic[T]):
         adb.connect(f'{ip}:{port}')
         # TODO: 处理链接失败情况
         d = [d for d in adb.device_list() if d.serial == f'{ip}:{port}']
-        self.__device = AdbDevice(d[0])
+        self.__device = ContextDevice(AdbDevice(d[0]))
 
     def inject_device(self, device: DeviceABC):
-        self.__device = device
+        self.__device = ContextDevice(device)
 
     @property
-    def device(self) -> DeviceABC:
+    def device(self) -> ContextDevice:
         return self.__device
 
     @property
@@ -570,7 +647,7 @@ def rect_expand(rect: Rect, left: int = 0, top: int = 0, right: int = 0, bottom:
 # 为了能够动态更新这里变量的值，这里使用 Forwarded 类再封装一层，
 # 将调用转发到实际的稍后初始化的 Context 类上
 _c: Context | None = None
-device: DeviceABC = cast(DeviceABC, Forwarded(name="device"))
+device: ContextDevice = cast(ContextDevice, Forwarded(name="device"))
 """当前正在执行任务的设备。"""
 ocr: ContextOcr = cast(ContextOcr, Forwarded(name="ocr"))
 """OCR 引擎。"""
