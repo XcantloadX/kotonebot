@@ -588,6 +588,12 @@ class ContextDevice(DeviceABC):
             return object.__getattribute__(self, name)
         else:
             return getattr(self._device, name)
+        
+    def __setattr__(self, name: str, value: Any):
+        if name in ['update_screenshot', '_device']:
+            return object.__setattr__(self, name, value)
+        else:
+            return setattr(self._device, name, value)
 
 
 class Context(Generic[T]):
