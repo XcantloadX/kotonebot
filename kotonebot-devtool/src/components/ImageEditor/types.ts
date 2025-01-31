@@ -10,10 +10,12 @@ type AnnotationTypeMap = {
     rect: RectPoints,
 };
 
-export interface Annotation{
+export interface Annotation {
     id: string;
     type: AnnotationType;
     data: AnnotationTypeMap[AnnotationType];
+    /** 提示信息。 */
+    tip?: React.ReactNode;
 }
 export interface Point {
     x: number;
@@ -26,3 +28,10 @@ export interface RectPoints {
     x2: number;
     y2: number;
 }
+
+/**
+ * 使对象中的所有属性都变为可选。
+ */
+export type Optional<T> = {
+    [P in keyof T]?: T[P] | undefined;
+};

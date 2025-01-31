@@ -64,7 +64,7 @@ const RectTipContainer = styled(NativeDiv)`
   transform: translateY(-100%);
 `;
 
-interface ObjectRectProps {
+export interface RectBoxProps {
   rect: RectPoints;
   /**
    * 矩形模式。默认为 resize。
@@ -86,6 +86,13 @@ interface ObjectRectProps {
    * 是否显示提示内容（`rectTip`）
    */
   showRectTip?: boolean;
+  /**
+   * 矩形框变换事件。
+   * 
+   * 变换后的坐标是在原坐标的基础上加上拖拽时鼠标的位移差得到的。
+   * 也就是说，原来传入的是什么坐标系的坐标，变换后的坐标也是什么坐标系的坐标。
+   * @param points 变换后的矩形框
+   */
   onTransform?: (points: RectPoints) => void;
   onNativeMouseEnter?: (e: MouseEvent) => void;
   onNativeMouseMove?: (e: MouseEvent) => void;
@@ -110,7 +117,7 @@ function useLatestProps<T>(props: T) {
 /**
  * 可调整位置、大小的矩形框组件。
  */
-function RectBox(props: ObjectRectProps) {
+function RectBox(props: RectBoxProps) {
   const { 
     rect, 
     mode = 'resize', 

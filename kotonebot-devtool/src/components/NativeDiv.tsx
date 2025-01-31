@@ -6,6 +6,9 @@ interface NativeDivProps extends HTMLAttributes<HTMLDivElement> {
   onNativeMouseLeave?: (e: MouseEvent) => void;
   onNativeMouseDown?: (e: MouseEvent) => void;
   onNativeClick?: (e: MouseEvent) => void;
+  onNativeKeyDown?: (e: KeyboardEvent) => void;
+  onNativeKeyUp?: (e: KeyboardEvent) => void;
+  onNativeMouseWheel?: (e: WheelEvent) => void;
 }
 
 /**
@@ -17,6 +20,9 @@ interface NativeDivProps extends HTMLAttributes<HTMLDivElement> {
  * * onNativeMouseLeave
  * * onNativeMouseDown
  * * onNativeClick
+ * * onNativeKeyDown
+ * * onNativeKeyUp
+ * * onNativeMouseWheel
  * 
  * 这些事件都是对原生 DOM 事件的封装。
  */
@@ -27,6 +33,9 @@ const NativeDiv = forwardRef<HTMLDivElement, NativeDivProps>((props, ref) => {
     onNativeMouseLeave,
     onNativeMouseDown,
     onNativeClick,
+    onNativeKeyDown,
+    onNativeKeyUp,
+    onNativeMouseWheel,
     ...restProps
   } = props;
 
@@ -53,6 +62,12 @@ const NativeDiv = forwardRef<HTMLDivElement, NativeDivProps>((props, ref) => {
       element.addEventListener('mousedown', onNativeMouseDown);
     if (onNativeClick)
       element.addEventListener('click', onNativeClick);
+    if (onNativeKeyDown)
+      element.addEventListener('keydown', onNativeKeyDown);
+    if (onNativeKeyUp)
+      element.addEventListener('keyup', onNativeKeyUp);
+    if (onNativeMouseWheel)
+      element.addEventListener('wheel', onNativeMouseWheel);
 
     return () => {
       if (onNativeMouseEnter)
@@ -65,8 +80,14 @@ const NativeDiv = forwardRef<HTMLDivElement, NativeDivProps>((props, ref) => {
         element.removeEventListener('mousedown', onNativeMouseDown);
       if (onNativeClick)
         element.removeEventListener('click', onNativeClick);
+      if (onNativeKeyDown)
+        element.removeEventListener('keydown', onNativeKeyDown);
+      if (onNativeKeyUp)
+        element.removeEventListener('keyup', onNativeKeyUp);
+      if (onNativeMouseWheel)
+        element.removeEventListener('wheel', onNativeMouseWheel);
     };
-  }, [onNativeMouseEnter, onNativeMouseMove, onNativeMouseLeave, onNativeClick]);
+  }, [onNativeMouseEnter, onNativeMouseMove, onNativeMouseLeave, onNativeClick, onNativeKeyDown, onNativeKeyUp, onNativeMouseWheel]);
 
   return <div ref={elementRef} {...restProps} />;
 });

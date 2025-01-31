@@ -4,6 +4,8 @@ import styled from '@emotion/styled';
 interface ImageViewerProps {
   /** 图片地址 */
   image: string;
+  /** 图片渲染模式 */
+  imageRendering?: 'pixelated' | 'auto';
   /** 是否可缩放 */
   zoomable?: boolean;
   /** 是否可移动 */
@@ -47,6 +49,7 @@ const ImageContainer = styled.div`
 
 interface StyledImageProps {
   withAnimation?: boolean;
+  imageRendering?: 'pixelated' | 'auto';
 }
 
 const StyledImage = styled.img<StyledImageProps>`
@@ -57,6 +60,7 @@ const StyledImage = styled.img<StyledImageProps>`
   user-select: none;
   position: relative;
   transition: ${(props: StyledImageProps) => props.withAnimation ? 'transform 0.2s ease-out' : 'none'};
+  image-rendering: ${props => props.imageRendering};
 
   &.dragging {
     cursor: grabbing;
@@ -67,6 +71,7 @@ const StyledImage = styled.img<StyledImageProps>`
 const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>(
   ({ 
     image, 
+    imageRendering = 'auto',
     zoomable: scalable = true, 
     movable = true,
     minZoomScale: minScale = 0.1,
@@ -214,6 +219,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>(
             onDragStart={(e: React.DragEvent<HTMLImageElement>) => e.preventDefault()}
             className={isDragging ? 'dragging' : ''}
             withAnimation={useAnimation}
+            imageRendering={imageRendering}
             style={{
               transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`
             }}

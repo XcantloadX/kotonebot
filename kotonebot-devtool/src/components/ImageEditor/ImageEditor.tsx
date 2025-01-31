@@ -1,11 +1,12 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import styled from '@emotion/styled';
 import { Updater, useImmer } from 'use-immer';
 import RectTool from './RectTool';
 import DragTool from './DragTool';
-import { Tool, Point, RectPoints, Annotation, AnnotationType } from './types';
-import RectBox from './RectBox';
+import { Tool, Point, RectPoints, Annotation, AnnotationType, Optional } from './types';
+import RectBox, { RectBoxProps } from './RectBox';
 import NativeDiv from '../NativeDiv';
+import useLatestCallback from '../../hooks/useLatestCallback';
 
 const EditorContainer = styled(NativeDiv)<{ isDragging: boolean }>`
   width: 100%;
@@ -61,8 +62,21 @@ export interface ImageEditorProps {
   showCrosshair?: boolean;
   annotations: Annotation[];
   onAnnotationChanged?: (e: AnnotationChangedEvent) => void;
+  onAnnotationSelected?: (annotation: Annotation | null) => void;
   enableMask?: boolean;
   maskAlpha?: number;
+  imageSize?: {
+    width: number;
+    height: number;
+  };
+  /**
+   * 编辑器的缩放模式。默认为 `wheel`。
+   * 
+   * * `wheel` - 使用滚轮缩放，Ctrl + 滚轮上下移动，Shift + 滚轮左右移动
+   * * `ctrlWheel` - 使用 Ctrl + 滚轮缩放，滚轮上下移动，Shift + 滚轮左右移动
+   */
+  scaleMode?: 'wheel' | 'ctrlWheel'
+  onNativeKeyDown?: (e: KeyboardEvent) => void;
 }
 
 export interface ImageEditorRef {
@@ -72,8 +86,12 @@ export interface ImageEditorRef {
 }
 
 export interface EditorState {
-  scale: number;
-  position: Point;
+  /** 图片的缩放比例 */
+  imageScale: number;
+  /** 图片相对于容器的偏移量/坐标 */
+  imagePosition: Point;
+  /** 图片相对于视口的偏移量/坐标 */
+  imageClientPosition: Point;
   isDragging: boolean;
   dragStart: Point;
   mousePosition: Point;
@@ -90,10 +108,10 @@ export interface ToolHandlerProps {
   editorState: [EditorState, Updater<EditorState>];
   editorProps: ImageEditorProps;
   containerRef: React.RefObject<HTMLDivElement>;
-  renderAnnotation: (annotations?: Annotation[]) => React.ReactNode;
+  renderAnnotation: (annotations?: Annotation[], props?: Optional<RectBoxProps>) => React.ReactNode;
   addAnnotation: (annotation: Annotation) => void;
   updateAnnotation: (type: AnnotationType, annotation: Annotation) => void;
-  queryAnnotation: (id: string) => Annotation;
+  queryAnnotation: (id: string) => Annotation | null | undefined;
   Convertor: PostionConvertor;
 }
 
@@ -108,17 +126,121 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
     annotations = [],
   } = props;
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  // 图片是否可以显示了（加载完成，尺寸计算完成）
+  const [imageReady, setImageReady] = useState(false);
+
+  // 预加载图片以获取尺寸
+  useEffect(() => {
+    const img = new Image();
+    img.src = image;
+    img.onload = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      const imageRatio = img.naturalWidth / img.naturalHeight;
+      const containerRatio = containerWidth / containerHeight;
+
+      let scale = initialScale;
+      if (imageRatio > containerRatio) {
+        scale = containerWidth / img.naturalWidth * 0.9;
+      } else {
+        scale = containerHeight / img.naturalHeight * 0.9;
+      }
+
+      const scaledWidth = img.naturalWidth * scale;
+      const scaledHeight = img.naturalHeight * scale;
+      const x = (containerWidth - scaledWidth) / 2;
+      const y = (containerHeight - scaledHeight) / 2;
+
+      // 设置初始状态
+      updateState(draft => {
+        draft.imageScale = scale;
+        draft.imagePosition = { x, y };
+        draft.imageClientPosition = {
+          x: container.getBoundingClientRect().left + x,
+          y: container.getBoundingClientRect().top + y
+        };
+      });
+
+      setImageSize({
+        width: img.naturalWidth,
+        height: img.naturalHeight
+      });
+      setImageReady(true);
+    };
+  }, [image]);
+
   const [state, updateState] = useImmer<EditorState>({
-    scale: initialScale,
-    position: { x: 0, y: 0 },
+    imageScale: initialScale,
+    imagePosition: { x: 0, y: 0 },
+    imageClientPosition: { x: 0, y: 0 },
     isDragging: false,
     dragStart: { x: 0, y: 0 },
     mousePosition: { x: 0, y: 0 }
   });
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [imageSize, setImageSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
-  const Convertor = {
+  // 监听图像加载完成事件（保留这个事件以防需要做其他处理）
+  const handleImageLoad = () => {
+    const img = imageRef.current;
+    if (img && !imageReady) {
+      const fitResult = calculateImageFit();
+      if (fitResult) {
+        updateState(draft => {
+          draft.imageScale = fitResult.scale;
+          draft.imagePosition = fitResult.position;
+          draft.imageClientPosition = fitResult.clientPosition;
+        });
+      }
+      setImageReady(true);
+    }
+  };
+
+  /**
+   * 计算图像在容器中的居中位置和缩放比例
+   * @returns 返回图像的缩放比例和位置信息
+   */
+  const calculateImageFit = () => {
+    const img = imageRef.current;
+    const container = containerRef.current;
+    if (!img || !container) return null;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const imageRatio = img.naturalWidth / img.naturalHeight;
+    const containerRatio = containerWidth / containerHeight;
+
+    let scale = initialScale;
+    if (imageRatio > containerRatio) {
+      // 图片更宽，以容器宽度为基准
+      scale = containerWidth / img.naturalWidth * 0.9;
+    } else {
+      // 图片更高，以容器高度为基准
+      scale = containerHeight / img.naturalHeight * 0.9;
+    }
+
+    // 计算居中位置
+    const scaledWidth = img.naturalWidth * scale;
+    const scaledHeight = img.naturalHeight * scale;
+    const x = (containerWidth - scaledWidth) / 2;
+    const y = (containerHeight - scaledHeight) / 2;
+
+    return {
+      scale,
+      position: { x, y },
+      clientPosition: {
+        x: container.getBoundingClientRect().left + x,
+        y: container.getBoundingClientRect().top + y
+      }
+    };
+  };
+
+  const Convertor = useMemo(() => ({
     /**
      * 从容器坐标转换到图片坐标
      * @param pos 容器坐标
@@ -126,8 +248,8 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
      */
     posContainer2Image: (pos: Point) => {
       return {
-        x: Math.round((pos.x - state.position.x) / state.scale),
-        y: Math.round((pos.y - state.position.y) / state.scale)
+        x: Math.round((pos.x - state.imagePosition.x) / state.imageScale),
+        y: Math.round((pos.y - state.imagePosition.y) / state.imageScale)
       };
     },
     /**
@@ -137,8 +259,8 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
      */
     posImage2Container: (pos: Point) => {
       return {
-        x: pos.x * state.scale + state.position.x,
-        y: pos.y * state.scale + state.position.y
+        x: pos.x * state.imageScale + state.imagePosition.x,
+        y: pos.y * state.imageScale + state.imagePosition.y
       };
     },
     /**
@@ -167,15 +289,16 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
         y2: Convertor.posContainer2Image({ x: rect.x2, y: rect.y2 }).y
       };
     }
-  };
+  }), [state.imageScale, state.imagePosition]);
 
-  const renderAnnotation = (annotations?: Annotation[]) => {
+  const renderAnnotation = (annotations?: Annotation[], props?: Optional<RectBoxProps>) => {
     if (!annotations) return null;
     return annotations.map((rect) => (
       <RectBox
         key={rect.id}
-        mode="resize"
         rect={Convertor.rectImage2Container(rect.data)}
+        rectTip={rect.tip}
+        {...props}
       />
     ));
   };
@@ -203,14 +326,15 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
     if (annotations) {
       ret = annotations.find(annotation => annotation.id === id);
     }
-    if (!ret)
-      throw new Error(`Annotation not found: ${id}`);
     return ret;
   };
   
   const toolHandlerProps: ToolHandlerProps = {
     editorState: [state, updateState],
-    editorProps: props,
+    editorProps: {
+      ...props,
+      imageSize
+    },
     containerRef,
     addAnnotation,
     updateAnnotation,
@@ -220,55 +344,82 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
   };
 
   // 处理鼠标滚轮缩放
-  const handleWheel = (e: WheelEvent) => {
+  const handleWheel = useLatestCallback((e: WheelEvent) => {
     e.preventDefault();
     const delta = -e.deltaY;
-    const scaleChange = delta > 0 ? 1.1 : 0.9;
-    updateState(draft => {
-      draft.scale = Math.max(0.1, Math.min(10, draft.scale * scaleChange));
-    });
-  };
+    const scaleMode = props.scaleMode || 'wheel';
+
+    // 判断缩放还是滚动
+    const shouldScale = 
+      (scaleMode === 'wheel' && !e.ctrlKey && !e.shiftKey) || 
+      (scaleMode === 'ctrlWheel' && e.ctrlKey);
+
+    if (shouldScale) {
+      const scaleChange = delta > 0 ? 1.1 : 0.9;
+
+      // 获取鼠标相对于容器的坐标
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // 计算鼠标位置在图片上的相对位置
+      const mouseImageX = (mouseX - state.imagePosition.x) / state.imageScale;
+      const mouseImageY = (mouseY - state.imagePosition.y) / state.imageScale;
+
+      updateState(draft => {
+        draft.imageScale = Math.max(0.1, Math.min(10, draft.imageScale * scaleChange));
+        
+        // 计算新的图片位置，保持鼠标指向的图片位置不变
+        draft.imagePosition.x = mouseX - mouseImageX * draft.imageScale;
+        draft.imagePosition.y = mouseY - mouseImageY * draft.imageScale;
+      });
+    } else {
+      const moveX = e.shiftKey ? delta : 0;
+      const moveY = !e.shiftKey ? delta : 0;
+
+      updateState(draft => {
+        draft.imagePosition.x += moveX;
+        draft.imagePosition.y += moveY;
+      });
+    }
+  });
 
   // 暴露组件方法
   React.useImperativeHandle(ref, () => ({
     reset: () => {
       updateState(draft => {
-        draft.scale = initialScale;
-        draft.position = { x: 0, y: 0 };
+        draft.imageScale = initialScale;
+        draft.imagePosition = { x: 0, y: 0 };
       });
     },
     setScale: (newScale: number) => {
       updateState(draft => {
-        draft.scale = newScale;
+        draft.imageScale = newScale;
       });
     },
-    getScale: () => state.scale
+    getScale: () => state.imageScale
   }));
-
-  // 添加和移除滚轮事件监听器
-  useEffect(() => {
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('wheel', handleWheel, { passive: false });
-      return () => {
-        container.removeEventListener('wheel', handleWheel);
-      };
-    }
-  }, []);
 
   return (
     <EditorContainer
       ref={containerRef}
       isDragging={state.isDragging}
       style={{ cursor: tool === Tool.Rect ? 'crosshair' : undefined }}
+      onNativeKeyDown={props.onNativeKeyDown}
+      onNativeMouseWheel={handleWheel}
     >
-      <EditorImage
-        src={image}
-        scale={state.scale}
-        x={state.position.x}
-        y={state.position.y}
-        draggable={false}
-      />
+      {imageReady && (
+        <EditorImage
+          ref={imageRef}
+          src={image}
+          scale={state.imageScale}
+          x={state.imagePosition.x}
+          y={state.imagePosition.y}
+          onLoad={handleImageLoad}
+        />
+      )}
 
       {showCrosshair && tool === Tool.Rect && (
         <>

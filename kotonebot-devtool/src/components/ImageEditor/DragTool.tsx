@@ -22,8 +22,8 @@ function DragTool(props: ToolHandlerProps) {
         updateState(draft => {
             draft.isDragging = true;
             draft.dragStart = {
-                x: e.clientX - draft.position.x,
-                y: e.clientY - draft.position.y,
+                x: e.clientX - draft.imagePosition.x,
+                y: e.clientY - draft.imagePosition.y,
             };
         });
     });
@@ -36,7 +36,7 @@ function DragTool(props: ToolHandlerProps) {
         console.log('DragTool: handleMouseMove', e);
 
         updateState(draft => {
-            draft.position = {
+            draft.imagePosition = {
                 x: e.clientX - draft.dragStart.x,
                 y: e.clientY - draft.dragStart.y,
             };
@@ -58,10 +58,16 @@ function DragTool(props: ToolHandlerProps) {
     // 处理矩形变换
     const handleRectTransform = useLatestCallback((rectPoints: RectPoints, id: string) => {
         console.log('DragTool: handleRectTransform');
+        const rect = Convertor.rectContainer2Image({
+            x1: rectPoints.x1,
+            y1: rectPoints.y1,
+            x2: rectPoints.x2,
+            y2: rectPoints.y2,
+        });
         updateAnnotation('rect', {
             id: id,
             type: 'rect',
-            data: rectPoints,
+            data: rect,
         });
     });
 
@@ -97,6 +103,9 @@ function DragTool(props: ToolHandlerProps) {
         e.stopPropagation(); // 阻止事件冒泡到容器
         console.log('DragTool: handleRectClick', 'selectedRectId=', selectedRectId);
         setSelectedRectId(id);
+        const anno = queryAnnotation(id);
+        if (anno)
+            editorProps.onAnnotationSelected?.(anno);
     };
 
     // 点击容器，取消选中
@@ -104,6 +113,7 @@ function DragTool(props: ToolHandlerProps) {
         console.log('DragTool: handleContainerClick', 'selectedRectId=', selectedRectId, e);
         setSelectedRectId(null);
         setHoveredRectId(null);
+        editorProps.onAnnotationSelected?.(null);
     };
     // 点击容器中的非矩形区域，取消选中当前矩形
     useEffect(() => {
@@ -133,6 +143,8 @@ function DragTool(props: ToolHandlerProps) {
     const shouldShowMask = () => {
         if (!editorProps.enableMask)
             return false;
+        if (editorProps.annotations.length === 0)
+            return false;
         if (selectedRectId === null && hoveredRectId === null)
             return true;
         if (selectedRectId === hoveredRectId)
@@ -157,32 +169,56 @@ function DragTool(props: ToolHandlerProps) {
                 onNativeMouseLeave={handleRectMouseLeave}
                 onNativeClick={(e) => handleRectClick(anno.id, e)}
                 onTransform={(points) => handleRectTransform(points, anno.id)}
-                rectTip="rect"
+                rectTip={anno.tip}
                 showRectTip={hoveredRectId === anno.id && selectedRectId === null}
             />
         ));
     };
 
-    console.log('DragTool: render', editorProps.annotations);
+    let rectMask;
+    if (hoveredRectId !== null) {
+        // 当有矩形被悬停时，只显示该矩形的遮罩
+        const rect = queryAnnotation(hoveredRectId);
+        if (rect) {
+            rectMask = (
+                <RectMask
+                    rects={[{...rect.data}]}
+                    alpha={shouldShowMask() ? 0.7 : 0}
+                    transition={true}
+                    scale={state.imageScale}
+                    transform={{
+                        x: state.imagePosition.x,
+                        y: state.imagePosition.y,
+                        width: editorProps.imageSize?.width || 0,
+                        height: editorProps.imageSize?.height || 0
+                    }}
+                />
+            );
+        }
+    } else {
+        // 默认显示所有矩形的遮罩
+        rectMask = (
+            <RectMask
+                rects={editorProps.annotations?.map(anno => ({
+                    // 获取图像坐标
+                    ...anno.data
+                })) || []}
+                alpha={shouldShowMask() ? editorProps.maskAlpha : 0}
+                transition={true}
+                scale={state.imageScale}
+                transform={{
+                    x: state.imagePosition.x,
+                    y: state.imagePosition.y,
+                    width: editorProps.imageSize?.width || 0,
+                    height: editorProps.imageSize?.height || 0
+                }}
+            />
+        );
+    }
+
     return (
         <>
-            {
-                hoveredRectId !== null ? (
-                    // 当有矩形被悬停时，只显示该矩形的遮罩
-                    <RectMask
-                        rects={[Convertor.rectImage2Container(queryAnnotation(hoveredRectId)?.data)]}
-                        alpha={shouldShowMask() ? 0.7 : 0}
-                        transition={true}
-                    />
-                ) : (
-                    // 默认显示所有矩形的遮罩
-                    <RectMask
-                        rects={editorProps.annotations?.map(anno => Convertor.rectImage2Container(anno.data)) || []}
-                        alpha={shouldShowMask() ? editorProps.maskAlpha : 0}
-                        transition={true}
-                    />
-                )
-            }
+            {rectMask}
             {renderAnnotationWithHover(editorProps.annotations)}
         </>
     );

@@ -6,12 +6,17 @@ import MultipleImagesViewer from '../components/MutipleImagesViewer';
 import { useMessageBox } from '../hooks/useMessageBox';
 import { useFullscreenSpinner } from '../hooks/useFullscreenSpinner';
 import ImageEditor, { ImageEditorRef } from '../components/ImageEditor/ImageEditor';
-import { Annotation, RectPoints, Tool } from '../components/ImageEditor/types';
+import { Annotation, RectPoints, Tool as EditorTool } from '../components/ImageEditor/types';
 import RectBox from '../components/ImageEditor/RectBox';
 import RectMask from '../components/ImageEditor/RectMask';
 import FormRange from 'react-bootstrap/esm/FormRange';
 import NativeDiv from '../components/NativeDiv';
 import { AnnotationChangedEvent } from '../components/ImageEditor/ImageEditor';
+import { SideToolBar, Tool } from '../components/SideToolBar';
+import PropertyGrid, { Property, PropertyCategory } from '../components/PropertyGrid';
+import ImageViewerModal, { useImageViewerModal } from '../components/ImageViewerModal';
+import { useToast } from '../components/ToastMessage';
+
 // 布局相关的样式组件
 const DemoContainer = styled.div`
   display: flex;
@@ -239,6 +244,63 @@ function SpinnerDemo(): JSX.Element {
   );
 }
 
+// 添加 Toast 消息演示组件
+function ToastMessageDemo(): JSX.Element {
+  const { showToast, ToastComponent } = useToast();
+
+  const handleShowSuccess = () => {
+    showToast('success', '成功', '操作已成功完成！');
+  };
+
+  const handleShowError = () => {
+    showToast('danger', '错误', '操作执行失败，请重试。');
+  };
+
+  const handleShowInfo = () => {
+    showToast('info', '提示', '这是一条信息提示。');
+  };
+
+  const handleShowWarning = () => {
+    showToast('warning', '警告', '请注意，这是一条警告消息。');
+  };
+
+  const handleShowCustomDuration = () => {
+    showToast('info', '自定义时长', '这条消息会显示 10 秒钟。', 10000);
+  };
+
+  return (
+    <div>
+      <h2>Toast 消息演示</h2>
+      <ControlPanel>
+        <Button onClick={handleShowSuccess}>显示成功消息</Button>
+        <Button onClick={handleShowError}>显示错误消息</Button>
+        <Button onClick={handleShowInfo}>显示信息提示</Button>
+        <Button onClick={handleShowWarning}>显示警告消息</Button>
+        <Button onClick={handleShowCustomDuration}>显示长时消息</Button>
+      </ControlPanel>
+      {ToastComponent}
+      <div>
+        <h3>使用说明：</h3>
+        <ul>
+          <li>点击不同的按钮可以显示不同类型的 Toast 消息</li>
+          <li>每种消息类型都有其独特的颜色样式：</li>
+          <ul>
+            <li>成功消息 - 绿色</li>
+            <li>错误消息 - 红色</li>
+            <li>信息提示 - 蓝色</li>
+            <li>警告消息 - 黄色</li>
+          </ul>
+          <li>默认情况下，消息会在 3 秒后自动消失</li>
+          <li>"显示长时消息"按钮会显示一个持续 10 秒的消息</li>
+          <li>可以通过点击消息右上角的关闭按钮手动关闭消息</li>
+          <li>多个消息会按顺序堆叠显示</li>
+          <li>消息会显示在屏幕右上角</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 // 单图片查看器演示组件
 function SingleImageViewerDemo(): JSX.Element {
   const viewerRef = useRef<ImageViewerRef>(null);
@@ -370,10 +432,11 @@ function MultipleImagesViewerDemo(): JSX.Element {
 function ImageEditorDemo(): JSX.Element {
   const editorRef = useRef<ImageEditorRef>(null);
   const [showCrosshair, setShowCrosshair] = useState(false);
-  const [currentTool, setCurrentTool] = useState<Tool>(Tool.Drag);
+  const [currentTool, setCurrentTool] = useState<EditorTool>(EditorTool.Drag);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [showMask, setShowMask] = useState(true);
   const [maskAlpha, setMaskAlpha] = useState(0.5);
+  const [scaleMode, setScaleMode] = useState<'wheel' | 'ctrlWheel'>('wheel');
   const demoImage = 'https://picsum.photos/800/600';
 
   const handleEditorReset = () => {
@@ -438,6 +501,7 @@ function ImageEditorDemo(): JSX.Element {
               onAnnotationChanged={handleAnnotationChanged}
               enableMask={showMask}
               maskAlpha={maskAlpha}
+              scaleMode={scaleMode}
             />
           </ViewerContainer>
           <ControlPanel>
@@ -447,12 +511,15 @@ function ImageEditorDemo(): JSX.Element {
             <Button onClick={() => setShowCrosshair(!showCrosshair)}>
               {showCrosshair ? '隐藏准线' : '显示准线'}
             </Button>
-            <Button onClick={() => setCurrentTool(currentTool === Tool.Drag ? Tool.Rect : Tool.Drag)}>
-              {currentTool === Tool.Drag ? '切换到矩形工具' : '切换到拖动工具'}
+            <Button onClick={() => setCurrentTool(currentTool === EditorTool.Drag ? EditorTool.Rect : EditorTool.Drag)}>
+              {currentTool === EditorTool.Drag ? '切换到矩形工具' : '切换到拖动工具'}
             </Button>
             <Button onClick={handleClearAnnotations}>清除标注</Button>
             <Button onClick={() => setShowMask(!showMask)}>
               {showMask ? '隐藏遮罩' : '显示遮罩'}
+            </Button>
+            <Button onClick={() => setScaleMode(mode => mode === 'wheel' ? 'ctrlWheel' : 'wheel')}>
+              {scaleMode === 'wheel' ? '切换到Ctrl+滚轮缩放' : '切换到滚轮缩放'}
             </Button>
             <FormRange
               style={{ flex: '0 1 200px' }}
@@ -500,6 +567,11 @@ function ImageEditorDemo(): JSX.Element {
           <li>点击"清除标注"可以删除所有已绘制的矩形</li>
           <li>点击"显示遮罩"可以显示/隐藏非标注区域的遮罩</li>
           <li>使用滑块可以调整遮罩的透明度</li>
+          <li>点击"切换到Ctrl+滚轮缩放"可以切换缩放模式：</li>
+          <ul>
+            <li>滚轮缩放模式：直接使用滚轮缩放，Ctrl+滚轮上下移动，Shift+滚轮左右移动</li>
+            <li>Ctrl+滚轮缩放模式：使用Ctrl+滚轮缩放，直接滚轮上下移动，Shift+滚轮左右移动</li>
+          </ul>
         </ul>
       </div>
     </div>
@@ -678,7 +750,13 @@ function RectMaskDemo(): JSX.Element {
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           alt="Demo"
         />
-        <RectMask rects={rects} alpha={alpha} transition={enableTransition} />
+        <RectMask 
+          rects={rects} 
+          alpha={alpha} 
+          transition={enableTransition}
+          scale={1}
+          transform={{ x: 0, y: 0, width: 800, height: 600 }}
+        />
       </RectBoxContainer>
       <div>
         <h3>使用说明：</h3>
@@ -698,35 +776,64 @@ function RectMaskDemo(): JSX.Element {
 
 // NativeDiv 演示组件
 function NativeDivDemo(): JSX.Element {
-  const [events, setEvents] = useState<Array<{ type: string; time: string; position: string }>>([]);
+  const [events, setEvents] = useState<Array<{ type: string; time: string; details: string }>>([]);
+  const [wheelValue, setWheelValue] = useState(0);
 
-  const addEvent = (type: string, e: MouseEvent) => {
+  const addEvent = (type: string, details: string) => {
     const newEvent = {
       type,
       time: new Date().toLocaleTimeString(),
-      position: `(${e.clientX}, ${e.clientY})`
+      details
     };
-    setEvents(prev => [newEvent, ...prev].slice(0, 5));
+    setEvents(prev => [newEvent, ...prev].slice(0, 10));
   };
 
   const handleNativeMouseEnter = (e: MouseEvent) => {
-    addEvent('mouseenter', e);
+    addEvent('mouseenter', `位置：(${e.clientX}, ${e.clientY})`);
   };
 
   const handleNativeMouseMove = (e: MouseEvent) => {
-    addEvent('mousemove', e);
+    addEvent('mousemove', `位置：(${e.clientX}, ${e.clientY})`);
   };
 
   const handleNativeMouseLeave = (e: MouseEvent) => {
-    addEvent('mouseleave', e);
+    addEvent('mouseleave', `位置：(${e.clientX}, ${e.clientY})`);
   };
 
   const handleNativeMouseDown = (e: MouseEvent) => {
-    addEvent('mousedown', e);
+    addEvent('mousedown', `位置：(${e.clientX}, ${e.clientY})`);
   };
 
   const handleNativeClick = (e: MouseEvent) => {
-    addEvent('click', e);
+    addEvent('click', `位置：(${e.clientX}, ${e.clientY})`);
+  };
+
+  const handleNativeKeyDown = (e: KeyboardEvent) => {
+    addEvent('keydown', `按键：${e.key}，键码：${e.keyCode}，修饰键：${[
+      e.ctrlKey && 'Ctrl',
+      e.shiftKey && 'Shift',
+      e.altKey && 'Alt',
+      e.metaKey && 'Meta'
+    ].filter(Boolean).join('+') || '无'}`);
+  };
+
+  const handleNativeKeyUp = (e: KeyboardEvent) => {
+    addEvent('keyup', `按键：${e.key}，键码：${e.keyCode}，修饰键：${[
+      e.ctrlKey && 'Ctrl',
+      e.shiftKey && 'Shift',
+      e.altKey && 'Alt',
+      e.metaKey && 'Meta'
+    ].filter(Boolean).join('+') || '无'}`);
+  };
+
+  const handleNativeMouseWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY;
+    setWheelValue(prev => {
+      const newValue = prev + delta;
+      addEvent('mousewheel', `滚动值：${newValue}，增量：${delta}`);
+      return newValue;
+    });
   };
 
   return (
@@ -734,21 +841,59 @@ function NativeDivDemo(): JSX.Element {
       <h2>原生 Div 事件演示</h2>
       <NativeDivPlayground>
         <DemoNativeDiv
+          tabIndex={0}
           onNativeMouseEnter={handleNativeMouseEnter}
           onNativeMouseMove={handleNativeMouseMove}
           onNativeMouseLeave={handleNativeMouseLeave}
           onNativeClick={handleNativeClick}
           onNativeMouseDown={handleNativeMouseDown}
+          onNativeKeyDown={handleNativeKeyDown}
+          onNativeKeyUp={handleNativeKeyUp}
+          onNativeMouseWheel={handleNativeMouseWheel}
+          style={{ transform: `rotate(${wheelValue * 0.1}deg)` }}
         >
-          与我互动！
+          <div style={{ textAlign: 'center' }}>
+            <div>与我互动！</div>
+            <small style={{ 
+              fontSize: '0.8em', 
+              display: 'block',
+              marginTop: '8px',
+              color: 'rgba(255, 255, 255, 0.8)'
+            }}>
+              点击获取焦点
+              <br />
+              然后按键盘或滚动鼠标
+            </small>
+            <div style={{
+              fontSize: '0.8em',
+              marginTop: '8px',
+              color: 'rgba(255, 255, 255, 0.8)'
+            }}>
+              滚动值：{wheelValue.toFixed(0)}
+            </div>
+          </div>
         </DemoNativeDiv>
       </NativeDivPlayground>
       <div style={{ marginTop: '20px' }}>
         <h3>最近的事件：</h3>
-        <ul>
+        <ul style={{ 
+          listStyle: 'none',
+          padding: 0,
+          margin: 0,
+          maxHeight: '200px',
+          overflowY: 'auto',
+          border: '1px solid #ddd',
+          borderRadius: '4px'
+        }}>
           {events.map((event, index) => (
-            <li key={index}>
-              {event.type} - 时间：{event.time} - 位置：{event.position}
+            <li key={index} style={{
+              padding: '8px',
+              borderBottom: index < events.length - 1 ? '1px solid #eee' : 'none',
+              backgroundColor: index === 0 ? '#f5f5f5' : 'transparent'
+            }}>
+              <strong>{event.type}</strong> - {event.time}
+              <br />
+              <span style={{ color: '#666', fontSize: '0.9em' }}>{event.details}</span>
             </li>
           ))}
         </ul>
@@ -761,12 +906,383 @@ function NativeDivDemo(): JSX.Element {
           <li>在方块内移动鼠标来触发 mousemove 事件</li>
           <li>将鼠标移出方块来触发 mouseleave 事件</li>
           <li>点击方块来触发 click 事件</li>
-          <li>所有事件都会显示在下方的列表中，包括触发时间和鼠标位置</li>
+          <li><strong>点击方块获取焦点后，按下键盘按键来触发 keydown 和 keyup 事件</strong></li>
+          <li><strong>在方块上滚动鼠标滚轮来旋转方块，并触发 mousewheel 事件</strong></li>
+          <li>所有事件都会显示在下方的列表中，包括：</li>
+          <ul>
+            <li>事件类型和触发时间</li>
+            <li>鼠标事件：鼠标位置坐标</li>
+            <li>键盘事件：按键名称、键码和修饰键状态</li>
+            <li>滚轮事件：滚动值和增量</li>
+          </ul>
         </ul>
       </div>
     </div>
   );
 }
+
+// 添加 SideToolBar 演示组件
+function SideToolBarDemo(): JSX.Element {
+  const [count, setCount] = useState(0);
+  const [selectedToolId, setSelectedToolId] = useState<string | undefined>(undefined);
+
+  const handleToolSelect = (id: string) => {
+    setSelectedToolId(id);
+  };
+
+  const tools: Array<Tool | 'separator'> = [
+    {
+      id: 'select',
+      icon: <i className="bi bi-hand-index"></i>,
+      title: '选择工具',
+      selectable: true,
+      onClick: () => {
+      }
+    },
+    {
+      id: 'crop',
+      icon: <i className="bi bi-crop"></i>,
+      title: '裁剪工具',
+      selectable: true,
+      onClick: () => {
+      }
+    },
+    'separator',
+    {
+      id: 'add',
+      icon: <i className="bi bi-plus-lg"></i>,
+      title: '添加',
+      selectable: false,
+      onClick: () => {
+        setCount(prev => prev + 1);
+      }
+    },
+    {
+      id: 'subtract',
+      icon: <i className="bi bi-dash-lg"></i>,
+      title: '减少',
+      selectable: false,
+      onClick: () => {
+        setCount(prev => prev - 1);
+      }
+    },
+    'separator',
+    {
+      id: 'reset',
+      icon: <i className="bi bi-arrow-clockwise"></i>,
+      title: '重置',
+      selectable: false,
+      onClick: () => {
+        setCount(0);
+      }
+    }
+  ];
+
+  return (
+    <div>
+      <h2>工具栏演示</h2>
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '20px' }}>
+        <SideToolBar 
+          tools={tools} 
+          selectedToolId={selectedToolId}
+          onSelectTool={handleToolSelect}
+        />
+        <div>
+          <h3>计数器: {count}</h3>
+          <p>使用加号和减号按钮来改变计数器的值</p>
+          <p>当前选中的工具ID: {selectedToolId || '无'}</p>
+          <p>提示：只有选择工具和裁剪工具是可选择的，其他工具点击后不会保持选中状态</p>
+        </div>
+      </div>
+      <div style={{ marginTop: '20px' }}>
+        <h3>使用说明：</h3>
+        <ul>
+          <li>工具栏包含了多个工具按钮和分隔符</li>
+          <li>鼠标悬停在按钮上会显示工具提示</li>
+          <li>点击按钮会触发相应的操作</li>
+          <li>只有 selectable=true 的工具（选择工具和裁剪工具）可以保持选中状态</li>
+          <li>其他工具（加号、减号、重置）点击后不会保持选中状态</li>
+          <li>分隔符用于分组相关的工具</li>
+          <li>工具栏支持垂直布局和自定义样式</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// PropertyGrid 演示组件
+function PropertyGridDemo(): JSX.Element {
+  const [text, setText] = useState('示例文本');
+  const [number, setNumber] = useState(42);
+  const [color, setColor] = useState('#4a90e2');
+  const [checked, setChecked] = useState(false);
+  const [selected, setSelected] = useState('option1');
+  const [petName, setPetName] = useState('Kotone');
+  const [favoriteColor, setFavoriteColor] = useState('Blue');
+  const [firstName, setFirstName] = useState('John');
+  const [notes, setNotes] = useState('这是一段备注信息...');
+
+  const properties: Array<Property | PropertyCategory> = [
+    // 无分类的单独属性
+    {
+      title: '快速设置',
+      render: () => (
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button onClick={() => setChecked(!checked)}>
+            {checked ? '禁用' : '启用'}
+          </Button>
+          <Button onClick={() => setNumber(prev => prev + 1)}>
+            数值 +1
+          </Button>
+        </div>
+      )
+    },
+    // 无标题的全宽属性
+    {
+      render: () => (
+        <div style={{ 
+          padding: '8px', 
+          background: '#fff9e6', 
+          borderRadius: '4px',
+          fontSize: '14px',
+          color: '#666'
+        }}>
+          提示：可以通过点击分类标题来展开或折叠属性组。
+        </div>
+      )
+    },
+    {
+      title: '连接设置',
+      properties: [
+        {
+          title: '宠物名称',
+          render: () => (
+            <input
+              type="text"
+              value={petName}
+              onChange={(e) => setPetName(e.target.value)}
+              style={{ width: '100%', padding: '4px' }}
+            />
+          )
+        }
+      ],
+      foldable: true
+    },
+    // 又一个无分类的属性
+    {
+      title: '状态',
+      render: () => (
+        <span style={{ 
+          padding: '4px 8px',
+          borderRadius: '4px',
+          backgroundColor: checked ? '#e6ffe6' : '#ffe6e6',
+          color: checked ? '#006600' : '#cc0000'
+        }}>
+          {checked ? '已启用' : '已禁用'}
+        </span>
+      )
+    },
+    {
+      title: '基本信息',
+      properties: [
+        {
+          title: '喜欢的颜色',
+          render: () => (
+            <input
+              type="text"
+              value={favoriteColor}
+              onChange={(e) => setFavoriteColor(e.target.value)}
+              style={{ width: '100%', padding: '4px' }}
+            />
+          )
+        },
+        {
+          title: '名字',
+          render: () => (
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              style={{ width: '100%', padding: '4px' }}
+            />
+          )
+        },
+        // 分类中的无标题属性
+        {
+          render: () => (
+            <div style={{
+              padding: '8px',
+              background: '#f0f0f0',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}>
+              这是基本信息分类中的一条说明文本。
+            </div>
+          )
+        }
+      ],
+      foldable: true
+    },
+    {
+      title: '其他设置',
+      properties: [
+        {
+          title: '文本输入',
+          render: () => (
+            <input
+              type="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              style={{ width: '100%', padding: '4px' }}
+            />
+          )
+        },
+        {
+          title: '数字输入',
+          render: () => (
+            <input
+              type="number"
+              value={number}
+              onChange={(e) => setNumber(Number(e.target.value))}
+              style={{ width: '100px', padding: '4px' }}
+            />
+          )
+        },
+        {
+          title: '颜色选择',
+          render: () => (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+              />
+              <span>{color}</span>
+            </div>
+          )
+        },
+        {
+          title: '复选框',
+          render: () => (
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+            />
+          )
+        },
+        {
+          title: '超长文本',
+          render: () => (
+            <div style={{ width: '100%', height: '100px', backgroundColor: '#f0f0f0' }}>
+              {Array(100).fill("这是一个超长文本，用于测试PropertyGrid的折叠功能。").join("")}
+            </div>
+          )
+        }
+      ],
+      foldable: true
+    },
+    // 最后添加一个备注输入框
+    {
+      title: '备注',
+      render: () => (
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          style={{ 
+            width: '100%', 
+            padding: '4px',
+            minHeight: '60px',
+            resize: 'vertical'
+          }}
+        />
+      )
+    }
+  ];
+
+  return (
+    <div>
+      <h2>属性网格演示</h2>
+      <div style={{ maxWidth: '600px', marginTop: '20px' }}>
+        <PropertyGrid properties={properties} />
+      </div>
+      <div style={{ marginTop: '20px' }}>
+        <h3>当前值：</h3>
+        <pre style={{ 
+          backgroundColor: '#f5f5f5', 
+          padding: '15px', 
+          borderRadius: '4px' 
+        }}>
+{JSON.stringify({
+  petName,
+  favoriteColor,
+  firstName,
+  text,
+  number,
+  color,
+  checked,
+  selected,
+  notes
+}, null, 2)}
+        </pre>
+      </div>
+      <div>
+        <h3>使用说明：</h3>
+        <ul>
+          <li>PropertyGrid 组件用于展示和编辑一组属性</li>
+          <li>属性可以按类别分组显示，也可以单独显示</li>
+          <li>属性可以有标题，也可以占据整行显示</li>
+          <li>每个类别有自己的标题栏</li>
+          <li>可折叠的类别可以通过点击标题栏来展开/折叠</li>
+          <li>支持在分类中和分类外混合显示属性</li>
+          <li>支持各种类型的输入控件：文本框、数字输入、颜色选择器等</li>
+          <li>可以通过 render 函数自定义属性的展示方式</li>
+          <li>所有的属性值改变都会实时反映在下方的当前值显示中</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ImageViewerModal 演示组件
+function ImageViewerModalDemo(): JSX.Element {
+  const { modal, openModal } = useImageViewerModal('示例图片');
+  const demoImage = 'https://picsum.photos/1920/1080';
+
+  return (
+    <div>
+      <h2>图片查看器模态框演示</h2>
+      <ControlPanel>
+        <Button onClick={() => openModal(demoImage)}>打开图片</Button>
+      </ControlPanel>
+      {modal}
+      <div>
+        <h3>使用说明：</h3>
+        <ul>
+          <li>点击"打开图片"按钮显示图片查看器模态框</li>
+          <li>在模态框中可以使用鼠标拖动和滚轮缩放图片</li>
+          <li>使用底部工具栏的按钮可以：</li>
+          <ul>
+            <li>放大/缩小图片</li>
+            <li>将图片缩放到适合容器大小</li>
+            <li>重置图片缩放</li>
+          </ul>
+          <li>点击右上角的 X 按钮或按 ESC 键关闭模态框</li>
+          <li>模态框支持设置标题，当前显示为"示例图片"</li>
+          <li>模态框使用半透明背景，可以隐约看到背景内容</li>
+          <li>使用 useImageViewerModal Hook 可以更方便地集成此组件</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const GlobalStyle = styled.div`
+  .modal-90w {
+    width: 90vw;
+    max-width: 90vw !important;
+  }
+`;
 
 // 主Demo组件
 function Demo() {
@@ -777,40 +1293,47 @@ function Demo() {
   const demos = [
     { id: 'messageBox', name: '消息框', component: MessageBoxDemo },
     { id: 'spinner', name: '加载动画', component: SpinnerDemo },
+    { id: 'toast', name: 'Toast 消息', component: ToastMessageDemo },
     { id: 'singleViewer', name: '单图片查看器', component: SingleImageViewerDemo },
     { id: 'multipleViewer', name: '多图片查看器', component: MultipleImagesViewerDemo },
+    { id: 'imageViewerModal', name: '图片查看器模态框', component: ImageViewerModalDemo },
     { id: 'rectBox', name: '矩形框', component: RectBoxDemo },
     { id: 'rectMask', name: '遮罩层', component: RectMaskDemo },
     { id: 'imageEditor', name: '图片标注器', component: ImageEditorDemo },
-    { id: 'nativeDiv', name: '原生 Div', component: NativeDivDemo }
+    { id: 'nativeDiv', name: '原生 Div', component: NativeDivDemo },
+    { id: 'sideToolBar', name: '工具栏', component: SideToolBarDemo },
+    { id: 'propertyGrid', name: '属性网格', component: PropertyGridDemo }
   ];
 
   return (
-    <DemoContainer>
-      <Sidebar>
-        {demos.map(demo => (
-          <MenuItem
-            key={demo.id}
-            active={currentDemo === demo.id}
-            onClick={() => navigate(`/demo/${demo.id}`)}
-          >
-            {demo.name}
-          </MenuItem>
-        ))}
-      </Sidebar>
-      <Content>
-        <Routes>
-          <Route path="/" element={<Navigate to="/demo/messageBox" replace />} />
+    <>
+      <GlobalStyle />
+      <DemoContainer>
+        <Sidebar>
           {demos.map(demo => (
-            <Route 
+            <MenuItem
               key={demo.id}
-              path={`${demo.id}`}
-              element={<demo.component />}
-            />
+              active={currentDemo === demo.id}
+              onClick={() => navigate(`/demo/${demo.id}`)}
+            >
+              {demo.name}
+            </MenuItem>
           ))}
-        </Routes>
-      </Content>
-    </DemoContainer>
+        </Sidebar>
+        <Content>
+          <Routes>
+            <Route path="/" element={<Navigate to="/demo/messageBox" replace />} />
+            {demos.map(demo => (
+              <Route 
+                key={demo.id}
+                path={`${demo.id}`}
+                element={<demo.component />}
+              />
+            ))}
+          </Routes>
+        </Content>
+      </DemoContainer>
+    </>
   );
 }
 
