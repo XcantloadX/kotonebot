@@ -5,12 +5,11 @@ import PropertyGrid, { Property, PropertyCategory } from '../../components/Prope
 import ImageEditor, { AnnotationChangedEvent } from '../../components/ImageEditor/ImageEditor';
 import { Annotation, Tool as EditorTool } from '../../components/ImageEditor/types';
 import { BsCursor, BsSquare, BsFolder2Open, BsUpload, BsFloppy, BsDownload } from 'react-icons/bs';
-import { useImmer } from 'use-immer';
+import useImageMetaData, { Definition, DefinitionType, ImageMetaData, TemplateDefinition, Definitions } from '../../hooks/useImageMetaData';
 import { useImageViewerModal } from '../../components/ImageViewerModal';
 import { useMessageBox } from '../../hooks/useMessageBox';
 import { useToast } from '../../components/ToastMessage';
 import DragArea from './DragArea';
-import { Definitions, ImageMetaData, TemplateDefinition, DefinitionType } from './types';
 import { cropImage, openFileWFS, openFileInput, downloadJSONToFile, readFileAsJSON, readFileAsDataURL, FileResult, saveFileWFS } from '../../utils/fileUtils';
 import NativeDiv from '../../components/NativeDiv';
 
@@ -167,7 +166,11 @@ const usePropertyGridData = (
     }
 
     const definition = definitions[selectedAnnotation.id];
+    if (!definition) {
+        return [];
+    }
     const { x1, y1, x2, y2 } = selectedAnnotation.data;
+
 
     const generalProperties: Array<PropertyCategory | Property> = [
         {
@@ -278,10 +281,7 @@ const usePropertyGridData = (
 
 const ImageAnnotation: React.FC = () => {
     const [currentTool, setCurrentTool] = useState<EditorTool>(EditorTool.Drag);
-    const [imageMetaData, updateImageMetaData] = useImmer<ImageMetaData>({
-        definitions: {},
-        annotations: [],
-    });
+    const { imageMetaData, Definitions, Annotations, clear, load } = useImageMetaData();
     const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
     const [isDirty, setIsDirty] = useState(false);
     const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -306,14 +306,11 @@ const ImageAnnotation: React.FC = () => {
         setImageUrl(newImageUrl);
         if (shouldClearMetaData) {
             // 只有在不是同时加载 meta 数据时才清空标注
-            updateImageMetaData(draft => {
-                draft.annotations = [];
-                draft.definitions = {};
-            });
+            clear();
             setSelectedAnnotation(null);
             setIsDirty(false);
         }
-    }, []);
+    }, [clear]);
 
     const handleAnnotationChange = (e: AnnotationChangedEvent) => {
         if (e.type === 'add') {
@@ -325,40 +322,26 @@ const ImageAnnotation: React.FC = () => {
                 showToast('danger', '错误', '无法识别的标注类型');
                 return;
             }
-            updateImageMetaData(draft => {
-                draft.annotations.push(e.annotation);
-                draft.definitions[e.annotation.id] = {
-                    name: '',
-                    displayName: '',
-                    type: type,
-                    annotationId: e.annotation.id,
-                    path: '',
-                    useHintRect: false,
-                } as TemplateDefinition;
-            });
+            Annotations.add(e.annotation);
+            Definitions.add({
+                name: '',
+                displayName: '',
+                type: type,
+                annotationId: e.annotation.id,
+                useHintRect: false,
+            } as TemplateDefinition);
             setIsDirty(true);
         } else if (e.type === 'update') {
-            updateImageMetaData(draft => {
-                const oldAnnotation = draft.annotations.find(a => a.id === e.annotation.id);
-                if (!oldAnnotation) return;
-                Object.assign(oldAnnotation, e.annotation);
-            });
+            Annotations.update(e.annotation);
             if (selectedAnnotation?.id === e.annotation.id) {
                 setSelectedAnnotation(e.annotation);
             }
             setIsDirty(true);
         } else if (e.type === 'remove') {
-            updateImageMetaData(draft => {
-                const index = draft.annotations.findIndex(a => a.id === e.annotation.id);
-                if (index !== -1) {
-                    draft.annotations.splice(index, 1);
-                }
-            });
+            Annotations.remove(e.annotation.id);
             if (selectedAnnotation?.id === e.annotation.id) {
                 setSelectedAnnotation(null);
-                updateImageMetaData(draft => {
-                    delete draft.definitions[e.annotation.id];
-                });
+                Definitions.remove(e.annotation.id);
             }
             setIsDirty(true);
         }
@@ -396,11 +379,9 @@ const ImageAnnotation: React.FC = () => {
             if (jsonFile) {
                 currentFileResult.current = jsonFile;
                 try {
-                    const metaData = await readFileAsJSON(jsonFile.file);
-                    updateImageMetaData(draft => {
-                        draft.annotations = metaData?.annotations || [];
-                        draft.definitions = metaData?.definitions || {};
-                    });
+                    const metaData = await readFileAsJSON(jsonFile.file) as ImageMetaData;
+                    // 使用统一的 load 方法载入数据
+                    load(metaData);
                 } catch (error) {
                     console.error('Failed to parse JSON file:', error);
                     throw new Error('JSON文件格式错误，无法加载。');
@@ -421,8 +402,9 @@ const ImageAnnotation: React.FC = () => {
             });
             showToast('danger', '加载失败', '无法加载文件');
         }
-    }, [handleImageLoad, isDirty, yesNo, showToast, updateImageMetaData]);
+    }, [handleImageLoad, isDirty, yesNo, showToast, load]);
 
+    console.log(imageMetaData);
     const handleUpload = useCallback(async () => {
         await handleOpen(false);
     }, [handleOpen]);
@@ -483,16 +465,21 @@ const ImageAnnotation: React.FC = () => {
     };
 
     const handleDefinitionChange = (id: string, changes: Partial<TemplateDefinition>) => {
-        updateImageMetaData(draft => {
-            Object.assign(draft.definitions[id], changes);
-            const oldDef = draft.definitions[id];
-            const annotation = draft.annotations.find(a => a.id === id);
-            const displayName = changes.displayName || oldDef.displayName;
-            const name = changes.name || oldDef.name;
-            if (oldDef && annotation) {
-                annotation.tip = <Tip>{displayName} ({name})</Tip>;
-            }
+        Definitions.update({
+            ...changes,
+            annotationId: id
         });
+        
+        // 更新标注的提示文本
+        const definition = imageMetaData.definitions[id];
+        const displayName = changes.displayName || definition.displayName;
+        const name = changes.name || definition.name;
+        if (definition) {
+            Annotations.update({
+                id,
+                tip: <Tip>{displayName} ({name})</Tip>
+            });
+        }
     };
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {

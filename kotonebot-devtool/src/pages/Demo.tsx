@@ -12,10 +12,14 @@ import RectMask from '../components/ImageEditor/RectMask';
 import FormRange from 'react-bootstrap/esm/FormRange';
 import NativeDiv from '../components/NativeDiv';
 import { AnnotationChangedEvent } from '../components/ImageEditor/ImageEditor';
-import { SideToolBar, Tool } from '../components/SideToolBar';
+import { SideToolBar } from '../components/SideToolBar';
+import type { Tool as SideBarTool } from '../components/SideToolBar';
 import PropertyGrid, { Property, PropertyCategory } from '../components/PropertyGrid';
 import ImageViewerModal, { useImageViewerModal } from '../components/ImageViewerModal';
 import { useToast } from '../components/ToastMessage';
+import VSToolBar, { Tool, ToolBarItem, DropdownOption } from '../components/VSToolBar';
+import { Splitable } from '../components/Splitable';
+import { useFormModal } from '../hooks/useFormModal';
 
 // 布局相关的样式组件
 const DemoContainer = styled.div`
@@ -29,6 +33,8 @@ const Sidebar = styled.div`
   background-color: #f5f5f5;
   padding: 20px;
   border-right: 1px solid #ddd;
+  overflow-y: auto;
+  height: 100vh;
 `;
 
 const Content = styled.div`
@@ -930,7 +936,7 @@ function SideToolBarDemo(): JSX.Element {
     setSelectedToolId(id);
   };
 
-  const tools: Array<Tool | 'separator'> = [
+  const tools: Array<SideBarTool | 'separator'> = [
     {
       id: 'select',
       icon: <i className="bi bi-hand-index"></i>,
@@ -1277,6 +1283,404 @@ function ImageViewerModalDemo(): JSX.Element {
   );
 }
 
+// VSToolBar 演示组件
+function VSToolBarDemo(): JSX.Element {
+  const [count, setCount] = useState(0);
+  const [currentAlign, setCurrentAlign] = useState<'left' | 'center' | 'right'>('left');
+  const [autoSave, setAutoSave] = useState(false);
+  const [selectedCPU, setSelectedCPU] = useState<string>('any');
+  const [selectedOS, setSelectedOS] = useState<string>('win');
+  const [selectedTool, setSelectedTool] = useState<string>('select');
+
+  const cpuOptions: DropdownOption[] = [
+    { value: 'any', label: 'Any CPU' },
+    { value: 'x86', label: 'x86' },
+    { value: 'x64', label: 'x64' },
+    { value: 'arm', label: 'ARM' },
+    { value: 'arm64', label: 'ARM64' }
+  ];
+
+  const osOptions: DropdownOption[] = [
+    { value: 'win', label: 'Windows' },
+    { value: 'mac', label: 'macOS' },
+    { value: 'linux', label: 'Linux' }
+  ];
+
+  return (
+    <div>
+      <h2>VS工具栏演示</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <select 
+            value={currentAlign} 
+            onChange={(e) => setCurrentAlign(e.target.value as 'left' | 'center' | 'right')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '4px',
+              border: '1px solid #ccc',
+              fontSize: '14px'
+            }}
+          >
+            <option value="left">左对齐</option>
+            <option value="center">居中对齐</option>
+            <option value="right">右对齐</option>
+          </select>
+        </div>
+
+        <VSToolBar align={currentAlign}>
+          <VSToolBar.Button
+            id="select"
+            icon={<i className="bi bi-cursor" />}
+            label="选择"
+            selected={selectedTool === 'select'}
+            onClick={() => setSelectedTool('select')}
+          />
+          <VSToolBar.Button
+            id="move"
+            icon={<i className="bi bi-arrows-move" />}
+            label="移动"
+            selected={selectedTool === 'move'}
+            onClick={() => setSelectedTool('move')}
+          />
+          <VSToolBar.Button
+            id="rotate"
+            icon={<i className="bi bi-arrow-clockwise" />}
+            label="旋转"
+            selected={selectedTool === 'rotate'}
+            onClick={() => setSelectedTool('rotate')}
+          />
+          <VSToolBar.Separator />
+          <VSToolBar.Button
+            id="debug"
+            icon={<i className="bi bi-bug" />}
+            label="调试"
+            disabled={count === 0}
+            onClick={() => alert('开始调试')}
+          />
+          <VSToolBar.Button
+            id="run"
+            icon={<i className="bi bi-play-fill" />}
+            label="运行"
+            disabled={count === 0}
+            onClick={() => alert('开始运行')}
+          />
+          <VSToolBar.Separator />
+          <VSToolBar.Dropdown
+            id="cpu"
+            type="dropdown"
+            options={cpuOptions}
+            value={selectedCPU}
+            onChange={setSelectedCPU}
+            title="选择CPU架构"
+          />
+          <VSToolBar.Dropdown
+            id="os"
+            type="dropdown"
+            options={osOptions}
+            value={selectedOS}
+            onChange={setSelectedOS}
+            title="选择操作系统"
+          />
+          <VSToolBar.Separator />
+          <VSToolBar.Button
+            id="add"
+            icon={<i className="bi bi-plus-lg" />}
+            title="增加计数"
+            onClick={() => setCount(prev => prev + 1)}
+          />
+          <VSToolBar.Button
+            id="subtract"
+            icon={<i className="bi bi-dash-lg" />}
+            title="减少计数"
+            disabled={count === 0}
+            onClick={() => setCount(prev => prev - 1)}
+          />
+          <VSToolBar.Separator />
+          <VSToolBar.Button
+            id="reset"
+            icon={<i className="bi bi-arrow-clockwise" />}
+            label="重置计数"
+            disabled={count === 0}
+            onClick={() => setCount(0)}
+          />
+          <div style={{ 
+            marginLeft: '8px',
+            fontSize: '13px',
+            color: '#666'
+          }}>
+            计数: {count}
+          </div>
+          <VSToolBar.Separator />
+          <VSToolBar.Checkbox
+            id="auto-save"
+            label="自动保存"
+            checked={autoSave}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAutoSave(e.target.checked)}
+          />
+        </VSToolBar>
+
+        <div style={{ 
+          marginTop: '20px',
+          padding: '15px',
+          backgroundColor: '#f5f5f5',
+          borderRadius: '4px'
+        }}>
+          <h4 style={{ margin: '0 0 10px 0' }}>当前选择：</h4>
+          <div>当前工具: {selectedTool}</div>
+          <div>CPU架构: {cpuOptions.find(opt => opt.value === selectedCPU)?.label}</div>
+          <div>操作系统: {osOptions.find(opt => opt.value === selectedOS)?.label}</div>
+          <div>计数器: {count}</div>
+          <div>自动保存: {autoSave ? '开启' : '关闭'}</div>
+        </div>
+
+        <div style={{ marginTop: '20px' }}>
+          <h3>使用说明：</h3>
+          <ul>
+            <li>工具栏支持三种对齐方式：</li>
+            <ul>
+              <li>左对齐（默认）：工具栏项目靠左排列</li>
+              <li>居中对齐：工具栏项目居中排列</li>
+              <li>右对齐：工具栏项目靠右排列</li>
+            </ul>
+            <li>工具栏项目包括：</li>
+            <ul>
+              <li>可选择的工具按钮（选择、移动、旋转）- 点击后会保持选中状态</li>
+              <li>禁用状态的按钮（当计数为0时，调试和运行按钮被禁用）</li>
+              <li>带图标和文字的按钮</li>
+              <li>只带图标的按钮（如"增加"、"减少"）- 悬停时显示提示文本</li>
+              <li>下拉菜单（如"CPU架构"、"操作系统"）</li>
+              <li>分隔符用于分组相关功能</li>
+              <li>复选框用于开关类选项</li>
+              <li>自定义内容（如计数器显示）</li>
+            </ul>
+            <li>按钮状态：</li>
+            <ul>
+              <li>选中状态：背景色变深，hover时颜色更深</li>
+              <li>禁用状态：文字变灰，透明度降低，不可点击</li>
+              <li>普通状态：透明背景，hover时背景色变浅</li>
+            </ul>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 添加 Splitable 演示组件
+function SplitableDemo(): JSX.Element {
+  const [direction, setDirection] = useState<'horizontal' | 'vertical'>('horizontal');
+  const [panelCount, setPanelCount] = useState(2);
+
+  const panels = Array.from({ length: panelCount }, (_, i) => (
+    <div
+      key={i}
+      style={{
+        height: '100%',
+        padding: '1rem',
+        backgroundColor: i % 2 === 0 ? '#f8f9fa' : '#e9ecef',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '1.25rem',
+        color: '#495057'
+      }}
+    >
+      面板 {i + 1}
+    </div>
+  ));
+
+  return (
+    <div>
+      <h2>可分割面板演示</h2>
+      <ControlPanel>
+        <Button onClick={() => setDirection(d => d === 'horizontal' ? 'vertical' : 'horizontal')}>
+          切换方向 ({direction === 'horizontal' ? '水平' : '垂直'})
+        </Button>
+        <Button onClick={() => setPanelCount(c => Math.min(c + 1, 5))}>
+          添加面板
+        </Button>
+        <Button onClick={() => setPanelCount(c => Math.max(c - 1, 2))}>
+          移除面板
+        </Button>
+      </ControlPanel>
+      <div style={{ 
+        height: '500px', 
+        border: '1px solid #dee2e6',
+        borderRadius: '4px',
+        overflow: 'hidden'
+      }}>
+        <Splitable vertical={direction === 'vertical'}>
+          {panels}
+        </Splitable>
+      </div>
+      <div>
+        <h3>使用说明：</h3>
+        <ul>
+          <li>可以通过按钮切换面板的分割方向：</li>
+          <ul>
+            <li>水平方向：面板左右排列</li>
+            <li>垂直方向：面板上下排列</li>
+          </ul>
+          <li>可以动态添加或移除面板（2-5个）</li>
+          <li>每个面板之间都有一个可拖动的分隔条</li>
+          <li>最后一个面板可以通过右上角（或底部）的按钮折叠/展开</li>
+          <li>拖动分隔条时会显示蓝色的指示器</li>
+          <li>面板内容会自动适应容器大小</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// 添加 FormModal 演示组件
+function FormModalDemo(): JSX.Element {
+  const [results, setResults] = useState<Array<{ time: string; data: Record<string, string> | null }>>([]);
+
+  const simpleForm = useFormModal([
+    {
+      type: 'text',
+      label: '用户名',
+      name: 'username',
+      required: true,
+      placeholder: '请输入用户名'
+    },
+    {
+      type: 'password',
+      label: '密码',
+      name: 'password',
+      required: true,
+      validator: (value) => value.length >= 6 || '密码长度至少为6位',
+      placeholder: '请输入密码'
+    }
+  ]);
+
+  const advancedForm = useFormModal([
+    {
+      type: 'text',
+      label: '姓名',
+      name: 'name',
+      required: true,
+      placeholder: '请输入姓名'
+    },
+    {
+      type: 'email',
+      label: '邮箱',
+      name: 'email',
+      required: true,
+      validator: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || '请输入有效的邮箱地址',
+      placeholder: 'example@domain.com'
+    },
+    {
+      type: 'number',
+      label: '年龄',
+      name: 'age',
+      validator: (value) => {
+        const age = parseInt(value);
+        return (age >= 18 && age <= 100) || '年龄必须在18-100之间';
+      },
+      placeholder: '请输入年龄'
+    },
+    {
+      type: 'textarea',
+      label: '简介',
+      name: 'bio',
+      placeholder: '请输入个人简介'
+    }
+  ]);
+
+  const handleShowSimpleForm = async () => {
+    const result = await simpleForm.show('登录');
+    setResults(prev => [{
+      time: new Date().toLocaleTimeString(),
+      data: result
+    }, ...prev]);
+  };
+
+  const handleShowAdvancedForm = async () => {
+    const result = await advancedForm.show('用户注册');
+    setResults(prev => [{
+      time: new Date().toLocaleTimeString(),
+      data: result
+    }, ...prev]);
+  };
+
+  return (
+    <div>
+      <h2>表单对话框演示</h2>
+      <ControlPanel>
+        <Button onClick={handleShowSimpleForm}>显示简单表单</Button>
+        <Button onClick={handleShowAdvancedForm}>显示高级表单</Button>
+      </ControlPanel>
+      {simpleForm.modal}
+      {advancedForm.modal}
+      
+      <div style={{ marginTop: '20px' }}>
+        <h3>表单提交历史：</h3>
+        {results.length === 0 ? (
+          <div style={{ color: '#666', padding: '10px' }}>
+            暂无提交记录
+          </div>
+        ) : (
+          <div style={{ 
+            maxHeight: '300px', 
+            overflowY: 'auto',
+            border: '1px solid #dee2e6',
+            borderRadius: '4px'
+          }}>
+            {results.map((result, index) => (
+              <div key={index} style={{
+                padding: '10px',
+                borderBottom: index < results.length - 1 ? '1px solid #dee2e6' : 'none',
+                backgroundColor: index % 2 === 0 ? '#f8f9fa' : 'white'
+              }}>
+                <div style={{ marginBottom: '5px', color: '#666' }}>
+                  提交时间：{result.time}
+                </div>
+                {result.data === null ? (
+                  <div style={{ color: '#dc3545' }}>用户取消了操作</div>
+                ) : (
+                  <pre style={{ margin: 0, fontSize: '0.9em' }}>
+                    {JSON.stringify(result.data, null, 2)}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h3>使用说明：</h3>
+        <ul>
+          <li>简单表单演示：</li>
+          <ul>
+            <li>包含基本的用户名和密码字段</li>
+            <li>用户名为必填项</li>
+            <li>密码必须至少6位</li>
+          </ul>
+          <li>高级表单演示：</li>
+          <ul>
+            <li>包含更多字段类型：文本、邮箱、数字、文本区域</li>
+            <li>演示了不同类型的验证：</li>
+            <ul>
+              <li>必填项验证</li>
+              <li>邮箱格式验证</li>
+              <li>数字范围验证</li>
+            </ul>
+          </ul>
+          <li>表单特性：</li>
+          <ul>
+            <li>支持字段验证和错误提示</li>
+            <li>可以通过点击取消按钮或关闭图标来取消操作</li>
+            <li>提交的数据会显示在下方的历史记录中</li>
+            <li>支持异步/Promise方式获取表单结果</li>
+          </ul>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 const GlobalStyle = styled.div`
   .modal-90w {
     width: 90vw;
@@ -1294,6 +1698,7 @@ function Demo() {
     { id: 'messageBox', name: '消息框', component: MessageBoxDemo },
     { id: 'spinner', name: '加载动画', component: SpinnerDemo },
     { id: 'toast', name: 'Toast 消息', component: ToastMessageDemo },
+    { id: 'formModal', name: '表单对话框', component: FormModalDemo },
     { id: 'singleViewer', name: '单图片查看器', component: SingleImageViewerDemo },
     { id: 'multipleViewer', name: '多图片查看器', component: MultipleImagesViewerDemo },
     { id: 'imageViewerModal', name: '图片查看器模态框', component: ImageViewerModalDemo },
@@ -1302,7 +1707,9 @@ function Demo() {
     { id: 'imageEditor', name: '图片标注器', component: ImageEditorDemo },
     { id: 'nativeDiv', name: '原生 Div', component: NativeDivDemo },
     { id: 'sideToolBar', name: '工具栏', component: SideToolBarDemo },
-    { id: 'propertyGrid', name: '属性网格', component: PropertyGridDemo }
+    { id: 'propertyGrid', name: '属性网格', component: PropertyGridDemo },
+    { id: 'vsToolBar', name: 'VS工具栏', component: VSToolBarDemo },
+    { id: 'splitable', name: '可分割面板', component: SplitableDemo }
   ];
 
   return (

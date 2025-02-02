@@ -284,3 +284,22 @@ export const saveImageWithHandle = async (handle: FileSystemFileHandle, imageDat
     }
     await saveFileWFS(handle, imageData);
 };
+
+/**
+ * 使用 Web File System API 打开文件夹
+ * @returns 文件夹的 FileSystemDirectoryHandle，如果用户取消则返回 null
+ */
+export const openDirectory = async (): Promise<FileSystemDirectoryHandle | null> => {
+    try {
+        // @ts-ignore - FileSystemHandle API 可能在某些环境下不支持
+        const handle = await window.showDirectoryPicker({
+            mode: 'read'
+        });
+        return handle;
+    } catch (error) {
+        if ((error as Error).name === 'AbortError') {
+            return null;
+        }
+        throw error;
+    }
+};

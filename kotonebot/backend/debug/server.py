@@ -9,13 +9,16 @@ import uvicorn
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from fastapi import FastAPI, WebSocket, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from . import vars
 
 app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"])
 
 # 获取当前文件夹路径
 CURRENT_DIR = Path(__file__).parent
+
 STATIC_DIR = CURRENT_DIR / "web"
 APP_DIR = Path.cwd()
 
@@ -72,6 +75,13 @@ async def read_memory(key: str):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/screenshot")
+def screenshot():
+    from ..context import device
+    img = device.screenshot()
+    buff = cv2.imencode('.png', img)[1].tobytes()
+    return Response(buff, media_type="image/png")
 
 @app.get("/api/ping")
 async def ping():

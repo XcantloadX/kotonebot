@@ -4,6 +4,16 @@ import { useEffect, useRef, ReactNode } from 'react';
 import NativeDiv from '../NativeDiv';
 type RectMode = 'move' | 'resize' | 'none';
 
+const Tip = styled.span`
+  font-weight: bold;
+  color: white;
+  text-shadow: 
+    -1px -1px 0 black,
+    1px -1px 0 black,
+    -1px 1px 0 black,
+    1px 1px 0 black;
+`;
+
 const Handle = styled(NativeDiv)<{ $mode: RectMode }>`
   position: absolute;
   width: 12px;
@@ -40,6 +50,7 @@ const ResizeArea = styled(NativeDiv)<{ position: string }>`
 const RectBoxContainer = styled(NativeDiv)<{ rect: RectPoints; mode: RectMode; $lineColor: string }>`
   position: absolute;
   border: 3px solid ${props => props.$lineColor};
+  outline: 1px solid #eee;
   transition: border 0.1s ease-in;
   background: transparent;
   left: ${props => props.rect.x1}px;
@@ -251,7 +262,7 @@ function RectBox(props: RectBoxProps) {
     >
       {showRectTip && rectTip && (
         <RectTipContainer>
-          {rectTip}
+          {typeof rectTip === 'string' ? <Tip>{rectTip}</Tip> : rectTip}
         </RectTipContainer>
       )}
       <DragArea

@@ -246,35 +246,31 @@ export const MainLayout: React.FC = () => {
         </ToolbarButton>
       </ToolbarContainer>
       <MainContent>
-        <Splitable
-          left={
-            <ViewerContainer>
-              <MultipleImagesViewer
-                currentGroup={{
-                  mainIndex: 0,
-                  images: !isLocalMode ?
-                    (records[index]?.image.value.map(item => 'http://' + host + '/api/read_memory?key=' + item))
-                    : (records[index]?.image.value.map(item => localImageMap?.get(item) ?? 'error')),
-                }}
-                groupIndex={index}
-                imageIndex={imageIndex}
-                groupCount={records.length}
-                onGotoGroup={(i) => {
-                  setIndex(i);
-                  setImageIndex(0);
-                }}
-                onGotoImage={setImageIndex}
-              />
-            </ViewerContainer>
-          }
-          right={
-            <InfoPanel
-              name={records[index]?.name}
-              details={records[index]?.details}
-              imagesMap={isLocalMode ? localImageMap : undefined}
+        <Splitable>
+          <ViewerContainer>
+            <MultipleImagesViewer
+              currentGroup={{
+                mainIndex: 0,
+                images: !isLocalMode ?
+                  (records[index]?.image.value.map(item => 'http://' + host + '/api/read_memory?key=' + item))
+                  : (records[index]?.image.value.map(item => localImageMap?.get(item) ?? 'error')),
+              }}
+              groupIndex={index}
+              imageIndex={imageIndex}
+              groupCount={records.length}
+              onGotoGroup={(i) => {
+                setIndex(i);
+                setImageIndex(0);
+              }}
+              onGotoImage={setImageIndex}
             />
-          }
-        />
+          </ViewerContainer>
+          <InfoPanel
+            name={records[index]?.name}
+            details={records[index]?.details}
+            imagesMap={isLocalMode ? localImageMap : undefined}
+          />
+        </Splitable>
       </MainContent>
     </LayoutContainer>
   );

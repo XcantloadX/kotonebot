@@ -68,14 +68,16 @@ export class KotoneDebugClient {
   #isReconnecting: boolean;
   /** WebSocket 服务器 URL */
   #serverUrl: string;
-  #host: string;
+  /** 服务器地址 */
+  host: string;
+
 
   /**
    * 创建一个新的 Kotone 调试客户端实例
    * @param host - WebSocket 服务器的 IP 地址
    */
   constructor(host: string) {
-    this.#host = host;
+    this.host = host;
     this.#serverUrl = `ws://${host}/ws`;
     this.#isReconnecting = false;
     this.#connect();
@@ -163,10 +165,11 @@ export class KotoneDebugClient {
    */
   async #checkServerStatus(): Promise<void> {
     try {
-      const response = await fetch(`http://${this.#host}/api/ping`);
+      const response = await fetch(`http://${this.host}/api/ping`);
       if (response.ok) {
         this.#connect();
       } else {
+
         setTimeout(() => this.#checkServerStatus(), 2000);
       }
     } catch {
@@ -184,4 +187,11 @@ export class KotoneDebugClient {
     const listeners = this.#eventListeners[event] as Array<(data: EventTypeMap<T>) => void>;
     listeners.forEach(callback => callback(data));
   }
+
+  async screenshot(): Promise<string> {
+    const response = await fetch(`http://${this.host}/api/screenshot`);
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  }
+
 } 
