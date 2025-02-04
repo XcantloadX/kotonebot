@@ -136,3 +136,8 @@ def wait_message_all_done():
     if thread is not None:
         threading.Thread(target=_wait, daemon=True).start()
 
+if __name__ == "__main__":
+    from kotonebot.backend.context import init_context
+    init_context()
+    vars.debug.hide_server_log = False
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level='critical' if vars.debug.hide_server_log else None)

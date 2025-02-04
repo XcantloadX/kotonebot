@@ -49,6 +49,14 @@
                 "-t",
                 "kotonebot.tasks.common.BaseConfig"
             ]
-        }
+        },
+        {
+            "name": "KotonebotDebug: Run Debug Server",
+            "type": "debugpy",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "module": "kotonebot.backend.debug.server",
+            "args": []
+        },
     ]
 }
