@@ -123,7 +123,13 @@ interface ViewToolBarProps {
 const ViewToolBar: React.FC<ViewToolBarProps> = ({
     onOpenDirectory,
 }) => {
-    const { connected, autoScreenshot, setAutoScreenshot, directoryHandle, enterEditMode } = useScriptRecorderStore();
+    const { connected, autoScreenshot, setAutoScreenshot, directoryHandle, enterEditMode, setImageUrl } = useScriptRecorderStore();
+    const client = useDebugClient();
+
+    const handleCapture = async () => {
+        const url = await client.screenshot();
+        setImageUrl(url);
+    };
 
     return (
         <VSToolBar align='center'>
@@ -145,6 +151,14 @@ const ViewToolBar: React.FC<ViewToolBarProps> = ({
                 label={autoScreenshot ? "自动截图 ON" : "自动截图 OFF"}
                 onClick={() => setAutoScreenshot(!autoScreenshot)}
             />
+            {!autoScreenshot && (
+                <VSToolBar.Button
+                    icon={<MdRefresh />}
+                    id="manual-capture"
+                    label="立即截图"
+                    onClick={handleCapture}
+                />
+            )}
             <VSToolBar.Separator />
             <VSToolBar.Button
                 id="enter-edit"
@@ -420,7 +434,7 @@ const ScriptRecorder: React.FC = () => {
                 });
                 Annotations.update({
                     id: e.annotation.id,
-                    tip: formResult.displayName
+                    _tip: formResult.displayName
                 });
 
                 // 根据工具类型插入相应的代码
