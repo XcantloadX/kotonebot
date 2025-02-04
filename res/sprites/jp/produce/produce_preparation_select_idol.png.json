@@ -1,0 +1,24 @@
+{
+  "definitions": {
+    "30a6f399-6999-4f04-bb77-651e0214112f": {
+      "name": "Produce.IconPIdolLevel",
+      "displayName": "P偶像卡上的等级图标",
+      "type": "template",
+      "annotationId": "30a6f399-6999-4f04-bb77-651e0214112f",
+      "useHintRect": false
+    }
+  },
+  "annotations": [
+    {
+      "id": "30a6f399-6999-4f04-bb77-651e0214112f",
+      "type": "rect",
+      "data": {
+        "x1": 238,
+        "y1": 742,
+        "x2": 248,
+        "y2": 753
+      },
+      "_tip": "P偶像卡上的等级图标"
+    }
+  ]
+}

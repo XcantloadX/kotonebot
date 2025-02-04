@@ -60,7 +60,6 @@ class Annotation(DataClassJsonMixin):
     id: str
     type: Literal['rect']
     data: RectPoints
-    tip: Union[str, None]
 
 @dataclass
 class Definition(DataClassJsonMixin):
@@ -154,7 +153,7 @@ def load_and_copy_meta_data_sprite(root_path: str, png_file: str) -> list[Sprite
         sprites.append(Sprite(
             type='metadata',
             uuid=definition.annotationId,
-            name=to_camel_case(definition.name.split('.')[-1]),
+            name=definition.name.split('.')[-1],
             display_name=definition.displayName,
             class_path=to_camel_cases(definition.name.split('.')[:-1]),
             rel_path=png_file,
