@@ -9,6 +9,8 @@ config.json
 reports/
 invoke.yml
 pyproject.toml
+tmp/
+res/sprites_compiled/
 ##########################
 
 # Byte-compiled / optimized / DLL files

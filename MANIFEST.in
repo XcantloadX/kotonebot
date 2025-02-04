@@ -1,1 +1,2 @@
 graft res
+prune res/sprites

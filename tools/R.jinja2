@@ -4,37 +4,28 @@
 from kotonebot.backend.util import res_path
 from kotonebot.backend.core import image
 
-{% for lang in data -%}
-{%- for class_name, attrs in lang.resources.items() -%}
 
-class {{ class_name }}:
-    {%- for attr in attrs.values() %}
-    # {{ attr }}
-    {% if attr.type == 'image' -%}
+{% macro render_class_attributes(class) -%}
+{%- for attr in class.attributes -%}
+{%- if attr.type == 'image' %}
     {{ attr.name }} = {{ attr.value }}
     """
-    路径：{{ attr.rel_path }}<br>
-    模块：`{{ attr.class_path|join('.') }}.{{ attr.name }}`<br>
-    <img src="vscode-file://vscode-app/{{ attr.abspath }}" style="max-width: 70%; max-height: 200px;">
+{%- for line in attr.docstring.split('\n') %}
+    {{ line }}
+{%- endfor -%}
     """
-    {%- elif attr.type == 'next_class' -%}
-    {{ attr.name }} = {{ attr.value }}
-    {%- endif -%}
-    {% endfor %}
+{% elif attr.type == 'class' %}
+    class {{ attr.name }}:
+    {{ render_class_attributes(attr) | indent(4) }}
+        pass
+{%- else %}
+    {{ attr.name }} = {{ attr.name }}
+{%- endif %}
+{%- endfor %}
+{% endmacro -%}
+
+{%- for class in data %}
+class {{ class.name }}:
+    {{ render_class_attributes(class) }}
     pass
-
-
-{% endfor %}
-
-{# class {{ lang.language }}:
-#     {% for attr in lang.attrs %}
-#     {{ attr.name }} = os.path.abspath("{{ attr.path }}")
-#     """
-#     路径：`{{ attr.path }}`<br>
-#     模块：`{{ attr.class_path|join('.') }}.{{ attr.name }}`<br>
-#     <img src="vscode-file://vscode-app/{{ attr.abspath }}" style="max-width: 200px;">
-#     """
-#     {% endfor %}
-#}
-
-{% endfor %}
+{%- endfor -%}
