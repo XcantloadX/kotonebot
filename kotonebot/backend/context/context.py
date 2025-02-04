@@ -16,6 +16,7 @@ from typing import (
     Generic,
     Type,
 )
+from typing_extensions import deprecated
 
 import cv2
 from cv2.typing import MatLike
@@ -39,7 +40,7 @@ from kotonebot.backend.color import find_rgb
 from kotonebot.backend.ocr import Ocr, OcrResult, jp, en, StringMatchFunction
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig
-from kotonebot.backend.core import Image
+from kotonebot.backend.core import Image, HintBox
 
 OcrLanguage = Literal['jp', 'en']
 ScreenshotMode = Literal['auto', 'manual', 'manual-inherit']
@@ -237,6 +238,7 @@ class ContextOcr:
         ...
 
     @overload
+    @deprecated('使用 `ocr.raw().ocr()` 代替')
     def ocr(self, img: 'MatLike') -> list[OcrResult]:
         """OCR 指定图像。"""
         ...
@@ -246,32 +248,32 @@ class ContextOcr:
         if img is None:
             return self.__engine.ocr(ContextStackVars.ensure_current().screenshot)
         return self.__engine.ocr(img)
-    
-    @overload
-    def find(self, pattern: str | re.Pattern | StringMatchFunction) -> OcrResult | None:
-        ...
 
-    @overload
-    def find(self, img: 'MatLike', pattern: str | re.Pattern | StringMatchFunction) -> OcrResult | None:
-        ...
-    
-    def find(self, *args, **kwargs) -> OcrResult | None:
-        """检查指定图像是否包含指定文本。"""
-        if len(args) == 1 and len(kwargs) == 0:
-            ret = self.__engine.find(ContextStackVars.ensure_current().screenshot, args[0])
-            self.context.device.last_find = ret
-            return ret
-        elif len(args) == 2 and len(kwargs) == 0:
-            ret = self.__engine.find(args[0], args[1])
-            self.context.device.last_find = ret
-            return ret
-        else:
-            raise ValueError("Invalid arguments")
-    
+    def find(
+            self,
+            pattern: str | re.Pattern | StringMatchFunction,
+            *,
+            hint: HintBox | None = None,
+            rect: Rect | None = None,
+        ) -> OcrResult | None:
+        """检查当前设备画面是否包含指定文本。"""
+        ret = self.__engine.find(
+            ContextStackVars.ensure_current().screenshot,
+            pattern,
+            hint=hint,
+            rect=rect,
+        )
+        self.context.device.last_find = ret
+        return ret
+
+
+
+
     def expect(
             self,
             pattern: str | re.Pattern | StringMatchFunction
         ) -> OcrResult:
+
         """
         检查当前设备画面是否包含指定文本。
 

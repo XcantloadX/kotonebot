@@ -1,9 +1,13 @@
 import logging
 
-from typing import Callable, ParamSpec, TypeVar, overload
+from typing import Callable, ParamSpec, TypeVar, overload, TYPE_CHECKING
 
 import cv2
 from cv2.typing import MatLike
+
+if TYPE_CHECKING:
+    from kotonebot.backend.util import Rect
+
 
 class Ocr:
     def __init__(
@@ -52,11 +56,58 @@ class Image:
         else:
             return f'<Image: "{self.name}" at {self.path}>'
 
+
+class HintBox(tuple[int, int, int, int]):
+    def __new__(
+        cls,
+        x1: int,
+        y1: int,
+        x2: int,
+        y2: int,
+        *,
+        source_resolution: tuple[int, int],
+    ):
+        return super().__new__(cls, [x1, y1, x2, y2])
+    
+    def __init__(
+        self,
+        x1: int,
+        y1: int,
+        x2: int,
+        y2: int,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        source_resolution: tuple[int, int],
+    ):
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+        self.name = name
+        self.description = description
+        self.source_resolution = source_resolution
+
+    @property
+    def width(self) -> int:
+        return self.x2 - self.x1
+    
+    @property
+    def height(self) -> int:
+        return self.y2 - self.y1
+    
+    @property
+    def rect(self) -> 'Rect':
+        return self.x1, self.y1, self.width, self.height
+
+
 logger = logging.getLogger(__name__)
 
 
 @overload
 def image(data: str) -> Image:
+
+
     """从文件路径创建 Image 对象。"""
     ...
 @overload
@@ -72,3 +123,10 @@ def image(data: str | MatLike) -> Image:
  
 def ocr(text: str | Callable[[str], bool], language: str = 'jp') -> Ocr:
     return Ocr(text, language=language)
+
+if __name__ == '__main__':
+    hint_box = HintBox(100, 100, 200, 200, source_resolution=(1920, 1080))
+    print(hint_box.rect)
+    print(hint_box.width)
+    print(hint_box.height)
+
