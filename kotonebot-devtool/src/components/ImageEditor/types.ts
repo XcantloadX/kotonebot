@@ -15,7 +15,7 @@ export interface Annotation {
     type: AnnotationType;
     data: AnnotationTypeMap[AnnotationType];
     /** 提示信息。 */
-    tip?: React.ReactNode;
+    _tip?: React.ReactNode;
 }
 export interface Point {
     x: number;

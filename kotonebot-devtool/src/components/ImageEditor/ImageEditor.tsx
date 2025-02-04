@@ -297,7 +297,7 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
       <RectBox
         key={rect.id}
         rect={Convertor.rectImage2Container(rect.data)}
-        rectTip={rect.tip}
+        rectTip={rect._tip}
         {...props}
       />
     ));

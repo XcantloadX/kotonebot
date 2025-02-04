@@ -35,8 +35,25 @@ export interface ImageMetaData {
     annotations: Annotation[];
 }
 
+function fromString(data: string): ImageMetaData {
+    return JSON.parse(data);
+}
+
+function toString(data: ImageMetaData): string {
+    const replacer = (key: string, value: any) => {
+        if (key.startsWith('_')) {
+            return undefined;
+        }
+        return value;
+    };
+    return JSON.stringify(data, replacer);
+}
+
+
 function useImageMetaData(data?: ImageMetaData) {
     const [imageMetaData, updateImageMetaData] = useImmer<ImageMetaData>(data || {
+
+
         definitions: {},
         annotations: [],
     });
@@ -117,7 +134,12 @@ function useImageMetaData(data?: ImageMetaData) {
         load,
         /** 检查是否没有任何标注和定义 */
         isEmpty: () => imageMetaData.annotations.length === 0 && Object.keys(imageMetaData.definitions).length === 0,
+        /** 将图像元数据转换为字符串 */
+        toString,
+        /** 将字符串转换为图像元数据 */
+        fromString,
     };
 }
+
 
 export default useImageMetaData;

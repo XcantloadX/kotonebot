@@ -169,7 +169,7 @@ function DragTool(props: ToolHandlerProps) {
                 onNativeMouseLeave={handleRectMouseLeave}
                 onNativeClick={(e) => handleRectClick(anno.id, e)}
                 onTransform={(points) => handleRectTransform(points, anno.id)}
-                rectTip={anno.tip}
+                rectTip={anno._tip}
                 showRectTip={hoveredRectId === anno.id && selectedRectId === null}
             />
         ));

@@ -281,7 +281,7 @@ const usePropertyGridData = (
 
 const ImageAnnotation: React.FC = () => {
     const [currentTool, setCurrentTool] = useState<EditorTool>(EditorTool.Drag);
-    const { imageMetaData, Definitions, Annotations, clear, load } = useImageMetaData();
+    const { imageMetaData, Definitions, Annotations, clear, load, toString, fromString } = useImageMetaData();
     const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
     const [isDirty, setIsDirty] = useState(false);
     const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -425,10 +425,11 @@ const ImageAnnotation: React.FC = () => {
         try {
             const handle = await saveFileWFS(
                 currentFileResult.current?.handle,
-                JSON.stringify(imageMetaData),
+                toString(imageMetaData),
                 imageFileNameRef.current ? `${imageFileNameRef.current}.json` : 'metadata.json'
             );
             // 更新文件句柄
+
             if (handle !== currentFileResult.current?.handle) {
                 currentFileResult.current = {
                     file: await handle.getFile(),
@@ -477,7 +478,7 @@ const ImageAnnotation: React.FC = () => {
         if (definition) {
             Annotations.update({
                 id,
-                tip: <Tip>{displayName} ({name})</Tip>
+                _tip: <Tip>{displayName} ({name})</Tip>
             });
         }
     };
