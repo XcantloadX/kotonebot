@@ -17,6 +17,7 @@ import useHotkey from '../../hooks/useHotkey';
 import { useFormModal } from '../../hooks/useFormModal';
 import { openDirectory } from '../../utils/fileUtils';
 import { useToast } from '../../components/ToastMessage';
+import { ScriptRecorderStorage } from '../../utils/storageUtils';
 
 // 引入 ace 编辑器的主题和语言模式
 import 'ace-builds/src-noconflict/mode-python';
@@ -77,10 +78,11 @@ ContextStackVars.screenshot_mode = 'manual'
 
 device.screenshot()
 `
-
+console.log('ScriptRecorderStorage.load()', ScriptRecorderStorage.loadCode());
 const useScriptRecorderStore = create<ScriptRecorderState>((set) => ({
-    code: DEFAULT_CODE,
+    code: ScriptRecorderStorage.loadCode() || DEFAULT_CODE,
     tool: 'drag',
+
     autoScreenshot: true,
     connected: false,
     imageUrl: '',
@@ -92,7 +94,11 @@ const useScriptRecorderStore = create<ScriptRecorderState>((set) => ({
     imageMetaDataObject: null,
     setImageMetaDataObject: (imageMetaData) => set({ imageMetaDataObject: imageMetaData }),
 
-    setCode: (code) => set({ code }),
+    setCode: (code) => {
+        ScriptRecorderStorage.saveCode(code);
+        console.log('setCode', code);
+        set({ code });
+    },
     setTool: (tool) => set({ tool }),
     setAutoScreenshot: (auto) => set({ autoScreenshot: auto }),
     setConnected: (connected) => set({ connected }),
@@ -395,6 +401,7 @@ function useStoreImageMetaData() {
 
 const ScriptRecorder: React.FC = () => {
     const client = useDebugClient();
+    const { showToast, ToastComponent } = useToast();
 
     const editorRef = useRef<any>(null);
     const { imageMetaData, Definitions, Annotations, clear } = useStoreImageMetaData();
@@ -580,11 +587,35 @@ const ScriptRecorder: React.FC = () => {
 
     const handleOpenDirectory = async () => {
         const handle = await openDirectory();
-        setDirectoryHandle(handle);
+        if (handle) {
+            setDirectoryHandle(handle);
+            await ScriptRecorderStorage.saveDirectoryHandle(handle);
+            showToast('success', '', `已载入上次打开文件夹 ${handle.name}`);
+        }
     };
+
+    useEffect(() => {
+        const loadSavedDirectoryHandle = async () => {
+            try {
+                const handle = await ScriptRecorderStorage.loadDirectoryHandle();
+                if (handle) {
+                    const hasPermission = await ScriptRecorderStorage.verifyDirectoryHandlePermission(handle);
+                    if (hasPermission) {
+                        setDirectoryHandle(handle);
+                        showToast('success', '已载入文件夹', `已载入上次打开文件夹 ${handle.name}`);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load saved directory handle:', e);
+            }
+        };
+
+        loadSavedDirectoryHandle();
+    }, [showToast]);
 
     return (
         <Container>
+            {ToastComponent}
             {formModal}
             {inEditMode ? (
                 <EditToolBar
