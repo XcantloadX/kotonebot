@@ -668,6 +668,7 @@ debug: ContextDebug = cast(ContextDebug, Forwarded(name="debug"))
 config: ContextConfig = cast(ContextConfig, Forwarded(name="config"))
 """配置数据。"""
 
+
 def init_context(
     *,
     config_type: Type[T] = dict[str, Any],
@@ -694,3 +695,17 @@ def init_context(
     vars._FORWARD_getter = lambda: _c.vars # type: ignore
     debug._FORWARD_getter = lambda: _c.debug # type: ignore
     config._FORWARD_getter = lambda: _c.config # type: ignore
+
+class ManualContextManager:
+    def __enter__(self):
+        ContextStackVars.push()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        ContextStackVars.pop()
+
+def manual_context() -> ManualContextManager:
+    """
+    默认情况下，Context* 类仅允许在 @task/@action 函数中使用。
+    如果想要在其他地方使用，使用此函数手动创建一个上下文。
+    """
+    return ManualContextManager()

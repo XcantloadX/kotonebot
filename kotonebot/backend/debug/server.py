@@ -1,20 +1,25 @@
 import time
 import asyncio
 import threading
+import traceback
 from pathlib import Path
 from collections import deque
 
 import cv2
+from pydantic import BaseModel
 import uvicorn
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
+
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+from ..context import manual_context
 
 from . import vars
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # 获取当前文件夹路径
 CURRENT_DIR = Path(__file__).parent
@@ -83,8 +88,22 @@ def screenshot():
     buff = cv2.imencode('.png', img)[1].tobytes()
     return Response(buff, media_type="image/png")
 
+class RunCodeRequest(BaseModel):
+    code: str
+
+@app.post("/api/code/run")
+async def run_code(request: RunCodeRequest):
+    code = f"from kotonebot import *\n" + request.code
+    try:
+        with manual_context():
+            ret = exec(code)
+        return {"status": "ok", "result": ret}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
+
 @app.get("/api/ping")
 async def ping():
+
     return {"status": "ok"}
 
 message_queue = deque()

@@ -1,18 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import styled from '@emotion/styled';
 import VSToolBar from '../../components/VSToolBar';
 import ImageEditor, { AnnotationChangedEvent } from '../../components/ImageEditor/ImageEditor';
 import { MdDevices, MdPlayArrow, MdSearch, MdTouchApp, MdTextFields, MdTextSnippet, MdCropFree, MdRefresh, MdPause, MdBackHand, MdCheck, MdClose, MdEdit, MdContentCopy, MdContentCut, MdFolder } from 'react-icons/md';
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 import AceEditor from 'react-ace';
 import { Splitable } from '../../components/Splitable';
 import { Tool, Annotation } from '../../components/ImageEditor/types';
 import { create } from 'zustand';
-
-// 引入 ace 编辑器的主题和语言模式
-import 'ace-builds/src-noconflict/mode-python';
-import 'ace-builds/src-noconflict/theme-monokai';
-import 'ace-builds/src-noconflict/theme-chrome';
-import 'ace-builds/src-noconflict/ext-language_tools';
 import { css } from '@emotion/react';
 import useImageMetaData, { Definition, DefinitionType, ImageMetaData, TemplateDefinition } from '../../hooks/useImageMetaData';
 import { useDarkMode } from '../../hooks/useDarkMode';
@@ -21,6 +16,13 @@ import useLatestCallback from '../../hooks/useLatestCallback';
 import useHotkey from '../../hooks/useHotkey';
 import { useFormModal } from '../../hooks/useFormModal';
 import { openDirectory } from '../../utils/fileUtils';
+import { useToast } from '../../components/ToastMessage';
+
+// 引入 ace 编辑器的主题和语言模式
+import 'ace-builds/src-noconflict/mode-python';
+import 'ace-builds/src-noconflict/theme-monokai';
+import 'ace-builds/src-noconflict/theme-chrome';
+import 'ace-builds/src-noconflict/ext-language_tools';
 
 const Container = styled.div`
   display: flex;
@@ -49,6 +51,7 @@ interface ScriptRecorderState {
     imageUrl: string;
     inEditMode: boolean;
     directoryHandle: FileSystemDirectoryHandle | null;
+    isRunning: boolean;
 
     imageMetaDataObject: ReturnType<typeof useImageMetaData> | null;
     setImageMetaDataObject: (imageMetaData: ReturnType<typeof useImageMetaData>) => void;
@@ -58,21 +61,33 @@ interface ScriptRecorderState {
     setAutoScreenshot: (auto: boolean) => void;
     setConnected: (connected: boolean) => void;
     setImageUrl: (url: string) => void;
+    setIsRunning: (isRunning: boolean) => void;
 
     setDirectoryHandle: (handle: FileSystemDirectoryHandle | null) => void;
     enterEditMode: () => void;
     exitEditMode: () => void;
 }
 
+// HACK: hard coded
+const DEFAULT_CODE = `from kotonebot import *
+from kotonebot.tasks import R
+from kotonebot.backend.context import ContextStackVars
+
+ContextStackVars.screenshot_mode = 'manual'
+
+device.screenshot()
+`
 
 const useScriptRecorderStore = create<ScriptRecorderState>((set) => ({
-    code: '',
+    code: DEFAULT_CODE,
     tool: 'drag',
     autoScreenshot: true,
     connected: false,
     imageUrl: '',
     inEditMode: false,
+
     directoryHandle: null,
+    isRunning: false,
 
     imageMetaDataObject: null,
     setImageMetaDataObject: (imageMetaData) => set({ imageMetaDataObject: imageMetaData }),
@@ -82,11 +97,11 @@ const useScriptRecorderStore = create<ScriptRecorderState>((set) => ({
     setAutoScreenshot: (auto) => set({ autoScreenshot: auto }),
     setConnected: (connected) => set({ connected }),
     setImageUrl: (url) => set({ imageUrl: url }),
+    setIsRunning: (isRunning) => set({ isRunning }),
     setDirectoryHandle: (handle) => set({ directoryHandle: handle }),
     enterEditMode: () => set({ inEditMode: true, autoScreenshot: false }),
     exitEditMode: () => set({ inEditMode: false }),
 }));
-
 
 interface ToolConfigItem {
     code?: (d: Definition, a: Annotation) => string;
@@ -113,8 +128,6 @@ const ToolConfig: Record<ScriptRecorderTool, ToolConfigItem> = {
     'hint-box': {
     },
 }
-
-
 
 interface ViewToolBarProps {
     onOpenDirectory: () => void;
@@ -296,34 +309,80 @@ const EditToolBar: React.FC<EditToolBarProps> = ({
 interface CodeEditorToolBarProps {
     onCopyAll: () => void;
     onCutAll: () => void;
+    code: string;
+    client: ReturnType<typeof useDebugClient>;
 }
 
 const CodeEditorToolBar: React.FC<CodeEditorToolBarProps> = ({
     onCopyAll,
     onCutAll,
+    code,
+    client
 }) => {
+    const [isRunning, setIsRunning] = useState(false);
+    const { showToast, ToastComponent } = useToast();
+
+    const spinnerCss = useMemo(() => css`
+        animation: spin 1s linear infinite;
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    `, []);
+
+    const handleRunCode = async () => {
+        if (!code.trim()) {
+            showToast('warning', '警告', '请先输入代码');
+            return;
+        }
+
+        setIsRunning(true);
+        try {
+            const result = await client.runCode(code);
+            if (result.status === 'error') {
+                showToast('danger', '运行错误', result.message);
+                console.error('运行错误:', result.traceback);
+            } else {
+                if (result.result !== undefined) {
+                    showToast('success', '运行成功', `执行结果: ${JSON.stringify(result.result)}`);
+                } else {
+                    showToast('success', '运行成功', '代码执行完成');
+                }
+            }
+        } catch (error) {
+            showToast('danger', '运行错误', '执行代码时发生错误');
+            console.error('执行错误:', error);
+        } finally {
+            setIsRunning(false);
+        }
+    };
+
     return (
-        <VSToolBar align='center'>
-            <VSToolBar.Button
-                id="run"
-                icon={<MdPlayArrow />}
-                label="运行"
-                disabled={true}
-            />
-            <VSToolBar.Separator />
-            <VSToolBar.Button
-                id="copy-all"
-                icon={<MdContentCopy />}
-                label="复制全部"
-                onClick={onCopyAll}
-            />
-            <VSToolBar.Button
-                id="cut-all"
-                icon={<MdContentCut />}
-                label="剪切全部"
-                onClick={onCutAll}
-            />
-        </VSToolBar>
+        <>
+            {ToastComponent}
+            <VSToolBar align='center'>
+                <VSToolBar.Button
+                    id="run"
+                    icon={isRunning ? <AiOutlineLoading3Quarters css={spinnerCss} /> : <MdPlayArrow />}
+                    label="运行"
+                    onClick={handleRunCode}
+                    disabled={isRunning}
+                />
+                <VSToolBar.Separator />
+                <VSToolBar.Button
+                    id="copy-all"
+                    icon={<MdContentCopy />}
+                    label="复制全部"
+                    onClick={onCopyAll}
+                />
+                <VSToolBar.Button
+                    id="cut-all"
+                    icon={<MdContentCut />}
+                    label="剪切全部"
+                    onClick={onCutAll}
+                />
+            </VSToolBar>
+        </>
     );
 };
 
@@ -336,6 +395,7 @@ function useStoreImageMetaData() {
 
 const ScriptRecorder: React.FC = () => {
     const client = useDebugClient();
+
     const editorRef = useRef<any>(null);
     const { imageMetaData, Definitions, Annotations, clear } = useStoreImageMetaData();
     const code = useScriptRecorderStore((s) => s.code);
@@ -348,8 +408,6 @@ const ScriptRecorder: React.FC = () => {
     const setConnected = useScriptRecorderStore((s) => s.setConnected);
     const setImageUrl = useScriptRecorderStore((s) => s.setImageUrl);
     const setDirectoryHandle = useScriptRecorderStore((s) => s.setDirectoryHandle);
-
-
 
     const { theme: editorTheme } = useDarkMode({
         whenDark: 'monokai',
@@ -552,6 +610,8 @@ const ScriptRecorder: React.FC = () => {
                         <CodeEditorToolBar
                             onCopyAll={handleCopyAll}
                             onCutAll={handleCutAll}
+                            code={code}
+                            client={client}
                         />
                         <AceEditor
                             ref={editorRef}

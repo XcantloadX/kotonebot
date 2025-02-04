@@ -52,6 +52,18 @@ type EventListenerMap = {
   connectionStatus: Array<(data: ConnectionStatusEvent) => void>;
 };
 
+export type RunCodeResultSuccess = {
+  status: 'ok';
+  result: any;
+};
+
+export type RunCodeResultError = {
+  status: 'error';
+  message: string;
+  traceback: string;
+};
+
+
 /**
  * Kotone 调试客户端类
  * 用于处理与调试服务器的 WebSocket 通信
@@ -193,5 +205,19 @@ export class KotoneDebugClient {
     const blob = await response.blob();
     return URL.createObjectURL(blob);
   }
+
+  async runCode(code: string): Promise<RunCodeResultSuccess | RunCodeResultError> {
+    const response = await fetch(`http://${this.host}/api/code/run`, {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+
+
+  }
+
 
 } 
