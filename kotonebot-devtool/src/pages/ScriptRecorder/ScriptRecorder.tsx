@@ -249,8 +249,10 @@ const EditToolBar: React.FC<EditToolBarProps> = ({
             // 保存元数据
             const metaFile = await directoryHandle.getFileHandle(`${name}.png.json`, { create: true });
             const metaWritable = await metaFile.createWritable();
-            await metaWritable.write(JSON.stringify(imageMetaDataObject?.imageMetaData, null, 2));
+            await metaWritable.write(imageMetaDataObject?.toString(imageMetaDataObject.imageMetaData) || '');
             await metaWritable.close();
+
+
 
             // 清理并退出
             imageMetaDataObject?.clear();
@@ -502,9 +504,6 @@ const ScriptRecorder: React.FC = () => {
     }, []);
 
     
-
-
-
     const handleAnnotationChange = async (e: AnnotationChangedEvent) => {
         if (e.type === 'add') {
 
