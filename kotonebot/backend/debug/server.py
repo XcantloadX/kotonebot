@@ -2,8 +2,11 @@ import time
 import asyncio
 import threading
 import traceback
+import subprocess
+from io import StringIO
 from pathlib import Path
 from collections import deque
+from contextlib import redirect_stdout
 
 import cv2
 from pydantic import BaseModel
@@ -93,11 +96,14 @@ class RunCodeRequest(BaseModel):
 
 @app.post("/api/code/run")
 async def run_code(request: RunCodeRequest):
+    stdout = StringIO()
     code = f"from kotonebot import *\n" + request.code
     try:
         with manual_context():
-            ret = exec(code)
-        return {"status": "ok", "result": ret}
+            with redirect_stdout(stdout):
+                ret = exec(code)
+        return {"status": "ok", "result": stdout.getvalue()}
+
     except Exception as e:
         return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
 
@@ -159,4 +165,7 @@ if __name__ == "__main__":
     from kotonebot.backend.context import init_context
     init_context()
     vars.debug.hide_server_log = False
+    process = subprocess.Popen(["pylsp", "--port", "5479", "--ws"])
+    print("LSP started. PID=", process.pid)
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level='critical' if vars.debug.hide_server_log else None)
+    process.kill()

@@ -20,10 +20,25 @@ import { useToast } from '../../components/ToastMessage';
 import { ScriptRecorderStorage } from '../../utils/storageUtils';
 
 // 引入 ace 编辑器的主题和语言模式
+import modePython from 'ace-builds/src-noconflict/mode-python?url';
+import themeMonokai from 'ace-builds/src-noconflict/theme-monokai?url';
+import themeChrome from 'ace-builds/src-noconflict/theme-chrome?url';
+import extLanguageTools from 'ace-builds/src-noconflict/ext-language_tools?url';
 import 'ace-builds/src-noconflict/mode-python';
 import 'ace-builds/src-noconflict/theme-monokai';
 import 'ace-builds/src-noconflict/theme-chrome';
 import 'ace-builds/src-noconflict/ext-language_tools';
+// LSP
+import { AceLanguageClient } from "ace-linters/build/ace-language-client";
+import { config } from "ace-builds";
+import { LanguageProvider } from 'ace-linters/types/language-provider';
+import { Ace } from 'ace-code';
+// https://github.com/ajaxorg/ace/issues/4597
+config.setModuleUrl('ace/mode/python', modePython);
+config.setModuleUrl('ace/theme/monokai', themeMonokai);
+config.setModuleUrl('ace/theme/chrome', themeChrome);
+config.setModuleUrl('ace/ext/language_tools', extLanguageTools);
+
 
 const Container = styled.div`
   display: flex;
@@ -78,7 +93,6 @@ ContextStackVars.screenshot_mode = 'manual'
 
 device.screenshot()
 `
-console.log('ScriptRecorderStorage.load()', ScriptRecorderStorage.loadCode());
 const useScriptRecorderStore = create<ScriptRecorderState>((set) => ({
     code: ScriptRecorderStorage.loadCode() || DEFAULT_CODE,
     tool: 'drag',
@@ -96,10 +110,10 @@ const useScriptRecorderStore = create<ScriptRecorderState>((set) => ({
 
     setCode: (code) => {
         ScriptRecorderStorage.saveCode(code);
-        console.log('setCode', code);
         set({ code });
     },
     setTool: (tool) => set({ tool }),
+
     setAutoScreenshot: (auto) => set({ autoScreenshot: auto }),
     setConnected: (connected) => set({ connected }),
     setImageUrl: (url) => set({ imageUrl: url }),
@@ -402,8 +416,8 @@ function useStoreImageMetaData() {
 const ScriptRecorder: React.FC = () => {
     const client = useDebugClient();
     const { showToast, ToastComponent } = useToast();
-
-    const editorRef = useRef<any>(null);
+    const editorRef = useRef<AceEditor>(null);
+    const lspRef = useRef<LanguageProvider | null>(null);
     const { imageMetaData, Definitions, Annotations, clear } = useStoreImageMetaData();
     const code = useScriptRecorderStore((s) => s.code);
     const tool = useScriptRecorderStore((s) => s.tool);
@@ -452,11 +466,13 @@ const ScriptRecorder: React.FC = () => {
         }, 10);
     });
 
+    // 自动截图
     useEffect(() => {
         if (autoScreenshot)
             updateScreenshot();
     }, [autoScreenshot, updateScreenshot]);
 
+    // 初始化：连接事件
     useEffect(() => {
         client.addEventListener('connectionStatus', (e) => {
             if (e.connected) {
@@ -465,7 +481,30 @@ const ScriptRecorder: React.FC = () => {
             setConnected(e.connected);
         });
     }, [client]);
+
+    // 初始化：LSP
+    useEffect(() => {
+        if (!editorRef.current || !editorRef.current.editor)
+            return;
+        const editor = editorRef.current.editor as unknown as Ace.Editor;
+
+        const serverData = {
+            module: () => import("ace-linters/build/language-client"),
+            modes: "python",
+            type: "socket",
+            socket: new WebSocket("ws://127.0.0.1:5479"),
+        } as const;
+        // AceLanguageClient 重复初始化似乎有 bug
+        // 用 ref 缓存，避免 StrictMode 下重复初始化
+        const lsp = lspRef.current || AceLanguageClient.for(serverData);
+        lspRef.current = lsp;
+        lsp.registerEditor(editor);
+    }, []);
+
     
+
+
+
     const handleAnnotationChange = async (e: AnnotationChangedEvent) => {
         if (e.type === 'add') {
 
@@ -651,6 +690,7 @@ const ScriptRecorder: React.FC = () => {
                             value={code}
                             onChange={setCode}
                             name="script-editor"
+
                             width="100%"
                             height="100%"
                             fontSize={14}
@@ -660,10 +700,10 @@ const ScriptRecorder: React.FC = () => {
                             setOptions={{
                                 enableBasicAutocompletion: true,
                                 enableLiveAutocompletion: true,
-                                enableSnippets: true,
                                 showLineNumbers: true,
                                 tabSize: 4,
                             }}
+
                         />
                     </CodeEditorWrapper>
                 </Splitable>
