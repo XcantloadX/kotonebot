@@ -89,3 +89,30 @@ export class ScriptRecorderStorage {
         }
     }
 }
+
+export class SplitableSizesStorage {
+    private static readonly STORAGE_KEY = 'splitable';
+
+    static saveSizes(key: string, sizes: number[]): void {
+        const data = this.loadAllSizes();
+        data[key] = sizes;
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+    }
+
+    static loadSizes(key: string): number[] | null {
+        const data = this.loadAllSizes();
+        return data[key] || null;
+    }
+
+    private static loadAllSizes(): Record<string, number[]> {
+        const dataStr = localStorage.getItem(this.STORAGE_KEY);
+        if (!dataStr) return {};
+
+        try {
+            return JSON.parse(dataStr);
+        } catch (e) {
+            console.error('Failed to parse splitable sizes data:', e);
+            return {};
+        }
+    }
+}

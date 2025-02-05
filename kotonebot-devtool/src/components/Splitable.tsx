@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Children } from 'react';
 import styled from '@emotion/styled';
 import { useResizePanel } from '../hooks/useResizePanel';
+import { SplitableSizesStorage } from '../utils/storageUtils';
 
 interface SplitableProps {
   children: React.ReactNode;
@@ -12,8 +13,13 @@ interface SplitableProps {
   onCollapsedChange?: (collapsed: boolean) => void;
   /** 是否显示折叠按钮 */
   collapseButton?: boolean;
-  /** 每个面板的默认宽度，null 表示不设置默认宽度 */
+  /** 每个面板的默认宽度，null 表示不设置默认宽度。优先级低于 memorizeSizesKey 记住的大小 */
   defaultSize?: (number | null)[];
+  /** 
+   * 记忆面板大小的键名，设置后会自动保存面板大小到 localStorage。
+   * 优先级高于 defaultSize，如果找到记住的大小且面板数量匹配，则使用记住的大小。
+   */
+  memorizeSizesKey?: string;
 }
 
 const Container = styled.div<{ $vertical?: boolean }>`
@@ -110,16 +116,30 @@ export const Splitable: React.FC<SplitableProps> = ({
   defaultCollapsed = false,
   onCollapsedChange,
   collapseButton = false,
-  defaultSize
+  defaultSize,
+  memorizeSizesKey
 }) => {
   const childrenArray = Children.toArray(children);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [panelSizes, setPanelSizes] = useState<number[]>(() => {
+    if (memorizeSizesKey) {
+      const memorizedSizes = SplitableSizesStorage.loadSizes(memorizeSizesKey);
+      if (memorizedSizes && memorizedSizes.length === childrenArray.length) {
+        return memorizedSizes;
+      }
+    }
     if (defaultSize) {
       return defaultSize.map(size => size ?? 400);
     }
     return Array(childrenArray.length).fill(400);
   });
+
+  // 当面板大小改变时保存到 localStorage
+  useEffect(() => {
+    if (memorizeSizesKey) {
+      SplitableSizesStorage.saveSizes(memorizeSizesKey, panelSizes);
+    }
+  }, [memorizeSizesKey, panelSizes]);
 
   // 为每个可调整大小的面板创建一个 useResizePanel 实例
   const resizePanels = childrenArray.map((_, index) => {

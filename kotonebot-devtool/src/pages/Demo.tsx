@@ -1470,6 +1470,7 @@ function VSToolBarDemo(): JSX.Element {
 function SplitableDemo(): JSX.Element {
   const [direction, setDirection] = useState<'horizontal' | 'vertical'>('horizontal');
   const [panelCount, setPanelCount] = useState(2);
+  const [useMemory, setUseMemory] = useState(true);
 
   const panels = Array.from({ length: panelCount }, (_, i) => (
     <div
@@ -1502,6 +1503,9 @@ function SplitableDemo(): JSX.Element {
         <Button onClick={() => setPanelCount(c => Math.max(c - 1, 2))}>
           移除面板
         </Button>
+        <Button onClick={() => setUseMemory(m => !m)}>
+          {useMemory ? '禁用大小记忆' : '启用大小记忆'}
+        </Button>
       </ControlPanel>
       <div style={{ 
         height: '500px', 
@@ -1509,7 +1513,10 @@ function SplitableDemo(): JSX.Element {
         borderRadius: '4px',
         overflow: 'hidden'
       }}>
-        <Splitable vertical={direction === 'vertical'}>
+        <Splitable 
+          vertical={direction === 'vertical'}
+          memorizeSizesKey={useMemory ? `demo-splitable-${direction}-${panelCount}` : undefined}
+        >
           {panels}
         </Splitable>
       </div>
@@ -1526,6 +1533,13 @@ function SplitableDemo(): JSX.Element {
           <li>最后一个面板可以通过右上角（或底部）的按钮折叠/展开</li>
           <li>拖动分隔条时会显示蓝色的指示器</li>
           <li>面板内容会自动适应容器大小</li>
+          <li>大小记忆功能：</li>
+          <ul>
+            <li>启用后，会自动记住每个面板的大小</li>
+            <li>记忆是基于方向和面板数量的，所以切换方向或改变面板数量会使用不同的记忆</li>
+            <li>可以通过"禁用大小记忆"按钮来关闭此功能</li>
+            <li>记忆的大小会保存在浏览器的 localStorage 中</li>
+          </ul>
         </ul>
       </div>
     </div>

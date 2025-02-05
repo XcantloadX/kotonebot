@@ -693,7 +693,7 @@ const ScriptRecorder: React.FC = () => {
                 />
             )}
             <div css={css`height: 100%; margin-top: 0;`}>
-                <Splitable>
+                <Splitable memorizeSizesKey='ScriptRecorder.ImageViewer'>
                     <ImageViewerWrapper>
                         <ImageEditor
                             enableMask
@@ -710,7 +710,7 @@ const ScriptRecorder: React.FC = () => {
                             code={code}
                             client={client}
                         />
-                        <Splitable vertical defaultSize={[null, 200]}>
+                        <Splitable vertical defaultSize={[null, 200]} memorizeSizesKey='ScriptRecorder.CodeEditor'>
                             <AceEditor
                                 ref={editorRef}
                                 mode="python"
