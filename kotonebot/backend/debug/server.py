@@ -17,9 +17,13 @@ from fastapi.responses import FileResponse, Response
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+import kotonebot
+import kotonebot.backend
+import kotonebot.backend.context
+
 from ..context import manual_context
 
-from . import vars
+from . import vars as debug_vars
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -63,8 +67,8 @@ async def read_memory(key: str):
     """读取内存中的数据"""
     try:
         image = None
-        if key in vars._images:
-            image = vars._images[key]
+        if key in debug_vars._images:
+            image = debug_vars._images[key]
         else:
             raise HTTPException(status_code=404, detail="Key not found")
         
@@ -100,10 +104,10 @@ async def run_code(request: RunCodeRequest):
     code = f"from kotonebot import *\n" + request.code
     try:
         with manual_context():
+            global_vars = dict(vars(kotonebot.backend.context))
             with redirect_stdout(stdout):
-                ret = exec(code)
+                exec(code, global_vars)
         return {"status": "ok", "result": stdout.getvalue()}
-
     except Exception as e:
         return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
 
@@ -148,7 +152,7 @@ thread = None
 def start_server():
     global thread
     def run_server():
-        uvicorn.run(app, host="127.0.0.1", port=8000, log_level='critical' if vars.debug.hide_server_log else None)
+        uvicorn.run(app, host="127.0.0.1", port=8000, log_level='critical' if debug_vars.debug.hide_server_log else None)
     if thread is None:
         thread = threading.Thread(target=run_server, daemon=True)
         thread.start()
@@ -164,8 +168,8 @@ def wait_message_all_done():
 if __name__ == "__main__":
     from kotonebot.backend.context import init_context
     init_context()
-    vars.debug.hide_server_log = False
+    debug_vars.debug.hide_server_log = False
     process = subprocess.Popen(["pylsp", "--port", "5479", "--ws"])
     print("LSP started. PID=", process.pid)
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_level='critical' if vars.debug.hide_server_log else None)
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level='critical' if debug_vars.debug.hide_server_log else None)
     process.kill()
