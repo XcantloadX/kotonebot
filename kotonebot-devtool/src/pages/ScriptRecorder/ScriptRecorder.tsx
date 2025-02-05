@@ -50,11 +50,26 @@ const ImageViewerWrapper = styled.div`
   height: 100%;
 `;
 
-const CodeEditorWrapper = styled.div`
-  height: 100%;
-  background-color: #1e1e1e;
-  display: flex;
-  flex-direction: column;
+const CodeEditorWrapper = styled.div<{ $isDark: boolean }>`
+    height: 100%;
+    background-color: ${props => props.$isDark ? '#1e1e1e' : '#ffffff'};
+    display: flex;
+    flex-direction: column;
+`;
+
+const OutputArea = styled.textarea<{ $isDark: boolean }>`
+    width: 100%;
+    height: 100%;
+    background-color: ${props => props.$isDark ? '#1e1e1e' : '#ffffff'};
+    color: ${props => props.$isDark ? '#d4d4d4' : '#000000'};
+    border: none;
+    padding: 10px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 14px;
+    resize: none;
+    &:focus {
+        outline: none;
+    }
 `;
 
 type ScriptRecorderTool = 'drag' | 'template' | 'template-click' | 'ocr' | 'ocr-click' | 'hint-box';
@@ -68,6 +83,7 @@ interface ScriptRecorderState {
     inEditMode: boolean;
     directoryHandle: FileSystemDirectoryHandle | null;
     isRunning: boolean;
+    outputText: string;
 
     imageMetaDataObject: ReturnType<typeof useImageMetaData> | null;
     setImageMetaDataObject: (imageMetaData: ReturnType<typeof useImageMetaData>) => void;
@@ -78,6 +94,7 @@ interface ScriptRecorderState {
     setConnected: (connected: boolean) => void;
     setImageUrl: (url: string) => void;
     setIsRunning: (isRunning: boolean) => void;
+    setOutputText: (text: string) => void;
 
     setDirectoryHandle: (handle: FileSystemDirectoryHandle | null) => void;
     enterEditMode: () => void;
@@ -104,6 +121,7 @@ const useScriptRecorderStore = create<ScriptRecorderState>((set) => ({
 
     directoryHandle: null,
     isRunning: false,
+    outputText: '',
 
     imageMetaDataObject: null,
     setImageMetaDataObject: (imageMetaData) => set({ imageMetaDataObject: imageMetaData }),
@@ -118,6 +136,7 @@ const useScriptRecorderStore = create<ScriptRecorderState>((set) => ({
     setConnected: (connected) => set({ connected }),
     setImageUrl: (url) => set({ imageUrl: url }),
     setIsRunning: (isRunning) => set({ isRunning }),
+    setOutputText: (text) => set({ outputText: text }),
     setDirectoryHandle: (handle) => set({ directoryHandle: handle }),
     enterEditMode: () => set({ inEditMode: true, autoScreenshot: false }),
     exitEditMode: () => set({ inEditMode: false }),
@@ -343,6 +362,7 @@ const CodeEditorToolBar: React.FC<CodeEditorToolBarProps> = ({
 }) => {
     const [isRunning, setIsRunning] = useState(false);
     const { showToast, ToastComponent } = useToast();
+    const setOutputText = useScriptRecorderStore((s) => s.setOutputText);
 
     const spinnerCss = useMemo(() => css`
         animation: spin 1s linear infinite;
@@ -359,20 +379,26 @@ const CodeEditorToolBar: React.FC<CodeEditorToolBarProps> = ({
         }
 
         setIsRunning(true);
+        setOutputText(''); // 清空之前的输出
         try {
             const result = await client.runCode(code);
             if (result.status === 'error') {
                 showToast('danger', '运行错误', result.message);
+                setOutputText(`错误:\n${result.message}\n\n堆栈跟踪:\n${result.traceback}`);
                 console.error('运行错误:', result.traceback);
             } else {
                 if (result.result !== undefined) {
-                    showToast('success', '运行成功', `执行结果: ${JSON.stringify(result.result)}`);
+                    const output = `执行结果:\n${result.result}`;
+                    setOutputText(output);
+                    showToast('success', '运行成功', '代码执行完成');
                 } else {
+                    setOutputText('代码执行完成，无返回值');
                     showToast('success', '运行成功', '代码执行完成');
                 }
             }
         } catch (error) {
             showToast('danger', '运行错误', '执行代码时发生错误');
+            setOutputText(`执行错误:\n${error}`);
             console.error('执行错误:', error);
         } finally {
             setIsRunning(false);
@@ -431,11 +457,13 @@ const ScriptRecorder: React.FC = () => {
     const setConnected = useScriptRecorderStore((s) => s.setConnected);
     const setImageUrl = useScriptRecorderStore((s) => s.setImageUrl);
     const setDirectoryHandle = useScriptRecorderStore((s) => s.setDirectoryHandle);
+    const outputText = useScriptRecorderStore((s) => s.outputText);
 
     const { theme: editorTheme } = useDarkMode({
         whenDark: 'monokai',
         whenLight: 'chrome'
     });
+    const isDarkTheme = editorTheme === 'monokai';
 
     const { modal: formModal, show: showFormModal } = useFormModal([
         {
@@ -675,35 +703,41 @@ const ScriptRecorder: React.FC = () => {
                             onAnnotationChanged={handleAnnotationChange}
                         />
                     </ImageViewerWrapper>
-                    <CodeEditorWrapper>
+                    <CodeEditorWrapper $isDark={isDarkTheme}>
                         <CodeEditorToolBar
                             onCopyAll={handleCopyAll}
                             onCutAll={handleCutAll}
                             code={code}
                             client={client}
                         />
-                        <AceEditor
-                            ref={editorRef}
-                            mode="python"
-                            theme={editorTheme}
-                            value={code}
-                            onChange={setCode}
-                            name="script-editor"
-
-                            width="100%"
-                            height="100%"
-                            fontSize={14}
-                            showPrintMargin={false}
-                            showGutter={true}
-                            highlightActiveLine={true}
-                            setOptions={{
-                                enableBasicAutocompletion: true,
-                                enableLiveAutocompletion: true,
-                                showLineNumbers: true,
-                                tabSize: 4,
-                            }}
-
-                        />
+                        <Splitable vertical defaultSize={[null, 200]}>
+                            <AceEditor
+                                ref={editorRef}
+                                mode="python"
+                                theme={editorTheme}
+                                value={code}
+                                onChange={setCode}
+                                name="script-editor"
+                                width="100%"
+                                height="100%"
+                                fontSize={14}
+                                showPrintMargin={false}
+                                showGutter={true}
+                                highlightActiveLine={true}
+                                setOptions={{
+                                    enableBasicAutocompletion: true,
+                                    enableLiveAutocompletion: true,
+                                    showLineNumbers: true,
+                                    tabSize: 4,
+                                }}
+                            />
+                            <OutputArea
+                                readOnly
+                                placeholder="代码执行结果将显示在这里..."
+                                value={outputText}
+                                $isDark={isDarkTheme}
+                            />
+                        </Splitable>
                     </CodeEditorWrapper>
                 </Splitable>
             </div>

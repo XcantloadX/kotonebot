@@ -10,6 +10,10 @@ interface SplitableProps {
   defaultCollapsed?: boolean;
   /** 折叠状态改变时的回调 */
   onCollapsedChange?: (collapsed: boolean) => void;
+  /** 是否显示折叠按钮 */
+  collapseButton?: boolean;
+  /** 每个面板的默认宽度，null 表示不设置默认宽度 */
+  defaultSize?: (number | null)[];
 }
 
 const Container = styled.div<{ $vertical?: boolean }>`
@@ -104,20 +108,25 @@ export const Splitable: React.FC<SplitableProps> = ({
   children,
   vertical = false,
   defaultCollapsed = false,
-  onCollapsedChange
+  onCollapsedChange,
+  collapseButton = false,
+  defaultSize
 }) => {
   const childrenArray = Children.toArray(children);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
-  const [panelSizes, setPanelSizes] = useState<number[]>(
-    Array(childrenArray.length).fill(400)
-  );
+  const [panelSizes, setPanelSizes] = useState<number[]>(() => {
+    if (defaultSize) {
+      return defaultSize.map(size => size ?? 400);
+    }
+    return Array(childrenArray.length).fill(400);
+  });
 
   // 为每个可调整大小的面板创建一个 useResizePanel 实例
   const resizePanels = childrenArray.map((_, index) => {
     if (index === 0) return null; // 第一个面板不需要调整大小
     return useResizePanel({
       vertical,
-      defaultWidth: 400,
+      defaultWidth: panelSizes[index],
       minWidth: 100,
       maxWidth: 800,
       onWidthChange: (width) => {
@@ -177,7 +186,7 @@ export const Splitable: React.FC<SplitableProps> = ({
               $vertical={vertical}
             />
           )}
-          {index === childrenArray.length - 1 && (
+          {index === childrenArray.length - 1 && collapseButton && (
             <ToggleButton
               onClick={handleToggle}
               $collapsed={collapsed}
