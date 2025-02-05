@@ -16,6 +16,7 @@ from typing import (
     Concatenate,
     Generic,
     Type,
+    Sequence,
 )
 from typing_extensions import deprecated
 
@@ -279,14 +280,15 @@ class ContextOcr:
     
     def find_all(
         self,
-        patterns: list[str | re.Pattern | StringMatchFunction],
+        patterns: Sequence[str | re.Pattern | StringMatchFunction],
         *,
         hint: HintBox | None = None,
         rect: Rect | None = None,
+
     ) -> list[OcrResult | None]:
         return self.__engine.find_all(
             ContextStackVars.ensure_current().screenshot,
-            patterns,
+            list(patterns),
             hint=hint,
             rect=rect,
         )
