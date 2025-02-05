@@ -1,7 +1,9 @@
 import os
 import time
+import pstats
 import typing
 import logging
+import cProfile
 from time import sleep
 from importlib import resources
 from functools import lru_cache
@@ -208,3 +210,39 @@ def res_path(path: str) -> str:
     logger.debug(f'res_path: {ret}')
     return ret
 
+class Profiler:
+    """
+    性能分析器。对 `cProfile` 的简单封装。
+
+    使用方法：
+    ```python
+    with Profiler('profile.prof'):
+        # ...
+
+    # 或者
+    profiler = Profiler('profile.prof')
+    profiler.begin()
+    # ...
+    profiler.end()
+    ```
+    """
+    def __init__(self, file_path: str):
+
+        self.profiler = cProfile.Profile()
+        self.stats = None
+        self.file_path = file_path
+
+    def __enter__(self):
+        self.profiler.enable()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.profiler.disable()
+        self.stats = pstats.Stats(self.profiler)
+        self.stats.dump_stats(self.file_path)
+
+    def begin(self):
+        self.__enter__()
+
+    def end(self):
+        self.__exit__(None, None, None)

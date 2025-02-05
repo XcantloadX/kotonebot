@@ -7,6 +7,7 @@ import psutil
 import hashlib
 import traceback
 from pathlib import Path
+from functools import cache
 from datetime import datetime
 from dataclasses import dataclass
 from typing import NamedTuple, TextIO, Literal
@@ -133,6 +134,7 @@ def to_html(text: str) -> str:
 
 IDEType = Literal['vscode', 'cursor', 'windsurf']
 
+@cache
 def get_current_ide() -> IDEType | None:
     """获取当前IDE类型"""
     me = psutil.Process()
