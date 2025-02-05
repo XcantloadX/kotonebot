@@ -48,6 +48,19 @@ const Container = styled.div`
 
 const ImageViewerWrapper = styled.div`
   height: 100%;
+  position: relative;
+`;
+
+const FPSDisplay = styled.div`
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 1000;
 `;
 
 const CodeEditorWrapper = styled.div<{ $isDark: boolean }>`
@@ -458,6 +471,10 @@ const ScriptRecorder: React.FC = () => {
     const setImageUrl = useScriptRecorderStore((s) => s.setImageUrl);
     const setDirectoryHandle = useScriptRecorderStore((s) => s.setDirectoryHandle);
     const outputText = useScriptRecorderStore((s) => s.outputText);
+    const [fps, setFps] = useState(0);
+    const lastUpdateTimeRef = useRef(Date.now());
+    const frameCountRef = useRef(0);
+    const fpsIntervalRef = useRef<NodeJS.Timeout>();
 
     const { theme: editorTheme } = useDarkMode({
         whenDark: 'monokai',
@@ -531,7 +548,38 @@ const ScriptRecorder: React.FC = () => {
         lsp.registerEditor(editor);
     }, []);
 
-    
+    // 初始化：FPS 计算
+    useEffect(() => {
+        if (!autoScreenshot) {
+            setFps(0);
+            return;
+        }
+
+        // 每秒更新一次 FPS
+        fpsIntervalRef.current = setInterval(() => {
+            const now = Date.now();
+            const delta = now - lastUpdateTimeRef.current;
+            if (delta > 0) {
+                setFps(Number(((frameCountRef.current * 1000) / delta).toFixed(2)));
+                frameCountRef.current = 0;
+                lastUpdateTimeRef.current = now;
+            }
+        }, 1000);
+
+        return () => {
+            if (fpsIntervalRef.current) {
+                clearInterval(fpsIntervalRef.current);
+            }
+        };
+    }, [autoScreenshot]);
+
+    // 更新 FPS 计数
+    useEffect(() => {
+        if (autoScreenshot && imageUrl) {
+            frameCountRef.current++;
+        }
+    }, [imageUrl, autoScreenshot]);
+
     const handleAnnotationChange = async (e: AnnotationChangedEvent) => {
         if (e.type === 'add') {
 
@@ -695,6 +743,7 @@ const ScriptRecorder: React.FC = () => {
             <div css={css`height: 100%; margin-top: 0;`}>
                 <Splitable memorizeSizesKey='ScriptRecorder.ImageViewer'>
                     <ImageViewerWrapper>
+                        {autoScreenshot && <FPSDisplay>FPS: {fps}</FPSDisplay>}
                         <ImageEditor
                             enableMask
                             image={imageUrl}
