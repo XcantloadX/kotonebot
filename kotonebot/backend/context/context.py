@@ -243,19 +243,19 @@ class ContextOcr:
         """OCR 指定图像。"""
         ...
 
-    def ocr(self, img: 'MatLike | None' = None) -> list[OcrResult]:
+    def ocr(self, img: 'MatLike | None' = None, rect: Rect | None = None) -> list[OcrResult]:
         """OCR 当前设备画面或指定图像。"""
         if img is None:
-            return self.__engine.ocr(ContextStackVars.ensure_current().screenshot)
+            return self.__engine.ocr(ContextStackVars.ensure_current().screenshot, rect=rect)
         return self.__engine.ocr(img)
 
     def find(
-            self,
-            pattern: str | re.Pattern | StringMatchFunction,
-            *,
-            hint: HintBox | None = None,
-            rect: Rect | None = None,
-        ) -> OcrResult | None:
+        self,
+        pattern: str | re.Pattern | StringMatchFunction,
+        *,
+        hint: HintBox | None = None,
+        rect: Rect | None = None,
+    ) -> OcrResult | None:
         """检查当前设备画面是否包含指定文本。"""
         ret = self.__engine.find(
             ContextStackVars.ensure_current().screenshot,
@@ -265,14 +265,26 @@ class ContextOcr:
         )
         self.context.device.last_find = ret
         return ret
-
-
+    
+    def find_all(
+        self,
+        patterns: list[str | re.Pattern | StringMatchFunction],
+        *,
+        hint: HintBox | None = None,
+        rect: Rect | None = None,
+    ) -> list[OcrResult | None]:
+        return self.__engine.find_all(
+            ContextStackVars.ensure_current().screenshot,
+            patterns,
+            hint=hint,
+            rect=rect,
+        )
 
 
     def expect(
-            self,
-            pattern: str | re.Pattern | StringMatchFunction
-        ) -> OcrResult:
+        self,
+        pattern: str | re.Pattern | StringMatchFunction
+    ) -> OcrResult:
 
         """
         检查当前设备画面是否包含指定文本。
@@ -284,12 +296,12 @@ class ContextOcr:
         return ret
     
     def expect_wait(
-            self,
-            pattern: str | re.Pattern | StringMatchFunction,
-            timeout: float = DEFAULT_TIMEOUT,
-            *,
-            interval: float = DEFAULT_INTERVAL
-        ) -> OcrResult:
+        self,
+        pattern: str | re.Pattern | StringMatchFunction,
+        timeout: float = DEFAULT_TIMEOUT,
+        *,
+        interval: float = DEFAULT_INTERVAL
+    ) -> OcrResult:
         """
         等待指定文本出现。
         """
@@ -304,12 +316,12 @@ class ContextOcr:
             time.sleep(interval)
 
     def wait_for(
-            self,
-            pattern: str | re.Pattern | StringMatchFunction,
-            timeout: float = DEFAULT_TIMEOUT,
-            *,
-            interval: float = DEFAULT_INTERVAL
-        ) -> OcrResult | None:
+        self,
+        pattern: str | re.Pattern | StringMatchFunction,
+        timeout: float = DEFAULT_TIMEOUT,
+        *,
+        interval: float = DEFAULT_INTERVAL
+    ) -> OcrResult | None:
         """
         等待指定文本出现。
         """
@@ -699,15 +711,19 @@ def init_context(
     config._FORWARD_getter = lambda: _c.config # type: ignore
 
 class ManualContextManager:
+    def __init__(self, screenshot_mode: ScreenshotMode = 'auto'):
+        self.screenshot_mode: ScreenshotMode = screenshot_mode
+
     def __enter__(self):
-        ContextStackVars.push()
+        ContextStackVars.push(screenshot_mode=self.screenshot_mode)
 
     def __exit__(self, exc_type, exc_value, traceback):
         ContextStackVars.pop()
 
-def manual_context() -> ManualContextManager:
+def manual_context(screenshot_mode: ScreenshotMode = 'auto') -> ManualContextManager:
     """
     默认情况下，Context* 类仅允许在 @task/@action 函数中使用。
     如果想要在其他地方使用，使用此函数手动创建一个上下文。
     """
-    return ManualContextManager()
+    return ManualContextManager(screenshot_mode)
+

@@ -276,6 +276,38 @@ class Ocr:
                 return result
         return None
 
+    def find_all(
+        self,
+        img: 'MatLike',
+        texts: list[str | re.Pattern | StringMatchFunction],
+        *,
+        hint: HintBox | None = None,
+        rect: Rect | None = None,
+        pad: bool = True,
+    ) -> list[OcrResult | None]:
+        """
+        寻找所有文本。
+
+        :return:
+            所有找到的文本，结果顺序与输入顺序相同。
+            若某个文本未找到，则改位置为 None。
+        """
+        # HintBox 处理
+        if hint is not None:
+            result = self.find_all(img, texts, rect=hint, pad=pad)
+            if all(result):
+                return result
+
+        ret: list[OcrResult | None] = []
+        ocr_results = self.ocr(img, rect=rect, pad=pad)
+        for text in texts:
+            for result in ocr_results:
+                if _is_match(result.text, text):
+                    ret.append(result)
+                    break
+            else:
+                ret.append(None)
+        return ret
     
     def expect(
         self,
