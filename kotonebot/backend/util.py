@@ -246,3 +246,6 @@ class Profiler:
 
     def end(self):
         self.__exit__(None, None, None)
+
+class KotonebotWarning(Warning):
+    pass

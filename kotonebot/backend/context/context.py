@@ -2,6 +2,7 @@ import os
 import re
 import time
 import logging
+import warnings
 from datetime import datetime
 from threading import Event
 from typing import (
@@ -22,7 +23,7 @@ import cv2
 from cv2.typing import MatLike
 
 from kotonebot.client.protocol import DeviceABC
-from kotonebot.backend.util import Rect
+from kotonebot.backend.util import Rect, KotonebotWarning
 import kotonebot.backend.image as raw_image
 from kotonebot.client.device.adb import AdbDevice
 from kotonebot.backend.image import (
@@ -143,6 +144,16 @@ def sleep(seconds: float, /):
     vars.interrupted.wait(timeout=seconds)
     if vars.interrupted.is_set():
         raise KeyboardInterrupt("User requested interrupt.")
+
+def warn_manual_screenshot_mode(name: str, alternative: str):
+    """
+    警告在手动截图模式下使用的方法。
+    """
+    warnings.warn(
+        f"You are calling `{name}` function in manual screenshot mode. "
+        f"This is meaningless. Write you own while loop and call `{alternative}` in the loop.",
+        KotonebotWarning
+    )
 
 class ContextGlobalVars:
     def __init__(self):
@@ -280,7 +291,6 @@ class ContextOcr:
             rect=rect,
         )
 
-
     def expect(
         self,
         pattern: str | re.Pattern | StringMatchFunction
@@ -305,9 +315,12 @@ class ContextOcr:
         """
         等待指定文本出现。
         """
+        warn_manual_screenshot_mode("expect_wait", "find()")
+
         start_time = time.time()
         while True:
             result = self.find(pattern)
+
             if result is not None:
                 self.context.device.last_find = result
                 return result
@@ -325,6 +338,8 @@ class ContextOcr:
         """
         等待指定文本出现。
         """
+        warn_manual_screenshot_mode("wait_for", "find()")
+
         start_time = time.time()
         while True:
             result = self.find(pattern)
@@ -359,6 +374,8 @@ class ContextImage:
         """
         等待指定图像出现。
         """
+        warn_manual_screenshot_mode("wait_for", "find()")
+        
         start_time = time.time()
         while True:
             ret = self.find(template, mask, transparent=transparent, threshold=threshold, colored=colored)
@@ -383,6 +400,8 @@ class ContextImage:
         """
         等待指定图像中的任意一个出现。
         """
+        warn_manual_screenshot_mode("wait_for_any", "find()")
+
         if masks is None:
             _masks = [None] * len(templates)
         else:
@@ -410,6 +429,8 @@ class ContextImage:
         """
         等待指定图像出现。
         """
+        warn_manual_screenshot_mode("expect_wait", "find()")
+
         start_time = time.time()
         while True:
             ret = self.find(template, mask, transparent=transparent, threshold=threshold, colored=colored)
@@ -434,6 +455,8 @@ class ContextImage:
         """
         等待指定图像中的任意一个出现。
         """
+        warn_manual_screenshot_mode("expect_wait_any", "find()")
+
         if masks is None:
             _masks = [None] * len(templates)
         else:
