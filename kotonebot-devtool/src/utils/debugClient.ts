@@ -59,10 +59,10 @@ export type RunCodeResultSuccess = {
 
 export type RunCodeResultError = {
   status: 'error';
+  result: string;
   message: string;
   traceback: string;
 };
-
 
 /**
  * Kotone 调试客户端类
@@ -215,9 +215,10 @@ export class KotoneDebugClient {
       }
     });
     return response.json();
-
-
   }
 
-
+  async stopCode(): Promise<void> {
+    const response = await fetch(`http://${this.host}/api/code/stop`);
+    return response.json();
+  }
 } 

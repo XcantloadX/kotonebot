@@ -326,7 +326,7 @@ class ContextOcr:
                 return result
             if time.time() - start_time > timeout:
                 raise TimeoutError(f"Timeout waiting for {pattern}")
-            time.sleep(interval)
+            sleep(interval)
 
     def wait_for(
         self,
@@ -348,7 +348,7 @@ class ContextOcr:
                 return result
             if time.time() - start_time > timeout:
                 return None
-            time.sleep(interval)
+            sleep(interval)
 
 
 @interruptible_class
@@ -384,7 +384,7 @@ class ContextImage:
                 return ret
             if time.time() - start_time > timeout:
                 return None
-            time.sleep(interval)
+            sleep(interval)
 
     def wait_for_any(
             self,
@@ -413,7 +413,7 @@ class ContextImage:
                     return True
             if time.time() - start_time > timeout:
                 return False
-            time.sleep(interval)
+            sleep(interval)
 
     def expect_wait(
             self,
@@ -439,7 +439,7 @@ class ContextImage:
                 return ret
             if time.time() - start_time > timeout:
                 raise TimeoutError(f"Timeout waiting for {template}")
-            time.sleep(interval)
+            sleep(interval)
 
     def expect_wait_any(
             self,
@@ -470,7 +470,7 @@ class ContextImage:
                     return ret
             if time.time() - start_time > timeout:
                 raise TimeoutError(f"Timeout waiting for any of {templates}")
-            time.sleep(interval)
+            sleep(interval)
 
     @context(expect)
     def expect(self, *args, **kwargs):

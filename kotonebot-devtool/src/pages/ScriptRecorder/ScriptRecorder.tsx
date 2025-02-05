@@ -374,6 +374,7 @@ const CodeEditorToolBar: React.FC<CodeEditorToolBarProps> = ({
     client
 }) => {
     const [isRunning, setIsRunning] = useState(false);
+    const [isStoppingDisabled, setIsStoppingDisabled] = useState(false);
     const { showToast, ToastComponent } = useToast();
     const setOutputText = useScriptRecorderStore((s) => s.setOutputText);
 
@@ -385,7 +386,25 @@ const CodeEditorToolBar: React.FC<CodeEditorToolBarProps> = ({
         }
     `, []);
 
+    const handleStopCode = async () => {
+        setIsStoppingDisabled(true);
+        try {
+            await client.stopCode();
+        } catch (error) {
+            showToast('danger', '停止错误', '停止代码执行时发生错误');
+            console.error('停止错误:', error);
+        } finally {
+            setIsRunning(false);
+            setIsStoppingDisabled(false);
+        }
+    };
+
     const handleRunCode = async () => {
+        if (isRunning) {
+            handleStopCode();
+            return;
+        }
+
         if (!code.trim()) {
             showToast('warning', '警告', '请先输入代码');
             return;
@@ -396,21 +415,17 @@ const CodeEditorToolBar: React.FC<CodeEditorToolBarProps> = ({
         try {
             const result = await client.runCode(code);
             if (result.status === 'error') {
-                showToast('danger', '运行错误', result.message);
-                setOutputText(`错误:\n${result.message}\n\n堆栈跟踪:\n${result.traceback}`);
+                setOutputText(`错误:\n${result.message}\n\n堆栈跟踪:\n${result.traceback}\n\n执行结果:\n${result.result}`);
                 console.error('运行错误:', result.traceback);
             } else {
                 if (result.result !== undefined) {
                     const output = `执行结果:\n${result.result}`;
                     setOutputText(output);
-                    showToast('success', '运行成功', '代码执行完成');
                 } else {
                     setOutputText('代码执行完成，无返回值');
-                    showToast('success', '运行成功', '代码执行完成');
                 }
             }
         } catch (error) {
-            showToast('danger', '运行错误', '执行代码时发生错误');
             setOutputText(`执行错误:\n${error}`);
             console.error('执行错误:', error);
         } finally {
@@ -425,9 +440,9 @@ const CodeEditorToolBar: React.FC<CodeEditorToolBarProps> = ({
                 <VSToolBar.Button
                     id="run"
                     icon={isRunning ? <AiOutlineLoading3Quarters css={spinnerCss} /> : <MdPlayArrow />}
-                    label="运行"
+                    label={isRunning ? "停止" : "运行"}
                     onClick={handleRunCode}
-                    disabled={isRunning}
+                    disabled={isRunning && isStoppingDisabled}
                 />
                 <VSToolBar.Separator />
                 <VSToolBar.Button

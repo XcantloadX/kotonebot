@@ -100,20 +100,40 @@ class RunCodeRequest(BaseModel):
 
 @app.post("/api/code/run")
 async def run_code(request: RunCodeRequest):
+    event = asyncio.Event()
     stdout = StringIO()
     code = f"from kotonebot import *\n" + request.code
-    try:
-        with manual_context():
-            global_vars = dict(vars(kotonebot.backend.context))
-            with redirect_stdout(stdout):
-                exec(code, global_vars)
-        return {"status": "ok", "result": stdout.getvalue()}
-    except Exception as e:
-        return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
+    result = {}
+    def _runner():
+        nonlocal result
+        from kotonebot.backend.context import vars as context_vars
+        try:
+            with manual_context():
+                global_vars = dict(vars(kotonebot.backend.context))
+                with redirect_stdout(stdout):
+                    exec(code, global_vars)
+            result = {"status": "ok", "result": stdout.getvalue()}
+        except (Exception) as e:
+            result = {"status": "error", "result": stdout.getvalue(), "message": str(e), "traceback": traceback.format_exc()}
+        except KeyboardInterrupt as e:
+            result = {"status": "error", "result": stdout.getvalue(), "message": str(e), "traceback": traceback.format_exc()}
+        finally:
+            context_vars.interrupted.clear()
+        event.set()
+    threading.Thread(target=_runner, daemon=True).start()
+    await event.wait()
+    return result
+
+@app.get("/api/code/stop")
+async def stop_code():
+    from kotonebot.backend.context import vars
+    vars.interrupted.set()
+    while vars.interrupted.is_set():
+        await asyncio.sleep(0.1)
+    return {"status": "ok"}
 
 @app.get("/api/ping")
 async def ping():
-
     return {"status": "ok"}
 
 message_queue = deque()
