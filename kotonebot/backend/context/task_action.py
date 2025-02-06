@@ -115,7 +115,7 @@ def action(
     pass_through: bool = False,
     priority: int = 0,
     screenshot_mode: ScreenshotMode | None = None,
-    dispatcher: Literal[True] = True,
+    dispatcher: Literal[True, 'fragment'] = True,
 ) -> Callable[[Callable[Concatenate[DispatcherContext, P], R]], Callable[P, R]]:
     """
     `action` 装饰器，用于标记一个函数为动作函数。
@@ -135,6 +135,9 @@ def action(
     """
     ...
 
+# TODO: 需要找个地方统一管理这些属性名
+ATTR_ORIGINAL_FUNC = '_kb_inner'
+ATTR_ACTION_MARK = '__kb_action_mark'
 def action(*args, **kwargs):
     def _register(func: Callable, name: str, description: str|None = None, priority: int = 0) -> Action:
         description = description or func.__doc__ or ''
@@ -142,7 +145,6 @@ def action(*args, **kwargs):
         action_registry[name] = action
         logger.debug(f'Action "{name}" registered.')
         return action
-
 
     if len(args) == 1 and isinstance(args[0], Callable):
         func = args[0]
@@ -154,6 +156,8 @@ def action(*args, **kwargs):
             ContextStackVars.pop()
             current_callstack.pop()
             return ret
+        setattr(_wrapper, ATTR_ORIGINAL_FUNC, func)
+        setattr(_wrapper, ATTR_ACTION_MARK, True)
         action.func = _wrapper
         return _wrapper
     else:
@@ -163,7 +167,7 @@ def action(*args, **kwargs):
         priority = kwargs.get('priority', 0)
         screenshot_mode = kwargs.get('screenshot_mode', None)
         dispatcher = kwargs.get('dispatcher', False)
-        if dispatcher:
+        if dispatcher == True or dispatcher == 'fragment':
             if not (screenshot_mode is None or screenshot_mode == 'manual'):
                 raise ValueError('`screenshot_mode` must be None or "manual" when `dispatcher=True`.')
             screenshot_mode = 'manual'
@@ -175,7 +179,7 @@ def action(*args, **kwargs):
                 return func
             else:
                 if dispatcher:
-                    func = dispatcher_decorator(func) # type: ignore
+                    func = dispatcher_decorator(func, fragment=(dispatcher == 'fragment')) # type: ignore
                 def _wrapper(*args: P.args, **kwargs: P.kwargs):
                     current_callstack.append(action)
                     vars = ContextStackVars.push(screenshot_mode=screenshot_mode)
@@ -183,6 +187,8 @@ def action(*args, **kwargs):
                     ContextStackVars.pop()
                     current_callstack.pop()
                     return ret
+                setattr(_wrapper, ATTR_ORIGINAL_FUNC, func)
+                setattr(_wrapper, ATTR_ACTION_MARK, True)
                 action.func = _wrapper
                 return _wrapper
         return _action_decorator

@@ -180,7 +180,7 @@ def load_metadata(root_path: str, png_file: str) -> list[Resource]:
                 uuid=definition.annotationId,
                 name=definition.name.split('.')[-1],
                 display_name=definition.displayName,
-                class_path=to_camel_cases(definition.name.split('.')[:-1]),
+                class_path=definition.name.split('.')[:-1],
 
                 rel_path=png_file,
                 abs_path=os.path.abspath(clips[definition.annotationId]),
@@ -192,7 +192,7 @@ def load_metadata(root_path: str, png_file: str) -> list[Resource]:
             hb = HintBox(
                 name=definition.name.split('.')[-1],
                 display_name=definition.displayName,
-                class_path=to_camel_cases(definition.name.split('.')[:-1]),
+                class_path=definition.name.split('.')[:-1],
                 x1=annotation.data.x1,
                 y1=annotation.data.y1,
                 x2=annotation.data.x2,
