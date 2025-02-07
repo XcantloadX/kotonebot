@@ -85,8 +85,8 @@ def dispatcher(
         启用后，被装饰函数将会只执行依次，
         而不会一直循环到 ctx.finish() 被调用。
     """
-    ctx = DispatcherContext()
     def wrapper(*args: P.args, **kwargs: P.kwargs):
+        ctx = DispatcherContext()
         while not ctx.finished:
             from kotonebot import device
             device.update_screenshot()
@@ -94,6 +94,7 @@ def dispatcher(
             ctx._first_run = False
         return ret
     def fragment_wrapper(*args: P.args, **kwargs: P.kwargs):
+        ctx = DispatcherContext()
         from kotonebot import device
         device.update_screenshot()
         return func(ctx, *args, **kwargs)
@@ -107,3 +108,19 @@ def dispatcher(
 
     else:
         return wrapper
+
+if __name__ == '__main__':
+    from .context.task_action import action
+    from .context import init_context
+    init_context()
+    @action('inner', dispatcher=True)
+    def inner(ctx: DispatcherContext):
+        print('inner')
+        ctx.finish()
+
+    @action('test', dispatcher=True)
+    def test(ctx: DispatcherContext):
+        print('test')
+        inner()
+        ctx.finish()
+    test()
