@@ -30,11 +30,39 @@ _engine_en = RapidOCR(
 )
 
 StringMatchFunction = Callable[[str], bool]
+REGEX_NUMBERS = re.compile(r'\d+')
 
 class OcrResult(NamedTuple):
     text: str
     rect: Rect
     confidence: float
+
+    def regex(self, pattern: re.Pattern | str) -> list[str]:
+        """
+        提取识别结果中符合正则表达式的文本。
+        """
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
+        return pattern.findall(self.text)
+
+    def numbers(self) -> list[int]:
+        """
+        提取识别结果中的数字。
+        """
+        return [int(x) for x in REGEX_NUMBERS.findall(self.text)]
+
+class OcrResultList(list[OcrResult]):
+    def first(self) -> OcrResult | None:
+        """
+        返回第一个识别结果。
+        """
+        return self[0] if self else None
+
+    def where(self, pattern: StringMatchFunction) -> 'OcrResultList':
+        """
+        返回符合条件的识别结果。
+        """
+        return OcrResultList([x for x in self if pattern(x.text)])
 
 class TextNotFoundError(Exception):
     def __init__(self, pattern: str | re.Pattern | StringMatchFunction, image: 'MatLike'):
@@ -234,7 +262,7 @@ class Ocr:
         *,
         rect: Rect | None = None,
         pad: bool = True,
-    ) -> list[OcrResult]:
+    ) -> OcrResultList:
         """
         OCR 一个 cv2 的图像。注意识别结果中的**全角字符会被转换为半角字符**。
 
@@ -260,8 +288,7 @@ class Ocr:
         img_content = grayscaled(img)
         result, elapse = self.__engine(img_content)
         if result is None:
-
-            return []
+            return OcrResultList()
         ret = [OcrResult(
             text=unicodedata.normalize('NFKC', r[1]).replace('ą', 'a'), # HACK: 识别结果中包含奇怪的符号，暂时替换掉
             # r[0] = [左上, 右上, 右下, 左下]
@@ -270,6 +297,7 @@ class Ocr:
             rect=tuple(int(x) for x in bounding_box(r[0])), # type: ignore
             confidence=r[2] # type: ignore
         ) for r in result] # type: ignore
+        ret = OcrResultList(ret)
         if debug.enabled:
             result_image = _draw_result(img, ret)
             debug_result(
@@ -292,7 +320,7 @@ class Ocr:
         pad: bool = True,
     ) -> OcrResult | None:
         """
-        寻找指定文本。
+        识别图像中的文本，并寻找满足指定要求的文本。
 
         :param hint: 如果指定，则首先只识别 HintBox 范围内的文本，若未命中，再全局寻找。
         :param rect: 如果指定，则只识别指定矩形区域。此参数优先级低于 `hint`。
@@ -317,11 +345,11 @@ class Ocr:
         pad: bool = True,
     ) -> list[OcrResult | None]:
         """
-        寻找所有文本。
+        识别图像中的文本，并寻找多个满足指定要求的文本。
 
         :return:
             所有找到的文本，结果顺序与输入顺序相同。
-            若某个文本未找到，则改位置为 None。
+            若某个文本未找到，则该位置为 None。
         """
         # HintBox 处理
         if hint is not None:
@@ -351,7 +379,7 @@ class Ocr:
         pad: bool = True,
     ) -> OcrResult:
         """
-        寻找指定文本，如果未找到则抛出异常。
+        识别图像中的文本，并寻找满足指定要求的文本。如果未找到则抛出异常。
 
         :param hint: 如果指定，则首先只识别 HintBox 范围内的文本，若未命中，再全局寻找。
         :param rect: 如果指定，则只识别指定矩形区域。此参数优先级高于 `hint`。

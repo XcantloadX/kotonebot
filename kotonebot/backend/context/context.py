@@ -39,7 +39,7 @@ from kotonebot.backend.image import (
 )
 import kotonebot.backend.color as raw_color
 from kotonebot.backend.color import find_rgb
-from kotonebot.backend.ocr import Ocr, OcrResult, jp, en, StringMatchFunction
+from kotonebot.backend.ocr import Ocr, OcrResult, OcrResultList, jp, en, StringMatchFunction
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig
 from kotonebot.backend.core import Image, HintBox
@@ -244,22 +244,13 @@ class ContextOcr:
             case _:
                 raise ValueError(f"Invalid language: {lang}")
 
-    @overload
-    def ocr(self) -> list[OcrResult]:
-        """OCR 当前设备画面。"""
-        ...
-
-    @overload
-    @deprecated('使用 `ocr.raw().ocr()` 代替')
-    def ocr(self, img: 'MatLike') -> list[OcrResult]:
-        """OCR 指定图像。"""
-        ...
-
-    def ocr(self, img: 'MatLike | None' = None, rect: Rect | None = None) -> list[OcrResult]:
+    def ocr(
+        self,
+        rect: Rect | None = None,
+    ) -> OcrResultList:
         """OCR 当前设备画面或指定图像。"""
-        if img is None:
-            return self.__engine.ocr(ContextStackVars.ensure_current().screenshot, rect=rect)
-        return self.__engine.ocr(img)
+        return self.__engine.ocr(ContextStackVars.ensure_current().screenshot, rect=rect)
+
 
     def find(
         self,
