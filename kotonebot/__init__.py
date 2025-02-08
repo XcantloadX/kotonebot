@@ -33,5 +33,6 @@ from .backend.ocr import (
     fuzz,
     regex,
     contains,
+    equals,
 )
 from .ui import user

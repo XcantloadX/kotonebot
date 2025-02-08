@@ -1,4 +1,5 @@
 import re
+import logging
 import unicodedata
 from functools import lru_cache
 from typing import Callable, NamedTuple
@@ -13,6 +14,7 @@ from .util import Rect, grayscaled, res_path
 from .debug import result as debug_result, debug
 from .core import HintBox
 
+logger = logging.getLogger(__name__)
 
 _engine_jp = RapidOCR(
     rec_model_path=res_path('res/models/japan_PP-OCRv3_rec_infer.onnx'),
@@ -67,6 +69,35 @@ def contains(text: str) -> Callable[[str], bool]:
     f.__repr__ = lambda: f"contains('{text}')"
     f.__name__ = f"contains('{text}')"
     return f
+
+@lru_cache(maxsize=1000)
+def equals(
+    text: str,
+    *,
+    remove_space: bool = False,
+    ignore_case: bool = True,
+) -> Callable[[str], bool]:
+    """
+    返回等于指定文本的函数。
+    
+    :param text: 要比较的文本。
+    :param remove_space: 是否忽略空格。默认为 False。
+    :param ignore_case: 是否忽略大小写。默认为 True。
+    """
+    def compare(s: str) -> bool:
+        nonlocal text
+
+        if ignore_case:
+            text = text.lower()
+            s = s.lower()
+        if remove_space:
+            text = text.replace(' ', '').replace('　', '')
+            s = s.replace(' ', '').replace('　', '')
+
+        return text == s
+    compare.__repr__ = lambda: f"equals('{text}')"
+    compare.__name__ = f"equals('{text}')"
+    return compare
 
 def _is_match(text: str, pattern: re.Pattern | str | StringMatchFunction) -> bool:
     if isinstance(pattern, re.Pattern):
@@ -300,6 +331,7 @@ class Ocr:
 
         ret: list[OcrResult | None] = []
         ocr_results = self.ocr(img, rect=rect, pad=pad)
+        logger.debug(f"ocr_results: {ocr_results}")
         for text in texts:
             for result in ocr_results:
                 if _is_match(result.text, text):
