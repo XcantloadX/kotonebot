@@ -143,7 +143,7 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             if len(message_queue) > 0:
-                message = message_queue.pop()
+                message = message_queue.popleft()
                 await websocket.send_json(message)
             await asyncio.sleep(0.1)
     except:
