@@ -33,6 +33,7 @@ import { AceLanguageClient } from "ace-linters/build/ace-language-client";
 import { config } from "ace-builds";
 import { LanguageProvider } from 'ace-linters/types/language-provider';
 import { Ace } from 'ace-code';
+import AutocompleteInput from '../../components/AutocompleteInput';
 // https://github.com/ajaxorg/ace/issues/4597
 config.setModuleUrl('ace/mode/python', modePython);
 config.setModuleUrl('ace/theme/monokai', themeMonokai);
@@ -499,18 +500,38 @@ const ScriptRecorder: React.FC = () => {
 
     const { modal: formModal, show: showFormModal } = useFormModal([
         {
-            type: 'text',
+            type: 'custom',
             label: '名称',
             name: 'name',
             required: true,
-            placeholder: '请输入名称'
+            placeholder: '请输入名称',
+            customComponent: () => <AutocompleteInput
+                label='名称'
+                name='name'
+                required
+                placeholder='请输入名称'
+                onAutoCompleteRequest={async (value) => {
+                    const result = await client.autocomplete(value);
+                    return result;
+                }}
+                onAutocompleteSelect={(value, selectOption) => {
+                    if (value.indexOf('.') !== -1) {
+                        value = value.substring(0, value.lastIndexOf('.'));
+                        return `${value}.${selectOption}`;
+                    }
+                    else
+                        return `${selectOption}`;
+                }}
+            />,
         },
         {
             type: 'text',
             label: '显示名称',
             name: 'displayName',
             required: true,
+
             placeholder: '请输入显示名称'
+
         }
     ]);
 

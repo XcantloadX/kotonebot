@@ -1,28 +1,29 @@
 import time
 import asyncio
+import inspect
 import threading
 import traceback
 import subprocess
 from io import StringIO
 from pathlib import Path
+from typing import Literal
 from collections import deque
 from contextlib import redirect_stdout
 
 import cv2
-from pydantic import BaseModel
 import uvicorn
+from thefuzz import fuzz
+from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
-
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 import kotonebot
 import kotonebot.backend
 import kotonebot.backend.context
-
+from kotonebot.backend.core import HintBox, Image
 from ..context import manual_context
-
 from . import vars as debug_vars
 
 app = FastAPI()
@@ -33,6 +34,11 @@ CURRENT_DIR = Path(__file__).parent
 
 STATIC_DIR = CURRENT_DIR / "web"
 APP_DIR = Path.cwd()
+
+class File(BaseModel):
+    name: str
+    full_path: str
+    type: Literal["file", "dir"]
 
 # 挂载静态文件
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -131,6 +137,41 @@ async def stop_code():
     while vars.interrupted.is_set():
         await asyncio.sleep(0.1)
     return {"status": "ok"}
+
+@app.get("/api/fs/list_dir")
+def list_dir(path: str) -> list[File]:
+    result = []
+    for item in Path(path).iterdir():
+        result.append(File(
+            name=item.name,
+            full_path=str(item),
+            type="file" if item.is_file() else "dir"
+        ))
+    return result
+
+@app.get("/api/resources/autocomplete")
+def autocomplete(class_path: str) -> list[str]:
+    from kotonebot.tasks import R # HACK: hardcode
+    class_names = class_path.split(".")[:-1]
+    target_class = R
+    # 定位到目标类
+    for name in class_names:
+        target_class = getattr(target_class, name, None)
+        if target_class is None:
+            return []
+    # 获取目标类的所有属性
+    attrs = [attr for attr in dir(target_class) if not attr.startswith("_")]
+    filtered_attrs = []
+    for attr in attrs:
+        if inspect.isclass(getattr(target_class, attr)):
+            filtered_attrs.append(attr)
+        elif isinstance(getattr(target_class, attr), (Image, HintBox)):
+            filtered_attrs.append(attr)  
+    attrs = filtered_attrs
+    # 排序
+    attrs.sort(key=lambda x: fuzz.ratio(x, class_path), reverse=True)
+    return attrs
+
 
 @app.get("/api/ping")
 async def ping():
