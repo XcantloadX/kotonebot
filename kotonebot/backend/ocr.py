@@ -37,6 +37,9 @@ class OcrResult(NamedTuple):
     rect: Rect
     confidence: float
 
+    def __repr__(self) -> str:
+        return f'OcrResult(text="{self.text}", rect={self.rect}, confidence={self.confidence})'
+
     def regex(self, pattern: re.Pattern | str) -> list[str]:
         """
         提取识别结果中符合正则表达式的文本。
@@ -401,35 +404,4 @@ en = Ocr(_engine_en)
 
 
 if __name__ == '__main__':
-    import time
-    from pprint import pprint as print
-    import cv2
-    print('small')
-    img_path = r"C:\Users\user\Downloads\Screenshot_2025.01.28_21.00.40.172.png"
-    img = cv2.imread(img_path)
-    time_start = time.time()
-    result1 = jp.ocr(img)
-    time_end = time.time()
-    print(time_end - time_start)
-    # print(result1)
-
-    for i in np.linspace(300, 1000, 20):
-        i = int(i)
-        print('small-pad: ' + f'{str(i)}x{str(i)}')
-        img = pad_to(img, (int(i), int(i)))
-        time_start = time.time()
-        result1 = jp.ocr(img)
-        time_end = time.time()
-        print(time_end - time_start)
-
-        # print(result1)
-
-
-    print('big')
-    img_path = r"C:\Users\user\Pictures\BlueStacks\Screenshot_2025.01.28_21.00.40.172.png"
-    img = cv2.imread(img_path)
-    time_start = time.time()
-    result1 = jp.ocr(img)
-    time_end = time.time()
-    print(time_end - time_start)
-    # print(result1)
+    pass

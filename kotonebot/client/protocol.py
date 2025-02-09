@@ -5,6 +5,7 @@ from typing_extensions import deprecated
 
 from cv2.typing import MatLike
 
+from kotonebot.backend.core import HintBox
 from kotonebot.backend.util import Rect, is_rect
 
 @runtime_checkable
@@ -110,6 +111,13 @@ class DeviceABC(ABC):
         ...
 
     @overload
+    def click(self, hint_box: HintBox) -> None:
+        """
+        点击屏幕上的某个矩形区域
+        """
+        ...
+
+    @overload
     def click(self, rect: Rect) -> None:
         """
         从屏幕上的某个矩形区域随机选择一个点并点击
@@ -118,6 +126,7 @@ class DeviceABC(ABC):
 
     @overload
     def click(self, clickable: ClickableObjectProtocol) -> None:
+
         """
         点击屏幕上的某个可点击对象
         """

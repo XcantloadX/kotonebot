@@ -8,6 +8,7 @@ from cv2.typing import MatLike
 from adbutils import AdbClient, adb
 from adbutils._device import AdbDevice as Device
 
+from kotonebot.backend.core import HintBox
 from kotonebot.backend.util import Rect, is_rect
 from ..protocol import DeviceABC, ClickableObjectProtocol
 
@@ -27,6 +28,8 @@ class AdbDevice(DeviceABC):
     def click(self, arg1=None, arg2=None) -> None:
         if arg1 is None:
             self.__click_last()
+        elif isinstance(arg1, HintBox):
+            self.__click_hint_box(arg1)
         elif is_rect(arg1):
             self.__click_rect(arg1)
         elif isinstance(arg1, int) and isinstance(arg2, int):
@@ -60,8 +63,12 @@ class AdbDevice(DeviceABC):
     def __click_clickable(self, clickable: ClickableObjectProtocol) -> None:
         self.click(clickable.rect)
 
+    def __click_hint_box(self, hint_box: HintBox) -> None:
+        self.click(hint_box.rect)
+
     @override
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float|None = None) -> None:
+
         if duration is not None:
             logger.warning("Swipe duration is not supported with AdbDevice. Ignoring duration.")
         self.device.shell(f"input touchscreen swipe {x1} {y1} {x2} {y2}")
