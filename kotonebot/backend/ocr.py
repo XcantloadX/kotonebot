@@ -55,6 +55,26 @@ class OcrResult(NamedTuple):
         return [int(x) for x in REGEX_NUMBERS.findall(self.text)]
 
 class OcrResultList(list[OcrResult]):
+    def squash(self) -> OcrResult:
+        """
+        将所有识别结果合并为一个大结果。
+        """
+        text = [r.text for r in self]
+        confidence = sum(r.confidence for r in self) / len(self)
+        points = []
+        for r in self:
+            points.append((r.rect[0], r.rect[1]))
+            points.append((r.rect[0] + r.rect[2], r.rect[1]))
+            points.append((r.rect[0], r.rect[1] + r.rect[3]))
+            points.append((r.rect[0] + r.rect[2], r.rect[1] + r.rect[3]))
+        rect = bounding_box(points)
+        return OcrResult(
+            text='\n'.join(text),
+            rect=rect,
+            confidence=confidence,
+        )
+
+
     def first(self) -> OcrResult | None:
         """
         返回第一个识别结果。
