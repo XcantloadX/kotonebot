@@ -17,7 +17,7 @@ from .core import HintBox
 logger = logging.getLogger(__name__)
 
 _engine_jp = RapidOCR(
-    rec_model_path=res_path('res/models/japan_PP-OCRv3_rec_infer.onnx'),
+    rec_model_path=res_path('res/models/japan_PP-OCRv4_rec_infer.onnx'),
     use_det=True,
     use_cls=False,
     use_rec=True,
