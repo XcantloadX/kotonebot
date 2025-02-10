@@ -4,7 +4,7 @@ import { SideToolBar, Tool } from '../../components/SideToolBar';
 import PropertyGrid, { Property, PropertyCategory } from '../../components/PropertyGrid';
 import ImageEditor, { AnnotationChangedEvent } from '../../components/ImageEditor/ImageEditor';
 import { Annotation, Tool as EditorTool } from '../../components/ImageEditor/types';
-import { BsCursor, BsSquare, BsFolder2Open, BsFloppy } from 'react-icons/bs';
+import { BsCursor, BsSquare, BsFolder2Open, BsFloppy, BsCardImage, BsQuestionSquare } from 'react-icons/bs';
 import useImageMetaData, { Definition, DefinitionType, ImageMetaData, TemplateDefinition, Definitions } from '../../hooks/useImageMetaData';
 import { useImageViewerModal } from '../../components/ImageViewerModal';
 import { useMessageBox } from '../../hooks/useMessageBox';
@@ -12,6 +12,7 @@ import { useToast } from '../../components/ToastMessage';
 import DragArea from './DragArea';
 import { cropImage, openFileWFS, openFileInput, downloadJSONToFile, readFileAsJSON, readFileAsDataURL, FileResult, saveFileWFS, saveFileAsWFS } from '../../utils/fileUtils';
 import NativeDiv from '../../components/NativeDiv';
+import useHotkey from '../../hooks/useHotkey';
 
 const PageContainer = styled.div`
   display: flex;
@@ -49,6 +50,12 @@ const Tip = styled.span`
 `;
 
 // 工具栏配置
+export enum Tools {
+    Drag = EditorTool.Drag,
+    Template = 'template',
+    HintBox = 'hintbox',
+}
+
 const tools: Array<Tool | 'separator'> = [
     {
         id: 'open',
@@ -64,25 +71,35 @@ const tools: Array<Tool | 'separator'> = [
     },
     'separator',
     {
-        id: 'drag',
+        id: Tools.Drag,
         icon: <BsCursor size={24} />,
         title: '拖动工具 (V)',
         selectable: true,
     },
     {
-        id: 'rect',
-        icon: <BsSquare size={24} />,
-        title: '矩形工具 (R)',
+        id: Tools.Template,
+        icon: <BsCardImage size={24} />,
+        title: '模板工具 (T)', 
         selectable: true,
     },
+    {
+        id: Tools.HintBox,
+        icon: <BsQuestionSquare size={24} />,
+        title: 'HintBox 工具 (B)',
+        selectable: true,
+    }
 ];
-const toolsMap: Record<string, EditorTool> = {
-    drag: EditorTool.Drag,
-    rect: EditorTool.Rect,
+const STR_TO_TOOL: Record<string, Tools> = {
+    drag: Tools.Drag,
+    template: Tools.Template,
+    hintbox: Tools.HintBox,
 };
 
-// 示例图片URL
-const SAMPLE_IMAGE_URL = 'https://picsum.photos/seed/123/800/600';
+const TOOL_TO_EDITOR_TOOL: Record<Tools, EditorTool> = {
+    [Tools.Drag]: EditorTool.Drag,
+    [Tools.Template]: EditorTool.Rect,
+    [Tools.HintBox]: EditorTool.Rect,
+};
 
 // 计算最大公约数
 const gcd = (a: number, b: number): number => {
@@ -268,14 +285,15 @@ const usePropertyGridData = (
 };
 
 const ImageAnnotation: React.FC = () => {
-    const [currentTool, setCurrentTool] = useState<EditorTool>(EditorTool.Drag);
+    const [currentTool, setCurrentTool] = useState<Tools>(Tools.Drag);
+
     const { imageMetaData, Definitions, Annotations, clear, load, toString, fromString } = useImageMetaData();
     const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
     const [isDirty, setIsDirty] = useState(false);
     const [image, setImage] = useState<HTMLImageElement | null>(null);
     const imageFileNameRef = useRef<string>('');
     const { modal, openModal } = useImageViewerModal('裁剪预览');
-    const [imageUrl, setImageUrl] = useState<string>(SAMPLE_IMAGE_URL);
+    const [imageUrl, setImageUrl] = useState<string>('');
     const { yesNo, MessageBoxComponent } = useMessageBox();
     const { showToast, ToastComponent } = useToast();
     const currentFileResult = useRef<FileResult | null>(null);
@@ -301,6 +319,7 @@ const ImageAnnotation: React.FC = () => {
     }, [clear]);
 
     const handleImageLoad = useCallback(async (result: FileResult, shouldClearMetaData: boolean = true) => {
+        currentFileResult.current = result;
         imageFileNameRef.current = result.name;
         const dataUrl = await readFileAsDataURL(result.file);
         loadImage(dataUrl, shouldClearMetaData);
@@ -310,8 +329,11 @@ const ImageAnnotation: React.FC = () => {
     const handleAnnotationChange = (e: AnnotationChangedEvent) => {
         if (e.type === 'add') {
             let type: DefinitionType | undefined = undefined;
-            if (currentTool === EditorTool.Rect) {
+            if (currentTool === Tools.Template) {
                 type = 'template';
+            }
+            else if (currentTool === Tools.HintBox) {
+                type = 'hint-box';
             }
             if (!type) {
                 showToast('danger', '错误', '无法识别的标注类型');
@@ -449,8 +471,8 @@ const ImageAnnotation: React.FC = () => {
     }, [currentFileResult, imageMetaData, showToast]);
 
     const handleToolSelect = useCallback((id: string) => {
-        setCurrentTool(toolsMap[id]);
-    }, [toolsMap]);
+        setCurrentTool(STR_TO_TOOL[id]);
+    }, [STR_TO_TOOL]);
     const handleToolClick = useCallback((id: string) => {
         if (id === 'open') {
             handleOpen();
@@ -481,29 +503,31 @@ const ImageAnnotation: React.FC = () => {
         }
     };
 
-    const handleKeyDown = useCallback((e: KeyboardEvent) => {
-        // 如果正在输入文本，不处理快捷键
-        console.log(e.target);
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-            return;
-        }
-
-        // 处理 Ctrl + S 保存快捷键
-        if (e.ctrlKey && e.key.toLowerCase() === 's') {
-            e.preventDefault(); // 阻止浏览器默认的保存行为
-            handleSave();
-            return;
-        }
-
-        const key = e.key.toLowerCase();
-        switch (key) {
-            case 'v':
-                setCurrentTool(EditorTool.Drag);
-                break;
-            case 'r':
-                setCurrentTool(EditorTool.Rect);
-                break;
-            case 'delete':
+    useHotkey([
+        {
+            key: 's',
+            ctrl: true,
+            callback: handleSave
+        },
+        {
+            key: 'v',
+            single: true,
+            callback: () => setCurrentTool(Tools.Drag)
+        },
+        {
+            key: 't',
+            single: true,
+            callback: () => setCurrentTool(Tools.Template)
+        },
+        {
+            key: 'b',
+            single: true,
+            callback: () => setCurrentTool(Tools.HintBox)
+        },
+        {
+            key: 'delete',
+            single: true,
+            callback: () => {
                 if (selectedAnnotation) {
                     handleAnnotationChange({
                         currentTool: EditorTool.Drag,
@@ -513,16 +537,9 @@ const ImageAnnotation: React.FC = () => {
                     });
                     setSelectedAnnotation(null);
                 }
-                break;
+            }
         }
-    }, [selectedAnnotation, handleAnnotationChange, handleSave]);
-
-    useEffect(() => {
-        document.addEventListener('keydown', handleKeyDown);
-        return () => {
-            document.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [handleKeyDown]);
+    ]);
 
     const properties = usePropertyGridData(
         selectedAnnotation,
@@ -547,7 +564,7 @@ const ImageAnnotation: React.FC = () => {
                 <DragArea onImageLoad={handleImageLoad}>
                     <ImageEditor
                         image={imageUrl}
-                        tool={currentTool}
+                        tool={TOOL_TO_EDITOR_TOOL[currentTool]}
                         annotations={imageMetaData.annotations}
                         onAnnotationChanged={handleAnnotationChange}
                         onAnnotationSelected={handleAnnotationSelect}
