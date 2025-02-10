@@ -4,13 +4,13 @@ import { SideToolBar, Tool } from '../../components/SideToolBar';
 import PropertyGrid, { Property, PropertyCategory } from '../../components/PropertyGrid';
 import ImageEditor, { AnnotationChangedEvent } from '../../components/ImageEditor/ImageEditor';
 import { Annotation, Tool as EditorTool } from '../../components/ImageEditor/types';
-import { BsCursor, BsSquare, BsFolder2Open, BsUpload, BsFloppy, BsDownload } from 'react-icons/bs';
+import { BsCursor, BsSquare, BsFolder2Open, BsFloppy } from 'react-icons/bs';
 import useImageMetaData, { Definition, DefinitionType, ImageMetaData, TemplateDefinition, Definitions } from '../../hooks/useImageMetaData';
 import { useImageViewerModal } from '../../components/ImageViewerModal';
 import { useMessageBox } from '../../hooks/useMessageBox';
 import { useToast } from '../../components/ToastMessage';
 import DragArea from './DragArea';
-import { cropImage, openFileWFS, openFileInput, downloadJSONToFile, readFileAsJSON, readFileAsDataURL, FileResult, saveFileWFS } from '../../utils/fileUtils';
+import { cropImage, openFileWFS, openFileInput, downloadJSONToFile, readFileAsJSON, readFileAsDataURL, FileResult, saveFileWFS, saveFileAsWFS } from '../../utils/fileUtils';
 import NativeDiv from '../../components/NativeDiv';
 
 const PageContainer = styled.div`
@@ -53,25 +53,13 @@ const tools: Array<Tool | 'separator'> = [
     {
         id: 'open',
         icon: <BsFolder2Open size={24} />,
-        title: '打开 (WebFileSystem)',
+        title: '打开',
         selectable: false,
     },
     {
         id: 'save',
         icon: <BsFloppy size={24} />,
-        title: '保存 (WebFileSystem)',
-        selectable: false,
-    },
-    {
-        id: 'upload',
-        icon: <BsUpload size={24} />,
-        title: '上传 (Input)',
-        selectable: false,
-    },
-    {
-        id: 'download',
-        icon: <BsDownload size={24} />,
-        title: '下载 (Input)',
+        title: '保存',
         selectable: false,
     },
     'separator',
@@ -302,8 +290,8 @@ const ImageAnnotation: React.FC = () => {
         img.src = imageUrl;
     }, [imageUrl]);
 
-    const handleImageLoad = useCallback((newImageUrl: string, shouldClearMetaData: boolean = true) => {
-        setImageUrl(newImageUrl);
+    const loadImage = useCallback((imageUrl: string, shouldClearMetaData: boolean = true) => {
+        setImageUrl(imageUrl);
         if (shouldClearMetaData) {
             // 只有在不是同时加载 meta 数据时才清空标注
             clear();
@@ -311,6 +299,13 @@ const ImageAnnotation: React.FC = () => {
             setIsDirty(false);
         }
     }, [clear]);
+
+    const handleImageLoad = useCallback(async (result: FileResult, shouldClearMetaData: boolean = true) => {
+        imageFileNameRef.current = result.name;
+        const dataUrl = await readFileAsDataURL(result.file);
+        loadImage(dataUrl, shouldClearMetaData);
+    }, [loadImage]);
+
 
     const handleAnnotationChange = (e: AnnotationChangedEvent) => {
         if (e.type === 'add') {
@@ -347,7 +342,7 @@ const ImageAnnotation: React.FC = () => {
         }
     };
 
-    const handleOpen = useCallback(async (useFileSystem: boolean = false) => {
+    const handleOpen = useCallback(async () => {
         // 如果有未保存的修改，显示确认对话框
         if (isDirty) {
             const result = await yesNo({
@@ -360,8 +355,7 @@ const ImageAnnotation: React.FC = () => {
         }
 
         try {
-            const openFunc = useFileSystem ? openFileWFS : openFileInput;
-            const result = await openFunc({
+            const result = await openFileWFS({
                 accept: 'image/*,.json',
                 multiple: true,
             });
@@ -372,7 +366,7 @@ const ImageAnnotation: React.FC = () => {
             if (imageFile) {
                 imageFileNameRef.current = imageFile.name;
                 const dataUrl = await readFileAsDataURL(imageFile.file);
-                handleImageLoad(dataUrl, !jsonFile);
+                loadImage(dataUrl, !jsonFile);
             }
 
             // 保存文件句柄
@@ -380,7 +374,6 @@ const ImageAnnotation: React.FC = () => {
                 currentFileResult.current = jsonFile;
                 try {
                     const metaData = await readFileAsJSON(jsonFile.file) as ImageMetaData;
-                    // 使用统一的 load 方法载入数据
                     load(metaData);
                 } catch (error) {
                     console.error('Failed to parse JSON file:', error);
@@ -404,22 +397,31 @@ const ImageAnnotation: React.FC = () => {
         }
     }, [handleImageLoad, isDirty, yesNo, showToast, load]);
 
-    console.log(imageMetaData);
-    const handleUpload = useCallback(async () => {
-        await handleOpen(false);
-    }, [handleOpen]);
-
-    const handleDownload = useCallback(() => {
-        const data = imageMetaData;
-        const filename = imageFileNameRef.current ? `${imageFileNameRef.current}.json` : 'metadata.json';
-        downloadJSONToFile(data, filename);
-        setIsDirty(false);
-    }, [imageMetaData]);
-
     const handleSave = useCallback(async () => {
         if (currentFileResult.current?.fileSystem !== 'wfs') {
-            showToast('warning', '无法保存', '当前文件不是通过文件系统打开的');
-            return;
+            try {
+                // 如果没有当前文件，尝试创建新文件
+                const handle = await saveFileAsWFS(
+                    toString(imageMetaData),
+                    imageFileNameRef.current ? `${imageFileNameRef.current}.json` : 'metadata.json'
+                );
+                
+                // 更新当前文件引用
+                currentFileResult.current = {
+                    file: await handle.getFile(),
+                    name: (await handle.getFile()).name,
+                    handle,
+                    fileSystem: 'wfs'
+                };
+                
+                setIsDirty(false);
+                showToast('success', '保存成功', '文件已保存');
+                return;
+            } catch (error) {
+                console.error('Failed to save file:', error);
+                showToast('danger', '保存失败', '无法保存文件');
+                return;
+            }
         }
 
         try {
@@ -428,8 +430,8 @@ const ImageAnnotation: React.FC = () => {
                 toString(imageMetaData),
                 imageFileNameRef.current ? `${imageFileNameRef.current}.json` : 'metadata.json'
             );
-            // 更新文件句柄
 
+            // 更新文件句柄
             if (handle !== currentFileResult.current?.handle) {
                 currentFileResult.current = {
                     file: await handle.getFile(),
@@ -450,16 +452,12 @@ const ImageAnnotation: React.FC = () => {
         setCurrentTool(toolsMap[id]);
     }, [toolsMap]);
     const handleToolClick = useCallback((id: string) => {
-        if (id === 'upload') {
-            handleUpload();
-        } else if (id === 'open') {
-            handleOpen(true);
-        } else if (id === 'download') {
-            handleDownload();
+        if (id === 'open') {
+            handleOpen();
         } else if (id === 'save') {
             handleSave();
         }
-    }, [handleUpload, handleOpen, handleDownload, handleSave]);
+    }, [handleOpen, handleSave]);
 
     const handleAnnotationSelect = (annotation: Annotation | null) => {
         setSelectedAnnotation(annotation);
