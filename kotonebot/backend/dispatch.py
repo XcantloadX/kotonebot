@@ -5,12 +5,13 @@ import inspect
 from logging import Logger
 from types import CodeType
 from dataclasses import dataclass
-from typing import Annotated, Any, Callable, Concatenate, TypeVar, ParamSpec, Literal, Protocol, cast
+from typing import Annotated, Any, Callable, Concatenate, Sequence, TypeVar, ParamSpec, Literal, Protocol, cast
 from typing_extensions import Self
 
 from dataclasses import dataclass
 
 from kotonebot.backend.ocr import StringMatchFunction
+from kotonebot.backend.util import Rect, is_rect
 
 from .core import Image
 
@@ -118,7 +119,7 @@ class ClickParams:
     finish: bool = False
     log: str | None = None
 
-class Click:
+class ClickCenter:
     def __init__(self, sd: 'SimpleDispatcher', target: Image | str | StringMatchFunction | Literal['center'], *, params: ClickParams = ClickParams()):
         self.target = target
         self.params = params
@@ -182,6 +183,56 @@ class ClickText:
             if self.params.finish:
                 self.sd.finished = True
 
+class ClickRect:
+    def __init__(self, sd: 'SimpleDispatcher', rect: Rect, *, params: ClickParams = ClickParams()):
+        self.rect = rect
+        self.params = params
+        self.sd = sd
+
+    def __call__(self):
+        from kotonebot import device
+        if device.click(self.rect):
+            if self.params.log:
+                self.sd.logger.info(self.params.log)
+            if self.params.finish:
+                self.sd.finished = True
+
+class UntilText:
+    def __init__(
+            self,
+            sd: 'SimpleDispatcher',
+            text: str | StringMatchFunction,
+            *,
+            rect: Rect | None = None
+        ):
+        self.text = text
+        self.sd = sd
+        self.rect = rect
+
+    def __call__(self):
+        from kotonebot import ocr
+        if ocr.find(self.text, rect=self.rect):
+            self.sd.finished = True
+
+class UntilImage:
+    def __init__(
+            self,
+            sd: 'SimpleDispatcher',
+            image: Image,
+            *,
+            rect: Rect | None = None
+        ):
+        self.image = image
+        self.sd = sd
+        self.rect = rect
+
+    def __call__(self):
+        from kotonebot import image
+        if self.rect:
+            logger.warning(f'UntilImage with rect is deprecated. Use UntilText instead.')
+        if image.find(self.image):
+            self.sd.finished = True
+
 class SimpleDispatcher:
     def __init__(self, name: str, *, interval: float = 0.2):
         self.name = name
@@ -193,7 +244,7 @@ class SimpleDispatcher:
 
     def click(
             self,
-            target: Image | str | StringMatchFunction | Literal['center'],
+            target: Image | StringMatchFunction | Literal['center'] | Rect,
             *,
             finish: bool = False,
             log: str | None = None
@@ -201,8 +252,14 @@ class SimpleDispatcher:
         params = ClickParams(finish=finish, log=log)
         if isinstance(target, Image):
             self.blocks.append(ClickImage(self, target, params=params))
-        else:
+        elif is_rect(target):
+            self.blocks.append(ClickRect(self, target, params=params))
+        elif callable(target):
             self.blocks.append(ClickText(self, target, params=params))
+        elif target == 'center':
+            self.blocks.append(ClickCenter(self, target='center', params=params))
+        else:
+            raise ValueError(f'Invalid target: {target}')
         return self
 
     def click_any(
@@ -214,6 +271,18 @@ class SimpleDispatcher:
     ):
         params = ClickParams(finish=finish, log=log)
         self.blocks.append(ClickImageAny(self, target, params))
+        return self
+
+    def until(
+            self,
+            text: StringMatchFunction | Image,
+            *,
+            rect: Rect | None = None
+        ):
+        if isinstance(text, Image):
+            self.blocks.append(UntilImage(self, text, rect=rect))
+        else:
+            self.blocks.append(UntilText(self, text, rect=rect))
         return self
 
     def run(self):

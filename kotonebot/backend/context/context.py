@@ -159,6 +159,13 @@ def warn_manual_screenshot_mode(name: str, alternative: str):
         KotonebotWarning
     )
 
+def is_manual_screenshot_mode() -> bool:
+    """
+    检查当前是否处于手动截图模式。
+    """
+    mode = ContextStackVars.ensure_current().screenshot_mode
+    return mode == 'manual' or mode == 'manual-inherit'
+
 class ContextGlobalVars:
     def __init__(self):
         self.auto_collect: bool = False
@@ -317,10 +324,12 @@ class ContextOcr:
         """
         等待指定文本出现。
         """
-        warn_manual_screenshot_mode("expect_wait", "find()")
+        is_manual = is_manual_screenshot_mode()
 
         start_time = time.time()
         while True:
+            if is_manual:
+                device.screenshot()
             result = self.find(pattern, rect=rect, hint=hint)
 
             if result is not None:
@@ -342,10 +351,12 @@ class ContextOcr:
         """
         等待指定文本出现。
         """
-        warn_manual_screenshot_mode("wait_for", "find()")
+        is_manual = is_manual_screenshot_mode()
 
         start_time = time.time()
         while True:
+            if is_manual:
+                device.screenshot()
             result = self.find(pattern, rect=rect, hint=hint)
             if result is not None:
                 self.context.device.last_find = result.original_rect if result else None
@@ -378,10 +389,12 @@ class ContextImage:
         """
         等待指定图像出现。
         """
-        warn_manual_screenshot_mode("wait_for", "find()")
+        is_manual = is_manual_screenshot_mode()
         
         start_time = time.time()
         while True:
+            if is_manual:
+                device.screenshot()
             ret = self.find(template, mask, transparent=transparent, threshold=threshold, colored=colored)
             if ret is not None:
                 self.context.device.last_find = ret
@@ -404,7 +417,7 @@ class ContextImage:
         """
         等待指定图像中的任意一个出现。
         """
-        warn_manual_screenshot_mode("wait_for_any", "find()")
+        is_manual = is_manual_screenshot_mode()
 
         if masks is None:
             _masks = [None] * len(templates)
@@ -412,6 +425,8 @@ class ContextImage:
             _masks = masks
         start_time = time.time()
         while True:
+            if is_manual:
+                device.screenshot()
             for template, mask in zip(templates, _masks):
                 if self.find(template, mask, transparent=transparent, threshold=threshold, colored=colored):
                     return True
@@ -433,10 +448,12 @@ class ContextImage:
         """
         等待指定图像出现。
         """
-        warn_manual_screenshot_mode("expect_wait", "find()")
+        is_manual = is_manual_screenshot_mode()
 
         start_time = time.time()
         while True:
+            if is_manual:
+                device.screenshot()
             ret = self.find(template, mask, transparent=transparent, threshold=threshold, colored=colored)
             if ret is not None:
                 self.context.device.last_find = ret
@@ -459,7 +476,7 @@ class ContextImage:
         """
         等待指定图像中的任意一个出现。
         """
-        warn_manual_screenshot_mode("expect_wait_any", "find()")
+        is_manual = is_manual_screenshot_mode()
 
         if masks is None:
             _masks = [None] * len(templates)
@@ -467,6 +484,8 @@ class ContextImage:
             _masks = masks
         start_time = time.time()
         while True:
+            if is_manual:
+                device.screenshot()
             for template, mask in zip(templates, _masks):
                 ret = self.find(template, mask, transparent=transparent, threshold=threshold, colored=colored)
                 if ret is not None:

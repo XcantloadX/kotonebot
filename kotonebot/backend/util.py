@@ -6,7 +6,7 @@ import logging
 import cProfile
 from importlib import resources
 from functools import lru_cache
-from typing import Literal, Callable, TYPE_CHECKING
+from typing import Literal, Callable, TYPE_CHECKING, TypeGuard
 
 import cv2
 from cv2.typing import MatLike
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 Rect = typing.Sequence[int]
 """左上X, 左上Y, 宽度, 高度"""
 
-def is_rect(rect: typing.Any) -> bool:
+def is_rect(rect: typing.Any) -> TypeGuard[Rect]:
     return isinstance(rect, typing.Sequence) and len(rect) == 4 and all(isinstance(i, int) for i in rect)
 
 def crop(img: MatLike, /, x1: float = 0, y1: float = 0, x2: float = 1, y2: float = 1) -> MatLike:
@@ -210,7 +210,7 @@ class Countdown:
         self.start_time = time.time()
 
 class Interval:
-    def __init__(self, seconds: float):
+    def __init__(self, seconds: float = 0.3):
         self.seconds = seconds
         self.start_time = time.time()
         self.last_wait_time = 0
@@ -221,6 +221,9 @@ class Interval:
         if delta < self.seconds:
             sleep(self.seconds - delta)
         self.last_wait_time = time.time() - self.start_time
+        self.start_time = time.time()
+
+    def reset(self):
         self.start_time = time.time()
 
 package_mode: Literal['wheel', 'standalone'] | None = None
