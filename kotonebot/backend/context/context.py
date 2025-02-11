@@ -7,6 +7,7 @@ from datetime import datetime
 from threading import Event
 from typing import (
     Callable,
+    Optional,
     cast,
     overload,
     Any,
@@ -24,7 +25,7 @@ import cv2
 from cv2.typing import MatLike
 
 from kotonebot.client.protocol import DeviceABC
-from kotonebot.backend.util import Rect, KotonebotWarning
+from kotonebot.backend.util import Rect
 import kotonebot.backend.image as raw_image
 from kotonebot.client.device.adb import AdbDevice
 from kotonebot.backend.image import (
@@ -36,6 +37,7 @@ from kotonebot.backend.image import (
     find_multi,
     find_all,
     find_all_multi,
+    count
 )
 import kotonebot.backend.color as raw_color
 from kotonebot.backend.color import find_rgb
@@ -43,6 +45,7 @@ from kotonebot.backend.ocr import Ocr, OcrResult, OcrResultList, jp, en, StringM
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig
 from kotonebot.backend.core import Image, HintBox
+from kotonebot.errors import KotonebotWarning
 
 OcrLanguage = Literal['jp', 'en']
 ScreenshotMode = Literal['auto', 'manual', 'manual-inherit']
@@ -183,6 +186,8 @@ class ContextStackVars:
         """
         self._screenshot: MatLike | None = None
         """截图数据"""
+        self._inherit_screenshot: MatLike | None = None
+        """继承的截图数据"""
 
     @property
     def screenshot(self) -> MatLike:
@@ -204,7 +209,7 @@ class ContextStackVars:
             vars.screenshot_mode = screenshot_mode
         current = ContextStackVars.current()
         if current and vars.screenshot_mode == 'manual-inherit':
-            vars._screenshot = current._screenshot
+            vars._inherit_screenshot = current._screenshot
         ContextStackVars.stack.append(vars)
         return vars
 
@@ -495,6 +500,9 @@ class ContextImage:
     def find_all_crop(self, *args, **kwargs):
         return find_all_crop(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
+    @context(count)
+    def count(self, *args, **kwargs):
+        return count(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
 @interruptible_class
 class ContextColor:
@@ -610,17 +618,31 @@ class ContextDevice(DeviceABC):
     def __init__(self, device: DeviceABC):
         self._device = device
 
+    @deprecated('使用 device.screenshot() 代替')
     def update_screenshot(self):
-        ContextStackVars.ensure_current()._screenshot = self._device.screenshot()
+        return self.screenshot()
+
+    def screenshot(self):
+        """
+        截图。返回截图数据，同时更新当前上下文的截图数据。
+        """
+        current = ContextStackVars.ensure_current()
+        if current._inherit_screenshot is not None:
+            img = current._inherit_screenshot
+            current._inherit_screenshot = None
+        else:
+            img = self._device.screenshot()
+        current._screenshot = img
+        return img
 
     def __getattribute__(self, name: str) -> Any:
-        if name in ['update_screenshot', '_device']:
+        if name in ['update_screenshot', '_device', 'screenshot']:
             return object.__getattribute__(self, name)
         else:
             return getattr(self._device, name)
         
     def __setattr__(self, name: str, value: Any):
-        if name in ['update_screenshot', '_device']:
+        if name in ['update_screenshot', '_device', 'screenshot']:
             return object.__setattr__(self, name, value)
         else:
             return setattr(self._device, name, value)
@@ -642,8 +664,34 @@ class Context(Generic[T]):
         d = [d for d in adb.device_list() if d.serial == f'{ip}:{port}']
         self.__device = ContextDevice(AdbDevice(d[0]))
 
-    def inject_device(self, device: DeviceABC):
-        self.__device = ContextDevice(device)
+    def inject(
+        self,
+        *,
+        device: Optional[ContextDevice | DeviceABC] = None,
+        ocr: Optional[ContextOcr] = None,
+        image: Optional[ContextImage] = None,
+        color: Optional[ContextColor] = None,
+        vars: Optional[ContextGlobalVars] = None,
+        debug: Optional[ContextDebug] = None,
+        config: Optional[ContextConfig] = None,
+    ):
+        if device is not None:
+            if isinstance(device, DeviceABC):
+                self.__device = ContextDevice(device)
+            else:
+                self.__device = device
+        if ocr is not None:
+            self.__ocr = ocr
+        if image is not None:
+            self.__image = image
+        if color is not None:
+            self.__color = color
+        if vars is not None:
+            self.__vars = vars
+        if debug is not None:
+            self.__debug = debug    
+        if config is not None:
+            self.__config = config
 
     @property
     def device(self) -> ContextDevice:
@@ -678,6 +726,13 @@ def rect_expand(rect: Rect, left: int = 0, top: int = 0, right: int = 0, bottom:
     向四个方向扩展矩形区域。
     """
     return (rect[0] - left, rect[1] - top, rect[2] + right + left, rect[3] + bottom + top)
+
+def use_screenshot(*args: MatLike | None) -> MatLike:
+    for img in args:
+        if img is not None:
+            ContextStackVars.ensure_current()._screenshot = img # HACK
+            return img
+    return device.screenshot()
 
 # 这里 Context 类还没有初始化，但是 tasks 中的脚本可能已经引用了这里的变量
 # 为了能够动态更新这里变量的值，这里使用 Forwarded 类再封装一层，
@@ -726,6 +781,22 @@ def init_context(
     debug._FORWARD_getter = lambda: _c.debug # type: ignore
     config._FORWARD_getter = lambda: _c.config # type: ignore
 
+
+def inject_context(
+    *,
+    device: Optional[ContextDevice | DeviceABC] = None,
+    ocr: Optional[ContextOcr] = None,
+    image: Optional[ContextImage] = None,
+    color: Optional[ContextColor] = None,
+    vars: Optional[ContextGlobalVars] = None,
+    debug: Optional[ContextDebug] = None,
+    config: Optional[ContextConfig] = None,
+):
+    global _c
+    if _c is None:
+        raise RuntimeError('Context not initialized')
+    _c.inject(device=device, ocr=ocr, image=image, color=color, vars=vars, debug=debug, config=config)
+
 class ManualContextManager:
     def __init__(self, screenshot_mode: ScreenshotMode = 'auto'):
         self.screenshot_mode: ScreenshotMode = screenshot_mode
@@ -735,6 +806,12 @@ class ManualContextManager:
 
     def __exit__(self, exc_type, exc_value, traceback):
         ContextStackVars.pop()
+
+    def begin(self):
+        self.__enter__()
+
+    def end(self):
+        self.__exit__(None, None, None)
 
 def manual_context(screenshot_mode: ScreenshotMode = 'auto') -> ManualContextManager:
     """

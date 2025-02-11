@@ -5,9 +5,9 @@ from typing import Callable, ParamSpec, TypeVar, overload, TYPE_CHECKING
 import cv2
 from cv2.typing import MatLike
 
+from kotonebot.errors import ResourceFileMissingError
 if TYPE_CHECKING:
     from kotonebot.backend.util import Rect
-
 
 class Ocr:
     def __init__(
@@ -31,7 +31,7 @@ class Image:
     ):
         self.path = path
         self.name = name
-        self.__data = data
+        self.__data: MatLike | None = data
         self.__data_with_alpha: MatLike | None = None
 
     @property
@@ -40,6 +40,9 @@ class Image:
             if self.path is None:
                 raise ValueError('Either path or data must be provided.')
             self.__data = cv2.imread(self.path)
+            if self.__data is None:
+                raise ResourceFileMissingError(self.path, 'sprite')
+            logger.debug(f'Read image "{self.name}" from {self.path}')
         return self.__data
     
     @property
@@ -48,6 +51,9 @@ class Image:
             if self.path is None:
                 raise ValueError('Either path or data must be provided.')
             self.__data_with_alpha = cv2.imread(self.path, cv2.IMREAD_UNCHANGED)
+            if self.__data_with_alpha is None:
+                raise ResourceFileMissingError(self.path, 'sprite with alpha')
+            logger.debug(f'Read image "{self.name}" from {self.path}')
         return self.__data_with_alpha
     
     def __repr__(self) -> str:
@@ -67,7 +73,9 @@ class HintBox(tuple[int, int, int, int]):
         *,
         source_resolution: tuple[int, int],
     ):
-        return super().__new__(cls, [x1, y1, x2, y2])
+        w = x2 - x1
+        h = y2 - y1
+        return super().__new__(cls, [x1, y1, w, h])
     
     def __init__(
         self,

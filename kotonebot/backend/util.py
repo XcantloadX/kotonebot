@@ -4,7 +4,6 @@ import pstats
 import typing
 import logging
 import cProfile
-from time import sleep
 from importlib import resources
 from functools import lru_cache
 from typing import Literal, Callable, TYPE_CHECKING
@@ -20,16 +19,12 @@ from .core import Image
 logger = logging.getLogger(__name__)
 
 
-class UnrecoverableError(Exception):
-    pass
 
 Rect = typing.Sequence[int]
 """左上X, 左上Y, 宽度, 高度"""
 
 def is_rect(rect: typing.Any) -> bool:
     return isinstance(rect, typing.Sequence) and len(rect) == 4 and all(isinstance(i, int) for i in rect)
-
-
 
 def crop(img: MatLike, /, x1: float = 0, y1: float = 0, x2: float = 1, y2: float = 1) -> MatLike:
     """
@@ -47,6 +42,16 @@ def crop(img: MatLike, /, x1: float = 0, y1: float = 0, x2: float = 1, y2: float
     x2_px = int(w * x2)
     y2_px = int(h * y2)
     return img[y1_px:y2_px, x1_px:x2_px]
+
+def crop_rect(img: MatLike, rect: Rect) -> MatLike:
+    """
+    按范围裁剪图像。
+
+    :param img: 图像
+    :param rect: 裁剪区域。
+    """
+    x, y, w, h = rect
+    return img[y:y+h, x:x+w]
 
 class DeviceHookContextManager:
     def __init__(
@@ -175,6 +180,7 @@ class AdaptiveWait:
         self.reset()
 
     def __call__(self):
+        from .context import sleep
         if self.start_time is None:
             self.start_time = time.time()
         sleep(self.interval)
@@ -185,6 +191,37 @@ class AdaptiveWait:
     def reset(self):
         self.interval = self.base_interval
         self.start_time = None
+
+class Countdown:
+    def __init__(self, seconds: float):
+        self.seconds = seconds
+        self.start_time = time.time()
+
+    def __str__(self):
+        return f"{self.seconds - (time.time() - self.start_time):.0f}s"
+    
+    def start(self):
+        self.start_time = time.time()
+
+    def expired(self) -> bool:
+        return time.time() - self.start_time > self.seconds
+
+    def reset(self):
+        self.start_time = time.time()
+
+class Interval:
+    def __init__(self, seconds: float):
+        self.seconds = seconds
+        self.start_time = time.time()
+        self.last_wait_time = 0
+
+    def wait(self):
+        from .context import sleep
+        delta = time.time() - self.start_time
+        if delta < self.seconds:
+            sleep(self.seconds - delta)
+        self.last_wait_time = time.time() - self.start_time
+        self.start_time = time.time()
 
 package_mode: Literal['wheel', 'standalone'] | None = None
 def res_path(path: str) -> str:
@@ -207,7 +244,6 @@ def res_path(path: str) -> str:
         # 但是 path 已经有了 res，所以这里需要去掉 res
         real_path = resources.files('kotonebot.res') / '..' / path
         ret = str(real_path)
-    logger.debug(f'res_path: {ret}')
     return ret
 
 class Profiler:
@@ -247,5 +283,15 @@ class Profiler:
     def end(self):
         self.__exit__(None, None, None)
 
-class KotonebotWarning(Warning):
-    pass
+    def snakeviz(self) -> bool:
+        if self.stats is None:
+            logger.warning("Profiler still running. Exit/End Profiler before run snakeviz.")
+            return False
+        try:
+            from snakeviz import cli
+            cli.main([os.path.abspath(self.file_path)])
+            return True
+
+        except ImportError:
+            logger.warning("snakeviz is not installed")
+            return False

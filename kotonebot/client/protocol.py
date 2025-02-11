@@ -147,21 +147,21 @@ class DeviceABC(ABC):
         self.click(x, y)
     
     @overload
-    def double_click(self, x: int, y: int, interval: float = 0.5) -> None:
+    def double_click(self, x: int, y: int, interval: float = 0.25) -> None:
         """
         双击屏幕上的某个点
         """
         ...
 
     @overload
-    def double_click(self, rect: Rect, interval: float = 0.5) -> None:
+    def double_click(self, rect: Rect, interval: float = 0.25) -> None:
         """
         双击屏幕上的某个矩形区域
         """
         ...
     
     @overload
-    def double_click(self, clickable: ClickableObjectProtocol, interval: float = 0.5) -> None:
+    def double_click(self, clickable: ClickableObjectProtocol, interval: float = 0.25) -> None:
         """
         双击屏幕上的某个可点击对象
         """
@@ -171,14 +171,14 @@ class DeviceABC(ABC):
         arg0 = args[0]
         if is_rect(arg0) or isinstance(arg0, ClickableObjectProtocol):
             rect = arg0
-            interval = kwargs.get('interval', 0.5)
+            interval = kwargs.get('interval', 0.25)
             self.click(rect)
             sleep(interval)
             self.click(rect)
         else:
             x = args[0]
             y = args[1]
-            interval = kwargs.get('interval', 0.5)
+            interval = kwargs.get('interval', 0.25)
             self.click(x, y)
             sleep(interval)
             self.click(x, y)

@@ -2,6 +2,8 @@ import re
 import logging
 import unicodedata
 from functools import lru_cache
+from dataclasses import dataclass
+from typing_extensions import Self
 from typing import Callable, NamedTuple
 
 import cv2
@@ -32,13 +34,21 @@ _engine_en = RapidOCR(
 StringMatchFunction = Callable[[str], bool]
 REGEX_NUMBERS = re.compile(r'\d+')
 
-class OcrResult(NamedTuple):
+@dataclass
+class OcrResult:
     text: str
     rect: Rect
     confidence: float
 
     def __repr__(self) -> str:
         return f'OcrResult(text="{self.text}", rect={self.rect}, confidence={self.confidence})'
+
+    def replace(self, old: str, new: str, count: int = -1) -> Self:
+        """
+        替换识别结果中的文本。
+        """
+        self.text = self.text.replace(old, new, count)
+        return self
 
     def regex(self, pattern: re.Pattern | str) -> list[str]:
         """
@@ -55,10 +65,12 @@ class OcrResult(NamedTuple):
         return [int(x) for x in REGEX_NUMBERS.findall(self.text)]
 
 class OcrResultList(list[OcrResult]):
-    def squash(self) -> OcrResult:
+    def squash(self, remove_newlines: bool = True) -> OcrResult:
         """
         将所有识别结果合并为一个大结果。
         """
+        if not self:
+            return OcrResult('', (0, 0, 0, 0), 0)
         text = [r.text for r in self]
         confidence = sum(r.confidence for r in self) / len(self)
         points = []
@@ -68,12 +80,14 @@ class OcrResultList(list[OcrResult]):
             points.append((r.rect[0], r.rect[1] + r.rect[3]))
             points.append((r.rect[0] + r.rect[2], r.rect[1] + r.rect[3]))
         rect = bounding_box(points)
+        text = '\n'.join(text)
+        if remove_newlines:
+            text = text.replace('\n', '')
         return OcrResult(
-            text='\n'.join(text),
+            text=text,
             rect=rect,
             confidence=confidence,
         )
-
 
     def first(self) -> OcrResult | None:
         """
@@ -202,16 +216,26 @@ def pad_to(img: MatLike, target_size: tuple[int, int], rgb: tuple[int, int, int]
         img = cv2.resize(img, (new_w, new_h))
     
     # 创建目标画布并填充
-    ret = np.full((th, tw, 3), rgb, dtype=np.uint8)
+    if len(img.shape) == 2:
+        # 灰度图像
+        ret = np.full((th, tw), rgb[0], dtype=np.uint8)
+    else:
+        # RGB图像
+        ret = np.full((th, tw, 3), rgb, dtype=np.uint8)
     
     # 计算需要填充的宽高
     pad_h = th - new_h
     pad_w = tw - new_w
     
     # 将缩放后的图像居中放置
-    ret[
-        pad_h // 2:pad_h // 2 + new_h,
-        pad_w // 2:pad_w // 2 + new_w, :] = img
+    if len(img.shape) == 2:
+        ret[
+            pad_h // 2:pad_h // 2 + new_h,
+            pad_w // 2:pad_w // 2 + new_w] = img
+    else:
+        ret[
+            pad_h // 2:pad_h // 2 + new_h,
+            pad_w // 2:pad_w // 2 + new_w, :] = img
     return ret
 
 def _draw_result(image: 'MatLike', result: list[OcrResult]) -> 'MatLike':
@@ -308,7 +332,7 @@ class Ocr:
             # https://blog.csdn.net/YY007H/article/details/124973777
             original_img = img.copy()
             img = pad_to(img, (631, 631))
-        img_content = grayscaled(img)
+        img_content = img
         result, elapse = self.__engine(img_content)
         if result is None:
             return OcrResultList()
@@ -323,9 +347,13 @@ class Ocr:
         ret = OcrResultList(ret)
         if debug.enabled:
             result_image = _draw_result(img, ret)
+            elapse = elapse or [0, 0, 0]
             debug_result(
                 'ocr',
                 [result_image, original_img],
+                f"pad={pad}\n" + \
+                f"rect={rect}\n" + \
+                f"elapsed: det={elapse[0]:.3f}s cls={elapse[1]:.3f}s rec={elapse[2]:.3f}s\n" + \
                 f"result: \n" + \
                 "<table class='result-table'><tr><th>Text</th><th>Confidence</th></tr>" + \
                 "\n".join([f"<tr><td>{r.text}</td><td>{r.confidence:.2f}</td></tr>" for r in ret]) + \

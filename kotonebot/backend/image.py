@@ -342,10 +342,10 @@ def find_all_crop(
         remove_duplicate=remove_duplicate,
         colored=colored,
     )
-    logger.debug(
-        f'find_all_crop(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
-        f'matches: {_results2str(matches)}'
-    )
+    # logger.debug(
+    #     f'find_all_crop(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
+    #     f'matches: {_results2str(matches)}'
+    # )
     return [CropResult(
         match.score,
         match.position,
@@ -386,10 +386,10 @@ def find(
         remove_duplicate=remove_duplicate,
         colored=colored,
     )
-    logger.debug(
-        f'find(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
-        f'matches: {_results2str(matches)}'
-    )
+    # logger.debug(
+    #     f'find(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
+    #     f'matches: {_results2str(matches)}'
+    # )
     # 调试输出
     if debug.enabled and debug_output:
         result_image = _draw_result(image, matches)
@@ -436,10 +436,10 @@ def find_all(
         remove_duplicate=remove_duplicate,
         colored=colored,
     )
-    logger.debug(
-        f'find_all(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
-        f'matches: {_results2str(results)}'
-    )
+    # logger.debug(
+    #     f'find_all(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
+    #     f'matches: {_results2str(results)}'
+    # )
     if debug.enabled and debug_output:
         result_image = _draw_result(image, results)
         debug_result(
@@ -452,8 +452,8 @@ def find_all(
 
 def find_multi(
     image: MatLike,
-    templates: list[MatLike | str | Image],
-    masks: list[MatLike | str | Image | None] | None = None,
+    templates: Sequence[MatLike | str | Image],
+    masks: Sequence[MatLike | str | Image | None] | None = None,
     *,
     transparent: bool = False,
     threshold: float = 0.8,
@@ -496,10 +496,10 @@ def find_multi(
                 index=index
             )
             break
-    logger.debug(
-        f'find_multi(): templates: {_imgs2str(templates)} images: {_img2str(image)} masks: {_imgs2str(masks)} '
-        f'result: {_result2str(ret)}'
-    )
+    # logger.debug(
+    #     f'find_multi(): templates: {_imgs2str(templates)} images: {_img2str(image)} masks: {_imgs2str(masks)} '
+    #     f'result: {_result2str(ret)}'
+    # )
     if debug.enabled:
         msg = (
             "<table class='result-table'>" +
@@ -567,10 +567,10 @@ def find_all_multi(
             MultipleTemplateMatchResult.from_template_match_result(r, index)
             for r in results
         ])
-    logger.debug(
-        f'find_all_multi(): templates: {_imgs2str(templates)} images: {_img2str(image)} masks: {_imgs2str(masks)} '
-        f'result: {_results2str(ret)}'
-    )
+    # logger.debug(
+    #     f'find_all_multi(): templates: {_imgs2str(templates)} images: {_img2str(image)} masks: {_imgs2str(masks)} '
+    #     f'result: {_results2str(ret)}'
+    # )
     if debug.enabled:
         # 参数表格
         msg = (
@@ -631,10 +631,10 @@ def count(
         remove_duplicate=remove_duplicate,
         colored=colored,
     )
-    logger.debug(
-        f'count(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
-        f'result: {_results2str(results)}'
-    )
+    # logger.debug(
+    #     f'count(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
+    #     f'result: {_results2str(results)}'
+    # )
     if debug.enabled:
         result_image = _draw_result(image, results)
         debug_result(
@@ -681,10 +681,10 @@ def expect(
         remove_duplicate=remove_duplicate,
         debug_output=False,
     )
-    logger.debug(
-        f'expect(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
-        f'result: {_result2str(ret)}'
-    )
+    # logger.debug(
+    #     f'expect(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
+    #     f'result: {_result2str(ret)}'
+    # )
     if debug.enabled:
         debug_result(
             'image.expect',
@@ -716,10 +716,10 @@ def similar(
     image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
     image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
     result = structural_similarity(image1, image2, multichannel=True)
-    logger.debug(
-        f'similar(): image1: {_img2str(image1)} image2: {_img2str(image2)} '
-        f'result: {result}'
-    )
+    # logger.debug(
+    #     f'similar(): image1: {_img2str(image1)} image2: {_img2str(image2)} '
+    #     f'result: {result}'
+    # )
     # 调试输出
     if debug.enabled:
         result_image = np.hstack([image1, image2])

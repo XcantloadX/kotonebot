@@ -1,14 +1,18 @@
+import time
 import uuid
 import logging
 import inspect
 from logging import Logger
 from types import CodeType
+from dataclasses import dataclass
 from typing import Annotated, Any, Callable, Concatenate, TypeVar, ParamSpec, Literal, Protocol, cast
 from typing_extensions import Self
+
 from dataclasses import dataclass
 
-from .context import ContextColor
-from .core import Image, Ocr
+from kotonebot.backend.ocr import StringMatchFunction
+
+from .core import Image
 
 logger = logging.getLogger(__name__)
 P = ParamSpec('P')
@@ -108,6 +112,122 @@ def dispatcher(
 
     else:
         return wrapper
+
+@dataclass
+class ClickParams:
+    finish: bool = False
+    log: str | None = None
+
+class Click:
+    def __init__(self, sd: 'SimpleDispatcher', target: Image | str | StringMatchFunction | Literal['center'], *, params: ClickParams = ClickParams()):
+        self.target = target
+        self.params = params
+        self.sd = sd
+
+    def __call__(self):
+        from kotonebot import device
+        if self.params.log:
+            self.sd.logger.info(self.params.log)
+        device.click_center()
+        if self.params.finish:
+            self.sd.finished = True
+
+class ClickImage:
+    def __init__(self, sd: 'SimpleDispatcher', image: Image, *, params: ClickParams = ClickParams()):
+        self.image = image
+        self.params = params
+        self.sd = sd
+
+    def __call__(self):
+        from kotonebot import device, image
+        if image.find(self.image):
+            if self.params.log:
+                self.sd.logger.info(self.params.log)
+            device.click()
+            if self.params.finish:
+                self.sd.finished = True
+
+class ClickImageAny:
+    def __init__(self, sd: 'SimpleDispatcher', images: list[Image], params: ClickParams = ClickParams()):
+        self.images = images
+        self.params = params
+        self.sd = sd
+    
+    def __call__(self):
+        from kotonebot import device, image
+        if image.find_multi(self.images):
+            if self.params.log:
+                self.sd.logger.info(self.params.log)
+            device.click()
+            if self.params.finish:
+                self.sd.finished = True
+
+class ClickText:
+    def __init__(
+            self,
+            sd: 'SimpleDispatcher',
+            text: str | StringMatchFunction,
+            params: ClickParams = ClickParams()
+        ):
+        self.text = text
+        self.params = params
+        self.sd = sd
+
+    def __call__(self):
+        from kotonebot import device, ocr
+        if ocr.find(self.text):
+            if self.params.log:
+                self.sd.logger.info(self.params.log)
+            device.click()
+            if self.params.finish:
+                self.sd.finished = True
+
+class SimpleDispatcher:
+    def __init__(self, name: str, *, interval: float = 0.2):
+        self.name = name
+        self.logger = logging.getLogger(f'SimpleDispatcher of {name}')
+        self.blocks: list[Callable] = []
+        self.finished: bool = False
+        self.interval = interval
+        self.__last_run_time: float = 0
+
+    def click(
+            self,
+            target: Image | str | StringMatchFunction | Literal['center'],
+            *,
+            finish: bool = False,
+            log: str | None = None
+        ):
+        params = ClickParams(finish=finish, log=log)
+        if isinstance(target, Image):
+            self.blocks.append(ClickImage(self, target, params=params))
+        else:
+            self.blocks.append(ClickText(self, target, params=params))
+        return self
+
+    def click_any(
+        self,
+        target: list[Image],
+        *,
+        finish: bool = False,
+        log: str | None = None
+    ):
+        params = ClickParams(finish=finish, log=log)
+        self.blocks.append(ClickImageAny(self, target, params))
+        return self
+
+    def run(self):
+        from kotonebot import device, sleep
+        while True:
+            time_delta = time.time() - self.__last_run_time
+            if time_delta < self.interval:
+                sleep(self.interval - time_delta)
+            for block in self.blocks:
+                block()
+            if self.finished:
+                break
+            self.__last_run_time = time.time()
+            device.screenshot()
 
 if __name__ == '__main__':
     from .context.task_action import action
