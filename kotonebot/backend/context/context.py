@@ -290,7 +290,10 @@ class ContextOcr:
 
     def expect(
         self,
-        pattern: str | re.Pattern | StringMatchFunction
+        pattern: str | re.Pattern | StringMatchFunction,
+        *,
+        rect: Rect | None = None,
+        hint: HintBox | None = None,
     ) -> OcrResult:
 
         """
@@ -298,7 +301,7 @@ class ContextOcr:
 
         与 `find()` 的区别在于，`expect()` 未找到时会抛出异常。
         """
-        ret = self.__engine.expect(ContextStackVars.ensure_current().screenshot, pattern)
+        ret = self.__engine.expect(ContextStackVars.ensure_current().screenshot, pattern, rect=rect, hint=hint)
         self.context.device.last_find = ret.original_rect if ret else None
         return ret
     
@@ -307,7 +310,9 @@ class ContextOcr:
         pattern: str | re.Pattern | StringMatchFunction,
         timeout: float = DEFAULT_TIMEOUT,
         *,
-        interval: float = DEFAULT_INTERVAL
+        interval: float = DEFAULT_INTERVAL,
+        rect: Rect | None = None,
+        hint: HintBox | None = None,
     ) -> OcrResult:
         """
         等待指定文本出现。
@@ -316,7 +321,7 @@ class ContextOcr:
 
         start_time = time.time()
         while True:
-            result = self.find(pattern)
+            result = self.find(pattern, rect=rect, hint=hint)
 
             if result is not None:
                 self.context.device.last_find = result.original_rect if result else None
@@ -330,7 +335,9 @@ class ContextOcr:
         pattern: str | re.Pattern | StringMatchFunction,
         timeout: float = DEFAULT_TIMEOUT,
         *,
-        interval: float = DEFAULT_INTERVAL
+        interval: float = DEFAULT_INTERVAL,
+        rect: Rect | None = None,
+        hint: HintBox | None = None,
     ) -> OcrResult | None:
         """
         等待指定文本出现。
@@ -339,7 +346,7 @@ class ContextOcr:
 
         start_time = time.time()
         while True:
-            result = self.find(pattern)
+            result = self.find(pattern, rect=rect, hint=hint)
             if result is not None:
                 self.context.device.last_find = result.original_rect if result else None
                 return result
