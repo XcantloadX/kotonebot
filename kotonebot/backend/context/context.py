@@ -256,7 +256,6 @@ class ContextOcr:
         """OCR 当前设备画面或指定图像。"""
         return self.__engine.ocr(ContextStackVars.ensure_current().screenshot, rect=rect)
 
-
     def find(
         self,
         pattern: str | re.Pattern | StringMatchFunction,
@@ -271,7 +270,7 @@ class ContextOcr:
             hint=hint,
             rect=rect,
         )
-        self.context.device.last_find = ret
+        self.context.device.last_find = ret.original_rect if ret else None
         return ret
     
     def find_all(
@@ -300,7 +299,7 @@ class ContextOcr:
         与 `find()` 的区别在于，`expect()` 未找到时会抛出异常。
         """
         ret = self.__engine.expect(ContextStackVars.ensure_current().screenshot, pattern)
-        self.context.device.last_find = ret
+        self.context.device.last_find = ret.original_rect if ret else None
         return ret
     
     def expect_wait(
@@ -320,7 +319,7 @@ class ContextOcr:
             result = self.find(pattern)
 
             if result is not None:
-                self.context.device.last_find = result
+                self.context.device.last_find = result.original_rect if result else None
                 return result
             if time.time() - start_time > timeout:
                 raise TimeoutError(f"Timeout waiting for {pattern}")
@@ -342,7 +341,7 @@ class ContextOcr:
         while True:
             result = self.find(pattern)
             if result is not None:
-                self.context.device.last_find = result
+                self.context.device.last_find = result.original_rect if result else None
                 return result
             if time.time() - start_time > timeout:
                 return None

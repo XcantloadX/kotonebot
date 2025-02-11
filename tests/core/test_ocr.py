@@ -50,11 +50,28 @@ class TestOcr(unittest.TestCase):
         points = [(5, 5), (5, 5), (5, 5)]
         assert bounding_box(points) == (5, 5, 0, 0)
 
-    def test_ocr_ocr(self):
+    def test_ocr_basic(self):
         result = jp.ocr(self.img)
         self.assertGreater(len(result), 0)
 
-    def test_ocr_find(self):
+    def test_ocr_rect(self):
+        result = jp.ocr(self.img, rect=(147, 614, 417, 32), pad=True)
+        self.assertEqual(result[0].text, '受け取るPドリンクを選んでください。')
+        x, y, w, h = result[0].original_rect
+        self.assertAlmostEqual(x, 147, delta=10)
+        self.assertAlmostEqual(y, 614, delta=10)
+        self.assertAlmostEqual(w, 417, delta=10)
+        self.assertAlmostEqual(h, 32, delta=10)
+
+        result = jp.ocr(self.img, rect=(147, 614, 417, 32), pad=False)
+        self.assertEqual(result[0].text, '受け取るPドリンクを選んでください。')
+        x, y, w, h = result[0].original_rect
+        self.assertAlmostEqual(x, 147, delta=10)
+        self.assertAlmostEqual(y, 614, delta=10)
+        self.assertAlmostEqual(w, 417, delta=10)
+        self.assertAlmostEqual(h, 32, delta=10)
+
+    def test_find(self):
         self.assertTrue(jp.find(self.img, '中間まで'))
         self.assertTrue(jp.find(self.img, '受け取るPドリンクを選んでください。'))
         self.assertTrue(jp.find(self.img, '受け取る'))
@@ -62,25 +79,25 @@ class TestOcr(unittest.TestCase):
 
 class TestOcrResult(unittest.TestCase):
     def test_regex(self):
-        result = OcrResult(text='123dd4567rr890', rect=(0, 0, 100, 100), confidence=0.95)
+        result = OcrResult(text='123dd4567rr890', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100))
         self.assertEqual(result.regex(r'\d+'), ['123', '4567', '890'])
         self.assertEqual(result.regex(re.compile(r'\d+')), ['123', '4567', '890'])
 
     def test_numbers(self):
-        result = OcrResult(text='123dd4567rr890', rect=(0, 0, 100, 100), confidence=0.95)
+        result = OcrResult(text='123dd4567rr890', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100))
         self.assertEqual(result.numbers(), [123, 4567, 890])
-        result2 = OcrResult(text='aaa', rect=(0, 0, 100, 100), confidence=0.95)
+        result2 = OcrResult(text='aaa', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100))
         self.assertEqual(result2.numbers(), [])
-        result3 = OcrResult(text='1234567890', rect=(0, 0, 100, 100), confidence=0.95)
+        result3 = OcrResult(text='1234567890', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100))
         self.assertEqual(result3.numbers(), [1234567890])
 
 
 class TestOcrResultList(unittest.TestCase):
     def test_list_compatibility(self):
         result = OcrResultList([
-            OcrResult(text='abc', rect=(0, 0, 100, 100), confidence=0.95),
-            OcrResult(text='def', rect=(0, 0, 100, 100), confidence=0.95),
-            OcrResult(text='ghi', rect=(0, 0, 100, 100), confidence=0.95),
+            OcrResult(text='abc', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100)),
+            OcrResult(text='def', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100)),
+            OcrResult(text='ghi', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100)),
         ])
         
         self.assertEqual(result[0].text, 'abc')
@@ -105,17 +122,17 @@ class TestOcrResultList(unittest.TestCase):
 
     def test_where(self):
         result = OcrResultList([
-            OcrResult(text='123dd4567rr890', rect=(0, 0, 100, 100), confidence=0.95),
-            OcrResult(text='aaa', rect=(0, 0, 100, 100), confidence=0.95),
-            OcrResult(text='1234567890', rect=(0, 0, 100, 100), confidence=0.95),
+            OcrResult(text='123dd4567rr890', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100)),
+            OcrResult(text='aaa', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100)),
+            OcrResult(text='1234567890', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100)),
         ])
         self.assertEqual(result.where(lambda x: x.startswith('123')), [result[0], result[2]])
 
     def test_first(self):
         result = OcrResultList([
-            OcrResult(text='123dd4567rr890', rect=(0, 0, 100, 100), confidence=0.95),
-            OcrResult(text='aaa', rect=(0, 0, 100, 100), confidence=0.95),
-            OcrResult(text='1234567890', rect=(0, 0, 100, 100), confidence=0.95),
+            OcrResult(text='123dd4567rr890', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100)),
+            OcrResult(text='aaa', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100)),
+            OcrResult(text='1234567890', rect=(0, 0, 100, 100), confidence=0.95, original_rect=(0, 0, 100, 100)),
         ])
         self.assertEqual(result.first(), result[0])
         result2 = OcrResultList()
