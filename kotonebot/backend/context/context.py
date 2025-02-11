@@ -618,10 +618,6 @@ class ContextDevice(DeviceABC):
     def __init__(self, device: DeviceABC):
         self._device = device
 
-    @deprecated('使用 device.screenshot() 代替')
-    def update_screenshot(self):
-        return self.screenshot()
-
     def screenshot(self):
         """
         截图。返回截图数据，同时更新当前上下文的截图数据。
@@ -636,13 +632,13 @@ class ContextDevice(DeviceABC):
         return img
 
     def __getattribute__(self, name: str) -> Any:
-        if name in ['update_screenshot', '_device', 'screenshot']:
+        if name in ['_device', 'screenshot']:
             return object.__getattribute__(self, name)
         else:
             return getattr(self._device, name)
         
     def __setattr__(self, name: str, value: Any):
-        if name in ['update_screenshot', '_device', 'screenshot']:
+        if name in ['_device', 'screenshot']:
             return object.__setattr__(self, name, value)
         else:
             return setattr(self._device, name, value)

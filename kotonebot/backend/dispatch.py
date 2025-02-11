@@ -93,14 +93,14 @@ def dispatcher(
         ctx = DispatcherContext()
         while not ctx.finished:
             from kotonebot import device
-            device.update_screenshot()
+            device.screenshot()
             ret = func(ctx, *args, **kwargs)
             ctx._first_run = False
         return ret
     def fragment_wrapper(*args: P.args, **kwargs: P.kwargs):
         ctx = DispatcherContext()
         from kotonebot import device
-        device.update_screenshot()
+        device.screenshot()
         return func(ctx, *args, **kwargs)
     setattr(wrapper, ATTR_ORIGINAL_FUNC, func)
     setattr(fragment_wrapper, ATTR_ORIGINAL_FUNC, func)
