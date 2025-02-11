@@ -153,7 +153,6 @@ def query_annotation(annotations: list[Annotation], id: str) -> Annotation:
 
 def load_metadata(root_path: str, png_file: str) -> list[Resource]:
     """加载 metadata 类型的标注"""
-
     json_path = png_file + '.json'
     with open(json_path, 'r', encoding='utf-8') as f:
         metadata = SpriteMetadata.from_json(f.read())  # 使用 dataclass-json 的解析方法
@@ -164,12 +163,16 @@ def load_metadata(root_path: str, png_file: str) -> list[Resource]:
         if annotation.type == 'rect':
             rect = annotation.data
             x1, y1, x2, y2 = rect.x1, rect.y1, rect.x2, rect.y2
+            # 检查坐标是否超出图像
+            if x1 < 0 or y1 < 0 or x2 > image.shape[1] or y2 > image.shape[0]:
+                raise ValueError(f'Invalid annotation: {annotation} out of image: {png_file}')
             clip = image[int(y1):int(y2), int(x1):int(x2)]
             # 保存图片
             if not os.path.exists('tmp'):
                 os.makedirs('tmp')
             path = os.path.join('tmp', f'{annotation.id}.png')
             cv2.imwrite(path, clip)
+            print(f'Writing image: {path}')
             clips[annotation.id] = path
     # 关联 Definition，创建 Sprite
     resources: list[Resource] = []
@@ -230,17 +233,17 @@ def load_sprites(root_path: str, png_files: list[str]) -> list[Resource]:
         json_path = file + '.json'
         if os.path.exists(json_path):
             resources.extend(load_metadata(root_path, file))
+            print(f'Loaded metadata: {file}')
         else:
             resources.append(load_basic_sprite(root_path, file))
+            print(f'Loaded basic sprite: {file}')
     return resources
-
 
 def make_classes(resources: list[Resource], output_path: str) -> list[OutputClass]:
     """根据 Sprite 数据生成 R.py 中的类信息。"""
     # 按照 class_path 对 sprites 进行分组
     class_map: dict[str, OutputClass] = {}
     
-
     # 创建或获取指定路径的类
     def get_or_create_class(path: list[str]) -> Union[OutputClass, None]:
         if not path:
@@ -340,6 +343,7 @@ def copy_sprites(resources: list[Resource], output_folder: str) -> list[Resource
             img_name = spr.uuid + '.png'
             dst_img_path = os.path.join(output_folder, img_name)
             shutil.copy(src_img_path, dst_img_path)
+            print(f'Copying image: {src_img_path} to {dst_img_path}')
             spr.abs_path = os.path.abspath(dst_img_path)
 
     return resources
@@ -363,5 +367,7 @@ if __name__ == '__main__':
     env.filters['indent'] = indent
     
     template = env.get_template('R.jinja2')
+    print(f'Rendering template: {template.name}')
     with open('./kotonebot/tasks/R.py', 'w', encoding='utf-8') as f:
         f.write(template.render(data=classes))
+    print('All done!')
