@@ -643,11 +643,13 @@ class ContextDevice(Device):
     def __init__(self, device: Device):
         self._device = device
 
-    def screenshot(self):
+    def screenshot(self, *, force: bool = False):
         """
         截图。返回截图数据，同时更新当前上下文的截图数据。
         """
         current = ContextStackVars.ensure_current()
+        if force:
+            current._inherit_screenshot = None
         if current._inherit_screenshot is not None:
             img = current._inherit_screenshot
             current._inherit_screenshot = None
