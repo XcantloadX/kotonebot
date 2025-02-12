@@ -12,7 +12,7 @@ import cv2
 from cv2.typing import MatLike
 
 if TYPE_CHECKING:
-    from kotonebot.client.protocol import DeviceABC
+    from kotonebot.client.protocol import Device
     from kotonebot.backend.color import HsvColor
 from .core import Image
 
@@ -56,7 +56,7 @@ def crop_rect(img: MatLike, rect: Rect) -> MatLike:
 class DeviceHookContextManager:
     def __init__(
         self,
-        device: 'DeviceABC',
+        device: 'Device',
         *,
         screenshot_hook_before: Callable[[], MatLike|None] | None = None,
         screenshot_hook_after: Callable[[MatLike], MatLike] | None = None,
@@ -86,7 +86,7 @@ class DeviceHookContextManager:
             self.device.click_hooks_before.remove(self.click_hook_before)
 
 def cropped(
-    device: 'DeviceABC',
+    device: 'Device',
     x1: float = 0,
     y1: float = 0,
     x2: float = 1,

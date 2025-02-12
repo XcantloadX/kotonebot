@@ -3,7 +3,7 @@ import cv2
 from cv2.typing import MatLike
 import numpy as np
 from typing import NamedTuple
-from kotonebot.client.device.fast_screenshot import AdbFastScreenshots
+from kotonebot.client.fast_screenshot import AdbFastScreenshots
 
 
 def cv_imread(filePath):

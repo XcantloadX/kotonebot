@@ -24,10 +24,9 @@ from typing_extensions import deprecated
 import cv2
 from cv2.typing import MatLike
 
-from kotonebot.client.protocol import DeviceABC
+from kotonebot.client.device import Device
 from kotonebot.backend.util import Rect
 import kotonebot.backend.image as raw_image
-from kotonebot.client.device.adb import AdbDevice
 from kotonebot.backend.image import (
     TemplateMatchResult,
     MultipleTemplateMatchResult,
@@ -42,6 +41,7 @@ from kotonebot.backend.image import (
 import kotonebot.backend.color as raw_color
 from kotonebot.backend.color import find_rgb
 from kotonebot.backend.ocr import Ocr, OcrResult, OcrResultList, jp, en, StringMatchFunction
+from kotonebot.client.factory import create_device
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig
 from kotonebot.backend.core import Image, HintBox
@@ -639,8 +639,8 @@ class Forwarded:
         setattr(self._FORWARD_getter(), name, value)
 
 # HACK: 这应该要有个更好的实现方式
-class ContextDevice(DeviceABC):
-    def __init__(self, device: DeviceABC):
+class ContextDevice(Device):
+    def __init__(self, device: Device):
         self._device = device
 
     def screenshot(self):
@@ -677,18 +677,16 @@ class Context(Generic[T]):
         self.__vars = ContextGlobalVars()
         self.__debug = ContextDebug(self)
         self.__config = ContextConfig[T](self, config_type)
-        from adbutils import adb
+        
         ip = self.config.current.backend.adb_ip
         port = self.config.current.backend.adb_port
-        adb.connect(f'{ip}:{port}')
         # TODO: 处理链接失败情况
-        d = [d for d in adb.device_list() if d.serial == f'{ip}:{port}']
-        self.__device = ContextDevice(AdbDevice(d[0]))
+        self.__device = ContextDevice(create_device(f'{ip}:{port}', 'adb'))
 
     def inject(
         self,
         *,
-        device: Optional[ContextDevice | DeviceABC] = None,
+        device: Optional[ContextDevice | Device] = None,
         ocr: Optional[ContextOcr] = None,
         image: Optional[ContextImage] = None,
         color: Optional[ContextColor] = None,
@@ -697,7 +695,7 @@ class Context(Generic[T]):
         config: Optional[ContextConfig] = None,
     ):
         if device is not None:
-            if isinstance(device, DeviceABC):
+            if isinstance(device, Device):
                 self.__device = ContextDevice(device)
             else:
                 self.__device = device
@@ -805,7 +803,7 @@ def init_context(
 
 def inject_context(
     *,
-    device: Optional[ContextDevice | DeviceABC] = None,
+    device: Optional[ContextDevice | Device] = None,
     ocr: Optional[ContextOcr] = None,
     image: Optional[ContextImage] = None,
     color: Optional[ContextColor] = None,

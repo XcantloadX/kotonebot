@@ -6,6 +6,7 @@ scikit-image==0.25.0
 thefuzz==0.22.1
 # Adb Control
 adbutils==2.8.0
+uiautomator2==3.2.8
 # Visual Debugger
 fastapi==0.115.6
 uvicorn==0.34.0
