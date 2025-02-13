@@ -1,3 +1,4 @@
+import time
 from typing import Literal
 
 from ..device import Device
@@ -7,16 +8,24 @@ import numpy as np
 import uiautomator2 as u2
 from cv2.typing import MatLike
 
+SCREENSHOT_INTERVAL = 0.2
+
 class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
     def __init__(self, device: Device):
         self.device = device
         self.u2_client = u2.Device(device.adb.serial)
+        self.__last_screenshot_time = 0
         
     def screenshot(self) -> MatLike:
         """
         截图
         """
+        from kotonebot import sleep
+        delta = time.time() - self.__last_screenshot_time
+        if delta < SCREENSHOT_INTERVAL:
+            sleep(SCREENSHOT_INTERVAL - delta)
         image = self.u2_client.screenshot(format='opencv')
+        self.__last_screenshot_time = time.time()
         assert isinstance(image, np.ndarray)
         return image
     

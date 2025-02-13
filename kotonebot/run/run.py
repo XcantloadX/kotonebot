@@ -192,11 +192,16 @@ def start(
 
 if __name__ == '__main__':
     from kotonebot.tasks.common import BaseConfig
+    from kotonebot.backend.util import Profiler
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(filename)s:%(lineno)d] - %(message)s')
     logger.setLevel(logging.DEBUG)
     logging.getLogger('kotonebot').setLevel(logging.DEBUG)
     init_context(config_type=BaseConfig)
     initialize('kotonebot.tasks')
-    run(debug=True)
+    pf = Profiler('profiler')
+    pf.begin()
+    run()
+    pf.end()
+    pf.snakeviz()
 
 
