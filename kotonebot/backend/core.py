@@ -1,6 +1,6 @@
 import logging
-
-from typing import Callable, ParamSpec, TypeVar, overload, TYPE_CHECKING
+from functools import cache
+from typing import Callable, overload, TYPE_CHECKING
 
 import cv2
 from cv2.typing import MatLike
@@ -20,7 +20,6 @@ class Ocr:
         self.language = language
 
 
-# TODO: 支持透明背景
 class Image:
     def __init__(
         self,
@@ -33,6 +32,10 @@ class Image:
         self.name = name
         self.__data: MatLike | None = data
         self.__data_with_alpha: MatLike | None = None
+
+    @cache
+    def binary(self) -> 'Image':
+        return Image(data=cv2.cvtColor(self.data, cv2.COLOR_BGR2GRAY))
 
     @property
     def data(self) -> MatLike:

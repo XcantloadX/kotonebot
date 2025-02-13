@@ -176,12 +176,6 @@ def template_match(
         # 从透明图像中提取 alpha 通道作为 mask
         mask = cv2.threshold(template[:, :, 3], 0, 255, cv2.THRESH_BINARY)[1]
         template = template[:, :, :3]
-    if (transparent or mask is not None) and threshold < 0.999:
-        logger.warning(
-            f'For template matching with transparent image or mask, '
-            'threshold is recommended to be set to 0.999 or higher. '
-            f'Got {threshold}'
-        )
     # 匹配模板
     if mask is not None:
         # https://stackoverflow.com/questions/35642497/python-opencv-cv2-matchtemplate-with-transparency
