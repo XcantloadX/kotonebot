@@ -203,16 +203,19 @@ class UntilText:
             sd: 'SimpleDispatcher',
             text: str | StringMatchFunction,
             *,
-            rect: Rect | None = None
+            rect: Rect | None = None,
+            result: Any | None = None
         ):
         self.text = text
         self.sd = sd
         self.rect = rect
+        self.result = result
 
     def __call__(self):
         from kotonebot import ocr
         if ocr.find(self.text, rect=self.rect):
             self.sd.finished = True
+            self.sd.result = self.result
 
 class UntilImage:
     def __init__(
@@ -220,11 +223,13 @@ class UntilImage:
             sd: 'SimpleDispatcher',
             image: Image,
             *,
-            rect: Rect | None = None
+            rect: Rect | None = None,
+            result: Any | None = None
         ):
         self.image = image
         self.sd = sd
         self.rect = rect
+        self.result = result
 
     def __call__(self):
         from kotonebot import image
@@ -232,6 +237,7 @@ class UntilImage:
             logger.warning(f'UntilImage with rect is deprecated. Use UntilText instead.')
         if image.find(self.image):
             self.sd.finished = True
+            self.sd.result = self.result
 
 class SimpleDispatcher:
     def __init__(self, name: str, *, interval: float = 0.2):
@@ -239,6 +245,7 @@ class SimpleDispatcher:
         self.logger = logging.getLogger(f'SimpleDispatcher of {name}')
         self.blocks: list[Callable] = []
         self.finished: bool = False
+        self.result: Any | None = None
         self.interval = interval
         self.__last_run_time: float = 0
 
@@ -277,17 +284,19 @@ class SimpleDispatcher:
             self,
             text: StringMatchFunction | Image,
             *,
-            rect: Rect | None = None
+            rect: Rect | None = None,
+            result: Any | None = None
         ):
         if isinstance(text, Image):
-            self.blocks.append(UntilImage(self, text, rect=rect))
+            self.blocks.append(UntilImage(self, text, rect=rect, result=result))
         else:
-            self.blocks.append(UntilText(self, text, rect=rect))
+            self.blocks.append(UntilText(self, text, rect=rect, result=result))
         return self
 
     def run(self):
         from kotonebot import device, sleep
         while True:
+            logger.debug(f'Running dispatcher "{self.name}"')
             time_delta = time.time() - self.__last_run_time
             if time_delta < self.interval:
                 sleep(self.interval - time_delta)
@@ -297,6 +306,7 @@ class SimpleDispatcher:
                 break
             self.__last_run_time = time.time()
             device.screenshot()
+        return self.result
 
 if __name__ == '__main__':
     from .context.task_action import action
