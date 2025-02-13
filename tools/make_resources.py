@@ -287,6 +287,12 @@ def make_classes(resources: list[Resource], output_path: str) -> list[OutputClas
             if resource.type == 'template':
                 sprite = resource.data
                 assert isinstance(sprite, Sprite)
+                origin_img = cv2.imread(sprite.origin_file)
+                w, h = origin_img.shape[1], origin_img.shape[0]
+                if h > 1000:
+                    height = 500
+                else:
+                    height = ''
                 docstring = (
                     f"名称：{sprite.display_name}\\n\n"
                     f"路径：{escape(sprite.rel_path)}\\n\n"
@@ -296,13 +302,13 @@ def make_classes(resources: list[Resource], output_path: str) -> list[OutputClas
                 if sprite.type == 'metadata':
                     docstring += (
                         f"原始文件：\\n\n"
-                        f"<img src='vscode-file://vscode-app/{escape(sprite.origin_file)}' title='原始文件' width='80%' />"
+                        f"<img src='vscode-file://vscode-app/{escape(sprite.origin_file)}' title='原始文件' height='{height}' />"
                     )
                 img_attr = ImageAttribute(
                     type='image',
                     name=sprite.name,
                     docstring=docstring,
-                    value=f'image(res_path(r"{output_path}\\{sprite.uuid}.png"))'
+                    value=f'Image(path=res_path(r"{output_path}\\{sprite.uuid}.png"), name="{sprite.display_name}")'
                 )
                 current_class.attributes.append(img_attr)
             elif resource.type == 'hint-box':
