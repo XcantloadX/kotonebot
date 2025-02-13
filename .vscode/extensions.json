@@ -1,6 +1,9 @@
 {
     "recommendations": [
         "rioj7.command-variable",
-        "wholroyd.jinja"
+        "wholroyd.jinja",
+        "mgiesen.image-comments",
+        "ms-python.vscode-pylance",
+        "ms-python.python"
     ]
 }

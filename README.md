@@ -4,44 +4,79 @@
     * 领取礼物（邮件）
     * 领取活动费
     * 领取工作奖励并自动重新安排工作
-    * 自动竞赛挑战
-* 低配版自动培育（目前仅限 Ruglar 模式）
+    * 竞赛挑战
+    * 领取任务奖励
+    * 清理商店
+        * 包括 AP 商店和金币商店
+        * 可以购买推荐商品，或者指定要购买的物品
+* 低配版自动培育
+    * 支持 REGULAR 和 PRO 模式<sup>1</sup>
+    * 支持指定 P 偶像<sup>2</sup>
+    * 支持指定使用增强道具（笔记数量和 Pt 数量提升）
+    * 暂时**只能使用自动编成**回忆和支援卡
+    * 对于非练习周，如果没有推荐休息，暂时只会按顺序执行活动支给（活動支給）、文化课（授業）、休息这三种，不支持外出（おでかけ）和咨询（相談）
+    * 领取技能卡和 P 饮料时，固定领取第一个。若 P 饮料溢出，则不领取
 
-## 安装&使用
-对模拟器的要求：
-* 分辨率：目前必须是 1280x720
+<sup>1 2</sup> 见后文的注意事项
+
+## 安装
+### 模拟器要求
+* 分辨率：必须是 1280x720
 * 系统版本：Android 10+（Q，API 29），这是游戏的要求
+* 已开启游戏加速器或代理且网络通畅
 
-
+### 普通用户
 TODO
 
-## 开发
+### 技术用户
+琴音小助手通过 pip 分发，因此你可以执行下面的命令来安装：
+```bash
+pip install ksaa
+```
+
+> 琴音小助手的缩写是“kaa”（**K**otone's **A**uto **A**ssist），
+> 但是“kaa”已经被其他包占用了，
+> 因此改用“ksaa”（**K**otone'**s** **A**uto **A**ssist）。
+
+不过为了避免依赖冲突，你最好使用 pipx 来安装：
+```bash
+# 安装 pipx
+scoop install pipx
+pipx ensurepath
+# 安装 kaa
+pipx install ksaa
+```
+（也可以通过 pip 安装 pipx，详见 [pipx 文档](https://github.com/pypa/pipx#on-windows)）
+
+如果你不想使用 pipx，也可以手动创建虚拟环境，并使用普通的 pip 安装。
+
+安装完成后，只需要运行 `ksaa` 命令即可启动 GUI 界面：
+```bash
+ksaa
+```
+
+需要注意的是，配置文件 `config.json` 会自动在工作目录下生成。
+因此你最好每次都在同一个地方运行 kaa，否则可能会出现找不到配置文件的情况。
+
+## 使用
+### 配置
+TODO
+
+### 注意事项
 > [!NOTE]
-> 建议使用 VSCode 进行开发。
+> 建议使用 **REGULAR 模式**，
+> 因为 PRO 模式还没有经过充分测试。
 
-首先安装 [just](https://github.com/casey/just#packages)，然后：
-```bash
-git clone https://github.com/XcantloadX/KotonesAutoAssistant.git
-cd KotonesAutoAssistant
-just env
-```
-然后打开 VSCode 设置，搜索“SupportRestructured Text”并勾选。
+> ![IMPORTANT]
+> 尽管名字叫“琴音小助手”，但是强烈建议你
+> **不要在自动培育中使用琴音**。
+>
+> 因为琴音的黄色服饰会严重干扰推荐卡的检测，
+> 导致打出错误的技能卡。
 
-### 打包
-```bash
-just package <版本号>
-```
+> ![IMPORTANT]
+> 建议**使用亲密度至少为 7 的偶像**进行培育，
+> 因为琴音小助手暂时无法处理亲密度提升事件。
 
-### 截图
-建议使用 [XnView MP](https://www.xnview.com/en/xnviewmp/) 进行截图裁剪工作。
-
-XnView MP 可以方便的完成“打开图片 → 选区 → 裁剪图片 → 另存选取为文件”这一操作。
-只需要提前设置好右键菜单：
-![XnView MP 设置1](./images/xnview_setup1.png)
-
-## 清单
-- [ ] 提高课程/考试中检测推荐卡的准确率
-- [ ] 微调 OCR 模型。目前 OCR 识别结果不太准确
-- [ ] 支持多分辨率
-- [ ] 尝试支持汉化版
-- [ ] 截图：AI 辅助自动裁剪 + 命名文件
+## 开发
+见[DEVELOPMENT.md](./docs/DEVELOPMENT.md)
