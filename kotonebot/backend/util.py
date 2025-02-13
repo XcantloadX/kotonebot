@@ -193,18 +193,30 @@ class AdaptiveWait:
         self.start_time = None
 
 class Countdown:
-    def __init__(self, seconds: float):
-        self.seconds = seconds
-        self.start_time = time.time()
+    def __init__(self, sec: float):
+        self.seconds = sec
+        self.start_time: float | None = None
 
     def __str__(self):
-        return f"{self.seconds - (time.time() - self.start_time):.0f}s"
+        if self.start_time is None:
+            return "Unstarted"
+        else:
+            return f"{self.seconds - (time.time() - self.start_time):.0f}s"
     
+    @property
+    def started(self) -> bool:
+        return self.start_time is not None
+
     def start(self):
-        self.start_time = time.time()
+        if self.start_time is None:
+            self.start_time = time.time()
+        return self
 
     def expired(self) -> bool:
-        return time.time() - self.start_time > self.seconds
+        if self.start_time is None:
+            return False
+        else:
+            return time.time() - self.start_time > self.seconds
 
     def reset(self):
         self.start_time = time.time()

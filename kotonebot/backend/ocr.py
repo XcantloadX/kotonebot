@@ -113,10 +113,7 @@ class TextNotFoundError(Exception):
     def __init__(self, pattern: str | re.Pattern | StringMatchFunction, image: 'MatLike'):
         self.pattern = pattern
         self.image = image
-        if isinstance(pattern, (str, re.Pattern)):
-            super().__init__(f"Expected text not found: {pattern}")
-        else:
-            super().__init__(f"Expected text not found: {pattern.__name__}")
+        super().__init__(f"Expected text not found: {pattern}")
 
 class TextComparator:
     def __init__(self, name: str, text: str, func: Callable[[str], bool]):
