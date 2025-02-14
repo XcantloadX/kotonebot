@@ -351,6 +351,7 @@ class Device:
         
 if __name__ == "__main__":
     from kotonebot.client.implements.adb import AdbImpl
+    from kotonebot.client.implements.adb_raw import AdbRawImpl
     from .implements.uiautomator2 import UiAutomator2Impl
     print("server version:", adb.server_version())
     adb.connect("127.0.0.1:5555")
@@ -358,14 +359,12 @@ if __name__ == "__main__":
     d = adb.device_list()[-1]
     d.shell("dumpsys activity top | grep ACTIVITY | tail -n 1")
     dd = Device(d)
-    adb_imp = AdbImpl(dd)
+    adb_imp = AdbRawImpl(dd)
     dd._command = adb_imp
     dd._touch = adb_imp
-    # dd._screenshot = adb_imp
+    dd._screenshot = adb_imp
     # dd._screenshot = MinicapScreenshotImpl(dd)
-    dd._screenshot = UiAutomator2Impl(dd)
-    # dd.launch_app("com.android.settings")
-    dd.adb = d
+    # dd._screenshot = UiAutomator2Impl(dd)
 
     # 实时展示画面
     import cv2
@@ -389,8 +388,8 @@ if __name__ == "__main__":
         
         # 在图像上绘制信息
         font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(img, current_time, (10, 30), font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-        cv2.putText(img, fps_text, (10, 60), font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+        cv2.putText(img, current_time, (10, 30), font, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
+        cv2.putText(img, fps_text, (10, 60), font, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
         
         cv2.imshow("screen", img)
         cv2.waitKey(1)

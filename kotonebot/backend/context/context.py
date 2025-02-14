@@ -691,7 +691,7 @@ class Context(Generic[T]):
         ip = self.config.current.backend.adb_ip
         port = self.config.current.backend.adb_port
         # TODO: 处理链接失败情况
-        self.__device = ContextDevice(create_device(f'{ip}:{port}', 'uiautomator2'))
+        self.__device = ContextDevice(create_device(f'{ip}:{port}', 'adb_raw'))
 
     def inject(
         self,

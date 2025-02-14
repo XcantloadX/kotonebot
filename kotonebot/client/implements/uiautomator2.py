@@ -1,12 +1,15 @@
 import time
 from typing import Literal
 
-from ..device import Device
-from ..protocol import Screenshotable, Commandable, Touchable
-
 import numpy as np
 import uiautomator2 as u2
 from cv2.typing import MatLike
+
+from kotonebot import logging
+from ..device import Device
+from ..protocol import Screenshotable, Commandable, Touchable
+
+logger = logging.getLogger(__name__)
 
 SCREENSHOT_INTERVAL = 0.2
 
@@ -23,8 +26,10 @@ class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
         from kotonebot import sleep
         delta = time.time() - self.__last_screenshot_time
         if delta < SCREENSHOT_INTERVAL:
-            sleep(SCREENSHOT_INTERVAL - delta)
+            time.sleep(SCREENSHOT_INTERVAL - delta)
+        start_time = time.time()
         image = self.u2_client.screenshot(format='opencv')
+        logger.verbose(f'uiautomator2 screenshot: {time.time() - start_time}s')
         self.__last_screenshot_time = time.time()
         assert isinstance(image, np.ndarray)
         return image
@@ -62,6 +67,7 @@ class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
         """
         try:
             result = self.u2_client.app_current()
+            logger.verbose(f'uiautomator2 current_package: {result}')
             return result['package']
         except:
             return None
