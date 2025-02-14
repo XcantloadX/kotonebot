@@ -336,7 +336,9 @@ class Device:
         :return: 前台 APP 的包名。如果获取失败，则返回 None。
         :exception: 如果设备不支持此功能，则抛出 NotImplementedError。
         """
-        return self._command.current_package()
+        ret = self._command.current_package()
+        logger.debug("current_package: %s", ret)
+        return ret
 
     def detect_orientation(self) -> Literal['portrait', 'landscape'] | None:
         """

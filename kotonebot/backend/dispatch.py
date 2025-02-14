@@ -247,15 +247,17 @@ class SimpleDispatcher:
         self.finished: bool = False
         self.result: Any | None = None
         self.interval = interval
+        self.timeout_value: float | None = None
+        self.timeout_critical: bool = False
         self.__last_run_time: float = 0
 
     def click(
-            self,
-            target: Image | StringMatchFunction | Literal['center'] | Rect,
-            *,
-            finish: bool = False,
-            log: str | None = None
-        ):
+        self,
+        target: Image | StringMatchFunction | Literal['center'] | Rect,
+        *,
+        finish: bool = False,
+        log: str | None = None
+    ):
         params = ClickParams(finish=finish, log=log)
         if isinstance(target, Image):
             self.blocks.append(ClickImage(self, target, params=params))
@@ -281,16 +283,22 @@ class SimpleDispatcher:
         return self
 
     def until(
-            self,
-            text: StringMatchFunction | Image,
-            *,
-            rect: Rect | None = None,
-            result: Any | None = None
-        ):
+        self,
+        text: StringMatchFunction | Image,
+        *,
+        rect: Rect | None = None,
+        result: Any | None = None
+    ):
         if isinstance(text, Image):
             self.blocks.append(UntilImage(self, text, rect=rect, result=result))
         else:
             self.blocks.append(UntilText(self, text, rect=rect, result=result))
+        return self
+
+    def timeout(self, timeout: float, *, critical: bool = False, result: Any | None = None):
+        self.timeout_value = timeout
+        self.timeout_critical = critical
+        self.timeout_result = result
         return self
 
     def run(self):
@@ -305,6 +313,13 @@ class SimpleDispatcher:
             if self.finished:
                 break
             self.__last_run_time = time.time()
+            if self.timeout_value and time.time() - self.__last_run_time > self.timeout_value:
+                if self.timeout_critical:
+                    raise TimeoutError(f'Dispatcher "{self.name}" timed out.')
+                else:
+                    self.logger.warning(f'Dispatcher "{self.name}" timed out.')
+                    self.result = self.timeout_result
+                    break
             device.screenshot()
         return self.result
 

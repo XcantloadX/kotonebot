@@ -199,7 +199,15 @@ class ContextStackVars:
     @property
     def screenshot(self) -> MatLike:
         match self.screenshot_mode:
-            case 'manual' | 'manual-inherit':
+            case 'manual':
+                if self._screenshot is None:
+                    raise ValueError("No screenshot data found.")
+                return self._screenshot
+            case 'manual-inherit':
+                # TODO: 这一部分要考虑和 device.screenshot() 合并
+                if self._inherit_screenshot is not None:
+                    self._screenshot = self._inherit_screenshot
+                    self._inherit_screenshot = None
                 if self._screenshot is None:
                     raise ValueError("No screenshot data found.")
                 return self._screenshot
