@@ -499,8 +499,8 @@ def find_multi(
             "<table class='result-table'>" +
             "<tr><th>Template</th><th>Mask</th><th>Result</th></tr>" +
             "\n".join([
-                f"<tr><td>{img(t)}</td><td>{img(m)}</td><td>{'✓' if ret and t == templates[0] else '✗'}</td></tr>"
-                for t, m in zip(templates, _masks)
+                f"<tr><td>{img(t)}</td><td>{img(m)}</td><td>{'✓' if ret and t == templates[ret.index] else '✗'}</td></tr>"
+                for i, (t, m) in enumerate(zip(templates, _masks))
             ]) +
             "</table>\n"
         )
