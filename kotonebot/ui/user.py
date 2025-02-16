@@ -10,6 +10,21 @@ from .. import logging
 
 logger = logging.getLogger(__name__)
 
+def retry(func):
+    """
+    装饰器：当函数发生 ConnectionResetError 时自动重试三次
+    """
+    def wrapper(*args, **kwargs):
+        for i in range(3):
+            try:
+                return func(*args, **kwargs)
+            except ConnectionResetError:
+                if i == 2:  # 最后一次重试失败
+                    raise
+                logger.warning(f'ConnectionResetError raised when calling {func}, retrying {i+1}/{3}')
+                continue
+    return wrapper
+
 def ask(
     question: str,
     options: list[str],
@@ -40,6 +55,7 @@ def _save_local(
             logger.verbose('saving image to local: %s', f'{file_name}_{i}.png')
             cv2.imwrite(f'{file_name}_{i}.png', image)
 
+@retry
 def push(
     title: str,
     message: str,

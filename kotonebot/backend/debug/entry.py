@@ -7,7 +7,10 @@ from pathlib import Path
 from threading import Thread
 
 from . import debug
+from kotonebot import logging
 from kotonebot.backend.context import init_context
+
+logger = logging.getLogger(__name__)
 
 def _task_thread(task_module: str):
     """任务线程。"""
@@ -57,7 +60,18 @@ if __name__ == "__main__":
             os.makedirs(save_path)
     if args.clear:
         if debug.auto_save_to_folder:
-            shutil.rmtree(debug.auto_save_to_folder)
+            try:
+                logger.info(f"Removing {debug.auto_save_to_folder}")
+                shutil.rmtree(debug.auto_save_to_folder)
+            except PermissionError:
+                logger.warning(f"Failed to remove {debug.auto_save_to_folder}. Trying to remove all contents instead.")
+                for root, dirs, files in os.walk(debug.auto_save_to_folder):
+                    for file in files:
+                        try:
+                            os.remove(os.path.join(root, file))
+                        except PermissionError:
+                            raise
+                
 
     # 初始化上下文
     module_name, class_name = args.config_type.rsplit('.', 1)

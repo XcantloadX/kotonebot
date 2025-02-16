@@ -13,7 +13,8 @@ from .backend.context import (
     sleep,
     task,
     action,
-    use_screenshot
+    use_screenshot,
+    wait
 )
 from .backend.util import (
     Rect,

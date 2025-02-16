@@ -141,7 +141,7 @@ def sleep(seconds: float, /):
     """
     可中断的 sleep 函数。
 
-    建议使用 `context.sleep()` 代替 `time.sleep()`，
+    建议使用本函数代替 `time.sleep()`，
     这样能以最快速度响应用户请求中断。
     """
     global vars
@@ -655,6 +655,7 @@ class ContextDevice(Device):
         """
         截图。返回截图数据，同时更新当前上下文的截图数据。
         """
+        global next_wait, last_screenshot_time, next_wait_time
         current = ContextStackVars.ensure_current()
         if force:
             current._inherit_screenshot = None
@@ -662,6 +663,13 @@ class ContextDevice(Device):
             img = current._inherit_screenshot
             current._inherit_screenshot = None
         else:
+            if next_wait == 'screenshot':
+                delta = time.time() - last_screenshot_time
+                if delta < next_wait_time:
+                    sleep(next_wait_time - delta)
+                last_screenshot_time = time.time()
+                next_wait_time = 0
+                next_wait = None
             img = self._device.screenshot()
         current._screenshot = img
         return img
@@ -691,7 +699,7 @@ class Context(Generic[T]):
         ip = self.config.current.backend.adb_ip
         port = self.config.current.backend.adb_port
         # TODO: 处理链接失败情况
-        self.__device = ContextDevice(create_device(f'{ip}:{port}', 'adb_raw'))
+        self.__device = ContextDevice(create_device(f'{ip}:{port}', 'adb'))
 
     def inject(
         self,
@@ -763,6 +771,15 @@ def use_screenshot(*args: MatLike | None) -> MatLike:
             return img
     return device.screenshot()
 
+WaitBeforeType = Literal['screenshot']
+def wait(at_least: float = 0.3, *, before: WaitBeforeType) -> None:
+    global next_wait, next_wait_time
+    if before == 'screenshot':
+        if time.time() - last_screenshot_time < at_least:
+            next_wait = 'screenshot'
+            next_wait_time = at_least
+
+
 # 这里 Context 类还没有初始化，但是 tasks 中的脚本可能已经引用了这里的变量
 # 为了能够动态更新这里变量的值，这里使用 Forwarded 类再封装一层，
 # 将调用转发到实际的稍后初始化的 Context 类上
@@ -781,7 +798,10 @@ debug: ContextDebug = cast(ContextDebug, Forwarded(name="debug"))
 """调试工具。"""
 config: ContextConfig = cast(ContextConfig, Forwarded(name="config"))
 """配置数据。"""
-
+last_screenshot_time: float = -1
+"""上一次截图的时间。"""
+next_wait: WaitBeforeType | None = None
+next_wait_time: float = 0
 
 def init_context(
     *,

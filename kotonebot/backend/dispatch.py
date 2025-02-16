@@ -240,13 +240,13 @@ class UntilImage:
             self.sd.result = self.result
 
 class SimpleDispatcher:
-    def __init__(self, name: str, *, interval: float = 0.2):
+    def __init__(self, name: str, *, min_interval: float = 0.3):
         self.name = name
         self.logger = logging.getLogger(f'SimpleDispatcher of {name}')
         self.blocks: list[Callable] = []
         self.finished: bool = False
         self.result: Any | None = None
-        self.interval = interval
+        self.min_interval = min_interval
         self.timeout_value: float | None = None
         self.timeout_critical: bool = False
         self.__last_run_time: float = 0
@@ -306,8 +306,8 @@ class SimpleDispatcher:
         while True:
             logger.debug(f'Running dispatcher "{self.name}"')
             time_delta = time.time() - self.__last_run_time
-            if time_delta < self.interval:
-                sleep(self.interval - time_delta)
+            if time_delta < self.min_interval:
+                sleep(self.min_interval - time_delta)
             for block in self.blocks:
                 block()
             if self.finished:
