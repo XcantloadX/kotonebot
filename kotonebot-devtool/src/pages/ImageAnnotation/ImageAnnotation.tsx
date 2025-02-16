@@ -319,7 +319,9 @@ const ImageAnnotation: React.FC = () => {
     }, [clear]);
 
     const handleImageLoad = useCallback(async (result: FileResult, shouldClearMetaData: boolean = true) => {
-        currentFileResult.current = result;
+        if (result.file.name.endsWith('.json')) {
+            currentFileResult.current = result;
+        }
         imageFileNameRef.current = result.name;
         const dataUrl = await readFileAsDataURL(result.file);
         loadImage(dataUrl, shouldClearMetaData);
