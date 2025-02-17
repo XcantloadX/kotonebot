@@ -13,20 +13,22 @@ from cv2.typing import MatLike
 from thefuzz import fuzz as _fuzz
 from rapidocr_onnxruntime import RapidOCR
 
-from .util import Rect, grayscaled, res_path
-from .debug import result as debug_result, debug
+
 from .core import HintBox
+from .util import Rect, grayscaled, lf_path
+from .debug import result as debug_result, debug
 
 logger = logging.getLogger(__name__)
 
+# TODO: 这个路径需要能够独立设置
 _engine_jp = RapidOCR(
-    rec_model_path=res_path('res/models/japan_PP-OCRv4_rec_infer.onnx'),
+    rec_model_path=lf_path('models/japan_PP-OCRv4_rec_infer.onnx'),
     use_det=True,
     use_cls=False,
     use_rec=True,
 )
 _engine_en = RapidOCR(
-    rec_model_path=res_path('res/models/en_PP-OCRv3_rec_infer.onnx'),
+    rec_model_path=lf_path('models/en_PP-OCRv3_rec_infer.onnx'),
     use_det=True,
     use_cls=False,
     use_rec=True,
@@ -242,7 +244,7 @@ def _draw_result(image: 'MatLike', result: list[OcrResult]) -> 'MatLike':
     
     # 加载字体
     try:
-        font = ImageFont.truetype(res_path('res/fonts/SourceHanSansHW-Regular.otf'), 16)
+        font = ImageFont.truetype(lf_path('res/fonts/SourceHanSansHW-Regular.otf'), 16)
     except:
         font = ImageFont.load_default()
     

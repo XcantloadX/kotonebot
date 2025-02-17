@@ -1,2 +1,4 @@
-graft res
-prune res/sprites
+graft kotonebot/tasks/sprites
+prune tests
+prune tools
+prune experiments

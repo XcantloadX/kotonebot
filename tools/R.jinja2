@@ -1,7 +1,9 @@
+{%- if not production %}
 ####### 图片资源文件 #######
 ####### 此文件为自动生成，请勿编辑 #######
 ####### AUTO GENERATED. DO NOT EDIT. #######
-from kotonebot.backend.util import res_path
+{%- endif %}
+from kotonebot.tasks.common import sprite_path
 from kotonebot.backend.core import Image, HintBox
 
 
@@ -9,11 +11,13 @@ from kotonebot.backend.core import Image, HintBox
 {%- for attr in class.attributes -%}
 {%- if attr.type == 'image' %}
     {{ attr.name }} = {{ attr.value }}
+    {%- if not production %}
     """
 {%- for line in attr.docstring.split('\n') %}
     {{ line }}
 {%- endfor -%}
     """
+    {%- endif %}
 {% elif attr.type == 'class' %}
     class {{ attr.name }}:
     {{ render_class_attributes(attr) | indent(4) }}

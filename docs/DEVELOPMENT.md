@@ -16,9 +16,10 @@
 4. 编译资源：在 VSCode 中选择“Terminal” -> “Run Task” -> “Make R.py”并执行。
 
 
-## 打包
+## 打包 & 安装
 ```bash
-just package <版本号>
+just package
+pip install --find-links=dist ksaa
 ```
 
 ## 截图

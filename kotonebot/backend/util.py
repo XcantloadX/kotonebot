@@ -238,28 +238,11 @@ class Interval:
     def reset(self):
         self.start_time = time.time()
 
-package_mode: Literal['wheel', 'standalone'] | None = None
-def res_path(path: str) -> str:
-    """
-    返回资源文件的绝对路径。
-
-    :param path: 资源文件路径。必须以 `res/` 开头。
-    """
-    global package_mode
-    if package_mode is None:
-        if os.path.exists('res'):
-            package_mode = 'standalone'
-        else:
-            package_mode = 'wheel'
-    ret = path
-    if package_mode == 'standalone':
-        ret = os.path.abspath(ret)
-    else:
-        # resources.files('kotonebot.res') 返回的就是 res 文件夹的路径
-        # 但是 path 已经有了 res，所以这里需要去掉 res
-        real_path = resources.files('kotonebot.res') / '..' / path
-        ret = str(real_path)
-    return ret
+def lf_path(path: str) -> str:
+    standalone = os.path.join('kotonebot-resource', path)
+    if os.path.exists(standalone):
+        return standalone
+    return str(resources.files('kaa.res') / path)
 
 class Profiler:
     """

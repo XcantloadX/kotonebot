@@ -5,6 +5,7 @@ import os
 import shutil
 import uuid
 import jinja2
+import argparse
 from typing import Any, TypeGuard, Literal, Union, cast
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json, DataClassJsonMixin
@@ -12,7 +13,7 @@ from dataclasses_json import dataclass_json, DataClassJsonMixin
 import cv2
 from cv2.typing import MatLike
 
-PATH = '.\\res\\sprites'
+PATH = '.\\kotonebot-resource\\sprites'
 
 SpriteType = Literal['basic', 'metadata']
 
@@ -308,7 +309,7 @@ def make_classes(resources: list[Resource], output_path: str) -> list[OutputClas
                     type='image',
                     name=sprite.name,
                     docstring=docstring,
-                    value=f'Image(path=res_path(r"{output_path}\\{sprite.uuid}.png"), name="{sprite.display_name}")'
+                    value=f'Image(path=sprite_path(r"{sprite.uuid}.png"), name="{sprite.display_name}")'
                 )
                 current_class.attributes.append(img_attr)
             elif resource.type == 'hint-box':
@@ -361,13 +362,18 @@ def indent(text: str, indent: int = 4) -> str:
     return '\n'.join(' ' * indent + line for line in lines)
 
 if __name__ == '__main__':
-    if os.path.exists('res\\sprites_compiled'):
-        shutil.rmtree('res\\sprites_compiled')
+    # 添加命令行参数解析
+    parser = argparse.ArgumentParser(description='生成图片资源文件')
+    parser.add_argument('-p', '--production', action='store_true', help='生产模式：不输出注释')
+    args = parser.parse_args()
+
+    if os.path.exists(r'kotonebot\tasks\sprites'):
+        shutil.rmtree(r'kotonebot\tasks\sprites')
     path = PATH + '\\jp'
     files = scan_png_files(path)
     sprites = load_sprites(path, files)
-    sprites = copy_sprites(sprites, 'res\\sprites_compiled')
-    classes = make_classes(sprites, 'res\\sprites_compiled')
+    sprites = copy_sprites(sprites, r'kotonebot\tasks\sprites')
+    classes = make_classes(sprites, r'kotonebot\tasks\sprites')
     
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('./tools'))
     env.filters['indent'] = indent
@@ -375,5 +381,8 @@ if __name__ == '__main__':
     template = env.get_template('R.jinja2')
     print(f'Rendering template: {template.name}')
     with open('./kotonebot/tasks/R.py', 'w', encoding='utf-8') as f:
-        f.write(template.render(data=classes))
+        f.write(template.render(data=classes, production=args.production))
+    print('Creating __init__.py')
+    with open('./kotonebot/tasks/sprites/__init__.py', 'w', encoding='utf-8') as f:
+        f.write('')
     print('All done!')

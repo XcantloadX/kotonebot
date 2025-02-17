@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ksaa-res"
+description = "This package contains the resources for ksaa."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+version = "0.1.0"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-dir]
+kaa = "."
+"kaa.res" = "."
+"kaa.res.models" = "models"
+"kaa.res.fonts" = "fonts"
+"kaa.res.ui" = "ui"

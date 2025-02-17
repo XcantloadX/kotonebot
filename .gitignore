@@ -2,13 +2,12 @@
 tests/output_images
 tests/output_images/*
 R.py
+kotonebot/tasks/sprites
 kotonebot-ui/node_modules
 kotonebot-ui/.vite
 dumps*/
 config.json
 reports/
-invoke.yml
-pyproject.toml
 tmp/
 res/sprites_compiled/
 messages/
