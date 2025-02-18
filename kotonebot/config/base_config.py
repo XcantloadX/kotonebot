@@ -1,17 +1,24 @@
 import uuid
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 T = TypeVar('T')
 
-class BackendConfig(BaseModel):
+class ConfigBaseModel(BaseModel):
+    model_config = ConfigDict(use_attribute_docstrings=True)
+
+class BackendConfig(ConfigBaseModel):
     adb_ip: str = '127.0.0.1'
     """adb 连接的 ip 地址。"""
     adb_port: int = 5555
     """adb 连接的端口。"""
+    screenshot_impl: Literal['adb', 'adb_raw', 'uiautomator2'] = 'adb_raw'
+    """
+    截图方法。暂时推荐使用【adb】截图方式。
+    """
 
-class UserConfig(BaseModel, Generic[T]):
+class UserConfig(ConfigBaseModel, Generic[T]):
     """用户可以自由添加、删除的配置数据。"""
 
     name: str = 'default_config'
@@ -28,7 +35,7 @@ class UserConfig(BaseModel, Generic[T]):
     """下游脚本储存的具体数据。"""
 
 
-class RootConfig(BaseModel, Generic[T]):
+class RootConfig(ConfigBaseModel, Generic[T]):
     version: int = 1
     """配置版本。"""
     user_configs: list[UserConfig[T]] = []

@@ -46,6 +46,7 @@ from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig
 from kotonebot.backend.core import Image, HintBox
 from kotonebot.errors import KotonebotWarning
+from kotonebot.client.factory import DeviceImpl
 
 OcrLanguage = Literal['jp', 'en']
 ScreenshotMode = Literal['auto', 'manual', 'manual-inherit']
@@ -688,7 +689,7 @@ class ContextDevice(Device):
 
 
 class Context(Generic[T]):
-    def __init__(self, config_type: Type[T]):
+    def __init__(self, config_type: Type[T], screenshot_impl: Optional[DeviceImpl] = None):
         self.__ocr = ContextOcr(self)
         self.__image = ContextImage(self)
         self.__color = ContextColor(self)
@@ -699,7 +700,10 @@ class Context(Generic[T]):
         ip = self.config.current.backend.adb_ip
         port = self.config.current.backend.adb_port
         # TODO: 处理链接失败情况
-        self.__device = ContextDevice(create_device(f'{ip}:{port}', 'adb'))
+        if screenshot_impl is None:
+            screenshot_impl = self.config.current.backend.screenshot_impl
+        logger.info(f'Using "{screenshot_impl}" as screenshot implementation')
+        self.__device = ContextDevice(create_device(f'{ip}:{port}', screenshot_impl))
 
     def inject(
         self,
@@ -806,22 +810,24 @@ next_wait_time: float = 0
 def init_context(
     *,
     config_type: Type[T] = dict[str, Any],
-    force: bool = False
+    force: bool = False,
+    screenshot_impl: Optional[DeviceImpl] = None
 ):
     """
     初始化 Context 模块。
 
-    :param config_type: 
-        配置数据类类型。配置数据类必须继承自 pydantic 的 `BaseModel`。
+    :param config_type: 配置数据类类型。
+        配置数据类必须继承自 pydantic 的 `BaseModel`。
         默认为 `dict[str, Any]`，即普通的 JSON 数据，不包含任何类型信息。
-    :param force: 
-        是否强制重新初始化。
+    :param force:  是否强制重新初始化。
         若为 `True`，则忽略已存在的 Context 实例，并重新创建一个新的实例。
+    :param screenshot_impl: 截图实现。
+        若为 `None`，则使用默认配置文件中指定的截图实现。
     """
     global _c, device, ocr, image, color, vars, debug, config
     if _c is not None and not force:
         return
-    _c = Context(config_type=config_type)
+    _c = Context(config_type=config_type, screenshot_impl=screenshot_impl)
     device._FORWARD_getter = lambda: _c.device # type: ignore
     ocr._FORWARD_getter = lambda: _c.ocr # type: ignore
     image._FORWARD_getter = lambda: _c.image # type: ignore

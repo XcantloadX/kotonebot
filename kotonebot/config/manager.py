@@ -33,4 +33,4 @@ def save_config(
     """将配置保存到指定路径"""
     RootConfig[T].model_validate(config)
     with open(config_path, 'w+', encoding='utf-8') as f:
-        f.write(config.model_dump_json())
+        f.write(config.model_dump_json(indent=4))
