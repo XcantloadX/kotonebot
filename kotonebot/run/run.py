@@ -113,6 +113,8 @@ def run(
     :param resume_on_error: 是否在任务出错时继续运行。默认为 `False`。
     :param auto_save_error_report: 是否自动保存错误报告。默认 `True`。
     """
+    # TODO: 允许在 initialize 时指定 config_type。
+    # TODO: 允许 init_context 时先不连接设备，而是可以之后第一次截图时连接
     init_context(config_type=config_type)
 
     tasks = sorted(task_registry.values(), key=lambda x: x.priority, reverse=True)
@@ -189,6 +191,17 @@ def start(
     })
     thread.start()
     return run_status
+
+def execute(task: Task, config_type: type = dict[str, Any]):
+    """
+    执行某个任务。
+
+    :param task: 任务。
+    :param config_type: 配置类型。
+    """
+    init_context(config_type=config_type)
+    initialize('kotonebot.tasks')
+    task.func()
 
 if __name__ == '__main__':
     from kotonebot.tasks.common import BaseConfig
