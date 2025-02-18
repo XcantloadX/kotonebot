@@ -58,13 +58,14 @@ def _save_local(
 @retry
 def push(
     title: str,
-    message: str,
+    message: str | None = None,
     *,
     images: list[MatLike] | None = None
 ):
     """
     推送消息
     """
+    message = message or ''
     try:
         logger.verbose('pushing to wxpusher: %s', message)
         wxpusher = Wxpusher()
@@ -74,16 +75,18 @@ def push(
         _save_local(title, message, images)
 
 def info(
-    message: str,
+    title: str,
+    message: str | None = None,
     images: list[MatLike] | None = None,
     *,
     once: bool = False
 ):
     logger.info('user.info: %s', message)
-    push("KAA 提示", message, images=images)
+    push('KAA：' + title, message, images=images)
 
 def warning(
-    message: str,
+    title: str,
+    message: str | None = None,
     images: list[MatLike] | None = None,
     *,
     once: bool = False
@@ -95,4 +98,4 @@ def warning(
     :param once: 每次运行是否只显示一次。
     """
     logger.warning('user.warning: %s', message)
-    push("KAA 警告", message, images=images)
+    push("KAA 警告：" + title, message, images=images)
