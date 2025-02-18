@@ -18,6 +18,19 @@ class BackendConfig(ConfigBaseModel):
     截图方法。暂时推荐使用【adb】截图方式。
     """
 
+class PushConfig(ConfigBaseModel):
+    """推送配置。"""
+
+    wx_pusher_enabled: bool = False
+    """是否启用 WxPusher 推送。"""
+    wx_pusher_app_token: str | None = None
+    """WxPusher 的 app token。"""
+    wx_pusher_uid: str | None = None
+    """WxPusher 的 uid。"""
+
+    free_image_host_key: str | None = None
+    """FreeImageHost API key。用于在推送通知时显示图片。"""
+
 class UserConfig(ConfigBaseModel, Generic[T]):
     """用户可以自由添加、删除的配置数据。"""
 
@@ -31,6 +44,11 @@ class UserConfig(ConfigBaseModel, Generic[T]):
     """描述。通常由用户输入。"""
     backend: BackendConfig = BackendConfig()
     """后端配置。"""
+    keep_screenshots: bool = False
+    """
+    是否保留截图。
+    若启用，则会保存每一张截图到 `dumps` 目录下。启用该选项有助于辅助调试。
+    """
     options: T
     """下游脚本储存的具体数据。"""
 
