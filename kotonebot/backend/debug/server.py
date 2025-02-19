@@ -31,16 +31,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 # 获取当前文件夹路径
 CURRENT_DIR = Path(__file__).parent
 
-STATIC_DIR = CURRENT_DIR / "web"
 APP_DIR = Path.cwd()
-
-# 挂载静态文件
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-@app.get("/")
-async def get_root():
-    """返回 UI 页面"""
-    return FileResponse(STATIC_DIR / "ui.html")
 
 @app.get("/api/read_file")
 async def read_file(path: str):
