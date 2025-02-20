@@ -13,7 +13,7 @@ class BackendConfig(ConfigBaseModel):
     """adb 连接的 ip 地址。"""
     adb_port: int = 5555
     """adb 连接的端口。"""
-    screenshot_impl: Literal['adb', 'adb_raw', 'uiautomator2'] = 'adb_raw'
+    screenshot_impl: Literal['adb', 'adb_raw', 'uiautomator2'] = 'adb'
     """
     截图方法。暂时推荐使用【adb】截图方式。
     """
