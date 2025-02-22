@@ -152,6 +152,10 @@ const usePropertyGridData = (
                 render: () => imageFileName || '未命名',
             },
             {
+                title: '标注文件',
+                render: () => currentFileResult?.name || '空',
+            },
+            {
                 title: '打开方式',
                 render: () => currentFileResult?.fileSystem === 'wfs' ? 'WebFileSystem' : 'Input',
             },
