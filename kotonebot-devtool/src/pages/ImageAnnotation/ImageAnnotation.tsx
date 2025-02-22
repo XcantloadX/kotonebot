@@ -296,7 +296,7 @@ const ImageAnnotation: React.FC = () => {
     const [imageUrl, setImageUrl] = useState<string>('');
     const { yesNo, MessageBoxComponent } = useMessageBox();
     const { showToast, ToastComponent } = useToast();
-    const currentFileResult = useRef<FileResult | null>(null);
+    const currentJsonFile = useRef<FileResult | null>(null);
 
     // 预加载图片
     useEffect(() => {
@@ -318,9 +318,9 @@ const ImageAnnotation: React.FC = () => {
         }
     }, [clear]);
 
-    const handleImageLoad = useCallback(async (result: FileResult, shouldClearMetaData: boolean = true) => {
+    const handleImageDrop = useCallback(async (result: FileResult, shouldClearMetaData: boolean = true) => {
         if (result.file.name.endsWith('.json')) {
-            currentFileResult.current = result;
+            currentJsonFile.current = result;
         }
         imageFileNameRef.current = result.name;
         const dataUrl = await readFileAsDataURL(result.file);
@@ -384,6 +384,7 @@ const ImageAnnotation: React.FC = () => {
                 multiple: true,
             });
 
+            currentJsonFile.current = null;
             const imageFile = result.files.find((f: FileResult) => f.file.type.startsWith('image/'));
             const jsonFile = result.files.find((f: FileResult) => f.file.name.endsWith('.json'));
 
@@ -395,7 +396,7 @@ const ImageAnnotation: React.FC = () => {
 
             // 保存文件句柄
             if (jsonFile) {
-                currentFileResult.current = jsonFile;
+                currentJsonFile.current = jsonFile;
                 try {
                     const metaData = await readFileAsJSON(jsonFile.file) as ImageMetaData;
                     load(metaData);
@@ -419,10 +420,10 @@ const ImageAnnotation: React.FC = () => {
             });
             showToast('danger', '加载失败', '无法加载文件');
         }
-    }, [handleImageLoad, isDirty, yesNo, showToast, load]);
+    }, [isDirty, yesNo, showToast, load]);
 
     const handleSave = useCallback(async () => {
-        if (currentFileResult.current?.fileSystem !== 'wfs') {
+        if (currentJsonFile.current?.fileSystem !== 'wfs') {
             try {
                 // 如果没有当前文件，尝试创建新文件
                 const handle = await saveFileAsWFS(
@@ -431,7 +432,7 @@ const ImageAnnotation: React.FC = () => {
                 );
                 
                 // 更新当前文件引用
-                currentFileResult.current = {
+                currentJsonFile.current = {
                     file: await handle.getFile(),
                     name: (await handle.getFile()).name,
                     handle,
@@ -450,14 +451,14 @@ const ImageAnnotation: React.FC = () => {
 
         try {
             const handle = await saveFileWFS(
-                currentFileResult.current?.handle,
+                currentJsonFile.current?.handle,
                 toString(imageMetaData),
                 imageFileNameRef.current ? `${imageFileNameRef.current}.json` : 'metadata.json'
             );
 
             // 更新文件句柄
-            if (handle !== currentFileResult.current?.handle) {
-                currentFileResult.current = {
+            if (handle !== currentJsonFile.current?.handle) {
+                currentJsonFile.current = {
                     file: await handle.getFile(),
                     name: (await handle.getFile()).name,
                     handle,
@@ -470,7 +471,7 @@ const ImageAnnotation: React.FC = () => {
             console.error('Failed to save file:', error);
             showToast('danger', '保存失败', '无法保存文件');
         }
-    }, [currentFileResult, imageMetaData, showToast]);
+    }, [currentJsonFile, imageMetaData, showToast]);
 
     const handleToolSelect = useCallback((id: string) => {
         setCurrentTool(STR_TO_TOOL[id]);
@@ -551,7 +552,7 @@ const ImageAnnotation: React.FC = () => {
         handleDefinitionChange,
         imageFileNameRef.current,
         imageMetaData.annotations,
-        currentFileResult.current
+        currentJsonFile.current
     );
 
     return (
@@ -563,7 +564,7 @@ const ImageAnnotation: React.FC = () => {
                 onClickTool={handleToolClick}
             />
             <EditorContainer>
-                <DragArea onImageLoad={handleImageLoad}>
+                <DragArea onImageLoad={handleImageDrop}>
                     <ImageEditor
                         image={imageUrl}
                         tool={TOOL_TO_EDITOR_TOOL[currentTool]}
