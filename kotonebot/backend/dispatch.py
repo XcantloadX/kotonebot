@@ -308,10 +308,16 @@ class SimpleDispatcher:
             time_delta = time.time() - self.__last_run_time
             if time_delta < self.min_interval:
                 sleep(self.min_interval - time_delta)
+            # 依次执行 block
+            done = False
             for block in self.blocks:
                 block()
-            if self.finished:
+                if self.finished:
+                    done = True
+                    break
+            if done:
                 break
+
             self.__last_run_time = time.time()
             if self.timeout_value and time.time() - self.__last_run_time > self.timeout_value:
                 if self.timeout_critical:
