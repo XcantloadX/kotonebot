@@ -1,53 +1,19 @@
 import logging
-from typing import Callable, cast, Literal, overload
-from typing_extensions import override, deprecated
+from typing_extensions import deprecated
+from typing import Callable, Literal, overload
 
-import numpy as np
 import cv2
+import numpy as np
+from adbutils import adb
 from cv2.typing import MatLike
-from adbutils import AdbClient, adb
 from adbutils._device import AdbDevice
 
 from kotonebot.backend.core import HintBox
 from kotonebot.backend.util import Rect, is_rect
 from .protocol import ClickableObjectProtocol, Commandable, Touchable, Screenshotable
-
+from ..backend.debug import result
 
 logger = logging.getLogger(__name__)
-
-# class AdbDevice(DeviceABC):
-#     def __init__(self, device: Device) -> None:
-#         super().__init__()
-#         self.device = device
-
-#     @override
-#     def launch_app(self, package_name: str) -> None:
-#         self.device.shell(f"monkey -p {package_name} 1")
-    
-
-#     @override
-#     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float|None = None) -> None:
-
-#         if duration is not None:
-#             logger.warning("Swipe duration is not supported with AdbDevice. Ignoring duration.")
-#         self.device.shell(f"input touchscreen swipe {x1} {y1} {x2} {y2}")
-
-#     @override
-#     def screenshot(self) -> MatLike:
-#         if self.screenshot_hook_before is not None:
-#             logger.debug("execute screenshot hook before")
-#             img = self.screenshot_hook_before()
-#             if img is not None:
-#                 logger.debug("screenshot hook before returned image")
-#                 return img
-#         img = self.screenshot_raw()
-#         if self.screenshot_hook_after is not None:
-#             img = self.screenshot_hook_after(img)
-#         return img
-
-#     @override
-#     def screenshot_raw(self) -> MatLike:
-#         return cv2.cvtColor(np.array(self.device.screenshot()), cv2.COLOR_RGB2BGR)
 
 class HookContextManager:
     def __init__(self, device: 'Device', func: Callable[[MatLike], MatLike]):
@@ -200,6 +166,15 @@ class Device:
             x, y = hook(x, y)
             logger.debug(f"Click hook before result: ({x}, {y})")
         logger.debug(f"Click: {x}, {y}")
+        from ..backend.context import ContextStackVars
+        if ContextStackVars.current() is not None:
+            image = ContextStackVars.ensure_current().screenshot
+        else:
+            image = np.array([])
+        if image.size > 0:
+            cv2.circle(image, (x, y), 10, (0, 0, 255), -1)
+        message = f"point: ({x}, {y})"
+        result("device.click", image, message)
         self._touch.click(x, y)
 
     def __click_clickable(self, clickable: ClickableObjectProtocol) -> None:
