@@ -5,9 +5,10 @@ from typing_extensions import override
 import cv2
 from cv2.typing import MatLike
 
-from kotonebot.client.protocol import ClickableObjectProtocol, DeviceABC
+from kotonebot.client import Device
+from kotonebot.client.protocol import ClickableObjectProtocol
 
-class MockDevice(DeviceABC):
+class MockDevice(Device):
     def __init__(
         self,
         screenshot_path: str = '',
@@ -85,11 +86,9 @@ class BaseTestCase(unittest.TestCase):
         debug.enabled = True
         # debug.wait_for_message_sent = True
         start_server()
-        from kotonebot.backend.context import init_context
+        from kotonebot.backend.context import init_context, inject_context
         init_context(config_type=BaseConfig)
-        from kotonebot.backend.context import _c
-        assert _c is not None, 'context is not initialized'
-        _c.inject_device(cls.device)
+        inject_context(device=cls.device)
 
     def assertPointInRect(
             self,
