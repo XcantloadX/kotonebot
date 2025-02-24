@@ -32,14 +32,16 @@ from kotonebot.backend.image import (
     MultipleTemplateMatchResult,
     find_all_crop,
     expect,
-    find,
-    find_multi,
-    find_all,
-    find_all_multi,
-    count
+    find as image_find,
+    find_multi as image_find_multi,
+    find_all as image_find_all,
+    find_all_multi as image_find_all_multi,
+    count as image_count
 )
 import kotonebot.backend.color as raw_color
-from kotonebot.backend.color import find_rgb
+from kotonebot.backend.color import (
+    find as color_find, find_all as color_find_all
+)
 from kotonebot.backend.ocr import Ocr, OcrResult, OcrResultList, jp, en, StringMatchFunction
 from kotonebot.client.factory import create_device
 from kotonebot.config.manager import load_config, save_config
@@ -510,33 +512,33 @@ class ContextImage:
         self.context.device.last_find = ret
         return ret
 
-    @context(find)
+    @context(image_find)
     def find(self, *args, **kwargs):
-        ret = find(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
+        ret = image_find(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
         self.context.device.last_find = ret
         return ret
 
-    @context(find_all)
+    @context(image_find_all)
     def find_all(self, *args, **kwargs):
-        return find_all(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
+        return image_find_all(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
-    @context(find_multi)
+    @context(image_find_multi)
     def find_multi(self, *args, **kwargs):
-        ret = find_multi(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
+        ret = image_find_multi(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
         self.context.device.last_find = ret
         return ret
 
-    @context(find_all_multi)
+    @context(image_find_all_multi)
     def find_all_multi(self, *args, **kwargs):
-        return find_all_multi(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
+        return image_find_all_multi(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
     @context(find_all_crop)
     def find_all_crop(self, *args, **kwargs):
         return find_all_crop(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
-    @context(count)
+    @context(image_count)
     def count(self, *args, **kwargs):
-        return count(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
+        return image_count(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
 @interruptible_class
 class ContextColor:
@@ -546,9 +548,13 @@ class ContextColor:
     def raw(self):
         return raw_color
 
-    @context(find_rgb)
-    def find_rgb(self, *args, **kwargs):
-        return find_rgb(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
+    @context(color_find)
+    def find(self, *args, **kwargs):
+        return color_find(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
+
+    @context(color_find_all)
+    def find_all(self, *args, **kwargs):
+        return color_find_all(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
 
 class ContextDebug:

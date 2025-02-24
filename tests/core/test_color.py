@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 
 from util import BaseTestCase
-from kotonebot.backend.color import find_rgb
+from kotonebot.backend.color import find, find_all
 
 def _img_rgb_to_bgr(img: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
@@ -25,19 +25,19 @@ class TestColor(BaseTestCase):
         ]
         for color, expected, path in test_cases:
             image = cv2.imread(path)
-            self.assertEqual(find_rgb(image, color, threshold=1), expected, f'{path} {color}')
+            self.assertEqual(find(image, color, threshold=1), expected, f'{path} {color}')
         # 错误格式
         with self.assertRaises(ValueError):
-            find_rgb('tests/images/acquire_pdorinku.png', '')
-            find_rgb('tests/images/acquire_pdorinku.png', 'sdasdf')
-            find_rgb('tests/images/acquire_pdorinku.png', '000000')
-            find_rgb('tests/images/acquire_pdorinku.png', '#000')
-            find_rgb('tests/images/acquire_pdorinku.png', 'red')
-            find_rgb('tests/images/acquire_pdorinku.png', 'red')
-            find_rgb('tests/images/acquire_pdorinku.png', [1, 2, 3]) # type: ignore
-            find_rgb('tests/images/acquire_pdorinku.png', tuple()) # type: ignore
-            find_rgb('tests/images/acquire_pdorinku.png', (0, 0)) # type: ignore
-            find_rgb('tests/images/acquire_pdorinku.png', (999, 999, -1)) # type: ignore
+            find('tests/images/acquire_pdorinku.png', '')
+            find('tests/images/acquire_pdorinku.png', 'sdasdf')
+            find('tests/images/acquire_pdorinku.png', '000000')
+            find('tests/images/acquire_pdorinku.png', '#000')
+            find('tests/images/acquire_pdorinku.png', 'red')
+            find('tests/images/acquire_pdorinku.png', 'red')
+            find('tests/images/acquire_pdorinku.png', [1, 2, 3]) # type: ignore
+            find('tests/images/acquire_pdorinku.png', tuple()) # type: ignore
+            find('tests/images/acquire_pdorinku.png', (0, 0)) # type: ignore
+            find('tests/images/acquire_pdorinku.png', (999, 999, -1)) # type: ignore
 
     def test_find_rgb_with_rect(self):
         test_cases = [
@@ -52,7 +52,7 @@ class TestColor(BaseTestCase):
         ]
         for color, expected, rect, path in test_cases:
             image = cv2.imread(path)
-            self.assertEqual(find_rgb(image, color, rect=rect, threshold=1), expected, f'{path} {color} {rect}')
+            self.assertEqual(find(image, color, rect=rect, threshold=1), expected, f'{path} {color} {rect}')
 
     def test_find_rgb_with_threshold(self):
         target_color = (252, 61, 74) # RGB
@@ -67,7 +67,7 @@ class TestColor(BaseTestCase):
         for color in colors:
             img = np.full((100, 100, 3), target_color, dtype=np.uint8)
             img = _img_rgb_to_bgr(img)
-            self.assertEqual(find_rgb(img, color, threshold=threshold), (0, 0), f'color={color}')
+            self.assertEqual(find(img, color, threshold=threshold), (0, 0), f'color={color}')
         # 随机图片测试
         for color in colors:
             # 生成10x10的随机颜色块
@@ -84,7 +84,7 @@ class TestColor(BaseTestCase):
             img[y:y+10, x:x+10] = hex2rgb(color)
             
             img = _img_rgb_to_bgr(img)
-            self.assertEqual(find_rgb(img, target_color, threshold=threshold), (x, y), f'color={color}')
+            self.assertEqual(find(img, target_color, threshold=threshold), (x, y), f'color={color}')
 
     def test_hsv_web2cv(self):
         test_cases = [
@@ -141,4 +141,63 @@ class TestColor(BaseTestCase):
         from kotonebot.backend.color import hsv_to_rgb
         for input_hsv, expected in test_cases:
             self.assertEqual(hsv_to_rgb(input_hsv), expected, f'input={input_hsv}')
+
+    def test_find_rgb_many(self):
+        # 测试纯色图片
+        def create_solid_image(color: tuple[int, int, int], size=(100, 100)) -> np.ndarray:
+            img = np.full((*size, 3), color, dtype=np.uint8)
+            return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+        # 测试数据
+        test_cases = [
+            # (目标颜色, 图片, 预期结果数量)
+            ('#FF0000', create_solid_image((255, 0, 0)), 100*100),  # 纯红色
+            ('#00FF00', create_solid_image((0, 255, 0)), 100*100),  # 纯绿色
+            ('#0000FF', create_solid_image((0, 0, 255)), 100*100),  # 纯蓝色
+            ('#FFFFFF', create_solid_image((255, 255, 255)), 100*100),  # 纯白色
+            ('#000000', create_solid_image((0, 0, 0)), 100*100),  # 纯黑色
+        ]
+
+        for color, img, expected_count in test_cases:
+            results = find_all(img, color, threshold=1.0, filter_method='point')
+            self.assertEqual(len(results), expected_count, f'color={color}')
+
+        # 测试不同阈值
+        img = create_solid_image((128, 128, 128))
+        results = find_all(img, '#808080', threshold=0.9, filter_method='point')
+        self.assertEqual(len(results), 100*100)
+        results = find_all(img, '#808080', threshold=0.99, filter_method='point')
+        self.assertEqual(len(results), 100*100)
+        results = find_all(img, '#808080', threshold=1.0, filter_method='point')
+        self.assertEqual(len(results), 100*100)
+
+        # 测试不同过滤方法
+        img = cv2.imread(r'tests\images\scenes\mission.png')
+        # 点过滤
+        results_point = find_all(img, '#ff1249', threshold=0.95, filter_method='point')
+        # 轮廓过滤
+        results_contour = find_all(img, '#ff1249', threshold=0.95, filter_method='contour')
+        self.assertEqual(len(results_contour), 2)
+        self.assertGreater(len(results_point), len(results_contour))
+
+        # 测试最大结果数量限制
+        results = find_all(img, '#ffffff', threshold=0.95, max_results=10)
+        self.assertEqual(len(results), 10)
+
+        # 测试矩形区域搜索
+        rect = (28, 934, 170, 170)
+        results = find_all(img, '#ff1249', rect=rect, threshold=0.95)
+        for result in results:
+            x, y = result.position
+            self.assertTrue(rect[0] <= x < rect[0] + rect[2])
+            self.assertTrue(rect[1] <= y < rect[1] + rect[3])
+
+        # 测试无效输入
+        # with self.assertRaises(ValueError):
+        #     find_rgb_many('invalid_path', '#000000')
+        #     find_rgb_many(img, 'invalid_color')
+        #     find_rgb_many(img, '#000000', rect=(0, 0, -1, -1))
+        #     find_rgb_many(img, '#000000', threshold=1.1)
+        #     find_rgb_many(img, '#000000', threshold=-0.1)
+        #     find_rgb_many(img, '#000000', max_results=-1)
 

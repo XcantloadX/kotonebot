@@ -1,5 +1,6 @@
 import colorsys
 from typing import Literal
+from dataclasses import dataclass
 
 import numpy as np
 import cv2
@@ -17,6 +18,12 @@ HsvColor = tuple[int, int, int]
 """
 HSV颜色。三元组 `(h, s, v)`。
 """
+
+@dataclass
+class FindColorPointResult:
+    position: tuple[int, int]
+    confidence: float
+    target_color: RgbColor
 
 def hsv_web2cv(h: int, s: int, v: int) -> 'HsvColor':
     """
@@ -105,7 +112,7 @@ def in_range(color: RgbColor, range: tuple[HsvColor, HsvColor]) -> bool:
     h2, s2, v2 = range[1]
     return h1 <= h <= h2 and s1 <= s <= s2 and v1 <= v <= v2
 
-def find_rgb(
+def find(
     image: MatLike | str,
     color: RgbColor,
     *,
@@ -211,6 +218,239 @@ def find_rgb(
             '(Red rect for search area, blue rect for result area)'
         )
     return ret
+
+def color_distance_map(
+    image: MatLike | str,
+    color: RgbColor,
+    *,
+    rect: Rect | None = None,
+) -> np.ndarray:
+    """
+    计算图像中每个像素点到目标颜色的HSL距离，并返回归一化后的距离矩阵。
+    
+    :param image: 图像。可以是 MatLike 或图像文件路径。
+    :param color: 目标颜色。可以是整数三元组 `(r, g, b)` 或十六进制颜色字符串 `#RRGGBB`。
+    :param rect: 计算范围。如果为 None，则在整个图像中计算。
+    :return: 归一化后的距离矩阵，范围 [0, 1]，0 表示完全匹配，1 表示完全不匹配。
+    """
+    # 统一颜色格式
+    color = _unify_color(color)
+    # 统一图像格式
+    image = _unify_image(image)
+    
+    # # 如果指定了rect，裁剪图像
+    if rect is not None:
+        x, y, w, h = rect
+        image = image[y:y+h, x:x+w]
+
+    # 将图像转换为HLS格式
+    image_hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS).astype(np.float32)
+    
+    # 将目标颜色转换为HSL
+    r, g, b = color
+    target_rgb = np.array([[[r, g, b]]], dtype=np.uint8)
+    target_hls = cv2.cvtColor(target_rgb, cv2.COLOR_RGB2HLS)[0,0]
+    target_h, target_l, target_s = target_hls
+    
+    # 计算HSL空间中的距离
+    # H通道需要特殊处理,因为它是环形的(0和180是相邻的)
+    h_diff = np.minimum(
+        np.abs(image_hls[:,:,0] - target_h),
+        180 - np.abs(image_hls[:,:,0] - target_h)
+    )
+    l_diff = np.abs(image_hls[:,:,1] - target_l)
+    s_diff = np.abs(image_hls[:,:,2] - target_s)
+    
+    # 归一化距离(H:0-180, L:0-255, S:0-255)
+    h_diff = h_diff / 90  # 最大差值180/2
+    l_diff = l_diff / 255
+    s_diff = s_diff / 255
+    
+    # 计算加权距离
+    dist = np.sqrt((h_diff * 2)**2 + l_diff**2 + s_diff**2) / np.sqrt(6)
+    return dist
+
+def _rect_intersection(rect1: Rect, rect2: Rect) -> Rect | None:
+    """
+    计算两个矩形的交集区域。
+    
+    :param rect1: 第一个矩形 (x, y, w, h)
+    :param rect2: 第二个矩形 (x, y, w, h)
+    :return: 交集矩形 (x, y, w, h)，如果没有交集则返回 None
+    """
+    x1 = max(rect1[0], rect2[0])
+    y1 = max(rect1[1], rect2[1])
+    x2 = min(rect1[0] + rect1[2], rect2[0] + rect2[2])
+    y2 = min(rect1[1] + rect1[3], rect2[1] + rect2[3])
+    
+    if x1 >= x2 or y1 >= y2:
+        return None
+    
+    return (x1, y1, x2 - x1, y2 - y1)
+
+def find_all(
+    image: MatLike | str,
+    color: RgbColor,
+    *,
+    rect: Rect | None = None,
+    threshold: float = 0.95,
+    method: Literal['rgb_dist'] = 'rgb_dist',
+    filter_method: Literal['point', 'contour'] = 'contour',
+    max_results: int | None = None,
+) -> list[FindColorPointResult]:
+    """
+    在图像中查找所有符合指定颜色的点。
+
+    :param image: 
+        图像。可以是 MatLike 或图像文件路径。
+        注意如果参数为 MatLike，则颜色格式必须为 BGR，而不是 RGB。
+    :param color: 颜色。可以是整数三元组 `(r, g, b)` 或十六进制颜色字符串 `#RRGGBB`。
+    :param rect: 查找范围。如果为 None，则在整个图像中查找。
+    :param threshold: 阈值，越大表示越相似，1 表示完全相似。默认为 0.95。
+    :param method: 比较算法。默认为 'rgb_dist'，且目前也只有这个方法。
+    :param filter_method: 查找方法。
+
+        * point：按点查找结果
+        * contour：按轮廓查找结果。也就是如果很多个符合要求的点连在一起，会被当做一个整体返回。
+    :param max_results: 最大返回结果数量。如果为 None，则返回所有结果。
+    :return: 结果列表。
+    """
+    # 计算距离矩阵
+    dist = color_distance_map(image, color)
+    # 筛选满足要求的点，二值化
+    binary = np.where(dist <= (1 - threshold), 255, 0).astype(np.uint8)
+
+    def filter_by_point(binary: np.ndarray, target_color: RgbColor, dist: np.ndarray, rect: Rect | None = None, max_results: int | None = None) -> list[FindColorPointResult]:
+        results = []
+        
+        if rect is not None:
+            x, y, w, h = rect
+            search_area = binary[y:y+h, x:x+w]
+            local_dist = dist[y:y+h, x:x+w]
+            
+            # 获取所有匹配点的坐标
+            match_coords = np.where(search_area)
+            for local_y, local_x in zip(*match_coords):
+                confidence = 1 - local_dist[local_y, local_x]
+                global_x = x + local_x
+                global_y = y + local_y
+                results.append(FindColorPointResult(
+                    position=(int(global_x), int(global_y)),
+                    confidence=float(confidence),
+                    target_color=target_color
+                ))
+        else:
+            # 获取所有匹配点的坐标
+            match_coords = np.where(binary)
+            for y, x in zip(*match_coords):
+                confidence = 1 - dist[y, x]
+                results.append(FindColorPointResult(
+                    position=(int(x), int(y)),
+                    confidence=float(confidence),
+                    target_color=target_color
+                ))
+
+        # 按置信度排序
+        results.sort(key=lambda x: x.confidence, reverse=True)
+        
+        # 限制结果数量
+        if max_results is not None:
+            results = results[:max_results]
+            
+        return results
+
+    def filter_by_contour(binary: np.ndarray, target_color: RgbColor, dist: np.ndarray, rect: Rect | None = None, max_results: int | None = None) -> list[FindColorPointResult]:
+        # 查找轮廓
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if not contours:
+            return []
+        
+        results = []
+        for contour in contours:
+            # 获取轮廓的外界矩形
+            contour_rect = cv2.boundingRect(contour)
+            
+            # 如果指定了rect，计算轮廓外接矩形与rect的交集
+            if rect is not None:
+                intersection = _rect_intersection(contour_rect, rect)
+                if intersection is None:
+                    continue
+                    
+                x1, y1, w, h = intersection
+                # 计算交集区域的中心点
+                cx = x1 + w // 2
+                cy = y1 + h // 2
+                
+                # 创建掩码，只保留当前轮廓内的区域
+                mask = np.zeros_like(binary)
+                cv2.drawContours(mask, [contour], 0, (255,), -1)
+                
+                # 只计算交集区域内的平均距离
+                mask[y1:y1+h, x1:x1+w] = mask[y1:y1+h, x1:x1+w] & binary[y1:y1+h, x1:x1+w]
+                avg_dist = np.mean(dist[y1:y1+h, x1:x1+w][mask[y1:y1+h, x1:x1+w] == 255])
+            else:
+                # 计算轮廓中心点
+                cx = contour_rect[0] + contour_rect[2] // 2
+                cy = contour_rect[1] + contour_rect[3] // 2
+                
+                # 创建掩码，只保留当前轮廓内的区域
+                mask = np.zeros_like(binary)
+                cv2.drawContours(mask, [contour], 0, (255,), -1)
+                
+                # 计算整个轮廓区域内的平均距离
+                avg_dist = np.mean(dist[mask == 255])
+            
+            confidence = float(1 - avg_dist)
+            
+            results.append(FindColorPointResult(
+                position=(cx, cy),
+                confidence=confidence,
+                target_color=target_color
+            ))
+        
+        # 按置信度排序
+        results.sort(key=lambda x: x.confidence, reverse=True)
+        
+        # 限制结果数量
+        if max_results is not None:
+            results = results[:max_results]
+            
+        return results
+
+    # 根据filter_method选择过滤方法
+    if filter_method == 'point':
+        results = filter_by_point(binary, color, dist, rect, max_results)
+    else:  # filter_method == 'contour'
+        results = filter_by_contour(binary, color, dist, rect, max_results)
+
+    # 调试输出
+    if debug.enabled:
+        result_image = _unify_image(image).copy()
+        # 绘制所有结果点
+        for result in results:
+            x, y = result.position
+            cv2.rectangle(result_image, 
+                (max(0, x-10), max(0, y-10)),
+                (min(result_image.shape[1], x+10), min(result_image.shape[0], y+10)),
+                (255, 0, 0), 1)
+        # 绘制搜索范围
+        if rect is not None:
+            x, y, w, h = rect
+            cv2.rectangle(result_image, (x, y), (x+w, y+h), (0, 0, 255), 2)
+        
+        debug_result(
+            'find_rgb_many',
+            [result_image, _unify_image(image)],
+            f'target={debug_color(color)}\n'
+            f'rect={rect}\n'
+            f'found {len(results)} points\n'
+            f'threshold={threshold}\n'
+            f'filter_method={filter_method}\n'
+            '(Red rect for search area, blue rects for result areas)'
+        )
+
+    return results
 
 # https://stackoverflow.com/questions/43111029/how-to-find-the-average-colour-of-an-image-in-python-with-opencv
 def dominant_color(

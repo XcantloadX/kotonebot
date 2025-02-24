@@ -134,6 +134,6 @@ class TestContextInterruptible(BaseTestCase):
         # 测试 ContextColor 的可中断性
         vars.interrupted.set()
         with self.assertRaises(KeyboardInterrupt):
-            color.find_rgb((255, 255, 255))
+            color.find((255, 255, 255))
 
     
