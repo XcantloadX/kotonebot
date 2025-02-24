@@ -3,7 +3,9 @@ import re
 import json
 import time
 import uuid
+import shutil
 import psutil
+import logging
 import hashlib
 import traceback
 from pathlib import Path
@@ -16,6 +18,8 @@ import cv2
 from cv2.typing import MatLike
 
 from ..core import Image
+
+logger = logging.getLogger(__name__)
 
 class Result(NamedTuple):
     title: str
@@ -265,3 +269,16 @@ def result(
         }))
         _result_file.write("\n")
 
+def clear_saved():
+    """
+    清空本地保存文件夹中的内容。
+    """
+    logger.info("Clearing debug saved files...")
+    if debug.auto_save_to_folder:
+        try:
+            shutil.rmtree(debug.auto_save_to_folder)
+            logger.info(f"Cleared debug saved files: {debug.auto_save_to_folder}")
+        except PermissionError:
+            logger.error(f"Failed to clear debug saved files: {debug.auto_save_to_folder}")
+    else:
+        logger.info("No auto save folder, skipping...")
