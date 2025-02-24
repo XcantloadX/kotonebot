@@ -2,7 +2,7 @@ import os
 import time
 import subprocess
 import struct
-from threading import Thread
+from threading import Thread, Lock
 from functools import cached_property
 from typing_extensions import override
 
@@ -18,7 +18,8 @@ from kotonebot import logging
 logger = logging.getLogger(__name__)
 
 WAIT_TIMEOUT = 10
-SCRIPT = """#!/bin/sh
+MAX_RETRY_COUNT = 5
+SCRIPT: str = """#!/bin/sh
 while true; do
     screencap
     sleep 0.3
@@ -31,6 +32,40 @@ class AdbRawImpl(AdbImpl):
         self.__worker: Thread | None = None
         self.__process: subprocess.Popen | None = None
         self.__data: MatLike | None = None
+        self.__retry_count = 0
+        self.__lock = Lock()
+        self.__stopping = False
+
+    def __cleanup_worker(self) -> None:
+        if self.__process:
+            try:
+                self.__process.kill()
+            except:
+                pass
+            self.__process = None
+        if self.__worker:
+            try:
+                self.__worker.join(timeout=2)
+            except:
+                pass
+            self.__worker = None
+        self.__data = None
+
+    def __start_worker(self) -> None:
+        self.__stopping = True
+        self.__cleanup_worker()
+        self.__stopping = False
+        self.__worker = Thread(target=self.__worker_thread_with_retry, daemon=True)
+        self.__worker.start()
+
+    def __worker_thread_with_retry(self) -> None:
+        try:
+            self.__worker_thread()
+        except Exception as e:
+            logger.error(f"Worker thread failed: {e}")
+            with self.__lock:
+                self.__retry_count += 1
+            raise
 
     def __worker_thread(self) -> None:
         with open('screenshot.sh', 'w', encoding='utf-8', newline='\n') as f:
@@ -42,7 +77,7 @@ class AdbRawImpl(AdbImpl):
         cmd = fr'{adb_path()} -s {self.adb.serial} exec-out "sh /data/local/tmp/screenshot.sh"'
         self.__process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         
-        while self.__process.poll() is None:
+        while not self.__stopping and self.__process.poll() is None:
             if self.__process.stdout is None:
                 logger.error("Failed to get stdout from process")
                 continue
@@ -71,7 +106,7 @@ class AdbRawImpl(AdbImpl):
             image_data = self.__process.stdout.read(data_size)
             if not isinstance(image_data, bytes) or len(image_data) != data_size:
                 logger.error(f"Failed to read image data, expected {data_size} bytes but got {len(image_data) if isinstance(image_data, bytes) else 'non-bytes'}")
-                continue
+                raise RuntimeError("Failed to read image data")
                 
             np_data = np.frombuffer(image_data, np.uint8)
             np_data = np_data.reshape(h, w, channel)
@@ -89,15 +124,28 @@ class AdbRawImpl(AdbImpl):
 
     @override
     def screenshot(self) -> MatLike:
-        if not self.__worker:
-            self.__worker = Thread(target=self.__worker_thread, daemon=True)
-            self.__worker.start()
+        with self.__lock:
+            if self.__retry_count >= MAX_RETRY_COUNT:
+                raise RuntimeError(f"Maximum retry count ({MAX_RETRY_COUNT}) exceeded")
+
+            if not self.__worker or (self.__worker and not self.__worker.is_alive()):
+                self.__start_worker()
         
         start_time = time.time()
         while self.__data is None:
             time.sleep(0.01)
             if time.time() - start_time > WAIT_TIMEOUT:
                 raise TimeoutError("Failed to get screenshot from device.")
+            
+            # 检查 worker 是否还活着
+            if self.__worker and not self.__worker.is_alive():
+                with self.__lock:
+                    if self.__retry_count < MAX_RETRY_COUNT:
+                        logger.warning("Worker thread died, restarting...")
+                        self.__start_worker()
+                    else:
+                        raise RuntimeError(f"Maximum retry count ({MAX_RETRY_COUNT}) exceeded")
+
         logger.verbose(f"adb raw screenshot wait time: {time.time() - start_time:.4f}s")
         data = self.__data
         self.__data = None
