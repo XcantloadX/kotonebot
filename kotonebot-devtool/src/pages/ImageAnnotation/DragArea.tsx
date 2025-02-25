@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from '@emotion/styled';
+import { FileResult } from '../../utils/fileUtils';
 
 const DragAreaContainer = styled.div<{ isDragging: boolean }>`
   position: relative;
@@ -36,7 +37,7 @@ const DragText = styled.div`
 
 interface DragAreaProps {
   children?: React.ReactNode;
-  onImageLoad?: (imageUrl: string) => void;
+  onImageLoad?: (result: FileResult) => void;
 }
 
 const DragArea: React.FC<DragAreaProps> = ({ children, onImageLoad }) => {
@@ -54,24 +55,27 @@ const DragArea: React.FC<DragAreaProps> = ({ children, onImageLoad }) => {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = React.useCallback((e: React.DragEvent) => {
+  const handleDrop = React.useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
 
-    const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find(file => file.type.startsWith('image/'));
+    const files = Array.from(e.dataTransfer.items);
+    const imageFile = files.find(item => item.kind === 'file' && item.type.startsWith('image/'));
 
     if (imageFile && onImageLoad) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          onImageLoad(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(imageFile);
+      //@ts-ignore
+      const handle = await imageFile.getAsFileSystemHandle();
+      const file = await handle.getFile();
+      onImageLoad({
+        file,
+        name: file.name,
+        handle: handle as FileSystemFileHandle,
+        fileSystem: 'wfs'
+      });
     }
   }, [onImageLoad]);
+
 
   return (
     <DragAreaContainer

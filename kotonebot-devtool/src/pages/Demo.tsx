@@ -20,6 +20,8 @@ import { useToast } from '../components/ToastMessage';
 import VSToolBar, { Tool, ToolBarItem, DropdownOption } from '../components/VSToolBar';
 import { Splitable } from '../components/Splitable';
 import { useFormModal } from '../hooks/useFormModal';
+import AutocompleteInput from '../components/AutocompleteInput';
+import Form from 'react-bootstrap/Form';
 
 // 布局相关的样式组件
 const DemoContainer = styled.div`
@@ -1602,6 +1604,31 @@ function FormModalDemo(): JSX.Element {
     }
   ]);
 
+  const customForm = useFormModal([
+    {
+      type: 'text',
+      label: '标题',
+      name: 'title',
+      required: true,
+      placeholder: '请输入标题'
+    },
+    {
+      type: 'custom',
+      label: '标签',
+      name: 'tags',
+      required: true,
+      placeholder: '输入标签后按回车或逗号添加',
+      validator: (value) => value.split(',').filter(Boolean).length > 0 || '请至少添加一个标签',
+      customComponent: TagInput
+    },
+    {
+      type: 'textarea',
+      label: '描述',
+      name: 'description',
+      placeholder: '请输入描述'
+    }
+  ]);
+
   const handleShowSimpleForm = async () => {
     const result = await simpleForm.show('登录');
     setResults(prev => [{
@@ -1618,15 +1645,25 @@ function FormModalDemo(): JSX.Element {
     }, ...prev]);
   };
 
+  const handleShowCustomForm = async () => {
+    const result = await customForm.show('带自定义组件的表单');
+    setResults(prev => [{
+      time: new Date().toLocaleTimeString(),
+      data: result
+    }, ...prev]);
+  };
+
   return (
     <div>
       <h2>表单对话框演示</h2>
       <ControlPanel>
         <Button onClick={handleShowSimpleForm}>显示简单表单</Button>
         <Button onClick={handleShowAdvancedForm}>显示高级表单</Button>
+        <Button onClick={handleShowCustomForm}>显示自定义组件表单</Button>
       </ControlPanel>
       {simpleForm.modal}
       {advancedForm.modal}
+      {customForm.modal}
       
       <div style={{ marginTop: '20px' }}>
         <h3>表单提交历史：</h3>
@@ -1689,11 +1726,188 @@ function FormModalDemo(): JSX.Element {
             <li>提交的数据会显示在下方的历史记录中</li>
             <li>支持异步/Promise方式获取表单结果</li>
           </ul>
+          <li>自定义组件表单演示：</li>
+          <ul>
+            <li>包含一个自定义的标签输入组件</li>
+            <li>可以通过回车或逗号添加多个标签</li>
+            <li>标签可以单独删除</li>
+            <li>支持必填验证</li>
+            <li>与其他表单控件无缝集成</li>
+          </ul>
         </ul>
       </div>
     </div>
   );
 }
+
+// 添加 AutocompleteInput 演示组件
+function AutocompleteInputDemo(): JSX.Element {
+  const [selectedValue, setSelectedValue] = useState('');
+  const [debounceTime, setDebounceTime] = useState(300);
+  const [processMode, setProcessMode] = useState<'none' | 'uppercase' | 'prefix'>('none');
+
+  const handleAutoComplete = async (value: string) => {
+    // 模拟异步请求
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const fruits = [
+      'Apple', 'Apricot', 'Avocado',
+      'Banana', 'Blackberry', 'Blueberry',
+      'Cherry', 'Coconut', 'Cranberry',
+      'Dragon Fruit', 'Durian',
+      'Elderberry',
+      'Fig',
+      'Grape', 'Grapefruit', 'Guava'
+    ];
+
+    return fruits.filter(fruit => 
+      fruit.toLowerCase().includes(value.toLowerCase())
+    );
+  };
+
+  const handleAutocompleteSelect = async (inputValue: string, value: string) => {
+    // 模拟异步处理
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    switch (processMode) {
+      case 'uppercase':
+        return value.toUpperCase();
+      case 'prefix':
+        return `🍎 ${value}`;
+      default:
+        return value;
+    }
+  };
+
+  return (
+    <div>
+      <h2>自动完成输入框演示</h2>
+      <div style={{ maxWidth: '400px' }}>
+        <AutocompleteInput
+          placeholder="输入水果名称..."
+          onAutoCompleteRequest={handleAutoComplete}
+          onChange={setSelectedValue}
+          onAutocompleteSelect={handleAutocompleteSelect}
+          debounceTime={debounceTime}
+        />
+      </div>
+      <ControlPanel>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span>防抖时间：</span>
+          <input
+            type="number"
+            value={debounceTime}
+            onChange={(e) => setDebounceTime(Number(e.target.value))}
+            style={{ width: '80px' }}
+          /> ms
+          <span style={{ marginLeft: '20px' }}>选择后处理：</span>
+          <select 
+            value={processMode} 
+            onChange={(e) => setProcessMode(e.target.value as typeof processMode)}
+            style={{ padding: '4px' }}
+          >
+            <option value="none">不处理</option>
+            <option value="uppercase">转大写</option>
+            <option value="prefix">添加前缀</option>
+          </select>
+        </div>
+      </ControlPanel>
+      <div style={{ marginTop: '20px' }}>
+        <div>当前选择：{selectedValue || '未选择'}</div>
+      </div>
+      <div>
+        <h3>使用说明：</h3>
+        <ul>
+          <li>在输入框中输入文字，会自动显示匹配的水果名称建议</li>
+          <li>支持键盘操作：</li>
+          <ul>
+            <li>↑/↓ 键：在建议列表中上下选择</li>
+            <li>Enter 键：选择当前高亮的建议</li>
+            <li>Esc 键：关闭建议列表</li>
+          </ul>
+          <li>可以通过鼠标点击选择建议项</li>
+          <li>点击输入框外部会关闭建议列表</li>
+          <li>支持自定义防抖时间，避免频繁请求</li>
+          <li>支持异步加载建议列表，有加载状态提示</li>
+          <li>建议列表最大高度为 200px，超出时可滚动</li>
+          <li>选择后处理功能：</li>
+          <ul>
+            <li>不处理：直接使用选择的值</li>
+            <li>转大写：将选择的值转换为大写</li>
+            <li>添加前缀：在选择的值前添加水果图标</li>
+          </ul>
+          <li>处理是异步的，支持在选择后进行复杂的转换操作</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// 添加一个自定义的标签输入组件
+const TagInput: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  isInvalid: boolean;
+  placeholder?: string;
+}> = ({ value, onChange, isInvalid, placeholder }) => {
+  const tags = value ? value.split(',').filter(Boolean) : [];
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const input = e.currentTarget as HTMLInputElement;
+      const newTag = input.value.trim();
+      if (newTag && !tags.includes(newTag)) {
+        const newTags = [...tags, newTag];
+        onChange(newTags.join(','));
+      }
+      input.value = '';
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    const newTags = tags.filter(tag => tag !== tagToRemove);
+    onChange(newTags.join(','));
+  };
+
+  return (
+    <div>
+      <div style={{ 
+        display: 'flex', 
+        flexWrap: 'wrap', 
+        gap: '8px', 
+        marginBottom: '8px' 
+      }}>
+        {tags.map((tag, index) => (
+          <span
+            key={index}
+            style={{
+              background: '#e9ecef',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            {tag}
+            <i
+              className="bi bi-x"
+              style={{ cursor: 'pointer' }}
+              onClick={() => removeTag(tag)}
+            />
+          </span>
+        ))}
+      </div>
+      <Form.Control
+        type="text"
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        isInvalid={isInvalid}
+      />
+    </div>
+  );
+};
 
 const GlobalStyle = styled.div`
   .modal-90w {
@@ -1723,7 +1937,8 @@ function Demo() {
     { id: 'sideToolBar', name: '工具栏', component: SideToolBarDemo },
     { id: 'propertyGrid', name: '属性网格', component: PropertyGridDemo },
     { id: 'vsToolBar', name: 'VS工具栏', component: VSToolBarDemo },
-    { id: 'splitable', name: '可分割面板', component: SplitableDemo }
+    { id: 'splitable', name: '可分割面板', component: SplitableDemo },
+    { id: 'autocomplete', name: '自动完成输入框', component: AutocompleteInputDemo }
   ];
 
   return (

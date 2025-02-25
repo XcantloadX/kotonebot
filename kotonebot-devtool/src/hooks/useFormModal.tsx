@@ -4,13 +4,19 @@ import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 
 export interface FormField {
-  type: 'text' | 'number' | 'password' | 'email' | 'textarea';
+  type: 'text' | 'number' | 'password' | 'email' | 'textarea' | 'custom';
   label: string;
   name: string;
   required?: boolean;
   defaultValue?: string;
   validator?: (value: string) => boolean | string;
   placeholder?: string;
+  customComponent?: React.ComponentType<{
+    value: string;
+    onChange: (value: string) => void;
+    isInvalid: boolean;
+    placeholder?: string;
+  }>;
 }
 
 interface FormModalProps {
@@ -105,7 +111,14 @@ function FormModal({ show, onHide, onSubmit, title, fields }: FormModalProps) {
           {fields.map(field => (
             <Form.Group key={field.name} className="mb-3">
               <Form.Label>{field.label}</Form.Label>
-              {field.type === 'textarea' ? (
+              {field.type === 'custom' && field.customComponent ? (
+                <field.customComponent
+                  value={formData[field.name]}
+                  onChange={(value) => handleChange(field.name, value)}
+                  isInvalid={!!errors[field.name]}
+                  placeholder={field.placeholder}
+                />
+              ) : field.type === 'textarea' ? (
                 <Form.Control
                   as="textarea"
                   rows={3}

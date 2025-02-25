@@ -64,6 +64,13 @@ export type RunCodeResultError = {
   traceback: string;
 };
 
+export type File = {
+  name: string;
+  full_path: string;
+  type: 'file' | 'dir';
+};
+
+
 /**
  * Kotone 调试客户端类
  * 用于处理与调试服务器的 WebSocket 通信
@@ -219,6 +226,16 @@ export class KotoneDebugClient {
 
   async stopCode(): Promise<void> {
     const response = await fetch(`http://${this.host}/api/code/stop`);
+    return response.json();
+  }
+
+  async listDir(path: string): Promise<File[]> {
+    const response = await fetch(`http://${this.host}/api/fs/list_dir?path=${path}`);
+    return response.json();
+  }
+
+  async autocomplete(class_path: string): Promise<string[]> {
+    const response = await fetch(`http://${this.host}/api/resources/autocomplete?class_path=${class_path}`);
     return response.json();
   }
 } 
