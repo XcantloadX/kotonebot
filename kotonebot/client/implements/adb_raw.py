@@ -135,7 +135,14 @@ class AdbRawImpl(AdbImpl):
         while self.__data is None:
             time.sleep(0.01)
             if time.time() - start_time > WAIT_TIMEOUT:
-                raise TimeoutError("Failed to get screenshot from device.")
+                logger.warning("Screenshot timeout, cleaning up and restarting worker...")
+                with self.__lock:
+                    if self.__retry_count < MAX_RETRY_COUNT:
+                        self.__start_worker()
+                        start_time = time.time()  # 重置超时计时器
+                        continue
+                    else:
+                        raise RuntimeError(f"Maximum retry count ({MAX_RETRY_COUNT}) exceeded")
             
             # 检查 worker 是否还活着
             if self.__worker and not self.__worker.is_alive():
