@@ -276,7 +276,7 @@ def clear_saved():
     logger.info("Clearing debug saved files...")
     if debug.auto_save_to_folder:
         try:
-            shutil.rmtree(debug.auto_save_to_folder)
+            shutil.rmtree(debug.auto_save_to_folder, ignore_errors=True)
             logger.info(f"Cleared debug saved files: {debug.auto_save_to_folder}")
         except PermissionError:
             logger.error(f"Failed to clear debug saved files: {debug.auto_save_to_folder}")
