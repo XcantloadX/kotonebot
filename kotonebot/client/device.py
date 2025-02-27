@@ -168,13 +168,13 @@ class Device:
         logger.debug(f"Click: {x}, {y}")
         from ..backend.context import ContextStackVars
         if ContextStackVars.current() is not None:
-            image = ContextStackVars.ensure_current().screenshot
+            image = ContextStackVars.ensure_current()._screenshot
         else:
             image = np.array([])
-        if image.size > 0:
+        if image is not None and image.size > 0:
             cv2.circle(image, (x, y), 10, (0, 0, 255), -1)
-        message = f"point: ({x}, {y})"
-        result("device.click", image, message)
+            message = f"point: ({x}, {y})"
+            result("device.click", image, message)
         self._touch.click(x, y)
 
     def __click_clickable(self, clickable: ClickableObjectProtocol) -> None:
