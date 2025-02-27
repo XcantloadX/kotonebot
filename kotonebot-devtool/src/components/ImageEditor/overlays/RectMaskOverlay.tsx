@@ -1,5 +1,6 @@
 import { EditorOverlay, OverlayProps } from '../core/types';
 import RectMask from '../RectMask';
+import { RectPoints } from '../types';
 
 const RectMaskComponent: React.FC<OverlayProps> = ({ editorState: [state], editorProps }) => {
   if (!editorProps.enableMask || editorProps.annotations.length === 0) {
@@ -8,8 +9,8 @@ const RectMaskComponent: React.FC<OverlayProps> = ({ editorState: [state], edito
 
   return (
     <RectMask
-      rects={editorProps.annotations.map(anno => ({
-        ...anno.data
+      rects={editorProps.annotations.filter(anno => anno.type === 'rect').map(anno => ({
+        ...(anno.data)
       }))}
       alpha={editorProps.maskAlpha || 0.5}
       transition={true}

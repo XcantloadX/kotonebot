@@ -3,37 +3,6 @@ import { useEffect } from 'react';
 import useLatestCallback from '../../../hooks/useLatestCallback';
 import { Annotation } from '../types';
 import { v4 } from 'uuid';
-import styled from '@emotion/styled';
-
-const PointMarker = styled.div<{x: number; y: number; isNew?: boolean}>`
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  transform: translate(${props => props.x - 10}px, ${props => props.y - 10}px);
-  pointer-events: none;
-
-  &::before {
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    background: rgba(0, 119, 255, 0.5);
-    border: 2px solid #1298fe;
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 6px;
-    height: 6px;
-    background: #1298fe;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-  }
-`;
 
 function PointToolComponent(props: ToolProps) {
   const { containerRef, Convertor, addAnnotation, editorProps } = props;
@@ -75,18 +44,6 @@ function PointToolComponent(props: ToolProps) {
 
   return (
     <>
-      {editorProps.annotations.map(anno => {
-        if (anno.type !== 'point') return null;
-        const data = anno.data as Point;
-        const pos = Convertor.posImage2Container(data);
-        return (
-          <PointMarker
-            key={anno.id}
-            x={pos.x}
-            y={pos.y}
-          />
-        );
-      })}
     </>
   );
 }

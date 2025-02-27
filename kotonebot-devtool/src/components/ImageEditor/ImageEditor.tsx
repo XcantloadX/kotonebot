@@ -1,8 +1,8 @@
-import React, { useRef, useEffect, useState, useMemo, Fragment } from 'react';
+import React, { useRef, useState, useMemo, Fragment } from 'react';
 import styled from '@emotion/styled';
 import { Updater, useImmer } from 'use-immer';
 import { Tool, Point, RectPoints, Annotation, AnnotationType, Optional } from './types';
-import RectBox, { RectBoxProps } from './RectBox';
+import { RectBoxProps } from './RectBox';
 import NativeDiv from '../NativeDiv';
 import useLatestCallback from '../../hooks/useLatestCallback';
 import { registry } from './core/registry';
@@ -12,6 +12,8 @@ import DragTool from './tools/DragTool';
 import CrosshairOverlay from './overlays/CrosshairOverlay';
 import RectMaskOverlay from './overlays/RectMaskOverlay';
 import PointTool from './tools/PointTool';
+import RectAnnotation from './RectAnnotation';
+import PointAnnotation from './PointAnnotation';
 
 registry.registerTool(DragTool); 
 registry.registerTool(RectTool);
@@ -37,26 +39,6 @@ const EditorImage = styled.img<{ scale: number; x: number; y: number }>`
   pointer-events: none;
 `;
 
-const CrosshairLine = styled(NativeDiv)<{ isVertical?: boolean; position: number }>`
-  position: absolute;
-  background-color: rgba(255, 255, 255, 0);
-  border: none;
-  ${props => props.isVertical
-    ? `
-      height: 100%;
-      width: 0;
-      left: ${props.position}px;
-      border-left: 2px dashed rgba(255, 255, 255, 1);
-    `
-    : `
-      width: 100%;
-      height: 0;
-      top: ${props.position}px;
-      border-top: 2px dashed rgba(255, 255, 255, 1);
-    `
-  }
-  pointer-events: none;
-`;
 
 export type AnnotationChangeType = 'add' | 'remove' | 'update';
 export interface AnnotationChangedEvent {
@@ -130,8 +112,6 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
   const {
     image,
     initialScale = 1,
-    showCrosshair = false,
-    tool = Tool.Drag,
     onAnnotationChanged,
     annotations = [],
   } = props;
@@ -260,17 +240,6 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
     }
   }), [state.imageScale, state.imagePosition]);
 
-  const renderAnnotation = (annotations?: Annotation[], props?: Optional<RectBoxProps>) => {
-    if (!annotations) return null;
-    return annotations.map((rect) => (
-      <RectBox
-        key={rect.id}
-        rect={Convertor.rectImage2Container(rect.data)}
-        rectTip={rect._tip}
-        {...props}
-      />
-    ));
-  };
   const addAnnotation = (annotation: Annotation) => {
     console.log('Add annotation: ', annotation);
     onAnnotationChanged?.({
@@ -388,6 +357,23 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
         onLoad={onImageLoad}
       />
 
+      {/* 渲染已有标注 */}
+      {annotations.map(annotation => (
+        <Fragment key={annotation.id}>
+          {annotation.type === 'rect' && (
+            <RectAnnotation
+              annotation={annotation}
+              Convertor={Convertor}
+            />
+          )}
+          {annotation.type === 'point' && (
+            <PointAnnotation
+              annotation={annotation}
+              Convertor={Convertor}
+            />
+          )}
+        </Fragment>
+      ))}
 
       {/* 渲染覆盖层 */}
       {overlays.map(overlay => (

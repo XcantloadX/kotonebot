@@ -84,14 +84,6 @@ function RectToolComponent(props: ToolProps) {
           rect={{x1: rectStart.x, y1: rectStart.y, x2: rectEnd.x, y2: rectEnd.y}} 
         />
       )}
-      {editorProps.annotations.map(anno => (
-        <RectBox
-          key={anno.id}
-          mode="move"
-          rect={Convertor.rectImage2Container(anno.data)}
-          lineColor={drawingRef.current ? 'rgba(255, 255, 255, 0.3)' : 'white'}
-        />
-      ))}
     </>
   );
 }

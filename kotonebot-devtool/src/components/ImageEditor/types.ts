@@ -9,18 +9,16 @@ export type Tool = typeof Tool[keyof typeof Tool];
 /** 标注类型。 */
 export type AnnotationType = 'rect' | 'point';
 
-type AnnotationTypeMap = {
-    rect: RectPoints,
-    point: Point
-};
 
-export interface Annotation {
+interface AnnotationBase {
     id: string;
-    type: AnnotationType;
-    data: AnnotationTypeMap[AnnotationType];
-    /** 提示信息。 */
     _tip?: React.ReactNode;
 }
+
+export type Annotation = 
+  | (AnnotationBase & { type: 'rect'; data: RectPoints })
+  | (AnnotationBase & { type: 'point'; data: Point });
+
 export interface Point {
     x: number;
     y: number;
@@ -31,6 +29,10 @@ export interface RectPoints {
     y1: number;
     x2: number;
     y2: number;
+}
+
+export interface AnnotationComponentProps {
+    annotation: Annotation;
 }
 
 /**

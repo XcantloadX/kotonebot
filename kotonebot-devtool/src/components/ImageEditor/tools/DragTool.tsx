@@ -149,7 +149,7 @@ function DragToolComponent(props: ToolProps) {
       <RectBox
         key={anno.id}
         mode={selectedRectId === anno.id ? "resize" : "move"}
-        rect={Convertor.rectImage2Container(anno.data)}
+        rect={Convertor.rectImage2Container(anno.data as RectPoints)}
         lineColor={getLineColor(anno.id)}
         onNativeMouseEnter={() => handleRectMouseEnter(anno.id)}
         onNativeMouseMove={handleMouseMove}    
@@ -168,7 +168,7 @@ function DragToolComponent(props: ToolProps) {
     if (rect) {
       rectMask = (
         <RectMask
-          rects={[{...rect.data}]}
+          rects={[{...rect.data as RectPoints}]}
           alpha={shouldShowMask() ? 0.7 : 0}
           transition={true}
           scale={state.imageScale}
@@ -185,7 +185,7 @@ function DragToolComponent(props: ToolProps) {
     rectMask = (
       <RectMask
         rects={editorProps.annotations?.map(anno => ({
-          ...anno.data
+          ...(anno.data as RectPoints)
         })) || []}
         alpha={shouldShowMask() ? editorProps.maskAlpha : 0}
         transition={true}
