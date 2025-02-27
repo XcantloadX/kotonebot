@@ -40,17 +40,18 @@ const NativeDiv = forwardRef<HTMLDivElement, NativeDivProps>((props, ref) => {
   } = props;
 
   const elementRef = useRef<HTMLDivElement | null>(null);
-  if (ref) {
-    if (typeof ref === 'function') {
-      ref(elementRef.current);
-    } else {
-      ref.current = elementRef.current;
-    }
-  }
+
 
   useEffect(() => {
     const element = elementRef.current;
     if (!element) return;
+    if (ref) {
+      if (typeof ref === 'function') {
+        ref(elementRef.current);
+      } else {
+        ref.current = elementRef.current;
+      }
+    }
 
     if (onNativeMouseEnter)
       element.addEventListener('mouseenter', onNativeMouseEnter);

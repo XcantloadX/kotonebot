@@ -1,12 +1,21 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, Fragment } from 'react';
 import styled from '@emotion/styled';
 import { Updater, useImmer } from 'use-immer';
-import RectTool from './RectTool';
-import DragTool from './DragTool';
 import { Tool, Point, RectPoints, Annotation, AnnotationType, Optional } from './types';
 import RectBox, { RectBoxProps } from './RectBox';
 import NativeDiv from '../NativeDiv';
 import useLatestCallback from '../../hooks/useLatestCallback';
+import { registry } from './core/registry';
+import { ToolContext } from './core/types';
+import RectTool from './tools/RectTool';
+import DragTool from './tools/DragTool';
+import CrosshairOverlay from './overlays/CrosshairOverlay';
+import RectMaskOverlay from './overlays/RectMaskOverlay';
+
+registry.registerTool(DragTool); 
+registry.registerTool(RectTool);
+registry.registerOverlay(CrosshairOverlay);
+registry.registerOverlay(RectMaskOverlay);
 
 const EditorContainer = styled(NativeDiv)<{ isDragging: boolean }>`
   width: 100%;
@@ -115,7 +124,6 @@ export interface ToolHandlerProps {
   Convertor: PostionConvertor;
 }
 
-
 const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, ref) => {
   const {
     image,
@@ -128,51 +136,26 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-  // 图片是否可以显示了（加载完成，尺寸计算完成）
-  const [imageReady, setImageReady] = useState(false);
 
   // 预加载图片以获取尺寸
-  useEffect(() => {
-    const img = new Image();
-    img.src = image;
-    img.onload = () => {
-      const container = containerRef.current;
-      if (!container) return;
+  const onImageLoad = () => {
+    const img = imageRef.current;
+    if (!img) return;
 
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      const imageRatio = img.naturalWidth / img.naturalHeight;
-      const containerRatio = containerWidth / containerHeight;
-
-      let scale = initialScale;
-      if (imageRatio > containerRatio) {
-        scale = containerWidth / img.naturalWidth * 0.9;
-      } else {
-        scale = containerHeight / img.naturalHeight * 0.9;
-      }
-
-      const scaledWidth = img.naturalWidth * scale;
-      const scaledHeight = img.naturalHeight * scale;
-      const x = (containerWidth - scaledWidth) / 2;
-      const y = (containerHeight - scaledHeight) / 2;
-
-      // 设置初始状态
+    const fitResult = calculateImageFit();
+    if (fitResult) {
       updateState(draft => {
-        draft.imageScale = scale;
-        draft.imagePosition = { x, y };
-        draft.imageClientPosition = {
-          x: container.getBoundingClientRect().left + x,
-          y: container.getBoundingClientRect().top + y
-        };
+        draft.imageScale = fitResult.scale;
+        draft.imagePosition = fitResult.position;
+        draft.imageClientPosition = fitResult.clientPosition;
       });
+    }
 
-      setImageSize({
-        width: img.naturalWidth,
-        height: img.naturalHeight
-      });
-      setImageReady(true);
-    };
-  }, [image]);
+    setImageSize({
+      width: img.naturalWidth,
+      height: img.naturalHeight
+    });
+  };
 
   const [state, updateState] = useImmer<EditorState>({
     imageScale: initialScale,
@@ -184,22 +167,6 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
   });
 
   const [imageSize, setImageSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
-
-  // 监听图像加载完成事件（保留这个事件以防需要做其他处理）
-  const handleImageLoad = () => {
-    const img = imageRef.current;
-    if (img && !imageReady) {
-      const fitResult = calculateImageFit();
-      if (fitResult) {
-        updateState(draft => {
-          draft.imageScale = fitResult.scale;
-          draft.imagePosition = fitResult.position;
-          draft.imageClientPosition = fitResult.clientPosition;
-        });
-      }
-      setImageReady(true);
-    }
-  };
 
   /**
    * 计算图像在容器中的居中位置和缩放比例
@@ -328,20 +295,6 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
     }
     return ret;
   };
-  
-  const toolHandlerProps: ToolHandlerProps = {
-    editorState: [state, updateState],
-    editorProps: {
-      ...props,
-      imageSize
-    },
-    containerRef,
-    addAnnotation,
-    updateAnnotation,
-    renderAnnotation,
-    queryAnnotation,
-    Convertor,
-  };
 
   // 处理鼠标滚轮缩放
   const handleWheel = useLatestCallback((e: WheelEvent) => {
@@ -402,34 +355,50 @@ const ImageEditor = React.forwardRef<ImageEditorRef, ImageEditorProps>((props, r
     getScale: () => state.imageScale
   }));
 
+  const toolContext: ToolContext = {
+    editorState: [state, updateState],
+    containerRef,
+    imageSize,
+    Convertor,
+    updateAnnotation,
+    addAnnotation,
+    queryAnnotation,
+    editorProps: props
+  };
+
+  const currentTool = registry.getTool(props.tool || Tool.Drag);
+  const overlays = registry.getOverlays();
+
   return (
     <EditorContainer
       ref={containerRef}
       isDragging={state.isDragging}
-      style={{ cursor: tool === Tool.Rect ? 'crosshair' : undefined }}
+      style={{ cursor: currentTool?.cursor }}
       onNativeKeyDown={props.onNativeKeyDown}
       onNativeMouseWheel={handleWheel}
     >
-      {imageReady && (
-        <EditorImage
-          ref={imageRef}
-          src={image}
-          scale={state.imageScale}
-          x={state.imagePosition.x}
-          y={state.imagePosition.y}
-          onLoad={handleImageLoad}
-        />
-      )}
+      <EditorImage
+        ref={imageRef}
+        src={image}
+        scale={state.imageScale}
+        x={state.imagePosition.x}
+        y={state.imagePosition.y}
+        onLoad={onImageLoad}
+      />
 
-      {showCrosshair && tool === Tool.Rect && (
-        <>
-          <CrosshairLine isVertical position={state.mousePosition.x} />
-          <CrosshairLine position={state.mousePosition.y} />
-        </>
-      )}
-      {tool === Tool.Rect && <RectTool {...toolHandlerProps} />}
-      {tool === Tool.Drag && <DragTool {...toolHandlerProps} />}
 
+      {/* 渲染覆盖层 */}
+      {overlays.map(overlay => (
+        <Fragment key={overlay.name}>
+          <overlay.component
+            {...toolContext}
+            tool={props.tool || Tool.Drag}
+          />
+        </Fragment>
+      ))}
+
+      {/* 渲染当前工具 */}
+      {currentTool && <currentTool.Component {...toolContext} />}
     </EditorContainer>
   );
 });

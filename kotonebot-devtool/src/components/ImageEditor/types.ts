@@ -1,7 +1,9 @@
-export enum Tool {
-    Drag = 'drag',
-    Rect = 'rect',
-}
+export const Tool = {
+    Drag: 'drag',
+    Rect: 'rect',
+} as const;
+
+export type Tool = typeof Tool[keyof typeof Tool];
 
 /** 标注类型。 */
 export type AnnotationType = 'rect';
