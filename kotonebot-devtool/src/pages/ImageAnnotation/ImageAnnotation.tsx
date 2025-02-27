@@ -4,13 +4,13 @@ import { SideToolBar, Tool } from '../../components/SideToolBar';
 import PropertyGrid, { Property, PropertyCategory } from '../../components/PropertyGrid';
 import ImageEditor, { AnnotationChangedEvent } from '../../components/ImageEditor/ImageEditor';
 import { Annotation, Tool as EditorTool } from '../../components/ImageEditor/types';
-import { BsCursor, BsSquare, BsFolder2Open, BsFloppy, BsCardImage, BsQuestionSquare } from 'react-icons/bs';
-import useImageMetaData, { Definition, DefinitionType, ImageMetaData, TemplateDefinition, Definitions } from '../../hooks/useImageMetaData';
+import { BsCursor, BsFolder2Open, BsFloppy, BsCardImage, BsQuestionSquare, BsPinMap } from 'react-icons/bs';
+import useImageMetaData, { DefinitionType, ImageMetaData, TemplateDefinition, Definitions } from '../../hooks/useImageMetaData';
 import { useImageViewerModal } from '../../components/ImageViewerModal';
 import { useMessageBox } from '../../hooks/useMessageBox';
 import { useToast } from '../../components/ToastMessage';
 import DragArea from './DragArea';
-import { cropImage, openFileWFS, openFileInput, downloadJSONToFile, readFileAsJSON, readFileAsDataURL, FileResult, saveFileWFS, saveFileAsWFS } from '../../utils/fileUtils';
+import { cropImage, openFileWFS, readFileAsJSON, readFileAsDataURL, FileResult, saveFileWFS, saveFileAsWFS } from '../../utils/fileUtils';
 import NativeDiv from '../../components/NativeDiv';
 import useHotkey from '../../hooks/useHotkey';
 
@@ -50,11 +50,14 @@ const Tip = styled.span`
 `;
 
 // 工具栏配置
-export enum Tools {
-    Drag = EditorTool.Drag,
-    Template = 'template',
-    HintBox = 'hintbox',
-}
+export const Tools = {
+    Drag: EditorTool.Drag,
+    Template: 'template',
+    HintBox: 'hintbox',
+    HintPoint: 'hintpoint',
+} as const;
+
+export type ImageAnnotationTool = typeof Tools[keyof typeof Tools];
 
 const tools: Array<Tool | 'separator'> = [
     {
@@ -87,18 +90,26 @@ const tools: Array<Tool | 'separator'> = [
         icon: <BsQuestionSquare size={24} />,
         title: 'HintBox 工具 (B)',
         selectable: true,
+    },
+    {
+        id: Tools.HintPoint,
+        icon: <BsPinMap size={24} />,
+        title: 'HintPoint 工具 (P)',
+        selectable: true,
     }
 ];
-const STR_TO_TOOL: Record<string, Tools> = {
+const STR_TO_TOOL: Record<string, ImageAnnotationTool> = {
     drag: Tools.Drag,
     template: Tools.Template,
     hintbox: Tools.HintBox,
+    hintpoint: Tools.HintPoint,
 };
 
-const TOOL_TO_EDITOR_TOOL: Record<Tools, EditorTool> = {
+const TOOL_TO_EDITOR_TOOL: Record<ImageAnnotationTool, EditorTool> = {
     [Tools.Drag]: EditorTool.Drag,
     [Tools.Template]: EditorTool.Rect,
     [Tools.HintBox]: EditorTool.Rect,
+    [Tools.HintPoint]: EditorTool.Point,
 };
 
 // 计算最大公约数
@@ -135,7 +146,7 @@ const usePropertyGridData = (
     const [croppedImageUrl, setCroppedImageUrl] = React.useState<string>('');
 
     React.useEffect(() => {
-        if (selectedAnnotation && image) {
+        if (selectedAnnotation && selectedAnnotation.type === 'rect' && image) {
             const url = cropImage(image, selectedAnnotation.data);
             setCroppedImageUrl(url);
         } else {
@@ -178,8 +189,6 @@ const usePropertyGridData = (
     if (!definition) {
         return [];
     }
-    const { x1, y1, x2, y2 } = selectedAnnotation.data;
-
 
     const generalProperties: Array<PropertyCategory | Property> = [
         {
@@ -234,30 +243,57 @@ const usePropertyGridData = (
             foldable: true
         },
     ];
-    const annotationProperties: Array<PropertyCategory | Property> = [
-        {
-            title: '标注',
-            properties: [
-                {
-                    title: 'ID',
-                    render: () => selectedAnnotation.id,
-                },
-                {
-                    title: '类型',
-                    render: () => '矩形',
-                },
-                {
-                    title: '范围',
-                    render: () => `(${x1}, ${y1}, ${x2}, ${y2})`,
-                },
-                {
-                    title: '宽高',
-                    render: () => `${x2 - x1} × ${y2 - y1}`,
-                }
-            ],
-            foldable: true
-        }
-    ];
+    let annotationProperties: Array<PropertyCategory | Property> = [];
+    if (selectedAnnotation.type === 'rect') {
+        const { x1, y1, x2, y2 } = selectedAnnotation.data;
+        annotationProperties = [
+            {
+                title: '标注',
+                properties: [
+                    {
+                        title: 'ID',
+                        render: () => selectedAnnotation.id,
+                    },
+                    {
+                        title: '类型',
+                        render: () => '矩形',
+                    },
+                    {
+                        title: '范围',
+                        render: () => `(${x1}, ${y1}, ${x2}, ${y2})`,
+                    },
+                    {
+                        title: '宽高',
+                        render: () => `${x2 - x1} × ${y2 - y1}`,
+                    }
+                ],
+                foldable: true
+            }
+        ];
+    }
+    else if (selectedAnnotation.type === 'point') {
+        const { x, y } = selectedAnnotation.data;
+        annotationProperties = [
+            {
+                title: '标注',
+                properties: [
+                    {
+                        title: 'ID',
+                        render: () => selectedAnnotation.id,
+                    },
+                    {
+                        title: '类型',
+                        render: () => '点',
+                    },
+                    {
+                        title: '位置',
+                        render: () => `(${x}, ${y})`,
+                    }
+                ],
+                foldable: true
+            }
+        ];
+    }
 
     let specificProperties: Array<PropertyCategory | Property> = [];
     if (definition.type === 'template') {
@@ -289,7 +325,7 @@ const usePropertyGridData = (
 };
 
 const ImageAnnotation: React.FC = () => {
-    const [currentTool, setCurrentTool] = useState<Tools>(Tools.Drag);
+    const [currentTool, setCurrentTool] = useState<ImageAnnotationTool>(Tools.Drag);
 
     const { imageMetaData, Definitions, Annotations, clear, load, toString, fromString } = useImageMetaData();
     const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
@@ -340,6 +376,9 @@ const ImageAnnotation: React.FC = () => {
             }
             else if (currentTool === Tools.HintBox) {
                 type = 'hint-box';
+            }
+            else if (currentTool === Tools.HintPoint) {
+                type = 'hint-point';
             }
             if (!type) {
                 showToast('danger', '错误', '无法识别的标注类型');
@@ -530,6 +569,11 @@ const ImageAnnotation: React.FC = () => {
             key: 'b',
             single: true,
             callback: () => setCurrentTool(Tools.HintBox)
+        },
+        {
+            key: 'p',
+            single: true,
+            callback: () => setCurrentTool(Tools.HintPoint)
         },
         {
             key: 'delete',

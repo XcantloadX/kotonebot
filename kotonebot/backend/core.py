@@ -111,29 +111,21 @@ class HintBox(tuple[int, int, int, int]):
     def rect(self) -> 'Rect':
         return self.x1, self.y1, self.width, self.height
 
+class HintPoint(tuple[int, int]):
+    def __new__(cls, x: int, y: int):
+        return super().__new__(cls, (x, y))
+    
+    def __init__(self, x: int, y: int, *, name: str | None = None, description: str | None = None):
+        self.x = x
+        self.y = y
+        self.name = name
+        self.description = description
+
+    def __repr__(self) -> str:
+        return f'HintPoint<"{self.name}" at ({self.x}, {self.y})>'
 
 logger = logging.getLogger(__name__)
 
-
-@overload
-def image(data: str) -> Image:
-
-
-    """从文件路径创建 Image 对象。"""
-    ...
-@overload
-def image(data: MatLike) -> Image:
-    """从 OpenCV 的 MatLike 对象创建 Image 对象。"""
-    ...
-
-def image(data: str | MatLike) -> Image:
-    if isinstance(data, str):
-        return Image(path=data)
-    else:
-        return Image(data=data)
- 
-def ocr(text: str | Callable[[str], bool], language: str = 'jp') -> Ocr:
-    return Ocr(text, language=language)
 
 if __name__ == '__main__':
     hint_box = HintBox(100, 100, 200, 200, source_resolution=(1920, 1080))

@@ -20,8 +20,8 @@ SpriteType = Literal['basic', 'metadata']
 
 @dataclass
 class Resource:
-    type: Literal['template', 'hint-box']
-    data: 'Sprite | HintBox'
+    type: Literal['template', 'hint-box', 'hint-point']
+    data: 'Sprite | HintBox | HintPoint'
 
 @dataclass
 class Sprite:
@@ -61,6 +61,16 @@ class HintBox:
     origin_file: str
 
 @dataclass
+class HintPoint:
+    """表示一个提示点"""
+    name: str
+    display_name: str
+    class_path: list[str]
+    x: float
+    y: float
+    origin_file: str
+
+@dataclass
 class RectPoints(DataClassJsonMixin):
     """表示一个矩形的两个对角点坐标"""
     x1: float
@@ -78,8 +88,8 @@ class Point(DataClassJsonMixin):
 class Annotation(DataClassJsonMixin):
     """图像标注数据"""
     id: str
-    type: Literal['rect']
-    data: RectPoints
+    type: Literal['rect', 'point']
+    data: RectPoints | Point
 
 @dataclass
 class Definition(DataClassJsonMixin):
@@ -88,7 +98,7 @@ class Definition(DataClassJsonMixin):
     """在 R.py 的类中出现的属性名称"""
     displayName: str
     """在调试器与调试输出中的名称"""
-    type: Literal['template', 'ocr', 'color', 'hint-box']
+    type: Literal['template', 'ocr', 'color', 'hint-box', 'hint-point']
     """标注类型"""
     annotationId: str
     """标注 ID"""
@@ -163,6 +173,7 @@ def load_metadata(root_path: str, png_file: str) -> list[Resource]:
     for annotation in metadata.annotations:
         if annotation.type == 'rect':
             rect = annotation.data
+            assert isinstance(rect, RectPoints)
             x1, y1, x2, y2 = rect.x1, rect.y1, rect.x2, rect.y2
             # 检查坐标是否超出图像
             if x1 < 0 or y1 < 0 or x2 > image.shape[1] or y2 > image.shape[0]:
@@ -193,17 +204,32 @@ def load_metadata(root_path: str, png_file: str) -> list[Resource]:
             resources.append(Resource('template', spr))
         elif definition.type == 'hint-box':
             annotation = query_annotation(metadata.annotations, definition.annotationId)
+            rect = annotation.data
+            assert isinstance(rect, RectPoints)
             hb = HintBox(
                 name=definition.name.split('.')[-1],
                 display_name=definition.displayName,
                 class_path=definition.name.split('.')[:-1],
-                x1=annotation.data.x1,
-                y1=annotation.data.y1,
-                x2=annotation.data.x2,
-                y2=annotation.data.y2,
+                x1=rect.x1,
+                y1=rect.y1,
+                x2=rect.x2,
+                y2=rect.y2,
                 origin_file=os.path.abspath(png_file),
             )
             resources.append(Resource('hint-box', hb))
+        elif definition.type == 'hint-point':
+            annotation = query_annotation(metadata.annotations, definition.annotationId)
+            pt = annotation.data
+            assert isinstance(pt, Point)
+            hp = HintPoint(
+                x=pt.x,
+                y=pt.y,
+                name=definition.name.split('.')[-1],
+                display_name=definition.displayName,
+                class_path=definition.name.split('.')[:-1],
+                origin_file=os.path.abspath(png_file),
+            )
+            resources.append(Resource('hint-point', hp))
         else:
             raise ValueError(f'Unknown definition type: {definition.type}')
 
@@ -331,6 +357,21 @@ def make_classes(resources: list[Resource], output_path: str) -> list[OutputClas
                         f'x2={int(hint_box.x2)}, y2={int(hint_box.y2)}, '
                         f'source_resolution=(720, 1280))' # HACK: 硬编码分辨率
                     )
+                )
+                current_class.attributes.append(img_attr)
+            elif resource.type == 'hint-point':
+                hint_point = resource.data
+                assert isinstance(hint_point, HintPoint)
+                docstring = (
+                    f"名称：{hint_point.display_name}\\n\n"
+                    f"模块：`{'.'.join(hint_point.class_path)}`\\n\n"
+                    f"坐标：(x={hint_point.x}, y={hint_point.y})\\n\n"
+                )
+                img_attr = ImageAttribute(
+                    type='image',
+                    name=hint_point.name,
+                    docstring=docstring,
+                    value=f'HintPoint(x={hint_point.x}, y={hint_point.y})'
                 )
                 current_class.attributes.append(img_attr)
     

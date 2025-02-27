@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Annotation } from "../components/ImageEditor/types";
 import { useImmer } from "use-immer";
 
-export type DefinitionType = 'template' | 'ocr' | 'color' | 'hint-box';
+export type DefinitionType = 'template' | 'ocr' | 'color' | 'hint-box' | 'hint-point';
 
 export interface Definition {
     /** 最终出现在 R.py 中的名称 */
