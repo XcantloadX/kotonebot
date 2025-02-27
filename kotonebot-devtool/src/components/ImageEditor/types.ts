@@ -1,15 +1,17 @@
 export const Tool = {
     Drag: 'drag',
     Rect: 'rect',
+    Point: 'point'
 } as const;
 
 export type Tool = typeof Tool[keyof typeof Tool];
 
 /** 标注类型。 */
-export type AnnotationType = 'rect';
+export type AnnotationType = 'rect' | 'point';
 
 type AnnotationTypeMap = {
     rect: RectPoints,
+    point: Point
 };
 
 export interface Annotation {

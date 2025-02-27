@@ -493,6 +493,10 @@ function ImageEditorDemo(): JSX.Element {
     }
   };
 
+  const handleToolChange = (tool: EditorTool) => {
+    setCurrentTool(tool);
+  };
+
   return (
     <div>
       <h2>图片标注器演示</h2>
@@ -519,8 +523,14 @@ function ImageEditorDemo(): JSX.Element {
             <Button onClick={() => setShowCrosshair(!showCrosshair)}>
               {showCrosshair ? '隐藏准线' : '显示准线'}
             </Button>
-            <Button onClick={() => setCurrentTool(currentTool === EditorTool.Drag ? EditorTool.Rect : EditorTool.Drag)}>
-              {currentTool === EditorTool.Drag ? '切换到矩形工具' : '切换到拖动工具'}
+            <Button onClick={() => handleToolChange(EditorTool.Drag)}>
+              拖动工具
+            </Button>
+            <Button onClick={() => handleToolChange(EditorTool.Rect)}>
+              矩形工具
+            </Button>
+            <Button onClick={() => handleToolChange(EditorTool.Point)}>
+              点标注工具
             </Button>
             <Button onClick={handleClearAnnotations}>清除标注</Button>
             <Button onClick={() => setShowMask(!showMask)}>
@@ -551,12 +561,21 @@ function ImageEditorDemo(): JSX.Element {
               <AnnotationItem key={annotation.id}>
                 <div>标注 #{index + 1}</div>
                 <div>ID: {annotation.id}</div>
-                <div>
-                  位置: ({annotation.data.x1}, {annotation.data.y1}) - ({annotation.data.x2}, {annotation.data.y2})
-                </div>
-                <div>
-                  尺寸: {Math.abs(annotation.data.x2 - annotation.data.x1)} x {Math.abs(annotation.data.y2 - annotation.data.y1)}
-                </div>
+                <div>类型: {annotation.type === 'rect' ? '矩形' : '点'}</div>
+                {annotation.type === 'rect' ? (
+                  <>
+                    <div>
+                      位置: ({annotation.data.x1}, {annotation.data.y1}) - ({annotation.data.x2}, {annotation.data.y2})
+                    </div>
+                    <div>
+                      尺寸: {Math.abs(annotation.data.x2 - annotation.data.x1)} x {Math.abs(annotation.data.y2 - annotation.data.y1)}
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    位置: ({annotation.data.x}, {annotation.data.y})
+                  </div>
+                )}
               </AnnotationItem>
             ))
           )}
@@ -570,7 +589,9 @@ function ImageEditorDemo(): JSX.Element {
           <li>点击"重置"按钮可以恢复初始状态</li>
           <li>使用"放大"和"缩小"按钮可以精确控制缩放级别</li>
           <li>点击"显示准线"按钮可以显示/隐藏鼠标位置的十字准线</li>
-          <li>点击"切换到矩形工具"可以进入矩形标注模式</li>
+          <li>点击"拖动工具"可以进入拖动模式</li>
+          <li>点击"矩形工具"可以进入矩形标注模式</li>
+          <li>点击"点标注工具"可以进入点标注模式</li>
           <li>在矩形工具模式下，按住鼠标左键并拖动可以绘制矩形</li>
           <li>点击"清除标注"可以删除所有已绘制的矩形</li>
           <li>点击"显示遮罩"可以显示/隐藏非标注区域的遮罩</li>
@@ -580,6 +601,8 @@ function ImageEditorDemo(): JSX.Element {
             <li>滚轮缩放模式：直接使用滚轮缩放，Ctrl+滚轮上下移动，Shift+滚轮左右移动</li>
             <li>Ctrl+滚轮缩放模式：使用Ctrl+滚轮缩放，直接滚轮上下移动，Shift+滚轮左右移动</li>
           </ul>
+          <li>点击"点标注工具"可以进入点标注模式</li>
+          <li>在点标注模式下，点击图片可以添加一个点标注</li>
         </ul>
       </div>
     </div>

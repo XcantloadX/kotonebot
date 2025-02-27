@@ -11,9 +11,11 @@ import RectTool from './tools/RectTool';
 import DragTool from './tools/DragTool';
 import CrosshairOverlay from './overlays/CrosshairOverlay';
 import RectMaskOverlay from './overlays/RectMaskOverlay';
+import PointTool from './tools/PointTool';
 
 registry.registerTool(DragTool); 
 registry.registerTool(RectTool);
+registry.registerTool(PointTool);
 registry.registerOverlay(CrosshairOverlay);
 registry.registerOverlay(RectMaskOverlay);
 
