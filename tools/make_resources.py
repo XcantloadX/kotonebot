@@ -222,8 +222,8 @@ def load_metadata(root_path: str, png_file: str) -> list[Resource]:
             pt = annotation.data
             assert isinstance(pt, Point)
             hp = HintPoint(
-                x=pt.x,
-                y=pt.y,
+                x=int(pt.x),
+                y=int(pt.y),
                 name=definition.name.split('.')[-1],
                 display_name=definition.displayName,
                 class_path=definition.name.split('.')[:-1],

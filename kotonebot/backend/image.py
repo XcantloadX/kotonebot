@@ -1,14 +1,15 @@
 import os
-from typing import NamedTuple, Protocol, TypeVar, Sequence, runtime_checkable
 from logging import getLogger
-
-from .debug import result as debug_result, debug, img
-from .core import Image
+from typing import NamedTuple, Protocol, TypeVar, Sequence, runtime_checkable
 
 import cv2
 import numpy as np
-from cv2.typing import MatLike, Rect, Point, Size
+from cv2.typing import MatLike, Size
 from skimage.metrics import structural_similarity
+
+from .core import Image
+from .util import Rect, Point
+from .debug import result as debug_result, debug, img
 
 logger = getLogger(__name__)
 

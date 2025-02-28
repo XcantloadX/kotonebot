@@ -351,6 +351,10 @@ class Ocr:
                 )
             else:
                 original_rect = result_rect
+            if not len(original_rect) == 4:
+                raise ValueError(f'Invalid original_rect: {original_rect}')
+            if not len(result_rect) == 4:
+                raise ValueError(f'Invalid result_rect: {result_rect}')
             confidence = float(r[2])
             ret.append(OcrResult(
                 text=text,

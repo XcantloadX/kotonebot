@@ -9,7 +9,7 @@ from cv2.typing import MatLike
 from adbutils._device import AdbDevice
 
 from kotonebot.backend.core import HintBox
-from kotonebot.backend.util import Rect, is_rect
+from kotonebot.backend.util import Rect, Point, is_rect, is_point
 from .protocol import ClickableObjectProtocol, Commandable, Touchable, Screenshotable
 from ..backend.debug import result
 
@@ -110,6 +110,13 @@ class Device:
         ...
 
     @overload
+    def click(self, point: Point) -> None:
+        """
+        点击屏幕上的某个点
+        """
+        ...
+
+    @overload
     def click(self, hint_box: HintBox) -> None:
         """
         点击屏幕上的某个矩形区域
@@ -140,6 +147,8 @@ class Device:
             self.__click_hint_box(arg1)
         elif is_rect(arg1):
             self.__click_rect(arg1)
+        elif is_point(arg1):
+            self.__click_point_tuple(arg1)
         elif isinstance(arg1, int) and isinstance(arg2, int):
             self.__click_point(arg1, arg2)
         elif isinstance(arg1, ClickableObjectProtocol):
@@ -176,6 +185,9 @@ class Device:
             message = f"point: ({x}, {y})"
             result("device.click", image, message)
         self._touch.click(x, y)
+
+    def __click_point_tuple(self, point: Point) -> None:
+        self.click(point[0], point[1])
 
     def __click_clickable(self, clickable: ClickableObjectProtocol) -> None:
         self.click(clickable.rect)

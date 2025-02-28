@@ -20,11 +20,16 @@ logger = logging.getLogger(__name__)
 
 
 
-Rect = typing.Sequence[int]
+Rect = tuple[int, int, int, int]
 """左上X, 左上Y, 宽度, 高度"""
+Point = tuple[int, int]
+"""X, Y"""
 
 def is_rect(rect: typing.Any) -> TypeGuard[Rect]:
     return isinstance(rect, typing.Sequence) and len(rect) == 4 and all(isinstance(i, int) for i in rect)
+
+def is_point(point: typing.Any) -> TypeGuard[Point]:
+    return isinstance(point, typing.Sequence) and len(point) == 2 and all(isinstance(i, int) for i in point)
 
 def crop(img: MatLike, /, x1: float = 0, y1: float = 0, x2: float = 1, y2: float = 1) -> MatLike:
     """

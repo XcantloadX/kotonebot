@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import cv2
-from cv2.typing import MatLike, Point
+from cv2.typing import MatLike
 
 from .util import Rect
 from .debug import result as debug_result, debug, color as debug_color
@@ -370,6 +370,8 @@ def find_all(
         for contour in contours:
             # 获取轮廓的外界矩形
             contour_rect = cv2.boundingRect(contour)
+            contour_rect = tuple(contour_rect)
+            assert len(contour_rect) == 4
             
             # 如果指定了rect，计算轮廓外接矩形与rect的交集
             if rect is not None:
