@@ -13,6 +13,8 @@ export type VisualEventData = {
   name: string;
   /** 详细的文本信息 */
   details: string;
+  /** 时间戳（毫秒） */
+  timestamp: number;
 };
 
 /**

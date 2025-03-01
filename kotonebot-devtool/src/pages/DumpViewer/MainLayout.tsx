@@ -269,6 +269,7 @@ export const MainLayout: React.FC = () => {
             name={records[index]?.name}
             details={records[index]?.details}
             imagesMap={isLocalMode ? localImageMap : undefined}
+            timeDiff={index > 0 ? records[index]?.timestamp - records[index - 1]?.timestamp : undefined}
           />
         </Splitable>
       </MainContent>

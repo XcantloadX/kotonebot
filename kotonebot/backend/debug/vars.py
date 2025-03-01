@@ -26,6 +26,7 @@ class Result(NamedTuple):
     title: str
     image: list[str]
     description: str
+    timestamp: float
 
 @dataclass
 class _Vars:
@@ -208,7 +209,8 @@ def result(
     key = 'result_' + title + '_' + str(time.time())
     # 保存图片
     saved_images = _save_images(image)
-    _results[key] = Result(title, saved_images, text)
+    current_timestamp = int(time.time() * 1000)
+    _results[key] = Result(title, saved_images, text, current_timestamp)
     if len(_results) > debug.max_results:
         _results.pop(next(iter(_results)))
     # 拼接消息
@@ -266,7 +268,8 @@ def result(
                 "value": saved_images
             },
             "name": title,
-            "details": final_text
+            "details": final_text,
+            "timestamp": current_timestamp
         }))
         _result_file.write("\n")
 

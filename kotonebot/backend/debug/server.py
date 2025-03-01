@@ -191,7 +191,8 @@ def send_ws_message(title: str, image: list[str], text: str = '', wait: bool = F
                 "value": image
             },
             "name": title,
-            "details": text
+            "details": text,
+            "timestamp": int(time.time() * 1000)  # 添加时间戳（毫秒）
         }
     }
     message_queue.append(message)

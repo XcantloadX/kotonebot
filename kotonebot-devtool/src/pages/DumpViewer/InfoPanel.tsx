@@ -9,6 +9,8 @@ interface InfoPanelProps {
   details?: string;
   /** 图片映射 */
   imagesMap?: Map<string, string>;
+  /** 与上一条记录的时间差（毫秒） */
+  timeDiff?: number;
 }
 
 const PanelContainer = styled.div`
@@ -41,6 +43,11 @@ const MethodDetails = styled.div`
   word-break: break-word;
 `;
 
+const TimeDiffText = styled.div`
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+`;
 
 // 解析 [img]url[/img] 标签
 function parseImgTags(text: string, img2urlCallback = (k: string) => '/api/read_memory?key=' + k): string {
@@ -55,7 +62,8 @@ function parseImgTags(text: string, img2urlCallback = (k: string) => '/api/read_
 function InfoPanel({
   name,
   details,
-  imagesMap
+  imagesMap,
+  timeDiff
 }: InfoPanelProps) {
   const host = useDebugStore(state => state.host);
   const img2urlCallback = useCallback((k: string) => {
@@ -69,6 +77,9 @@ function InfoPanel({
       <ScrollContainer>
         <MethodContainer>
           <MethodName>{name}</MethodName>
+          {timeDiff !== undefined && (
+            <TimeDiffText>时间差：{timeDiff} ms</TimeDiffText>
+          )}
           <MethodDetails>
             <div dangerouslySetInnerHTML={{ __html: details ? parseImgTags(details, img2urlCallback) : '' }} />
           </MethodDetails>
