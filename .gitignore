@@ -3,6 +3,7 @@ tests/output_images
 tests/output_images/*
 R.py
 kotonebot/tasks/sprites
+kotonebot/tasks/metadata.py
 kotonebot-ui/node_modules
 kotonebot-ui/.vite
 dumps*/

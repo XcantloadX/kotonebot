@@ -43,12 +43,22 @@ env:
 build: env
     {{venv}} pyinstaller -y kotonebot-gr.spec
 
-@package-resource: env
+generate-metadata: env
+    #!{{shebang_python}}
+    from pathlib import Path
+    with open("WHATS_NEW.md", "r", encoding="utf-8") as f:
+        content = f.read()
+    metadata_path = Path("kotonebot/tasks/metadata.py")
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        f.write(f'WHATS_NEW = """\n{content}\n"""')
+
+@package-resource:
     Write-Host "Packaging kotonebot-resource..."
     @{{venv}} python -m build -s kotonebot-resource
 
 # Package KAA
-@package: package-resource
+@package: package-resource generate-metadata 
     {{venv}} python tools/make_resources.py -p # Make R.py in production mode
 
     Write-Host "Removing old build files..."
