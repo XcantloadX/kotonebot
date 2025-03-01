@@ -21,6 +21,8 @@ interface MultipleImagesViewerProps {
   onGotoGroup: (groupIndex: number) => void;
   /** 跳转到指定图片回调 */
   onGotoImage: (imageIndex: number) => void;
+  /** 滚动锁定状态变化回调 */
+  onScrollLockChange?: (locked: boolean) => void;
 }
 
 const ViewerContainer = styled.div`
@@ -76,6 +78,12 @@ const ZoomControls = styled.div`
   }
 `;
 
+const ControlButtons = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
 const MultipleImagesViewer: React.FC<MultipleImagesViewerProps> = ({ 
   currentGroup,
   groupCount,
@@ -83,11 +91,12 @@ const MultipleImagesViewer: React.FC<MultipleImagesViewerProps> = ({
   imageIndex,
   onGotoGroup = () => {},
   onGotoImage = () => {},
+  onScrollLockChange,
 }) => {
   const [isViewLocked, setIsViewLocked] = useState(false);
+  const [isScrollLocked, setIsScrollLocked] = useState(false);
   const [scale, setScale] = useState(1.0);
   const imageViewerRef = useRef<ImageViewerRef>(null);
-
 
   // 处理缩放控制
   const handleZoomIn = () => {
@@ -139,8 +148,15 @@ const MultipleImagesViewer: React.FC<MultipleImagesViewerProps> = ({
   };
 
   // 处理视图锁定
-  const handleViewLockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setIsViewLocked(e.target.checked);
+  const handleViewLockToggle = () => {
+    setIsViewLocked(!isViewLocked);
+  };
+
+  // 处理滚动锁定
+  const handleScrollLockToggle = () => {
+    const newValue = !isScrollLocked;
+    setIsScrollLocked(newValue);
+    onScrollLockChange?.(newValue);
   };
 
   // 键盘快捷键
@@ -224,26 +240,31 @@ const MultipleImagesViewer: React.FC<MultipleImagesViewerProps> = ({
             </button>
           </ZoomControls>
 
-          <button 
-            className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" 
-            onClick={handleDownload} 
-            title="下载图片组"
-          >
-            <i className="bi bi-download" />
-          </button>
+          <ControlButtons>
+            <button 
+              className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" 
+              onClick={handleDownload} 
+              title="下载图片组"
+            >
+              <i className="bi bi-download" />
+            </button>
 
-          <div className="form-check form-check-inline">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="lockViewCheckbox"
-              checked={isViewLocked}
-              onChange={handleViewLockChange}
-            />
-            <label className="form-check-label" htmlFor="lockViewCheckbox">
-              锁定视图
-            </label>
-          </div>
+            <button
+              className={`btn btn-${isViewLocked ? 'primary' : 'outline-secondary'} btn-sm d-flex align-items-center gap-1`}
+              onClick={handleViewLockToggle}
+              title="锁定视图"
+            >
+              <i className={`bi bi-${isViewLocked ? 'lock-fill' : 'lock'}`} />
+            </button>
+
+            <button
+              className={`btn btn-${isScrollLocked ? 'primary' : 'outline-secondary'} btn-sm d-flex align-items-center gap-1`}
+              onClick={handleScrollLockToggle}
+              title="锁定滚动"
+            >
+              <i className={`bi bi-${isScrollLocked ? 'pause-circle-fill' : 'pause-circle'}`} />
+            </button>
+          </ControlButtons>
 
           <div css={css`display: flex;`}>
             <button

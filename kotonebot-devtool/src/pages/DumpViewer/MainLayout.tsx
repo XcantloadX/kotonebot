@@ -126,8 +126,16 @@ export const MainLayout: React.FC = () => {
   const [imageIndex, setImageIndex] = useState(0);
   const [isLocalMode, setIsLocalMode] = useState(false);
   const [localImageMap, setLocalImageMap] = useState<Map<string, string>>();
+  const [isScrollLocked, setIsScrollLocked] = useState(false);
   const { ok, MessageBoxComponent } = useMessageBox();
   const spinner = useFullscreenSpinner();
+
+  // 处理新消息自动滚动
+  useEffect(() => {
+    if (!isScrollLocked && index !== records.length - 1) {
+      setIndex(records.length - 1);
+    }
+  }, [records.length, isScrollLocked]);
 
   // 处理本地文件打开
   const handleOpenLocal = useCallback(async () => {
@@ -263,6 +271,7 @@ export const MainLayout: React.FC = () => {
                 setImageIndex(0);
               }}
               onGotoImage={setImageIndex}
+              onScrollLockChange={setIsScrollLocked}
             />
           </ViewerContainer>
           <InfoPanel
