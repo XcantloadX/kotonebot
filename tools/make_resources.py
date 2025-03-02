@@ -6,7 +6,7 @@ import shutil
 import uuid
 import jinja2
 import argparse
-from typing import Any, TypeGuard, Literal, Union, cast
+from typing import Any, Optional, TypeGuard, Literal, Union, cast
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json, DataClassJsonMixin
 
@@ -22,6 +22,8 @@ SpriteType = Literal['basic', 'metadata']
 class Resource:
     type: Literal['template', 'hint-box', 'hint-point']
     data: 'Sprite | HintBox | HintPoint'
+    description: str
+    """资源的描述信息"""
 
 @dataclass
 class Sprite:
@@ -102,6 +104,8 @@ class Definition(DataClassJsonMixin):
     """标注类型"""
     annotationId: str
     """标注 ID"""
+    description: Optional[str] = None
+    """描述信息"""
 
 class TemplateDefinition(Definition):
     """模板匹配类型的资源定义"""
@@ -166,7 +170,7 @@ def load_metadata(root_path: str, png_file: str) -> list[Resource]:
     """加载 metadata 类型的标注"""
     json_path = png_file + '.json'
     with open(json_path, 'r', encoding='utf-8') as f:
-        metadata = SpriteMetadata.from_json(f.read())  # 使用 dataclass-json 的解析方法
+        metadata = SpriteMetadata.from_json(f.read())
     # 遍历标注，裁剪、保存图片
     clips: dict[str, str] = {} # id -> 文件路径
     image = cv2.imread(png_file)
@@ -196,12 +200,11 @@ def load_metadata(root_path: str, png_file: str) -> list[Resource]:
                 name=definition.name.split('.')[-1],
                 display_name=definition.displayName,
                 class_path=definition.name.split('.')[:-1],
-
                 rel_path=png_file,
                 abs_path=os.path.abspath(clips[definition.annotationId]),
                 origin_file=os.path.abspath(png_file),
             )
-            resources.append(Resource('template', spr))
+            resources.append(Resource('template', spr, definition.description or ''))
         elif definition.type == 'hint-box':
             annotation = query_annotation(metadata.annotations, definition.annotationId)
             rect = annotation.data
@@ -216,7 +219,7 @@ def load_metadata(root_path: str, png_file: str) -> list[Resource]:
                 y2=rect.y2,
                 origin_file=os.path.abspath(png_file),
             )
-            resources.append(Resource('hint-box', hb))
+            resources.append(Resource('hint-box', hb, definition.description or ''))
         elif definition.type == 'hint-point':
             annotation = query_annotation(metadata.annotations, definition.annotationId)
             pt = annotation.data
@@ -229,7 +232,7 @@ def load_metadata(root_path: str, png_file: str) -> list[Resource]:
                 class_path=definition.name.split('.')[:-1],
                 origin_file=os.path.abspath(png_file),
             )
-            resources.append(Resource('hint-point', hp))
+            resources.append(Resource('hint-point', hp, definition.description or ''))
         else:
             raise ValueError(f'Unknown definition type: {definition.type}')
 
@@ -250,7 +253,7 @@ def load_basic_sprite(root_path: str, png_file: str) -> Resource:
         abs_path=os.path.abspath(png_file),
         origin_file=os.path.abspath(png_file)
     )
-    return Resource('template', spr)
+    return Resource('template', spr, "")
 
 def load_sprites(root_path: str, png_files: list[str]) -> list[Resource]:
     """"""
@@ -322,6 +325,7 @@ def make_classes(resources: list[Resource], output_path: str) -> list[OutputClas
                     height = ''
                 docstring = (
                     f"名称：{sprite.display_name}\\n\n"
+                    f"描述：{resource.description}\\n\n"
                     f"路径：{escape(sprite.rel_path)}\\n\n"
                     f"模块：`{'.'.join(sprite.class_path)}`\\n\n"
                     f'<img src="vscode-file://vscode-app/{escape(sprite.abs_path)}" title="{sprite.display_name}" />\\n\n'
@@ -353,6 +357,7 @@ def make_classes(resources: list[Resource], output_path: str) -> list[OutputClas
 
                 docstring = (
                     f"名称：{hint_box.display_name}\\n\n"
+                    f"描述：{resource.description}\\n\n"
                     f"模块：`{'.'.join(hint_box.class_path)}`\\n\n"
                     f"值：x1={hint_box.x1}, y1={hint_box.y1}, x2={hint_box.x2}, y2={hint_box.y2}\\n\n"
                     f"裁剪区域：\\n\n"
@@ -377,6 +382,7 @@ def make_classes(resources: list[Resource], output_path: str) -> list[OutputClas
                 assert isinstance(hint_point, HintPoint)
                 docstring = (
                     f"名称：{hint_point.display_name}\\n\n"
+                    f"描述：{resource.description}\\n\n"
                     f"模块：`{'.'.join(hint_point.class_path)}`\\n\n"
                     f"坐标：(x={hint_point.x}, y={hint_point.y})\\n\n"
                 )

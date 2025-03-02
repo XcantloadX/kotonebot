@@ -13,6 +13,10 @@ interface PropertyRenderInputOptions {
   checkbox: {
     value: boolean,
     onChange: (value: boolean) => void
+  },
+  'long-text': {
+    value: string,
+    onChange: (value: string) => void
   }
 }
 type RenderType = keyof PropertyRenderInputOptions;
@@ -70,6 +74,18 @@ const PropertyContent = styled.div`
   min-height: 32px;
   display: flex;
   align-items: center;
+
+  textarea {
+    width: 100%;
+    min-height: 80px;
+    resize: vertical;
+    padding: 4px;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 4px;
+  }
 `;
 
 const FullWidthPropertyContent = styled(PropertyContent)`
@@ -143,6 +159,9 @@ const PropertyGrid: React.FC<PropertyGridProps> = ({ properties, titleColumnWidt
       } else if (type === 'checkbox') {
         const propertyCheckbox = property.render as PropertyRenderInputOptions['checkbox'];
         field = <input type="checkbox" checked={propertyCheckbox.value} onChange={(e) => propertyCheckbox.onChange(e.target.checked)} />;
+      } else if (type === 'long-text') {
+        const propertyLongText = property.render as PropertyRenderInputOptions['long-text'];
+        field = <textarea value={propertyLongText.value} onChange={(e) => propertyLongText.onChange(e.target.value)} />;
       }
     } else {
       console.error('Invalid property render type:', property.render);

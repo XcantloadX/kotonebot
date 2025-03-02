@@ -236,6 +236,15 @@ const usePropertyGridData = (
                     }
                 },
                 {
+                    title: '描述',
+                    render: {
+                        type: 'long-text',
+                        required: false,
+                        value: definition.description || '',
+                        onChange: (value: string) => onDefinitionChange?.(selectedAnnotation.id, { description: value }),
+                    }
+                },
+                {
                     title: '类型',
                     render: () => definition.type,
                 }

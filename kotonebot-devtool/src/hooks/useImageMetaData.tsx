@@ -9,6 +9,8 @@ export interface Definition {
     name: string;
     /** 显示在调试器与调试输出中的名称 */
     displayName: string;
+    /** 描述信息 */
+    description: string;
     type: DefinitionType;
     /** 标注 ID */
     annotationId: string;
@@ -52,8 +54,6 @@ function toString(data: ImageMetaData): string {
 
 function useImageMetaData(data?: ImageMetaData) {
     const [imageMetaData, updateImageMetaData] = useImmer<ImageMetaData>(data || {
-
-
         definitions: {},
         annotations: [],
     });
