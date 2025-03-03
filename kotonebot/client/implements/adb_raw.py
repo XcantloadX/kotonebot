@@ -45,7 +45,7 @@ class AdbRawImpl(AdbImpl):
             self.__process = None
         if self.__worker:
             try:
-                self.__worker.join(timeout=2)
+                self.__worker.join()
             except:
                 pass
             self.__worker = None

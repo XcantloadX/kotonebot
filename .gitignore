@@ -12,6 +12,7 @@ reports/
 tmp/
 res/sprites_compiled/
 messages/
+logs/
 ##########################
 
 # Byte-compiled / optimized / DLL files
