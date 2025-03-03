@@ -26,7 +26,7 @@ class Resource:
 @dataclass
 class Sprite:
     """表示一个精灵图像资源及其元数据。"""
-
+    
     
     type: SpriteType
     uuid: str
@@ -341,10 +341,23 @@ def make_classes(resources: list[Resource], output_path: str) -> list[OutputClas
             elif resource.type == 'hint-box':
                 hint_box = resource.data
                 assert isinstance(hint_box, HintBox)
+                # 裁剪并保存 hint-box 区域
+                image = cv2.imread(hint_box.origin_file)
+                x1, y1, x2, y2 = int(hint_box.x1), int(hint_box.y1), int(hint_box.x2), int(hint_box.y2)
+                clip = image[y1:y2, x1:x2]
+                if not os.path.exists('tmp'):
+                    os.makedirs('tmp')
+                clip_path = os.path.join('tmp', f'hintbox_{hint_box.name}.png')
+                cv2.imwrite(clip_path, clip)
+                clip_abs_path = os.path.abspath(clip_path)
+
                 docstring = (
                     f"名称：{hint_box.display_name}\\n\n"
                     f"模块：`{'.'.join(hint_box.class_path)}`\\n\n"
                     f"值：x1={hint_box.x1}, y1={hint_box.y1}, x2={hint_box.x2}, y2={hint_box.y2}\\n\n"
+                    f"裁剪区域：\\n\n"
+                    f"<img src='vscode-file://vscode-app/{escape(clip_abs_path)}' title='裁剪区域' />\\n\n"
+                    f"原始图片：\\n\n"
                     f"<img src='vscode-file://vscode-app/{escape(hint_box.origin_file)}' title='原始文件' width='80%' />"
                 )
                 img_attr = ImageAttribute(
