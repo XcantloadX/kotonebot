@@ -298,3 +298,41 @@ class Profiler:
         except ImportError:
             logger.warning("snakeviz is not installed")
             return False
+
+def measure_time(
+    logger: logging.Logger | None = None,
+    level: Literal['debug', 'info', 'warning', 'error', 'critical'] = 'info',
+    file_path: str | None = None
+) -> Callable:
+    """
+    测量函数执行时间的装饰器
+
+    :param logger: logging.Logger实例，如果为None则使用root logger
+    :param level: 日志级别，可以是'debug', 'info', 'warning', 'error', 'critical'
+    :param file_path: 记录执行时间的文件路径，如果提供则会将结果追加到文件中
+    """
+    def decorator(func: Callable) -> Callable:
+        def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+            start_time = time.time()
+            result = func(*args, **kwargs)
+            end_time = time.time()
+            
+            execution_time = end_time - start_time
+            message = f'Function {func.__name__} execution time: {execution_time:.3f}秒'
+            
+            # 使用提供的logger或默认logger
+            log = logger or logging.getLogger()
+            
+            # 获取对应的日志级别方法
+            log_method = getattr(log, level.lower())
+            
+            # 输出执行时间
+            log_method(message)
+            
+            # 如果提供了文件路径，将结果追加到文件中
+            if file_path:
+                with open(file_path, 'a', encoding='utf-8') as f:
+                    f.write(f'{time.strftime("%Y-%m-%d %H:%M:%S")} - {message}\n')
+            return result
+        return wrapper
+    return decorator
