@@ -10,6 +10,7 @@ from typing import Literal, Callable, TYPE_CHECKING, TypeGuard
 
 import cv2
 from cv2.typing import MatLike
+import numpy as np
 
 if TYPE_CHECKING:
     from kotonebot.client.protocol import Device
@@ -123,7 +124,7 @@ def cropped(
 
 def grayscaled(img: MatLike | str | Image) -> MatLike:
     if isinstance(img, str):
-        img = cv2.imread(img)
+        img = cv2_imread(img)
     elif isinstance(img, Image):
         img = img.data
     return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -336,3 +337,28 @@ def measure_time(
             return result
         return wrapper
     return decorator
+
+def cv2_imread(path: str, flags: int = cv2.IMREAD_COLOR) -> MatLike:
+    """
+    对 cv2.imread 的简单封装。
+    支持了对带中文的路径的读取。
+
+    :param path: 图片路径
+    :param flags: cv2.imread 的 flags 参数
+    :return: OpenCV 图片
+    """
+    img = cv2.imdecode(np.fromfile(path,dtype=np.uint8), flags)
+    return img
+
+def unify_image(image: MatLike | str | Image, transparent: bool = False) -> MatLike:
+    if isinstance(image, str):
+        if not transparent:
+            image = cv2_imread(image)
+        else:
+            image = cv2_imread(image, cv2.IMREAD_UNCHANGED)
+    elif isinstance(image, Image):
+        if transparent:
+            image = image.data_with_alpha
+        else:
+            image = image.data
+    return image

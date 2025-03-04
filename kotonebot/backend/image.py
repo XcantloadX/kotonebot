@@ -8,7 +8,7 @@ from cv2.typing import MatLike, Size
 from skimage.metrics import structural_similarity
 
 from .core import Image
-from ..util import Rect, Point
+from ..util import Rect, Point, unify_image
 from .debug import result as debug_result, debug, img
 
 logger = getLogger(__name__)
@@ -83,19 +83,6 @@ class CropResult(NamedTuple):
     def rect(self) -> Rect:
         return (self.position[0], self.position[1], self.size[0], self.size[1])
 
-def _unify_image(image: MatLike | str | Image, transparent: bool = False) -> MatLike:
-    if isinstance(image, str):
-        if not transparent:
-            image = cv2.imread(image)
-        else:
-            image = cv2.imread(image, cv2.IMREAD_UNCHANGED)
-    elif isinstance(image, Image):
-        if transparent:
-            image = image.data_with_alpha
-        else:
-            image = image.data
-    return image
-
 def _draw_result(image: MatLike, matches: Sequence[ResultProtocol] | ResultProtocol | None) -> MatLike:
     """在图像上绘制匹配结果的矩形框。"""
     if matches is None:
@@ -165,12 +152,12 @@ def template_match(
     :param colored: 是否匹配颜色，默认为 False。
     """
     # 统一参数
-    template = _unify_image(template, transparent)
-    image = _unify_image(image)
+    template = unify_image(template, transparent)
+    image = unify_image(image)
     if transparent is True and mask is not None:
         raise ValueError('mask and transparent cannot be used together')
     if mask is not None:
-        mask = _unify_image(mask)
+        mask = unify_image(mask)
         mask = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)[1]
     if transparent is True:
         # https://stackoverflow.com/questions/57899997/how-to-create-mask-from-alpha-channel-in-opencv
@@ -259,8 +246,8 @@ def hist_match(
     :return: 是否匹配成功
     """
     # 统一参数
-    image = _unify_image(image)
-    template = _unify_image(template)
+    image = unify_image(image)
+    template = unify_image(template)
 
     # 从图像中裁剪出矩形区域
     if rect is None:

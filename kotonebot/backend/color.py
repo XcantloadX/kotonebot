@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 from cv2.typing import MatLike
 
-from ..util import Rect
+from ..util import Rect, unify_image
 from .debug import result as debug_result, debug, color as debug_color
 
 RgbColorTuple = tuple[int, int, int]
@@ -95,11 +95,6 @@ def _unify_color(color: RgbColor) -> RgbColorTuple:
     else:
         raise ValueError('Invalid color format')
 
-def _unify_image(image: MatLike | str) -> MatLike:
-    if isinstance(image, str):
-        image = cv2.imread(image)
-    return image
-
 def in_range(color: RgbColor, range: tuple[HsvColor, HsvColor]) -> bool:
     """
     判断颜色是否在范围内。
@@ -139,7 +134,7 @@ def find(
     ret_similarity = 0
     found_color = None
     color = _unify_color(color)
-    image = _unify_image(image)
+    image = unify_image(image)
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     # 将目标颜色转换为HSL
@@ -236,7 +231,7 @@ def color_distance_map(
     # 统一颜色格式
     color = _unify_color(color)
     # 统一图像格式
-    image = _unify_image(image)
+    image = unify_image(image)
     
     # # 如果指定了rect，裁剪图像
     if rect is not None:
@@ -428,7 +423,7 @@ def find_all(
 
     # 调试输出
     if debug.enabled:
-        result_image = _unify_image(image).copy()
+        result_image = unify_image(image).copy()
         # 绘制所有结果点
         for result in results:
             x, y = result.position
@@ -443,7 +438,7 @@ def find_all(
         
         debug_result(
             'find_rgb_many',
-            [result_image, _unify_image(image)],
+            [result_image, unify_image(image)],
             f'target={debug_color(color)}\n'
             f'rect={rect}\n'
             f'found {len(results)} points\n'
@@ -471,7 +466,7 @@ def dominant_color(
     :param rect: 提取范围。如果为 None，则在整个图像中提取。
     """
     # 载入/裁剪图像
-    img = _unify_image(image)
+    img = unify_image(image)
     if rect is not None:
         x, y, w, h = rect
         img = img[y:y+h, x:x+w]
@@ -499,7 +494,7 @@ def dominant_color(
         result.append(hex_color)
     
     if debug.enabled:
-        origin_image = _unify_image(image)
+        origin_image = unify_image(image)
         result_image = origin_image.copy()
         if rect is not None:
             x, y, w, h = rect

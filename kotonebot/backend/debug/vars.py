@@ -18,6 +18,7 @@ import cv2
 from cv2.typing import MatLike
 
 from ..core import Image
+from ...util import cv2_imread
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ def img(image: str | MatLike | Image | None) -> str:
         return 'None'
     if debug.auto_save_to_folder:
         if isinstance(image, str):
-            image = cv2.imread(image)
+            image = cv2_imread(image)
         elif isinstance(image, Image):
             image = image.data
         key = _save_image(image)

@@ -5,6 +5,7 @@ from typing import Callable, overload, TYPE_CHECKING
 import cv2
 from cv2.typing import MatLike
 
+from kotonebot.util import cv2_imread
 from kotonebot.errors import ResourceFileMissingError
 if TYPE_CHECKING:
     from kotonebot.util import Rect
@@ -42,7 +43,7 @@ class Image:
         if self.__data is None:
             if self.path is None:
                 raise ValueError('Either path or data must be provided.')
-            self.__data = cv2.imread(self.path)
+            self.__data = cv2_imread(self.path)
             if self.__data is None:
                 raise ResourceFileMissingError(self.path, 'sprite')
             logger.debug(f'Read image "{self.name}" from {self.path}')
@@ -53,7 +54,7 @@ class Image:
         if self.__data_with_alpha is None:
             if self.path is None:
                 raise ValueError('Either path or data must be provided.')
-            self.__data_with_alpha = cv2.imread(self.path, cv2.IMREAD_UNCHANGED)
+            self.__data_with_alpha = cv2_imread(self.path, cv2.IMREAD_UNCHANGED)
             if self.__data_with_alpha is None:
                 raise ResourceFileMissingError(self.path, 'sprite with alpha')
             logger.debug(f'Read image "{self.name}" from {self.path}')
