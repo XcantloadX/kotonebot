@@ -25,6 +25,7 @@ import kotonebot.backend.context
 from kotonebot.backend.core import HintBox, Image
 from ..context import manual_context
 from . import vars as debug_vars
+from .vars import WSImage, WSMessageData, WSMessage
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -163,7 +164,6 @@ def autocomplete(class_path: str) -> list[str]:
     attrs.sort(key=lambda x: fuzz.ratio(x, class_path), reverse=True)
     return attrs
 
-
 @app.get("/api/ping")
 async def ping():
     return {"status": "ok"}
@@ -183,19 +183,16 @@ async def websocket_endpoint(websocket: WebSocket):
 
 def send_ws_message(title: str, image: list[str], text: str = '', wait: bool = False):
     """发送 WebSocket 消息"""
-    message = {
-        "type": "visual",
-        "data": {
-            "image": {
-                "type": "memory",
-                "value": image
-            },
-            "name": title,
-            "details": text,
-            "timestamp": int(time.time() * 1000)  # 添加时间戳（毫秒）
-        }
-    }
-    message_queue.append(message)
+    message = WSMessage(
+        type="visual",
+        data=WSMessageData(
+            image=WSImage(type="memory", value=image),
+            name=title,
+            details=text,
+            timestamp=int(time.time() * 1000)
+        )
+    )
+    message_queue.append(message.dict())
     if wait:
         while len(message_queue) > 0:
             time.sleep(0.3)

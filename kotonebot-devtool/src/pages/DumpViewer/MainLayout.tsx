@@ -53,7 +53,10 @@ function readLocalDump(files: FileList, reportProgress?: (message: string, curre
         // 解析JSON并替换图像路径
         for (const line of lines) {
           try {
-            const data = JSON.parse(line);
+            let data = JSON.parse(line);
+            if (!data.data)
+              throw new Error('JSON文件格式错误');
+            data = data.data;
             if (!data.image || !data.name || !data.details)
               throw new Error('JSON文件格式错误');
             records.push(data);
