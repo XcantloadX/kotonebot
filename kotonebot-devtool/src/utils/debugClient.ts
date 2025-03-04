@@ -3,6 +3,15 @@ export type ImageSource = {
   value: string[];
 };
 
+export interface Callstack {
+  name: string; // 函数名
+  file: string; // 文件名
+  line: number; // 行号
+  code: string; // 代码行
+  url?: string;
+  type: 'function' | 'method' | 'module' | 'lambda';
+}
+
 /**
  * 表示可视化事件的数据结构
  */
@@ -15,6 +24,8 @@ export type VisualEventData = {
   details: string;
   /** 时间戳（毫秒） */
   timestamp: number;
+  /** 调用堆栈 */
+  callstack: Callstack[];
 };
 
 /**

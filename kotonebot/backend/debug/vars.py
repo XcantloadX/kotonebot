@@ -16,6 +16,8 @@ from typing import NamedTuple, TextIO, Literal
 
 import cv2
 from cv2.typing import MatLike
+from pydantic import BaseModel
+import inspect  # 添加此行以导入 inspect 模块
 
 from ..core import Image
 from ...util import cv2_imread
@@ -27,6 +29,30 @@ class Result(NamedTuple):
     image: list[str]
     description: str
     timestamp: float
+
+class WSImage(BaseModel):
+    type: Literal["memory"]
+    value: list[str]
+
+class WSCallstack(BaseModel):
+    name: str
+    file: str
+    line: int
+    code: str
+    type: Literal["function", "method", "module", "lambda"]
+    url: str | None
+
+class WSMessageData(BaseModel):
+    image: WSImage
+    name: str
+    details: str
+    timestamp: int
+    callstack: list[WSCallstack]
+    
+
+class WSMessage(BaseModel):
+    type: Literal["visual"]
+    data: WSMessageData
 
 @dataclass
 class _Vars:
@@ -178,6 +204,25 @@ def _make_code_file_url(
     url = f"{prefix}://file/{full_path}:{line}:0"
     return f'<a href="{url}">{text}</a>'
 
+def _make_code_file_url_only(
+    text: str,
+    full_path: str,
+    line: int = 0,
+) -> str:
+    """
+    将代码文本转换为 VSCode 的文件 URL。
+    """
+    ide = get_current_ide()
+    if ide == 'vscode':
+        prefix = 'vscode'
+    elif ide == 'cursor':
+        prefix = 'cursor'
+    elif ide == 'windsurf':
+        prefix = 'windsurf'
+    else:
+        return text
+    return f"{prefix}://file/{full_path}:{line}:0"
+
 def result(
         title: str,
         image: MatLike | list[MatLike],
@@ -214,64 +259,58 @@ def result(
     if len(_results) > debug.max_results:
         _results.pop(next(iter(_results)))
     # 拼接消息
-    now_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
-    # 获取完整堆栈
-    callstack = []
-    for frame in traceback.format_stack():
-        if not re.search(r'Python\d*[\/\\]lib|debugpy', frame):
-            # 提取文件路径和行号
-            match = re.search(r'File "([^"]+)", line (\d+)', frame)
-            if match:
-                file_path = match.group(1)
-                file_path = to_html(file_path)
-                line_num = match.group(2)
-                # 将绝对路径转换为相对路径
-                rel_path = file_path.replace(str(Path.cwd()), '.')
-                # 将文件路径和行号转换为链接
-                frame = frame.replace(
-                    f'File "{file_path}", line {line_num}',
-                    f'File "{_make_code_file_url(rel_path, file_path, int(line_num))}", line {line_num}'
-                )
-            callstack.append(frame)
-    callstack_str = '\n'.join(callstack)
+    
+    callstacks: list[WSCallstack] = []
+    for frame in inspect.stack():
+        frame_info = frame.frame
+        # 跳过标准库和 debugpy 的代码
+        if re.search(r'Python\d*[\/\\]lib|debugpy', frame_info.f_code.co_filename):
+            break
+        lineno = frame_info.f_lineno
+        code = frame_info.f_code.co_name
+        # 判断第一个参数是否为 self
+        if frame_info.f_code.co_argcount > 0 and frame_info.f_code.co_varnames[0] == 'self':
+            type = 'method'
+        elif '<module>' in code:
+            type = 'module'
+        elif '<lambda>' in code:
+            type = 'lambda'
+        else:
+            type = 'function'  # 默认类型为 function
+        callstacks.append(WSCallstack(
+            name=frame_info.f_code.co_name,
+            file=frame_info.f_code.co_filename,
+            line=lineno,
+            code=code,
+            url=_make_code_file_url_only(frame_info.f_code.co_filename, frame_info.f_code.co_filename, lineno),
+            type=type
+        ))
 
-    # 获取简化堆栈(只包含函数名)
-    simple_callstack = []
-    for frame in traceback.extract_stack():
-        if not re.search(r'Python\d*[\/\\]lib|debugpy', frame.filename):
-            module = Path(frame.filename).stem # 只获取文件名,不含路径和扩展名
-            simple_callstack.append(f"{module}.{frame.name}")
-    simple_callstack_str = ' -> '.join(simple_callstack)
-    simple_callstack_str = to_html(simple_callstack_str)
-
-    final_text = (
-        f"Time: {now_time}<br>" +
-        f"Callstack: {simple_callstack_str}<br>" +
-        f"<details><summary>Full Callstack</summary>{callstack_str}</details><br>" +
-        f"<hr>{text}"
-    )
+    final_text = text
     # 发送 WS 消息
     from .server import send_ws_message
-    send_ws_message(title, saved_images, final_text, wait=debug.wait_for_message_sent)
-
+    send_ws_message(title, saved_images, final_text, callstack=callstacks, wait=debug.wait_for_message_sent)
+    
     # 保存到文件
-    # TODO: 把这个类型转换为 dataclass/namedtuple
     if debug.auto_save_to_folder:
         if _result_file is None:
             if not os.path.exists(debug.auto_save_to_folder):
                 os.makedirs(debug.auto_save_to_folder)
             log_file_name = f"dump_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
             _result_file = open(os.path.join(debug.auto_save_to_folder, log_file_name), "w")
-        _result_file.write(json.dumps({
-            "image": {
-                "type": "memory",
-                "value": saved_images
-            },
-            "name": title,
-            "details": final_text,
-            "timestamp": current_timestamp
-        }))
+        message = WSMessage(
+            type="visual",
+            data=WSMessageData(
+                image=WSImage(type="memory", value=saved_images),
+                name=title,
+                details=final_text,
+                timestamp=current_timestamp,
+                callstack=callstacks
+            )
+        )
+        _result_file.write(message.model_dump_json())
         _result_file.write("\n")
+        _result_file.flush()
 
 def clear_saved():
     """

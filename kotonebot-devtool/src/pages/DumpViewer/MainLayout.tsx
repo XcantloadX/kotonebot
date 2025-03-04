@@ -10,7 +10,7 @@ import { useDebugClient, useDebugStore } from '../../store/debugStore';
 import { Button, FormCheck } from 'react-bootstrap';
 import { useMessageBox } from '../../hooks/useMessageBox';
 import { useFullscreenSpinner } from '../../hooks/useFullscreenSpinner';
-
+import { Callstack } from '../../utils/debugClient';
 function readLocalDump(files: FileList, reportProgress?: (message: string, current: number, total: number) => void) {
   return new Promise<{records: VisualEventData[], images: Map<string, string>}>((resolve, reject) => {
     // 找到JSON文件
@@ -77,6 +77,18 @@ function readLocalDump(files: FileList, reportProgress?: (message: string, curre
   });
 }
 
+function formatTime(date: Date) {
+  const year = date.getFullYear().toString();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // 月份从0开始，需要+1
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const milliseconds = String(date.getMilliseconds()).padStart(3, '0').slice(0, 2); // 取毫秒的前两位
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
+
+
 const LayoutContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -132,6 +144,7 @@ export const MainLayout: React.FC = () => {
   const [isScrollLocked, setIsScrollLocked] = useState(false);
   const { ok, MessageBoxComponent } = useMessageBox();
   const spinner = useFullscreenSpinner();
+  const [callstacks, setCallstacks] = useState<Callstack[]>([]);
 
   // 处理新消息自动滚动
   useEffect(() => {
@@ -200,10 +213,10 @@ export const MainLayout: React.FC = () => {
 
   // WS 客户端初始化
   const handleVisualEvent = useCallback((event: VisualEvent) => {
-    if (isLocalMode)
-      return;
+    if (isLocalMode) return;
     updateRecords(draft => {
       draft.push(event.data);
+      setCallstacks(event.data.callstack);
     });
   }, [updateRecords, isLocalMode]);
   const handleConnectionStatus = useCallback((event: ConnectionStatusEvent) => {
@@ -228,6 +241,20 @@ export const MainLayout: React.FC = () => {
       setIndex(records.length - 1);
     }
   }, [records, index]);
+
+  const getAttributes = (records: VisualEventData[], index: number) => {
+    const currentRecord = records[index];
+    if (!currentRecord) return [];
+  
+    return [
+      { label: '时间', value: formatTime(new Date(currentRecord.timestamp)) },
+      ...(index > 0 ? [{
+        label: '时间差', 
+        value: `${currentRecord.timestamp - records[index - 1].timestamp} ms`
+      }] : []),
+      { label: '调用堆栈', value: '' }
+    ];
+  };
 
   return (
     <LayoutContainer>
@@ -281,10 +308,11 @@ export const MainLayout: React.FC = () => {
             name={records[index]?.name}
             details={records[index]?.details}
             imagesMap={isLocalMode ? localImageMap : undefined}
-            timeDiff={index > 0 ? records[index]?.timestamp - records[index - 1]?.timestamp : undefined}
+            attributes={getAttributes(records, index)}
+            callstacks={records[index]?.callstack}
           />
         </Splitable>
       </MainContent>
     </LayoutContainer>
   );
-}; 
+};

@@ -25,7 +25,7 @@ import kotonebot.backend.context
 from kotonebot.backend.core import HintBox, Image
 from ..context import manual_context
 from . import vars as debug_vars
-from .vars import WSImage, WSMessageData, WSMessage
+from .vars import WSImage, WSMessageData, WSMessage, WSCallstack
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -181,7 +181,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except:
         await websocket.close()
 
-def send_ws_message(title: str, image: list[str], text: str = '', wait: bool = False):
+def send_ws_message(title: str, image: list[str], text: str = '', callstack: list[WSCallstack] = [], wait: bool = False):
     """发送 WebSocket 消息"""
     message = WSMessage(
         type="visual",
@@ -189,7 +189,8 @@ def send_ws_message(title: str, image: list[str], text: str = '', wait: bool = F
             image=WSImage(type="memory", value=image),
             name=title,
             details=text,
-            timestamp=int(time.time() * 1000)
+            timestamp=int(time.time() * 1000),
+            callstack=callstack
         )
     )
     message_queue.append(message.dict())
