@@ -25,7 +25,7 @@ import cv2
 from cv2.typing import MatLike
 
 from kotonebot.client.device import Device
-from kotonebot.backend.util import Rect
+from kotonebot.util import Rect
 import kotonebot.backend.image as raw_image
 from kotonebot.backend.image import (
     TemplateMatchResult,

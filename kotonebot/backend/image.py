@@ -8,7 +8,7 @@ from cv2.typing import MatLike, Size
 from skimage.metrics import structural_similarity
 
 from .core import Image
-from .util import Rect, Point
+from ..util import Rect, Point
 from .debug import result as debug_result, debug, img
 
 logger = getLogger(__name__)

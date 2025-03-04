@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from kotonebot.backend.util import crop
+from kotonebot.util import crop
 
 class TestBackendUtils(unittest.TestCase):
     def setUp(self):

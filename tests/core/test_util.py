@@ -3,7 +3,7 @@ import time
 import unittest
 import logging
 from unittest.mock import Mock, patch, mock_open
-from kotonebot.backend.util import measure_time
+from kotonebot.util import measure_time
 
 class TestMeasureTime(unittest.TestCase):
     def setUp(self):

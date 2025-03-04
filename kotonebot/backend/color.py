@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 from cv2.typing import MatLike
 
-from .util import Rect
+from ..util import Rect
 from .debug import result as debug_result, debug, color as debug_color
 
 RgbColorTuple = tuple[int, int, int]

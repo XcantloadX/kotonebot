@@ -15,7 +15,7 @@ from rapidocr_onnxruntime import RapidOCR
 
 
 from .core import HintBox
-from .util import Rect, grayscaled, lf_path
+from ..util import Rect, grayscaled, lf_path
 from .debug import result as debug_result, debug
 
 logger = logging.getLogger(__name__)

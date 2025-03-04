@@ -16,7 +16,7 @@ from .backend.context import (
     use_screenshot,
     wait
 )
-from .backend.util import (
+from .util import (
     Rect,
     grayscaled,
     grayscale_cached,

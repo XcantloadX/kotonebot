@@ -7,7 +7,7 @@ from cv2.typing import MatLike
 
 from kotonebot.errors import ResourceFileMissingError
 if TYPE_CHECKING:
-    from kotonebot.backend.util import Rect
+    from kotonebot.util import Rect
 
 class Ocr:
     def __init__(

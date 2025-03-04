@@ -9,7 +9,7 @@ from cv2.typing import MatLike
 from adbutils._device import AdbDevice
 
 from kotonebot.backend.core import HintBox
-from kotonebot.backend.util import Rect, Point, is_rect, is_point
+from kotonebot.util import Rect, Point, is_rect, is_point
 from .protocol import ClickableObjectProtocol, Commandable, Touchable, Screenshotable
 from ..backend.debug import result
 

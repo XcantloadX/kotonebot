@@ -11,7 +11,7 @@ from typing_extensions import Self
 from dataclasses import dataclass
 
 from kotonebot.backend.ocr import StringMatchFunction
-from kotonebot.backend.util import Rect, is_rect
+from kotonebot.util import Rect, is_rect
 
 from .core import Image
 
