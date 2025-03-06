@@ -18,8 +18,6 @@ from .backend.context import (
 )
 from .util import (
     Rect,
-    grayscaled,
-    grayscale_cached,
     cropped,
     AdaptiveWait,
     Countdown,

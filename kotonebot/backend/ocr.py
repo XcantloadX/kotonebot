@@ -14,8 +14,8 @@ from thefuzz import fuzz as _fuzz
 from rapidocr_onnxruntime import RapidOCR
 
 
-from .core import HintBox
-from ..util import Rect, grayscaled, lf_path
+from .core import HintBox, Image, unify_image
+from ..util import Rect, lf_path
 from .debug import result as debug_result, debug
 
 logger = logging.getLogger(__name__)
@@ -173,6 +173,10 @@ def equals(
 
         return text == s
     return TextComparator("equals", text, compare)
+
+def grayscaled(img: 'MatLike | str | Image') -> MatLike:
+    img = unify_image(img)
+    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 def _is_match(text: str, pattern: re.Pattern | str | StringMatchFunction | TextComparator) -> bool:
     if isinstance(pattern, re.Pattern):

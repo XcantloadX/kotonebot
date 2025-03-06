@@ -6,8 +6,9 @@ import numpy as np
 import cv2
 from cv2.typing import MatLike
 
-from ..util import Rect, unify_image
+from .core import unify_image
 from .debug import result as debug_result, debug, color as debug_color
+from ..util import Rect
 
 RgbColorTuple = tuple[int, int, int]
 RgbColorStr = str

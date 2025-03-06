@@ -14,8 +14,6 @@ import numpy as np
 
 if TYPE_CHECKING:
     from kotonebot.client.protocol import Device
-    from kotonebot.backend.color import HsvColor
-from kotonebot.backend.context import Image
 
 logger = logging.getLogger(__name__)
 
@@ -122,17 +120,6 @@ def cropped(
         click_hook_before=_click_hook,
     )
 
-def grayscaled(img: MatLike | str | Image) -> MatLike:
-    if isinstance(img, str):
-        img = cv2_imread(img)
-    elif isinstance(img, Image):
-        img = img.data
-    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-@lru_cache
-def grayscale_cached(img: MatLike | str) -> MatLike:
-    return grayscaled(img)
-
 def until(
     condition: Callable[[], bool],
     timeout: float=60,
@@ -234,10 +221,9 @@ class Interval:
         self.last_wait_time = 0
 
     def wait(self):
-        from .backend.context import sleep
         delta = time.time() - self.start_time
         if delta < self.seconds:
-            sleep(self.seconds - delta)
+            time.sleep(self.seconds - delta)
         self.last_wait_time = time.time() - self.start_time
         self.start_time = time.time()
 
@@ -350,15 +336,4 @@ def cv2_imread(path: str, flags: int = cv2.IMREAD_COLOR) -> MatLike:
     img = cv2.imdecode(np.fromfile(path,dtype=np.uint8), flags)
     return img
 
-def unify_image(image: MatLike | str | Image, transparent: bool = False) -> MatLike:
-    if isinstance(image, str):
-        if not transparent:
-            image = cv2_imread(image)
-        else:
-            image = cv2_imread(image, cv2.IMREAD_UNCHANGED)
-    elif isinstance(image, Image):
-        if transparent:
-            image = image.data_with_alpha
-        else:
-            image = image.data
-    return image
+

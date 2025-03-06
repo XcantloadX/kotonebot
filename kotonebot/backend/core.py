@@ -125,6 +125,19 @@ class HintPoint(tuple[int, int]):
     def __repr__(self) -> str:
         return f'HintPoint<"{self.name}" at ({self.x}, {self.y})>'
 
+def unify_image(image: MatLike | str | Image, transparent: bool = False) -> MatLike:
+    if isinstance(image, str):
+        if not transparent:
+            image = cv2_imread(image)
+        else:
+            image = cv2_imread(image, cv2.IMREAD_UNCHANGED)
+    elif isinstance(image, Image):
+        if transparent:
+            image = image.data_with_alpha
+        else:
+            image = image.data
+    return image
+
 logger = logging.getLogger(__name__)
 
 
