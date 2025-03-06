@@ -9,6 +9,8 @@ class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
 
 class BackendConfig(ConfigBaseModel):
+    type: Literal['custom'] = 'custom'
+    """后端类型。"""
     adb_ip: str = '127.0.0.1'
     """adb 连接的 ip 地址。"""
     adb_port: int = 5555
@@ -17,6 +19,15 @@ class BackendConfig(ConfigBaseModel):
     """
     截图方法。暂时推荐使用【adb】截图方式。
     """
+    check_emulator: bool = False
+    """
+    检查并启动模拟器
+
+    启动脚本的时候，如果检测到模拟器未启动，则自动启动模拟器。
+    如果模拟器已经启动，则不启动。
+    """
+    emulator_path: str | None = None
+    """模拟器 exe 文件路径"""
 
 class PushConfig(ConfigBaseModel):
     """推送配置。"""

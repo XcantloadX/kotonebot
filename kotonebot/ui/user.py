@@ -99,3 +99,16 @@ def warning(
     """
     logger.warning('user.warning: %s', message)
     push("KAA 警告：" + title, message, images=images)
+
+def error(
+    title: str,
+    message: str | None = None,
+    images: list[MatLike] | None = None,
+    *,
+    once: bool = False
+):
+    """
+    错误信息。
+    """
+    logger.error('user.error: %s', message)
+    push("KAA 错误：" + title, message, images=images)

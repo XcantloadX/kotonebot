@@ -15,6 +15,8 @@ from typing import Any, Literal, Callable, Generic, TypeVar, ParamSpec
 from kotonebot.backend.context import Task, Action
 from kotonebot.backend.context import init_context, vars
 from kotonebot.backend.context import task_registry, action_registry, current_callstack, Task, Action
+from kotonebot.client.host.protocol import Instance
+from kotonebot.ui import user
 
 log_stream = io.StringIO()
 stream_handler = logging.StreamHandler(log_stream)
@@ -140,10 +142,13 @@ class KotoneBot:
         """
         self.module = module
         self.config_type = config_type
+        # HACK: 硬编码
+        self.current_config: int | str = 0
         self.debug = debug
         self.resume_on_error = resume_on_error
         self.auto_save_error_report = auto_save_error_report
         self.events = KotoneBotEvents()
+        self.backend_instance: Instance | None = None
 
     def initialize(self):
         """
@@ -167,10 +172,36 @@ class KotoneBot:
         logger.info('Tasks and actions initialized.')
         logger.info(f'{len(task_registry)} task(s) and {len(action_registry)} action(s) loaded.')
 
+    def check_backend(self):
+        from kotonebot.client.host import create_custom
+        from kotonebot.config.manager import load_config
+        # HACK: 硬编码
+        config = load_config('config.json', type=self.config_type)
+        config = config.user_configs[0]
+        logger.info('Checking backend...')
+        if config.backend.type == 'custom' and config.backend.check_emulator:
+            exe = config.backend.emulator_path
+            if exe is None:
+                user.error('「检查并启动模拟器」已开启但未配置「模拟器 exe 文件路径」。')
+                raise ValueError('Emulator executable path is not set.')
+            if not os.path.exists(exe):
+                user.error('「模拟器 exe 文件路径」对应的文件不存在！请检查路径是否正确。')
+                raise FileNotFoundError(f'Emulator executable not found: {exe}')
+            logger.info('Starting custom backend...')
+            self.backend_instance = create_custom(
+                adb_ip=config.backend.adb_ip,
+                adb_port=config.backend.adb_port,
+                exe_path=exe
+            )
+            self.backend_instance.start()
+            logger.info('Waiting for custom backend to be available...')
+            self.backend_instance.wait_available()
+
     def run(self, tasks: list[Task], *, by_priority: bool = True):
         """
         按优先级顺序运行所有任务。
         """
+        self.check_backend()
         init_context(config_type=self.config_type)
 
         if by_priority:
