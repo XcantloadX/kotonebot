@@ -187,15 +187,18 @@ class KotoneBot:
             if not os.path.exists(exe):
                 user.error('「模拟器 exe 文件路径」对应的文件不存在！请检查路径是否正确。')
                 raise FileNotFoundError(f'Emulator executable not found: {exe}')
-            logger.info('Starting custom backend...')
             self.backend_instance = create_custom(
                 adb_ip=config.backend.adb_ip,
                 adb_port=config.backend.adb_port,
                 exe_path=exe
             )
-            self.backend_instance.start()
-            logger.info('Waiting for custom backend to be available...')
-            self.backend_instance.wait_available()
+            if not self.backend_instance.running():
+                logger.info('Starting custom backend...')
+                self.backend_instance.start()
+                logger.info('Waiting for custom backend to be available...')
+                self.backend_instance.wait_available()
+            else:
+                logger.info('Custom backend "%s" already running.', self.backend_instance)
 
     def run(self, tasks: list[Task], *, by_priority: bool = True):
         """

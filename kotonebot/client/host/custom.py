@@ -1,3 +1,4 @@
+import os
 import subprocess
 from psutil import process_iter
 from .protocol import HostProtocol, Instance
@@ -34,6 +35,21 @@ class CustomInstance(Instance):
         self.process.terminate()
         self.process.wait()
         self.process = None
+
+    @override
+    def running(self) -> bool:
+        if self.process is not None:
+            return True
+        else:
+            process_name = os.path.basename(self.exe_path)
+            p = next((proc for proc in process_iter() if proc.name() == process_name), None)
+            if p:
+                return True
+            else:
+                return False
+            
+    def __repr__(self) -> str:
+        return f'CustomInstance(#{self.id}# at "{self.exe_path}" with {self.adb_ip}:{self.adb_port})'
 
 def _type_check(ins: Instance) -> CustomInstance:
     if not isinstance(ins, CustomInstance):

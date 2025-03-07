@@ -37,8 +37,14 @@ class Instance:
     adb_port: int
     adb_ip: str = '127.0.0.1'
 
-    def start(self): ...
-    def stop(self): ...
+    def start(self):
+        raise NotImplementedError()
+    
+    def stop(self):
+        raise NotImplementedError()
+
+    def running(self) -> bool:
+        raise NotImplementedError()
 
     def wait_available(self, timeout: float = 180):
         logger.info('Starting to wait for emulator %s(127.0.0.1:%d) to be available...', self.name, self.adb_port)
