@@ -240,7 +240,7 @@ class Device:
         else:
             x = args[0]
             y = args[1]
-            interval = kwargs.get('interval', 0.25)
+            interval = kwargs.get('interval', 0.4)
             self.click(x, y)
             sleep(interval)
             self.click(x, y)
