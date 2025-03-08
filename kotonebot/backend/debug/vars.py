@@ -30,6 +30,10 @@ class Result(NamedTuple):
     description: str
     timestamp: float
 
+class ImageData(NamedTuple):
+    data: MatLike
+    timestamp: float
+
 class WSImage(BaseModel):
     type: Literal["memory"]
     value: list[str]
@@ -91,9 +95,8 @@ class _Vars:
 
 debug = _Vars()
 
-# TODO: 需要考虑释放内存的问题。释放哪些比较合适？
 _results: dict[str, Result] = {}
-_images: dict[str, MatLike] = {}
+_images: dict[str, ImageData] = {}
 """存放临时图片的字典。"""
 _result_file: TextIO | None = None
 
@@ -108,13 +111,29 @@ def _save_image(image: MatLike | Image) -> str:
         key = str(uuid.uuid4())
     # 保存图片
     if key not in _images:
-        _images[key] = image
+        _images[key] = ImageData(image, time.time())
         if debug.auto_save_to_folder:
             if not os.path.exists(debug.auto_save_to_folder):
                 os.makedirs(debug.auto_save_to_folder)
             file_name = f"{key}.png"
             cv2.imwrite(os.path.join(debug.auto_save_to_folder, file_name), image)
+    # 当图片 >= 100 张时，删除最早的图片
+    while len(_images) >= 100:
+        logger.info("Debug image buffer is full. Deleting oldest image...")
+        _images.pop(next(iter(_images)))
     return key
+
+def _read_image(key: str) -> MatLike | None:
+    """从 _images 字典中读取图片。"""
+    data = None
+    if key in _images:
+        data = _images[key].data
+    elif debug.auto_save_to_folder:
+        path = os.path.join(debug.auto_save_to_folder, f"{key}.png")
+        if os.path.exists(path):
+            data = cv2_imread(path)
+            _images[key] = ImageData(data, time.time())
+    return data
 
 def _save_images(images: list[MatLike]) -> list[str]:
     """缓存图片数据到 _images 字典中。返回 key 列表。"""

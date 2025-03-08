@@ -65,8 +65,8 @@ async def read_memory(key: str):
     """读取内存中的数据"""
     try:
         image = None
-        if key in debug_vars._images:
-            image = debug_vars._images[key]
+        if (image := debug_vars._read_image(key)) is not None:
+            pass
         else:
             raise HTTPException(status_code=404, detail="Key not found")
         
