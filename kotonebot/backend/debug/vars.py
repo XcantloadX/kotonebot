@@ -297,7 +297,7 @@ def result(
             if not os.path.exists(debug.auto_save_to_folder):
                 os.makedirs(debug.auto_save_to_folder)
             log_file_name = f"dump_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
-            _result_file = open(os.path.join(debug.auto_save_to_folder, log_file_name), "w")
+            _result_file = open(os.path.join(debug.auto_save_to_folder, log_file_name), "w", encoding="utf-8")
         message = WSMessage(
             type="visual",
             data=WSMessageData(
