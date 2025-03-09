@@ -6,3 +6,4 @@ dataclasses-json==0.6.7
 python-lsp-server==1.12.0
 snakeviz==2.2.2
 wxpython==4.2.2
+build==1.2.2.post1

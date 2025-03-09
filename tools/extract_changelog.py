@@ -67,11 +67,12 @@ def print_changelog(categories, output_file=None):
         'task': '脚本',
         'ui': '界面',
         'core': '框架',
+        'devtool': '开发工具',
         '*': '其他'
     }
     
     # 按指定顺序输出
-    for scope in ['task', 'ui', 'core', '*']:
+    for scope in scope_map.keys():
         scope_output = []
         for category, scopes in categories.items():
             if scope in scopes and scopes[scope]:
