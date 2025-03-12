@@ -1,8 +1,11 @@
 import time
+from typing_extensions import override
+
 import cv2
 
-from kotonebot.client.protocol import DeviceABC
+from kotonebot.client.device import Device
 from kotonebot import sleep
+
 class Video:
     def __init__(self, path: str, fps: int):
         self.path = path
@@ -34,18 +37,39 @@ class Video:
     def resume(self):
         self.paused = False
 
-class MockDevice(DeviceABC):
+class MockDevice(Device):
     def __init__(
         self
     ):
+        super().__init__()
         self.__video_stream = None
+        self.__image = None
+        self.__screen_size = None
 
     def load_video(self, path: str, fps: int):
         self.__video_stream = Video(path, fps)
         return self.__video_stream
 
+    def load_image(self, path: str):
+        self.__image = cv2.imread(path)
+        return self.__image
+
+    def set_screen_size(self, width: int, height: int):
+        self.__screen_size = (width, height)
+
+    @override
     def screenshot(self):
-        if self.__video_stream:
+        if self.__image is not None:
+            return self.__image
+        elif self.__video_stream is not None:
             return next(self.__video_stream)
         else:
             raise RuntimeError('No video stream loaded')
+        
+    @property
+    @override
+    def screen_size(self):
+        if self.__screen_size is not None:
+            return self.__screen_size
+        else:
+            raise RuntimeError('No screen size set')
