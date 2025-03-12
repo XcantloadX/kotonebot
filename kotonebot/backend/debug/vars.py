@@ -5,7 +5,6 @@ import time
 import uuid
 import shutil
 import psutil
-import logging
 import hashlib
 import traceback
 from pathlib import Path
@@ -21,6 +20,7 @@ import inspect  # 添加此行以导入 inspect 模块
 
 from ..core import Image
 from ...util import cv2_imread
+from kotonebot import logging
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ def _save_image(image: MatLike | Image) -> str:
             cv2.imwrite(os.path.join(debug.auto_save_to_folder, file_name), image)
     # 当图片 >= 100 张时，删除最早的图片
     while len(_images) >= 100:
-        logger.info("Debug image buffer is full. Deleting oldest image...")
+        logger.verbose("Debug image buffer is full. Deleting oldest image...")
         _images.pop(next(iter(_images)))
     return key
 
