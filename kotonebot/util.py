@@ -336,4 +336,9 @@ def cv2_imread(path: str, flags: int = cv2.IMREAD_COLOR) -> MatLike:
     img = cv2.imdecode(np.fromfile(path,dtype=np.uint8), flags)
     return img
 
-
+def cv2_imwrite(path: str, img: MatLike):
+    """
+    对 cv2.imwrite 的简单封装。
+    支持了对带中文的路径的写入。
+    """
+    cv2.imencode('.png', img)[1].tofile(path)
