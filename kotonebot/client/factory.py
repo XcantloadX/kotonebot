@@ -14,7 +14,9 @@ def create_device(
     addr: str,
     impl: DeviceImpl,
 ) -> Device:
-    adb.connect(addr)
+    result = adb.connect(addr)
+    if 'cannot connect to' in result:
+        raise ValueError(result)
     d = [d for d in adb.device_list() if d.serial == addr]
     if len(d) == 0:
         raise ValueError(f"Device {addr} not found")
