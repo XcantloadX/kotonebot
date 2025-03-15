@@ -45,6 +45,7 @@ build: env
 
 generate-metadata: env
     #!{{shebang_python}}
+    # 更新日志
     from pathlib import Path
     with open("WHATS_NEW.md", "r", encoding="utf-8") as f:
         content = f.read()
@@ -52,6 +53,14 @@ generate-metadata: env
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
     with open(metadata_path, "w", encoding="utf-8") as f:
         f.write(f'WHATS_NEW = """\n{content}\n"""')
+    
+    # 版本号
+    from subprocess import check_output
+    version = check_output(['git', 'describe', '--tags', '--abbrev=0']).decode().strip()
+    if version.startswith('kaa-v'):
+        version = version[5:]
+    with open("version", "w", encoding="utf-8") as f:
+        f.write(version)
 
 @package-resource:
     Write-Host "Packaging kotonebot-resource..."

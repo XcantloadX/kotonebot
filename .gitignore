@@ -15,6 +15,7 @@ res/sprites_compiled/
 messages/
 logs/
 traces/
+version
 ##########################
 
 # Byte-compiled / optimized / DLL files
