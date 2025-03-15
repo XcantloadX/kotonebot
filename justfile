@@ -67,7 +67,7 @@ generate-metadata: env
     @{{venv}} python -m build -s kotonebot-resource
 
 # Package KAA
-@package: package-resource generate-metadata 
+@package: env package-resource generate-metadata 
     {{venv}} python tools/make_resources.py -p # Make R.py in production mode
 
     Write-Host "Removing old build files..."
