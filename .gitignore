@@ -8,6 +8,7 @@ kotonebot-ui/node_modules
 kotonebot-ui/.vite
 dumps*/
 config.json
+config.v*.json
 reports/
 tmp/
 res/sprites_compiled/
