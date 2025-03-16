@@ -15,6 +15,13 @@ class BackendConfig(ConfigBaseModel):
     """adb 连接的 ip 地址。"""
     adb_port: int = 5555
     """adb 连接的端口。"""
+    adb_emulator_name: str = 'emulator-5554'
+    """
+    adb 连接的模拟器名，用于 自动启动模拟器 功能。
+    
+    雷电模拟器需要设置正确的模拟器名，否则 自动启动模拟器 功能将无法正常工作。
+    其他功能不受影响。
+    """
     screenshot_impl: Literal['adb', 'adb_raw', 'uiautomator2'] = 'adb'
     """
     截图方法。暂时推荐使用【adb】截图方式。
