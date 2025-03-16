@@ -36,6 +36,7 @@ class Instance:
     name: str
     adb_port: int
     adb_ip: str = '127.0.0.1'
+    adb_emulator_name: str = 'emulator-5554'
 
     def start(self):
         raise NotImplementedError()
@@ -50,6 +51,7 @@ class Instance:
         logger.info('Starting to wait for emulator %s(127.0.0.1:%d) to be available...', self.name, self.adb_port)
         state = 0
         port = self.adb_port
+        emulator_name = self.adb_emulator_name
         cd = Countdown(timeout)
         it = Interval(1)
         d: AdbDevice | None = None
@@ -72,9 +74,15 @@ class Instance:
                     case 2:
                         logger.debug('Getting device list...')
                         if devices := adb.device_list():
-                            d = next((d for d in devices if d.serial == f'127.0.0.1:{port}'), None)
+                            logger.debug('Get device list success. devices=%s', devices)
+                            # emulator_name 用于适配雷电模拟器
+                            # 雷电模拟器启动后，在上方的列表中并不会出现 127.0.0.1:5555，而是 emulator-5554
+                            d = next(
+                                (d for d in devices if d.serial == f'127.0.0.1:{port}' or d.serial == emulator_name),
+                                None
+                            )
                             if d:
-                                logger.debug('Get device list success. d=%s', d)
+                                logger.debug('Get target device success. d=%s', d)
                                 state = 3
                     case 3:
                         if not d:
