@@ -16,6 +16,7 @@ messages/
 logs/
 traces/
 version
+bin/
 ##########################
 
 # Byte-compiled / optimized / DLL files
