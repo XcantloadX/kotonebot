@@ -1,10 +1,9 @@
-import { useState } from "react";
 import { Annotation } from "../components/ImageEditor/types";
 import { useImmer } from "use-immer";
 
 export type DefinitionType = 'template' | 'ocr' | 'color' | 'hint-box' | 'hint-point';
 
-export interface Definition {
+export interface BaseDefinition {
     /** 最终出现在 R.py 中的名称 */
     name: string;
     /** 显示在调试器与调试输出中的名称 */
@@ -17,7 +16,7 @@ export interface Definition {
 }
 
 
-export interface TemplateDefinition extends Definition {
+export interface TemplateDefinition extends BaseDefinition {
     type: 'template';
     /**
      * 是否将这个模板的矩形范围作为运行时
@@ -29,6 +28,15 @@ export interface TemplateDefinition extends Definition {
     useHintRect: boolean
 }
 
+export interface HintBoxDefinition extends BaseDefinition {
+    type: 'hint-box';
+}
+
+export interface HintPointDefinition extends BaseDefinition {
+    type: 'hint-point';
+}
+
+export type Definition = TemplateDefinition | HintBoxDefinition | HintPointDefinition;
 
 export type Definitions = Record<string, Definition>;
 
