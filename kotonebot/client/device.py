@@ -54,7 +54,7 @@ class PinContextManager:
         self.memo = self.device.screenshot_raw()
 
 class Device:
-    def __init__(self) -> None:
+    def __init__(self, platform: str = 'unknown') -> None:
         self.screenshot_hook_after: Callable[[MatLike], MatLike] | None = None
         """截图后调用的函数"""
         self.screenshot_hook_before: Callable[[], MatLike | None] | None = None
@@ -73,6 +73,11 @@ class Device:
         self._command: Commandable
         self._touch: Touchable
         self._screenshot: Screenshotable
+
+        self.platform: str = platform
+        """
+        设备平台名称。
+        """
     
     @property
     def adb(self) -> AdbUtilsDevice:
@@ -333,10 +338,14 @@ class Device:
         return self._screenshot.detect_orientation()
 
 
-class AdbDevice(Device):
+class AndroidDevice(Device):
     def __init__(self, adb_connection: AdbUtilsDevice | None = None) -> None:
-        super().__init__()
+        super().__init__('android')
         self._adb: AdbUtilsDevice | None = adb_connection
+
+class WindowsDevice(Device):
+    def __init__(self) -> None:
+        super().__init__('windows')
 
         
 if __name__ == "__main__":
@@ -348,7 +357,7 @@ if __name__ == "__main__":
     print("devices:", adb.device_list())
     d = adb.device_list()[-1]
     d.shell("dumpsys activity top | grep ACTIVITY | tail -n 1")
-    dd = AdbDevice(d)
+    dd = AndroidDevice(d)
     adb_imp = AdbRawImpl(dd)
     dd._command = adb_imp
     dd._touch = adb_imp

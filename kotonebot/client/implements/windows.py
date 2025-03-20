@@ -12,7 +12,7 @@ from cv2.typing import MatLike
 from ..device import Device
 from ..protocol import Commandable, Touchable, Screenshotable
 
-class WindowsImpl(Commandable, Touchable, Screenshotable):
+class WindowsImpl(Touchable, Screenshotable):
     def __init__(self, device: Device):
         self.__hwnd: int | None = None
         self.ahk = AHK(executable_path='bin/AutoHotKey.exe')
@@ -152,19 +152,12 @@ class WindowsImpl(Commandable, Touchable, Screenshotable):
         # TODO: 这个 speed 的单位是什么？
         self.ahk.mouse_drag(x2, y2, from_position=(x1, y1), coord_mode='Client', speed=10)
 
-    def launch_app(self, package_name: str) -> None:
-        raise NotImplementedError
-
-    def current_package(self) -> str | None:
-        raise NotImplementedError
-
 
 if __name__ == '__main__':
     from ..device import Device
     from time import sleep
     device = Device()
     impl = WindowsImpl(device)
-    device._command = impl
     device._screenshot = impl
     device._touch = impl
     device.swipe_scaled(0.5, 0.8, 0.5, 0.2)

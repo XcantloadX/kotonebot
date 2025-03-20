@@ -1,11 +1,11 @@
 from enum import Enum
 from typing import Literal
 
-from .device import Device, AdbDevice
 from .implements.adb import AdbImpl
 from .implements.adb_raw import AdbRawImpl
-from .implements.uiautomator2 import UiAutomator2Impl
 from .implements.windows import WindowsImpl
+from .implements.uiautomator2 import UiAutomator2Impl
+from .device import Device, AndroidDevice, WindowsDevice
 
 from adbutils import adb
 
@@ -23,7 +23,7 @@ def create_device(
         if len(d) == 0:
             raise ValueError(f"Device {addr} not found")
         d = d[0]
-        device = AdbDevice(d)
+        device = AndroidDevice(d)
         if impl == 'adb':
             device._command = AdbImpl(device)
             device._touch = AdbImpl(device)
@@ -37,8 +37,7 @@ def create_device(
             device._touch = UiAutomator2Impl(device)
             device._screenshot = UiAutomator2Impl(device)
     elif impl == 'windows':
-        device = Device()
-        device._command = WindowsImpl(device)
+        device = WindowsDevice()
         device._touch = WindowsImpl(device)
         device._screenshot = WindowsImpl(device)
     return device
