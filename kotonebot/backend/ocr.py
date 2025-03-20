@@ -142,9 +142,12 @@ def regex(regex: str) -> TextComparator:
     return TextComparator("regex", regex, func)
 
 @lru_cache(maxsize=1000)
-def contains(text: str) -> TextComparator:
+def contains(text: str, *, ignore_case: bool = False) -> TextComparator:
     """返回包含指定文本的函数。"""
-    func = lambda s: text in s
+    if ignore_case:
+        func = lambda s: text.lower() in s.lower()
+    else:
+        func = lambda s: text in s
     return TextComparator("contains", text, func)
 
 @lru_cache(maxsize=1000)
