@@ -65,7 +65,8 @@ class Device:
         """上次 image 对象或 ocr 对象的寻找结果"""
         self.orientation: Literal['portrait', 'landscape'] = 'portrait'
         """
-        设备当前方向。默认为竖屏。
+        设备当前方向。默认为竖屏。注意此属性并非用于检测设备方向。
+        如果需要检测设备方向，请使用 `self.detect_orientation()` 方法。
 
         横屏时为 'landscape'，竖屏时为 'portrait'。
         """

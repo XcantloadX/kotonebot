@@ -5,6 +5,12 @@ export interface PropertyRenderBase {
   required?: boolean,
 }
 
+type SelectOption<T extends string> = {
+  value: T,
+  options: Array<{ value: T, label: string }>,
+  onChange: (value: T) => void
+}
+
 interface PropertyRenderInputOptions {
   text: {
     value: string,
@@ -17,7 +23,8 @@ interface PropertyRenderInputOptions {
   'long-text': {
     value: string,
     onChange: (value: string) => void
-  }
+  },
+  select: SelectOption<string>
 }
 type RenderType = keyof PropertyRenderInputOptions;
 
@@ -162,6 +169,21 @@ const PropertyGrid: React.FC<PropertyGridProps> = ({ properties, titleColumnWidt
       } else if (type === 'long-text') {
         const propertyLongText = property.render as PropertyRenderInputOptions['long-text'];
         field = <textarea value={propertyLongText.value} onChange={(e) => propertyLongText.onChange(e.target.value)} />;
+      } else if (type === 'select') {
+        const propertySelect = property.render as PropertyRenderInputOptions['select'];
+        field = (
+          <select 
+            value={propertySelect.value} 
+            onChange={(e) => propertySelect.onChange(e.target.value as any)}
+            style={{ width: '100%', padding: '4px' }}
+          >
+            {propertySelect.options.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
       }
     } else {
       console.error('Invalid property render type:', property.render);

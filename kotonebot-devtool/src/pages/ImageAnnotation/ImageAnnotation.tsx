@@ -5,7 +5,7 @@ import PropertyGrid, { Property, PropertyCategory } from '../../components/Prope
 import ImageEditor, { AnnotationChangedEvent } from '../../components/ImageEditor/ImageEditor';
 import { Annotation, Tool as EditorTool } from '../../components/ImageEditor/types';
 import { BsCursor, BsFolder2Open, BsFloppy, BsCardImage, BsQuestionSquare, BsPinMap } from 'react-icons/bs';
-import useImageMetaData, { DefinitionType, ImageMetaData, TemplateDefinition, Definitions } from '../../hooks/useImageMetaData';
+import useImageMetaData, { DefinitionType, ImageMetaData, TemplateDefinition, Definitions, Definition } from '../../hooks/useImageMetaData';
 import { useImageViewerModal } from '../../components/ImageViewerModal';
 import { useMessageBox } from '../../hooks/useMessageBox';
 import { useToast } from '../../components/ToastMessage';
@@ -138,7 +138,7 @@ const usePropertyGridData = (
     definitions: Definitions,
     image: HTMLImageElement | null,
     onImageClick: (imageUrl: string) => void,
-    onDefinitionChange?: (id: string, changes: Partial<TemplateDefinition>) => void,
+    onDefinitionChange?: (id: string, changes: Partial<Definition>) => void,
     imageFileName?: string,
     annotations?: Annotation[],
     currentFileResult?: FileResult | null
@@ -246,7 +246,25 @@ const usePropertyGridData = (
                 },
                 {
                     title: '类型',
-                    render: () => definition.type,
+                    render: {
+                        type: 'select',
+                        required: true,
+                        value: definition.type,
+                        options: selectedAnnotation.type === 'rect' 
+                            ? [
+                                { value: 'template', label: '模板' },
+                                { value: 'hint-box', label: 'HintBox' }
+                            ]
+                            : [
+                                { value: 'hint-point', label: 'HintPoint' }
+                            ],
+                        onChange: (value) => {
+                            if (value === definition.type) return;
+                            onDefinitionChange?.(selectedAnnotation.id, {
+                                type: value as "template" | "hint-box" | "hint-point",
+                            });
+                        }
+                    }
                 }
             ],
             foldable: true
@@ -540,7 +558,7 @@ const ImageAnnotation: React.FC = () => {
         setSelectedAnnotation(annotation);
     };
 
-    const handleDefinitionChange = (id: string, changes: Partial<TemplateDefinition>) => {
+    const handleDefinitionChange = (id: string, changes: Partial<Definition>) => {
         Definitions.update({
             ...changes,
             annotationId: id

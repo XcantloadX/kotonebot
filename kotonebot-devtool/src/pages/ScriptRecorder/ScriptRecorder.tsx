@@ -9,7 +9,7 @@ import { Splitable } from '../../components/Splitable';
 import { Tool, Annotation } from '../../components/ImageEditor/types';
 import { create } from 'zustand';
 import { css } from '@emotion/react';
-import useImageMetaData, { Definition, DefinitionType, ImageMetaData, TemplateDefinition } from '../../hooks/useImageMetaData';
+import useImageMetaData, { BaseDefinition, DefinitionType, ImageMetaData, TemplateDefinition } from '../../hooks/useImageMetaData';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { useDebugClient } from '../../store/debugStore';
 import useLatestCallback from '../../hooks/useLatestCallback';
@@ -157,25 +157,25 @@ const useScriptRecorderStore = create<ScriptRecorderState>((set) => ({
 }));
 
 interface ToolConfigItem {
-    code?: (d: Definition, a: Annotation) => string;
+    code?: (d: BaseDefinition, a: Annotation) => string;
 }
 
 const ToolConfig: Record<ScriptRecorderTool, ToolConfigItem> = {
     'drag': {
     },
     'template': {
-        code: (d: Definition) => `image.find(R.${d.name})`,
+        code: (d: BaseDefinition) => `image.find(R.${d.name})`,
 
     },
     'template-click': {
-        code: (d: Definition) => 
+        code: (d: BaseDefinition) => 
             `if image.find(R.${d.name}):\n\tdevice.click()`,
     },
     'ocr': {
-        code: (d: Definition) => `ocr.ocr(R.${d.name})`,
+        code: (d: BaseDefinition) => `ocr.ocr(R.${d.name})`,
     },
     'ocr-click': {
-        code: (d: Definition) => 
+        code: (d: BaseDefinition) => 
             `if ocr.ocr(R.${d.name}):\n\tdevice.click()`,
     },
     'hint-box': {

@@ -42,13 +42,16 @@ import kotonebot.backend.color as raw_color
 from kotonebot.backend.color import (
     find as color_find, find_all as color_find_all
 )
-from kotonebot.backend.ocr import Ocr, OcrResult, OcrResultList, jp, en, StringMatchFunction
+from kotonebot.backend.ocr import (
+    Ocr, OcrResult, OcrResultList, jp, en, StringMatchFunction
+)
 from kotonebot.client.factory import create_device
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig
 from kotonebot.backend.core import Image, HintBox
 from kotonebot.errors import KotonebotWarning
 from kotonebot.client.factory import DeviceImpl
+from kotonebot.backend.preprocessor import PreprocessorProtocol
 
 OcrLanguage = Literal['jp', 'en']
 ScreenshotMode = Literal['auto', 'manual', 'manual-inherit']
@@ -396,6 +399,7 @@ class ContextImage:
             *,
             transparent: bool = False,
             interval: float = DEFAULT_INTERVAL,
+            preprocessors: list[PreprocessorProtocol] | None = None,
         ) -> TemplateMatchResult | None:
         """
         等待指定图像出现。
@@ -406,7 +410,14 @@ class ContextImage:
         while True:
             if is_manual:
                 device.screenshot()
-            ret = self.find(template, mask, transparent=transparent, threshold=threshold, colored=colored)
+            ret = self.find(
+                template,
+                mask,
+                transparent=transparent,
+                threshold=threshold,
+                colored=colored,
+                preprocessors=preprocessors,
+            )
             if ret is not None:
                 self.context.device.last_find = ret
                 return ret
@@ -423,7 +434,8 @@ class ContextImage:
             colored: bool = False,
             *,
             transparent: bool = False,
-            interval: float = DEFAULT_INTERVAL
+            interval: float = DEFAULT_INTERVAL,
+            preprocessors: list[PreprocessorProtocol] | None = None,
         ):
         """
         等待指定图像中的任意一个出现。
@@ -439,7 +451,14 @@ class ContextImage:
             if is_manual:
                 device.screenshot()
             for template, mask in zip(templates, _masks):
-                if self.find(template, mask, transparent=transparent, threshold=threshold, colored=colored):
+                if self.find(
+                    template,
+                    mask,
+                    transparent=transparent,
+                    threshold=threshold,
+                    colored=colored,
+                    preprocessors=preprocessors,
+                ):
                     return True
             if time.time() - start_time > timeout:
                 return False
@@ -454,7 +473,8 @@ class ContextImage:
             colored: bool = False,
             *,
             transparent: bool = False,
-            interval: float = DEFAULT_INTERVAL
+            interval: float = DEFAULT_INTERVAL,
+            preprocessors: list[PreprocessorProtocol] | None = None,
         ) -> TemplateMatchResult:
         """
         等待指定图像出现。
@@ -465,7 +485,14 @@ class ContextImage:
         while True:
             if is_manual:
                 device.screenshot()
-            ret = self.find(template, mask, transparent=transparent, threshold=threshold, colored=colored)
+            ret = self.find(
+                template,
+                mask,
+                transparent=transparent,
+                threshold=threshold,
+                colored=colored,
+                preprocessors=preprocessors,
+            )
             if ret is not None:
                 self.context.device.last_find = ret
                 return ret
@@ -482,7 +509,8 @@ class ContextImage:
             colored: bool = False,
             *,
             transparent: bool = False,
-            interval: float = DEFAULT_INTERVAL
+            interval: float = DEFAULT_INTERVAL,
+            preprocessors: list[PreprocessorProtocol] | None = None,
         ) -> TemplateMatchResult:
         """
         等待指定图像中的任意一个出现。
@@ -498,7 +526,14 @@ class ContextImage:
             if is_manual:
                 device.screenshot()
             for template, mask in zip(templates, _masks):
-                ret = self.find(template, mask, transparent=transparent, threshold=threshold, colored=colored)
+                ret = self.find(
+                    template,
+                    mask,
+                    transparent=transparent,
+                    threshold=threshold,
+                    colored=colored,
+                    preprocessors=preprocessors,
+                )
                 if ret is not None:
                     self.context.device.last_find = ret
                     return ret
