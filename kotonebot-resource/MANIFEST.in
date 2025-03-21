@@ -1,3 +1,4 @@
 graft fonts
 graft models
 graft ui
+graft bin

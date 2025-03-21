@@ -29,7 +29,7 @@ dependencies = [
     # Configuration
     "pydantic==2.10.4",
     # Resource
-    "ksaa-res==0.1.0",
+    "ksaa-res==0.2.0",
     # Other
     "typing-extensions==4.12.2",
     "python-dotenv==1.0.1",

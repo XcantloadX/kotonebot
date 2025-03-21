@@ -1,5 +1,6 @@
 from ctypes import windll
 from typing import Literal
+from importlib import resources
 from functools import cached_property
 
 import cv2
@@ -15,7 +16,8 @@ from ..protocol import Commandable, Touchable, Screenshotable
 class WindowsImpl(Touchable, Screenshotable):
     def __init__(self, device: Device):
         self.__hwnd: int | None = None
-        self.ahk = AHK(executable_path='bin/AutoHotKey.exe')
+        # TODO: 硬编码路径
+        self.ahk = AHK(executable_path=str(resources.files('kaa.res.bin') / 'AutoHotkey.exe'))
         self.device = device
         self.emergency = False
 
