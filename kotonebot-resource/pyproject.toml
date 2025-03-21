@@ -8,7 +8,7 @@ description = "This package contains the resources for ksaa."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
-version = "0.1.0"
+version = "0.2.0"
 
 [tool.setuptools]
 include-package-data = true
@@ -19,3 +19,4 @@ kaa = "."
 "kaa.res.models" = "models"
 "kaa.res.fonts" = "fonts"
 "kaa.res.ui" = "ui"
+"kaa.res.bin" = "bin"
