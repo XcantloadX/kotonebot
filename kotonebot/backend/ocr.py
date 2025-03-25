@@ -4,7 +4,8 @@ import logging
 import unicodedata
 from functools import lru_cache
 from dataclasses import dataclass
-from typing_extensions import Self
+import warnings
+from typing_extensions import Self, deprecated
 from typing import Callable, NamedTuple
 
 import cv2
@@ -129,6 +130,7 @@ class TextComparator:
     def __repr__(self) -> str:
         return f'{self.name}("{self.text}")'
 
+@deprecated("即将移除")
 @lru_cache(maxsize=1000)
 def fuzz(text: str) -> TextComparator:
     """返回 fuzzy 算法的字符串匹配函数。"""
@@ -401,6 +403,7 @@ class Ocr:
         :return: 找到的文本，如果未找到则返回 None
         """
         if hint is not None:
+            warnings.warn("使用 `rect` 参数代替")
             if ret := self.find(img, text, rect=hint):
                 logger.debug(f"find: {text} SUCCESS [hint={hint}]")
                 return ret
@@ -438,6 +441,7 @@ class Ocr:
         """
         # HintBox 处理
         if hint is not None:
+            warnings.warn("使用 `rect` 参数代替")
             result = self.find_all(img, texts, rect=hint, pad=pad)
             if all(result):
                 return result

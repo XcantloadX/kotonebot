@@ -6,7 +6,7 @@ from logging import Logger
 from types import CodeType
 from dataclasses import dataclass
 from typing import Annotated, Any, Callable, Concatenate, Sequence, TypeVar, ParamSpec, Literal, Protocol, cast
-from typing_extensions import Self
+from typing_extensions import deprecated
 
 from dataclasses import dataclass
 
@@ -74,6 +74,7 @@ class DispatcherContext:
         """是否即将结束运行"""
         return self.finished
 
+@deprecated('使用 SimpleDispatcher 类或 while 循环替代')
 def dispatcher(
         func: Callable[Concatenate[DispatcherContext, P], R],
         *,

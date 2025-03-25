@@ -1,6 +1,7 @@
 import logging
 from typing import Callable, ParamSpec, TypeVar, overload, Concatenate, Literal
 from dataclasses import dataclass
+from typing_extensions import deprecated
 
 import cv2
 from cv2.typing import MatLike
@@ -108,6 +109,7 @@ def action(
     ...
 
 @overload
+@deprecated('使用普通 while 循环代替')
 def action(
     name: str,
     *,
