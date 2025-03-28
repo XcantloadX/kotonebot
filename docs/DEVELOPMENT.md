@@ -15,6 +15,12 @@
     3. 打开 VSCode 设置，搜索 `imageComments.pathMode` 并设置为 `relativeToWorkspace`。
 4. 编译资源：在 VSCode 中选择“Terminal” -> “Run Task” -> “Make R.py”并执行。
 
+## 运行单个任务
+如果使用 VSCode，只需要在运行配置里选择 `Python: Current Module` 即可。
+
+如果使用 PyCharm，按照下图新建一个 Run Configuration：
+
+![pycharm_run_config.png](images/pycharm_run_config.png)
 
 ## 打包 & 安装
 ```bash
