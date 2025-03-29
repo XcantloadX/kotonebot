@@ -7,6 +7,7 @@ import cProfile
 from importlib import resources
 from functools import lru_cache
 from typing import Literal, Callable, TYPE_CHECKING, TypeGuard
+from typing_extensions import deprecated
 
 import cv2
 from cv2.typing import MatLike
@@ -30,6 +31,7 @@ def is_rect(rect: typing.Any) -> TypeGuard[Rect]:
 def is_point(point: typing.Any) -> TypeGuard[Point]:
     return isinstance(point, typing.Sequence) and len(point) == 2 and all(isinstance(i, int) for i in point)
 
+@deprecated('使用 HintBox 类与 Devtool 工具替代')
 def crop(img: MatLike, /, x1: float = 0, y1: float = 0, x2: float = 1, y2: float = 1) -> MatLike:
     """
     按比例裁剪图像。
@@ -47,6 +49,7 @@ def crop(img: MatLike, /, x1: float = 0, y1: float = 0, x2: float = 1, y2: float
     y2_px = int(h * y2)
     return img[y1_px:y2_px, x1_px:x2_px]
 
+@deprecated('使用 numpy 的切片替代')
 def crop_rect(img: MatLike, rect: Rect) -> MatLike:
     """
     按范围裁剪图像。
@@ -89,6 +92,7 @@ class DeviceHookContextManager:
         if self.click_hook_before is not None:
             self.device.click_hooks_before.remove(self.click_hook_before)
 
+@deprecated('使用 HintBox 类与 Devtool 工具替代')
 def cropped(
     device: 'Device',
     x1: float = 0,

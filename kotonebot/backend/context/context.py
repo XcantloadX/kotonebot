@@ -591,7 +591,7 @@ class ContextColor:
     def find_all(self, *args, **kwargs):
         return color_find_all(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
-
+@deprecated('使用 kotonebot.backend.debug 模块替代')
 class ContextDebug:
     def __init__(self, context: 'Context'):
         self.__context = context
@@ -817,6 +817,7 @@ def use_screenshot(*args: MatLike | None) -> MatLike:
     return device.screenshot()
 
 WaitBeforeType = Literal['screenshot']
+@deprecated('使用普通 sleep 代替')
 def wait(at_least: float = 0.3, *, before: WaitBeforeType) -> None:
     global next_wait, next_wait_time
     if before == 'screenshot':

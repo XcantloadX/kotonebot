@@ -252,8 +252,7 @@ def calc(image: MatLike, card_count: int):
 
 
 from kotonebot.backend.debug.mock import MockDevice
-from kotonebot.backend.context import device, init_context, manual_context, inject_context
-from kotonebot.tasks.actions.in_purodyuusu import handle_recommended_card, skill_card_count
+from kotonebot.backend.context import device, init_context, manual_context
 from kotonebot.backend.util import Profiler
 init_context()
 mock = MockDevice()
