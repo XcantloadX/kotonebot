@@ -11,5 +11,13 @@
     "python.testing.pytestEnabled": false,
     "python.testing.unittestEnabled": true,
     "basedpyright.analysis.typeCheckingMode": "basic",
-    "python.languageServer": "Default"
+    "python.languageServer": "Default",
+    "python.analysis.exclude": [
+        "submodules",
+        "**/__pycache__",
+        ".git",
+        ".venv",
+        "venv",
+        "**/node_modules"
+    ]
 }

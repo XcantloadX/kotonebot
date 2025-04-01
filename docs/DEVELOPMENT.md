@@ -34,3 +34,6 @@ pip install --find-links=dist ksaa
 XnView MP 可以方便的完成“打开图片 → 选区 → 裁剪图片 → 另存选取为文件”这一操作。
 只需要提前设置好右键菜单：
 ![XnView MP 设置1](./images/xnview_setup1.png)
+
+## 备注
+1. 所有 Python 脚本（包括 kaa 主体、tools 下脚本等）均需要以项目根目录为工作目录执行
