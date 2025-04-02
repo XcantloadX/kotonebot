@@ -1,0 +1,4 @@
+-r requirements.txt
+
+pywin32==310
+ahk==1.8.3

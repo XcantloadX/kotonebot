@@ -56,12 +56,12 @@ def _type_check(ins: Instance) -> CustomInstance:
         raise ValueError(f'Instance {ins} is not a CustomInstance')
     return ins
 
-def create(exe_path: str, adb_ip: str, adb_port: int) -> CustomInstance:
-    return CustomInstance(exe_path, id='custom', name='Custom', adb_ip=adb_ip, adb_port=adb_port)
+def create(exe_path: str, adb_ip: str, adb_port: int, adb_emulator_name: str) -> CustomInstance:
+    return CustomInstance(exe_path, id='custom', name='Custom', adb_ip=adb_ip, adb_port=adb_port, adb_emulator_name=adb_emulator_name)
 
 
 if __name__ == '__main__':
-    ins = create(r'C:\Program Files\BlueStacks_nxt\HD-Player.exe', '127.0.0.1', 5555)
+    ins = create(r'C:\Program Files\BlueStacks_nxt\HD-Player.exe', '127.0.0.1', 5555, '**emulator-name**')
     ins.start()
     ins.wait_available()
     input('Press Enter to stop...')
