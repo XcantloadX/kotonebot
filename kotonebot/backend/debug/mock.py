@@ -2,9 +2,10 @@ import time
 from typing_extensions import override
 
 import cv2
+from cv2.typing import MatLike
 
-from kotonebot.client.device import Device
 from kotonebot import sleep
+from kotonebot.client.device import Device
 
 class Video:
     def __init__(self, path: str, fps: int):
@@ -50,8 +51,11 @@ class MockDevice(Device):
         self.__video_stream = Video(path, fps)
         return self.__video_stream
 
-    def load_image(self, path: str):
-        self.__image = cv2.imread(path)
+    def load_image(self, img: str | MatLike):
+        if isinstance(img, str):
+            self.__image = cv2.imread(img)
+        else:
+            self.__image = img
         return self.__image
 
     def set_screen_size(self, width: int, height: int):
