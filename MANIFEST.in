@@ -1,4 +1,5 @@
 graft kotonebot/tasks/sprites
+graft kotonebot/tasks/resources
 prune tests
 prune tools
 prune experiments

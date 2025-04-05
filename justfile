@@ -20,8 +20,11 @@ venv := if os() == 'windows' {
 default:
     @just --list
 
+fetch-submodule:
+    git submodule update --init --recursive
+
 # Check and create virtual environment
-env:
+env: fetch-submodule
     #!{{shebang_pwsh}}
     Write-Host "Creating virtual environment..."
     $IsWindows = $env:OS -match "Windows"
@@ -34,8 +37,10 @@ env:
     
     if ($IsWindows) {
         .\.venv\Scripts\pip install -r requirements.dev.txt
+        .\.venv\Scripts\pip install -r .\tools\GkmasObjectManager\requirements.txt
     } else {
         ./.venv/bin/pip install -r requirements.dev.txt
+        ./.venv/bin/pip install -r ./tools/GkmasObjectManager/requirements.txt
     }
     {{venv}} python tools/make_resources.py
 

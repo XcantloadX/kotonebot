@@ -16,6 +16,8 @@ messages/
 logs/
 traces/
 version
+kotonebot/tasks/resources
+cache/
 ##########################
 
 # Byte-compiled / optimized / DLL files

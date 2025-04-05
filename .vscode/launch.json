@@ -18,8 +18,13 @@
             "type": "python",
             "request": "launch",
             "console": "integratedTerminal",
-            "module": "${command:extension.commandvariable.file.relativeDirDots}.${fileBasenameNoExtension}",
+            "module": "kotonebot.debug_entry",
+            "args": [
+                "${relativeFile}"
+            ],
+            // "module": "${command:extension.commandvariable.file.relativeDirDots}.${fileBasenameNoExtension}",
         },
+        
         {
             "name": "KotonebotDebug: Current Module",
             "type": "debugpy",
