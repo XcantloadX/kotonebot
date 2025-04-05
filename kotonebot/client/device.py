@@ -211,21 +211,21 @@ class Device:
         self.click(x, y)
     
     @overload
-    def double_click(self, x: int, y: int, interval: float = 0.25) -> None:
+    def double_click(self, x: int, y: int, interval: float = 0.4) -> None:
         """
         双击屏幕上的某个点
         """
         ...
 
     @overload
-    def double_click(self, rect: Rect, interval: float = 0.25) -> None:
+    def double_click(self, rect: Rect, interval: float = 0.4) -> None:
         """
         双击屏幕上的某个矩形区域
         """
         ...
     
     @overload
-    def double_click(self, clickable: ClickableObjectProtocol, interval: float = 0.25) -> None:
+    def double_click(self, clickable: ClickableObjectProtocol, interval: float = 0.4) -> None:
         """
         双击屏幕上的某个可点击对象
         """
@@ -236,7 +236,7 @@ class Device:
         arg0 = args[0]
         if is_rect(arg0) or isinstance(arg0, ClickableObjectProtocol):
             rect = arg0
-            interval = kwargs.get('interval', 0.25)
+            interval = kwargs.get('interval', 0.4)
             self.click(rect)
             sleep(interval)
             self.click(rect)
