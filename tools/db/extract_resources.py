@@ -18,9 +18,7 @@ manifest = gom.fetch()
 
 print("提取 P 偶像卡资源...")
 base_path = './kotonebot/tasks/resources/idol_cards'
-if os.path.exists(base_path):
-    shutil.rmtree(base_path)
-os.makedirs(base_path)
+os.makedirs(base_path, exist_ok=True)
 
 db = sqlite3.connect("./kotonebot/tasks/resources/game.db")
 cursor = db.execute("""
@@ -50,14 +48,17 @@ for row in tqdm.tqdm(cursor.fetchall()):
     path1 = base_path + f'/{skin_id}_1.png'
     if asset_id is None:
         raise ValueError(f"未找到P偶像卡资源：{skin_id} {name}")
-    manifest.download(asset_id0, path=path0, categorize=False)
-    manifest.download(asset_id1, path=path1, categorize=False)
-
-    # 转换分辨率 140x188
-    img0 = cv2.imread(path0)
-    img1 = cv2.imread(path1)
-    assert img0 is not None and img1 is not None
-    img0 = cv2.resize(img0, (140, 188), interpolation=cv2.INTER_AREA)
-    img1 = cv2.resize(img1, (140, 188), interpolation=cv2.INTER_AREA)
-    cv2.imwrite(path0, img0)
-    cv2.imwrite(path1, img1)
+    if not os.path.exists(path0):
+        manifest.download(asset_id0, path=path0, categorize=False)
+        # 转换分辨率 140x188
+        img0 = cv2.imread(path0)
+        assert img0 is not None
+        img0 = cv2.resize(img0, (140, 188), interpolation=cv2.INTER_AREA)
+        cv2.imwrite(path0, img0)
+    if not os.path.exists(path1):
+        manifest.download(asset_id1, path=path1, categorize=False)
+        # 转换分辨率 140x188
+        img1 = cv2.imread(path1)
+        assert img1 is not None
+        img1 = cv2.resize(img1, (140, 188), interpolation=cv2.INTER_AREA)
+        cv2.imwrite(path1, img1)

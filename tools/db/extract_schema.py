@@ -204,6 +204,8 @@ class {{ class_name }}:
 
 def create_sqlite_database(sql_statements: list[str], db_path: str):
     """创建SQLite数据库并执行建表语句"""
+    folder_path = os.path.dirname(db_path)
+    os.makedirs(folder_path, exist_ok=True)
     with sqlite3.connect(db_path) as conn:
         for sql in sql_statements:
             if sql.strip():
@@ -362,12 +364,12 @@ if __name__ == "__main__":
     # 创建SQLite数据库和SQL文件
     if args.database:
         # 生成SQL文件
-        sql_file_path = os.path.splitext(args.database)[0] + '.sql'
-        with open(sql_file_path, 'w', encoding='utf-8') as f:
-            for sql in all_sql_statements:
-                if sql.strip():
-                    f.write(sql + ';\n\n')
-        print(f"成功生成SQL文件：{sql_file_path}")
+        # sql_file_path = os.path.splitext(args.database)[0] + '.sql'
+        # with open(sql_file_path, 'w', encoding='utf-8') as f:
+        #     for sql in all_sql_statements:
+        #         if sql.strip():
+        #             f.write(sql + ';\n\n')
+        # print(f"成功生成SQL文件：{sql_file_path}")
         
         # 创建数据库
         create_sqlite_database(all_sql_statements, args.database)

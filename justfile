@@ -67,12 +67,17 @@ generate-metadata: env
     with open("version", "w", encoding="utf-8") as f:
         f.write(version)
 
+extract-game-data:
+    rm .\kotonebot\tasks\resources\game.db
+    python .\tools\db\extract_schema.py -i .\submodules\gakumasu-diff -d .\kotonebot\tasks\resources\game.db
+    python .\tools\db\extract_resources.py
+
 @package-resource:
     Write-Host "Packaging kotonebot-resource..."
     @{{venv}} python -m build -s kotonebot-resource
 
 # Package KAA
-@package: env package-resource generate-metadata 
+@package: env package-resource generate-metadata extract-game-data
     {{venv}} python tools/make_resources.py -p # Make R.py in production mode
 
     Write-Host "Removing old build files..."
