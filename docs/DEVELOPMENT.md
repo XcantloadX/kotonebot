@@ -3,7 +3,7 @@
 > 建议使用 VSCode 进行开发。
 
 1. 确保你已经安装 [just](https://github.com/casey/just#packages) 构建工具
-2. 执行：
+2. 创建 Python 3.10 虚拟环境，然后执行：
     ```bash
     git clone https://github.com/XcantloadX/KotonesAutoAssistant.git
     cd KotonesAutoAssistant

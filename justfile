@@ -9,12 +9,7 @@ shebang_pwsh := if os() == 'windows' {
 shebang_python := if os() == 'windows' {
   'python.exe'
 } else {
-  '/usr/bin/env python3'
-}
-venv := if os() == 'windows' {
-  '.\.venv\Scripts\activate; '
-} else {
-  'source ./.venv/bin/activate && '
+  '/usr/bin/env python'
 }
 
 default:
@@ -26,27 +21,22 @@ fetch-submodule:
 # Check and create virtual environment
 env: fetch-submodule
     #!{{shebang_pwsh}}
-    Write-Host "Creating virtual environment..."
+    Write-Host "Installing requirements..."
     $IsWindows = $env:OS -match "Windows"
-    
-    if (Test-Path ".venv") {
-        Write-Host "Virtual environment already exists"
-    } else {
-        python -m venv .venv
-    }
     
     if ($IsWindows) {
         .\.venv\Scripts\pip install -r requirements.dev.txt
-        .\.venv\Scripts\pip install -r .\tools\GkmasObjectManager\requirements.txt
+        .\.venv\Scripts\pip install -r requirements.win.txt
+        .\.venv\Scripts\pip install -r .\submodules\GkmasObjectManager\requirements.txt
     } else {
         ./.venv/bin/pip install -r requirements.dev.txt
-        ./.venv/bin/pip install -r ./tools/GkmasObjectManager/requirements.txt
+        ./.venv/bin/pip install -r ./submodules/GkmasObjectManager/requirements.txt
     }
-    {{venv}} python tools/make_resources.py
+    python tools/make_resources.py
 
 # Build the project using pyinstaller
 build: env
-    {{venv}} pyinstaller -y kotonebot-gr.spec
+    pyinstaller -y kotonebot-gr.spec
 
 generate-metadata: env
     #!{{shebang_python}}
@@ -74,22 +64,22 @@ extract-game-data:
 
 @package-resource:
     Write-Host "Packaging kotonebot-resource..."
-    @{{venv}} python -m build -s kotonebot-resource
+    @python -m build -s kotonebot-resource
 
 # Package KAA
 @package: env package-resource generate-metadata extract-game-data
-    {{venv}} python tools/make_resources.py -p # Make R.py in production mode
+    python tools/make_resources.py -p # Make R.py in production mode
 
     Write-Host "Removing old build files..."
     if (Test-Path dist) { rm -r -fo dist }
     if (Test-Path build) { rm -r -fo build }
     Write-Host "Packaging KAA..."
-    @{{venv}} python -m build
+    @python -m build
     
     Write-Host "Copying kotonebot-resource to dist..."
     Copy-Item .\kotonebot-resource\dist\* .\dist\
 
-    {{venv}} python tools/make_resources.py # Make R.py in development mode
+    python tools/make_resources.py # Make R.py in development mode
 
 # Upload to PyPI
 publish: package
