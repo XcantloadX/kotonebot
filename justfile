@@ -58,9 +58,32 @@ generate-metadata: env
         f.write(version)
 
 extract-game-data:
-    rm .\kotonebot\tasks\resources\game.db
-    python .\tools\db\extract_schema.py -i .\submodules\gakumasu-diff -d .\kotonebot\tasks\resources\game.db
-    python .\tools\db\extract_resources.py
+    #!{{shebang_pwsh}}
+    Write-Host "Extracting game data..."
+    
+    New-Item -ItemType File -Force -Path .\kotonebot\tasks\resources\__init__.py
+    
+    $currentHash = git -C .\submodules\gakumasu-diff rev-parse HEAD
+    $hashFile = ".\kotonebot\tasks\resources\game_ver.txt"
+    $shouldUpdate = $true
+    
+    if (Test-Path $hashFile) {
+        $savedHash = Get-Content $hashFile
+
+        if ($currentHash -eq $savedHash) {
+            Write-Host "Game data is up to date. Skipping extraction."
+            $shouldUpdate = $false
+        }
+    }
+    
+    if ($shouldUpdate) {
+        Write-Host "Game data needs update. Extracting..."
+
+        $currentHash | Out-File -FilePath $hashFile
+        rm .\kotonebot\tasks\resources\game.db
+        python .\tools\db\extract_schema.py -i .\submodules\gakumasu-diff -d .\kotonebot\tasks\resources\game.db
+        python .\tools\db\extract_resources.py
+    }
 
 @package-resource:
     Write-Host "Packaging kotonebot-resource..."
