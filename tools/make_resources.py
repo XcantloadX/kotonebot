@@ -148,7 +148,28 @@ def escape(s: str) -> str:
     return s.replace('\\', '\\\\')
 
 def unify_path(path: str) -> str:
-    return path.replace('/', '\\')
+    return path.replace('\\', '/')
+
+def ide_type() -> Literal['vscode', 'pycharm'] | None:
+    """通过递归枚举父进程判断当前IDE类型"""
+    import psutil
+    
+    me = psutil.Process()
+    while True:
+        parent = me.parent()
+        if parent is None:
+            break
+        name = parent.name().lower()
+        if 'code.exe' in name:
+            return 'vscode'
+        elif 'cursor.exe' in name:
+            return 'vscode'
+        elif 'windsurf.exe' in name:
+            return 'vscode'
+        elif 'pycharm' in name:
+            return 'pycharm'
+        me = parent
+    return None
 
 def scan_png_files(path: str) -> list[str]:
     """扫描所有 PNG 文件"""
@@ -269,11 +290,19 @@ def load_sprites(root_path: str, png_files: list[str]) -> list[Resource]:
             print(f'Loaded basic sprite: {file}')
     return resources
 
-def make_classes(resources: list[Resource], output_path: str) -> list[OutputClass]:
+def make_img(ide: Literal['vscode', 'pycharm'], path: str, title: str, height: str = ''):
+    if ide == 'vscode':
+        return f'<img src="vscode-file://vscode-app/{escape(path)}" title="{title}" height="{height}" />\n'
+    elif ide == 'pycharm':
+        return f'.. image:: http://localhost:6532/image?path={unify_path(path)}\n'
+    else:
+        raise ValueError(f'Unknown IDE: {ide}')
+
+def make_classes(resources: list[Resource], ide: Literal['vscode', 'pycharm']) -> list[OutputClass]:
     """根据 Sprite 数据生成 R.py 中的类信息。"""
     # 按照 class_path 对 sprites 进行分组
     class_map: dict[str, OutputClass] = {}
-    
+
     # 创建或获取指定路径的类
     def get_or_create_class(path: list[str]) -> Union[OutputClass, None]:
         if not path:
@@ -326,14 +355,14 @@ def make_classes(resources: list[Resource], output_path: str) -> list[OutputClas
                 docstring = (
                     f"名称：{sprite.display_name}\\n\n"
                     f"描述：{resource.description}\\n\n"
-                    f"路径：{escape(sprite.rel_path)}\\n\n"
+                    f"路径：{unify_path(sprite.rel_path)}\\n\n"
                     f"模块：`{'.'.join(sprite.class_path)}`\\n\n"
-                    f'<img src="vscode-file://vscode-app/{escape(sprite.abs_path)}" title="{sprite.display_name}" />\\n\n'
+                    + make_img(ide, sprite.abs_path, sprite.display_name)
                 )
                 if sprite.type == 'metadata':
                     docstring += (
                         f"原始文件：\\n\n"
-                        f"<img src='vscode-file://vscode-app/{escape(sprite.origin_file)}' title='原始文件' height='{height}' />"
+                        + make_img(ide, sprite.origin_file, '原始文件', height)
                     )
                 img_attr = ImageAttribute(
                     type='image',
@@ -361,9 +390,9 @@ def make_classes(resources: list[Resource], output_path: str) -> list[OutputClas
                     f"模块：`{'.'.join(hint_box.class_path)}`\\n\n"
                     f"值：x1={hint_box.x1}, y1={hint_box.y1}, x2={hint_box.x2}, y2={hint_box.y2}\\n\n"
                     f"裁剪区域：\\n\n"
-                    f"<img src='vscode-file://vscode-app/{escape(clip_abs_path)}' title='裁剪区域' />\\n\n"
-                    f"原始图片：\\n\n"
-                    f"<img src='vscode-file://vscode-app/{escape(hint_box.origin_file)}' title='原始文件' width='80%' />"
+                    + make_img(ide, clip_abs_path, '裁剪区域')
+                    + f"原始图片：\\n\n"
+                    + make_img(ide, hint_box.origin_file, '原始文件', '80%')
                 )
                 img_attr = ImageAttribute(
                     type='image',
@@ -425,6 +454,7 @@ if __name__ == '__main__':
     # 添加命令行参数解析
     parser = argparse.ArgumentParser(description='生成图片资源文件')
     parser.add_argument('-p', '--production', action='store_true', help='生产模式：不输出注释')
+    parser.add_argument('-i', '--ide', help='IDE 类型', default=ide_type())
     args = parser.parse_args()
 
     if os.path.exists(r'kotonebot\tasks\sprites'):
@@ -433,7 +463,7 @@ if __name__ == '__main__':
     files = scan_png_files(path)
     sprites = load_sprites(path, files)
     sprites = copy_sprites(sprites, r'kotonebot\tasks\sprites')
-    classes = make_classes(sprites, r'kotonebot\tasks\sprites')
+    classes = make_classes(sprites, args.ide)
     
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('./tools'))
     env.filters['indent'] = indent
