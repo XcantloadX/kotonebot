@@ -37,4 +37,5 @@ from .backend.ocr import (
     contains,
     equals,
 )
+from .backend.bot import KotoneBot
 from .ui import user

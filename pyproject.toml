@@ -48,7 +48,7 @@ dependencies = [
 package-dir = { "kotonebot" = "kotonebot" }
 
 [project.scripts]
-kaa = "kotonebot.ui.gr:main"
+kaa = "kotonebot.tasks.main.cli:main"
 
 [tool.setuptools.dynamic]
 version = {file = "./version"}
