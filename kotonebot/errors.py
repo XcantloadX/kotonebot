@@ -19,3 +19,8 @@ class ResourceFileMissingError(KotonebotError):
         self.file_path = file_path
         self.description = description
         super().__init__(f'Resource file ({description}) "{file_path}" is missing.')
+
+class TaskNotFoundError(KotonebotError):
+    def __init__(self, task_id: str):
+        self.task_id = task_id
+        super().__init__(f'Task "{task_id}" not found.')

@@ -8,6 +8,7 @@ from cv2.typing import MatLike
 
 from .context import ContextStackVars, ScreenshotMode
 from ..dispatch import dispatcher as dispatcher_decorator, DispatcherContext
+from ...errors import TaskNotFoundError
 
 P = ParamSpec('P')
 R = TypeVar('R')
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Task:
     name: str
+    id: str
     description: str
     func: Callable
     priority: int
@@ -43,6 +45,7 @@ def _placeholder():
 
 def task(
     name: str,
+    task_id: str|None = None,
     description: str|None = None,
     *,
     pass_through: bool = False,
@@ -53,16 +56,21 @@ def task(
     `task` 装饰器，用于标记一个函数为任务函数。
 
     :param name: 任务名称
+    :param task_id: 任务 ID。如果为 None，则使用函数名称作为 ID。
     :param description: 任务描述。如果为 None，则使用函数的 docstring 作为描述。
     :param pass_through: 
         默认情况下， @task 装饰器会包裹任务函数，跟踪其执行情况。
         如果不想跟踪，则设置此参数为 False。
     :param priority: 任务优先级，数字越大优先级越高。
     """
+    # 设置 ID
+    # 获取 caller 信息
     def _task_decorator(func: Callable[P, R]) -> Callable[P, R]:
-        nonlocal description
+        nonlocal description, task_id
         description = description or func.__doc__ or ''
-        task = Task(name, description, _placeholder, priority)
+        # TODO: task_id 冲突检测
+        task_id = task_id or func.__name__
+        task = Task(name, task_id, description, _placeholder, priority)
         task_registry[name] = task
         logger.debug(f'Task "{name}" registered.')
         if pass_through:
@@ -195,3 +203,11 @@ def action(*args, **kwargs):
                 return _wrapper
         return _action_decorator
 
+def tasks_from_id(task_ids: list[str]) -> list[Task]:
+    result = []
+    for tid in task_ids:
+        target = next(task for task in task_registry.values() if task.id == tid)
+        if target is None:
+            raise TaskNotFoundError(f'Task "{tid}" not found.')
+        result.append(target)
+    return result
