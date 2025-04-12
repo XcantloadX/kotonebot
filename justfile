@@ -16,7 +16,7 @@ default:
     @just --list
 
 fetch-submodule:
-    git submodule update --init --recursive
+    git submodule update --init --remote --recursive
 
 # Check and create virtual environment
 env: fetch-submodule
