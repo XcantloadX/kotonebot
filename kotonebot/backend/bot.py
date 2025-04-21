@@ -207,6 +207,7 @@ class KotoneBot:
         """
         self.check_backend()
         init_context(config_type=self.config_type)
+        vars.interrupted.clear()
 
         if by_priority:
             tasks = sorted(tasks, key=lambda x: x.priority, reverse=True)
