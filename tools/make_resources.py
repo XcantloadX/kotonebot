@@ -296,7 +296,7 @@ def make_img(ide: Literal['vscode', 'pycharm'], path: str, title: str, height: s
     elif ide == 'pycharm':
         return f'.. image:: http://localhost:6532/image?path={unify_path(path)}\n'
     else:
-        raise ValueError(f'Unknown IDE: {ide}')
+        return f'<img src="file:///{escape(path)}" title="{title}" height="{height}" />\n'
 
 def make_classes(resources: list[Resource], ide: Literal['vscode', 'pycharm']) -> list[OutputClass]:
     """根据 Sprite 数据生成 R.py 中的类信息。"""
