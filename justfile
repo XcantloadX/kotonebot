@@ -18,6 +18,12 @@ default:
 fetch-submodule:
     git submodule update --init --remote --recursive
 
+resource:
+    python tools\make_resources.py
+
+devtool:
+    cd kotonebot-devtool; npm run dev
+
 # Check and create virtual environment
 env: fetch-submodule
     #!{{shebang_pwsh}}
