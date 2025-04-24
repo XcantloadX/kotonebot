@@ -217,6 +217,7 @@ class Countdown:
 
     def reset(self):
         self.start_time = time.time()
+        return self
 
 class Stopwatch:
     def __init__(self):
