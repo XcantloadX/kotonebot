@@ -22,9 +22,11 @@ class BackendConfig(ConfigBaseModel):
     雷电模拟器需要设置正确的模拟器名，否则 自动启动模拟器 功能将无法正常工作。
     其他功能不受影响。
     """
-    screenshot_impl: Literal['adb', 'adb_raw', 'uiautomator2', 'windows'] = 'adb'
+    screenshot_impl: Literal['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows'] = 'adb'
     """
     截图方法。暂时推荐使用【adb】截图方式。
+
+    如果使用 remote_windows，需要在 adb_ip 中填写远程 Windows 的 IP 地址，在 adb_port 中填写远程 Windows 的端口号。
     """
     check_emulator: bool = False
     """

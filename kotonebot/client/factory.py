@@ -4,12 +4,13 @@ from typing import Literal
 from .implements.adb import AdbImpl
 from .implements.adb_raw import AdbRawImpl
 from .implements.windows import WindowsImpl
+from .implements.remote_windows import RemoteWindowsImpl
 from .implements.uiautomator2 import UiAutomator2Impl
 from .device import Device, AndroidDevice, WindowsDevice
 
 from adbutils import adb
 
-DeviceImpl = Literal['adb', 'adb_raw', 'uiautomator2', 'windows']
+DeviceImpl = Literal['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows']
 
 def create_device(
     addr: str,
@@ -40,4 +41,18 @@ def create_device(
         device = WindowsDevice()
         device._touch = WindowsImpl(device)
         device._screenshot = WindowsImpl(device)
+    elif impl == 'remote_windows':
+        # For remote_windows, addr should be in the format 'host:port'
+        if ':' not in addr:
+            raise ValueError(f"Invalid address format for remote_windows: {addr}. Expected format: 'host:port'")
+        host, port_str = addr.split(':', 1)
+        try:
+            port = int(port_str)
+        except ValueError:
+            raise ValueError(f"Invalid port in address: {port_str}")
+
+        device = WindowsDevice()
+        remote_impl = RemoteWindowsImpl(device, host, port)
+        device._touch = remote_impl
+        device._screenshot = remote_impl
     return device
