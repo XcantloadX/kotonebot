@@ -207,6 +207,7 @@ class KotoneBot:
         """
         self.check_backend()
         init_context(config_type=self.config_type)
+        vars.interrupted.clear()
 
         if by_priority:
             tasks = sorted(tasks, key=lambda x: x.priority, reverse=True)
@@ -249,7 +250,14 @@ class KotoneBot:
     def run_all(self) -> None:
         return self.run(list(task_registry.values()), by_priority=True)
 
-    def start_all(self) -> RunStatus:
+    def start(self, tasks: list[Task], *, by_priority: bool = True) -> RunStatus:
+        """
+        在单独的线程中按优先级顺序运行指定的任务。
+
+        :param tasks: 要运行的任务列表
+        :param by_priority: 是否按优先级排序
+        :return: 运行状态对象
+        """
         run_status = RunStatus(running=True)
         def _on_finished():
             run_status.running = False
@@ -271,7 +279,14 @@ class KotoneBot:
 
         self.events.task_status_changed += _on_task_status_changed
         self.events.finished += _on_finished
-        thread = threading.Thread(target=self.run_all)
+        thread = threading.Thread(target=lambda: self.run(tasks, by_priority=by_priority))
         thread.start()
         return run_status
-        
+
+    def start_all(self) -> RunStatus:
+        """
+        在单独的线程中运行所有任务。
+
+        :return: 运行状态对象
+        """
+        return self.start(list(task_registry.values()), by_priority=True)
