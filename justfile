@@ -1,5 +1,5 @@
 set dotenv-load
-set windows-shell := ["pwsh", "-c"]
+set windows-shell := ["powershell", "-c"]
 set shell := ["pwsh", "-c"]
 
 shebang_pwsh := if os() == 'windows' {
