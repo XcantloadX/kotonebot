@@ -1,10 +1,11 @@
 set dotenv-load
-set shell := ["powershell", "-c"]
+set windows-shell := ["pwsh", "-c"]
+set shell := ["pwsh", "-c"]
 
 shebang_pwsh := if os() == 'windows' {
   'powershell.exe'
 } else {
-  '/usr/bin/env powershell'
+  '/usr/bin/env pwsh'
 }
 shebang_python := if os() == 'windows' {
   'python.exe'
