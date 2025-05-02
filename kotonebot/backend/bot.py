@@ -191,7 +191,8 @@ class KotoneBot:
                 adb_ip=config.backend.adb_ip,
                 adb_port=config.backend.adb_port,
                 adb_emulator_name=config.backend.adb_emulator_name,
-                exe_path=exe
+                exe_path=exe,
+                emulator_args=config.backend.emulator_args
             )
             if not self.backend_instance.running():
                 logger.info('Starting custom backend...')
@@ -265,7 +266,7 @@ class KotoneBot:
             run_status.callstack = []
             self.events.finished -= _on_finished
             self.events.task_status_changed -= _on_task_status_changed
-        
+
         def _on_task_status_changed(task: Task, status: Literal['pending', 'running', 'finished', 'error', 'cancelled']):
             def _find(task: Task) -> TaskStatus:
                 for task_status in run_status.tasks:

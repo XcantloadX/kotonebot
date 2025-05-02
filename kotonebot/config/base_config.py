@@ -37,6 +37,8 @@ class BackendConfig(ConfigBaseModel):
     """
     emulator_path: str | None = None
     """模拟器 exe 文件路径"""
+    emulator_args: str = ""
+    """模拟器启动时的命令行参数"""
 
 class PushConfig(ConfigBaseModel):
     """推送配置。"""

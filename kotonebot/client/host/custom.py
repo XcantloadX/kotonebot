@@ -13,9 +13,10 @@ P = ParamSpec('P')
 T = TypeVar('T')
 
 class CustomInstance(Instance):
-    def __init__(self, exe_path: str, *args, **kwargs):
+    def __init__(self, exe_path: str, emulator_args: str = "", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.exe_path: str = exe_path
+        self.exe_args: str = emulator_args
         self.process: subprocess.Popen | None = None
 
     @override
@@ -23,8 +24,14 @@ class CustomInstance(Instance):
         if self.process:
             logger.warning('Process is already running.')
             return
-        logger.info('Starting process "%s"...', self.exe_path)
-        self.process = subprocess.Popen(self.exe_path)
+
+        if self.exe_args:
+            logger.info('Starting process "%s" with args "%s"...', self.exe_path, self.exe_args)
+            cmd = f'"{self.exe_path}" {self.exe_args}'
+            self.process = subprocess.Popen(cmd, shell=True)
+        else:
+            logger.info('Starting process "%s"...', self.exe_path)
+            self.process = subprocess.Popen(self.exe_path)
 
     @override
     def stop(self):
@@ -47,7 +54,7 @@ class CustomInstance(Instance):
                 return True
             else:
                 return False
-            
+
     def __repr__(self) -> str:
         return f'CustomInstance(#{self.id}# at "{self.exe_path}" with {self.adb_ip}:{self.adb_port})'
 
@@ -56,8 +63,8 @@ def _type_check(ins: Instance) -> CustomInstance:
         raise ValueError(f'Instance {ins} is not a CustomInstance')
     return ins
 
-def create(exe_path: str, adb_ip: str, adb_port: int, adb_emulator_name: str) -> CustomInstance:
-    return CustomInstance(exe_path, id='custom', name='Custom', adb_ip=adb_ip, adb_port=adb_port, adb_emulator_name=adb_emulator_name)
+def create(exe_path: str, adb_ip: str, adb_port: int, adb_emulator_name: str, emulator_args: str = "") -> CustomInstance:
+    return CustomInstance(exe_path, emulator_args=emulator_args, id='custom', name='Custom', adb_ip=adb_ip, adb_port=adb_port, adb_emulator_name=adb_emulator_name)
 
 
 if __name__ == '__main__':
