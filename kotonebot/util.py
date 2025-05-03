@@ -209,6 +209,10 @@ class Countdown:
             self.start_time = time.time()
         return self
 
+    def stop(self):
+        self.start_time = None
+        return self
+
     def expired(self) -> bool:
         if self.start_time is None:
             return False
