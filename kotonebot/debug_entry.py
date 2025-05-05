@@ -2,7 +2,7 @@ import runpy
 import logging
 import argparse
 
-from kotonebot.tasks.common import BaseConfig
+from kotonebot.kaa.common import BaseConfig
 
 
 def run_script(script_path: str) -> None:

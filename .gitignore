@@ -2,8 +2,9 @@
 tests/output_images
 tests/output_images/*
 R.py
-kotonebot/tasks/sprites
-kotonebot/tasks/metadata.py
+kotonebot/kaa/sprites
+kotonebot/kaa/metadata.py
+kotonebot/kaa/resources
 kotonebot-ui/node_modules
 kotonebot-ui/.vite
 dumps*/
@@ -16,7 +17,6 @@ messages/
 logs/
 traces/
 version
-kotonebot/tasks/resources
 cache/
 ##########################
 

@@ -17,10 +17,10 @@ print("拉取资源...")
 manifest = gom.fetch()
 
 print("提取 P 偶像卡资源...")
-base_path = './kotonebot/tasks/resources/idol_cards'
+base_path = './kotonebot/kaa/resources/idol_cards'
 os.makedirs(base_path, exist_ok=True)
 
-db = sqlite3.connect("./kotonebot/tasks/resources/game.db")
+db = sqlite3.connect("./kotonebot/kaa/resources/game.db")
 cursor = db.execute("""
 SELECT
     IC.id AS cardId,

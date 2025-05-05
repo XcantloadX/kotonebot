@@ -143,7 +143,7 @@ def list_dir(path: str) -> list[File]:
 
 @app.get("/api/resources/autocomplete")
 def autocomplete(class_path: str) -> list[str]:
-    from kotonebot.tasks import R # HACK: hardcode
+    from kotonebot.kaa import R # HACK: hardcode
     class_names = class_path.split(".")[:-1]
     target_class = R
     # 定位到目标类

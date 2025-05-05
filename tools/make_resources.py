@@ -457,12 +457,12 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--ide', help='IDE 类型', default=ide_type())
     args = parser.parse_args()
 
-    if os.path.exists(r'kotonebot\tasks\sprites'):
-        shutil.rmtree(r'kotonebot\tasks\sprites')
+    if os.path.exists(r'kotonebot\kaa\sprites'):
+        shutil.rmtree(r'kotonebot\kaa\sprites')
     path = PATH + '\\jp'
     files = scan_png_files(path)
     sprites = load_sprites(path, files)
-    sprites = copy_sprites(sprites, r'kotonebot\tasks\sprites')
+    sprites = copy_sprites(sprites, r'kotonebot\kaa\sprites')
     classes = make_classes(sprites, args.ide)
     
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('./tools'))
@@ -470,9 +470,9 @@ if __name__ == '__main__':
     
     template = env.get_template('R.jinja2')
     print(f'Rendering template: {template.name}')
-    with open('./kotonebot/tasks/R.py', 'w', encoding='utf-8') as f:
+    with open('./kotonebot/kaa/tasks/R.py', 'w', encoding='utf-8') as f:
         f.write(template.render(data=classes, production=args.production))
     print('Creating __init__.py')
-    with open('./kotonebot/tasks/sprites/__init__.py', 'w', encoding='utf-8') as f:
+    with open('./kotonebot/kaa/sprites/__init__.py', 'w', encoding='utf-8') as f:
         f.write('')
     print('All done!')

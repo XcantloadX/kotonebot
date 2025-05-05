@@ -1,5 +1,5 @@
 from unittest import TestCase
-from kotonebot.tasks.game_ui.badge import match, BadgeResult
+from kotonebot.kaa.game_ui.badge import match, BadgeResult
 from kotonebot.util import Rect
 
 def rect_from_center(x: int, y: int) -> Rect:
