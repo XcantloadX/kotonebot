@@ -14,7 +14,6 @@ import cv2
 import uvicorn
 from thefuzz import fuzz
 from pydantic import BaseModel
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -143,7 +142,7 @@ def list_dir(path: str) -> list[File]:
 
 @app.get("/api/resources/autocomplete")
 def autocomplete(class_path: str) -> list[str]:
-    from kotonebot.kaa import R # HACK: hardcode
+    from kotonebot.kaa.tasks import R
     class_names = class_path.split(".")[:-1]
     target_class = R
     # 定位到目标类
