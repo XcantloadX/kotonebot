@@ -255,7 +255,7 @@ class ContextStackVars:
 class ContextOcr:
     def __init__(self, context: 'Context'):
         self.context = context
-        self.__engine = jp
+        self.__engine = jp()
 
     def raw(self, lang: OcrLanguage = 'jp') -> Ocr:
         """
@@ -264,9 +264,9 @@ class ContextOcr:
         """
         match lang:
             case 'jp':
-                return jp
+                return jp()
             case 'en':
-                return en
+                return en()
             case _:
                 raise ValueError(f"Invalid language: {lang}")
 
