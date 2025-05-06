@@ -601,9 +601,9 @@ class ContextDebug:
 
 V = TypeVar('V')
 class ContextConfig(Generic[T]):
-    def __init__(self, context: 'Context', config_type: Type[T] = dict[str, Any]):
+    def __init__(self, context: 'Context', config_path: str = 'config.json', config_type: Type[T] = dict[str, Any]):
         self.context = context
-        self.config_path: str = 'config.json'
+        self.config_path: str = config_path
         self.current_key: int | str = 0
         self.config_type: Type = config_type
         self.root = load_config(self.config_path, type=config_type)
@@ -730,13 +730,13 @@ class ContextDevice(Device):
 
 
 class Context(Generic[T]):
-    def __init__(self, config_type: Type[T], screenshot_impl: Optional[DeviceImpl] = None):
+    def __init__(self, config_path: str, config_type: Type[T], screenshot_impl: Optional[DeviceImpl] = None):
         self.__ocr = ContextOcr(self)
         self.__image = ContextImage(self)
         self.__color = ContextColor(self)
         self.__vars = ContextGlobalVars()
         self.__debug = ContextDebug(self)
-        self.__config = ContextConfig[T](self, config_type)
+        self.__config = ContextConfig[T](self, config_path, config_type)
         
         ip = self.config.current.backend.adb_ip
         port = self.config.current.backend.adb_port
@@ -851,6 +851,7 @@ next_wait_time: float = 0
 
 def init_context(
     *,
+    config_path: str = 'config.json',
     config_type: Type[T] = dict[str, Any],
     force: bool = False,
     screenshot_impl: Optional[DeviceImpl] = None
@@ -858,6 +859,7 @@ def init_context(
     """
     初始化 Context 模块。
 
+    :param config_path: 配置文件路径。
     :param config_type: 配置数据类类型。
         配置数据类必须继承自 pydantic 的 `BaseModel`。
         默认为 `dict[str, Any]`，即普通的 JSON 数据，不包含任何类型信息。
@@ -869,7 +871,7 @@ def init_context(
     global _c, device, ocr, image, color, vars, debug, config
     if _c is not None and not force:
         return
-    _c = Context(config_type=config_type, screenshot_impl=screenshot_impl)
+    _c = Context(config_path=config_path, config_type=config_type, screenshot_impl=screenshot_impl)
     device._FORWARD_getter = lambda: _c.device # type: ignore
     ocr._FORWARD_getter = lambda: _c.ocr # type: ignore
     image._FORWARD_getter = lambda: _c.image # type: ignore
