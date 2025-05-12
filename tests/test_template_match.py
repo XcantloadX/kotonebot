@@ -26,7 +26,7 @@ class TestTemplateMatch(unittest.TestCase):
     def test_basic(self):
         result = template_match(self.template, self.image)
         # 圈出结果并保存
-        cv2.rectangle(self.image, result[0].rect, (0, 0, 255), 2)
+        cv2.rectangle(self.image, result[0].rect.xywh, (0, 0, 255), 2)
         save(self.image, 'TestTemplateMatch.basic')
 
         self.assertGreater(len(result), 0)
@@ -45,7 +45,7 @@ class TestTemplateMatch(unittest.TestCase):
         )
         # 圈出结果并保存
         for i, r in enumerate(result):
-            cv2.rectangle(self.image, r.rect, (0, 0, 255), 2)
+            cv2.rectangle(self.image, r.rect.xywh, (0, 0, 255), 2)
         save(self.image, 'TestTemplateMatch.masked')
 
         self.assertEqual(len(result), 3)

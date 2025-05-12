@@ -20,16 +20,16 @@ logger = logging.getLogger(__name__)
 
 
 
-Rect = tuple[int, int, int, int]
-"""左上X, 左上Y, 宽度, 高度"""
-Point = tuple[int, int]
-"""X, Y"""
-
-def is_rect(rect: typing.Any) -> TypeGuard[Rect]:
-    return isinstance(rect, typing.Sequence) and len(rect) == 4 and all(isinstance(i, int) for i in rect)
-
-def is_point(point: typing.Any) -> TypeGuard[Point]:
-    return isinstance(point, typing.Sequence) and len(point) == 2 and all(isinstance(i, int) for i in point)
+# Rect = tuple[int, int, int, int]
+# """左上X, 左上Y, 宽度, 高度"""
+# Point = tuple[int, int]
+# """X, Y"""
+#
+# def is_rect(rect: typing.Any) -> TypeGuard[Rect]:
+#     return isinstance(rect, typing.Sequence) and len(rect) == 4 and all(isinstance(i, int) for i in rect)
+#
+# def is_point(point: typing.Any) -> TypeGuard[Point]:
+#     return isinstance(point, typing.Sequence) and len(point) == 2 and all(isinstance(i, int) for i in point)
 
 @deprecated('使用 HintBox 类与 Devtool 工具替代')
 def crop(img: MatLike, /, x1: float = 0, y1: float = 0, x2: float = 1, y2: float = 1) -> MatLike:
@@ -49,16 +49,16 @@ def crop(img: MatLike, /, x1: float = 0, y1: float = 0, x2: float = 1, y2: float
     y2_px = int(h * y2)
     return img[y1_px:y2_px, x1_px:x2_px]
 
-@deprecated('使用 numpy 的切片替代')
-def crop_rect(img: MatLike, rect: Rect) -> MatLike:
-    """
-    按范围裁剪图像。
-
-    :param img: 图像
-    :param rect: 裁剪区域。
-    """
-    x, y, w, h = rect
-    return img[y:y+h, x:x+w]
+# @deprecated('使用 numpy 的切片替代')
+# def crop_rect(img: MatLike, rect: Rect) -> MatLike:
+#     """
+#     按范围裁剪图像。
+#
+#     :param img: 图像
+#     :param rect: 裁剪区域。
+#     """
+#     x, y, w, h = rect
+#     return img[y:y+h, x:x+w]
 
 class DeviceHookContextManager:
     def __init__(

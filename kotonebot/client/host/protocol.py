@@ -1,6 +1,6 @@
 import time
 import socket
-from typing import Protocol, NamedTuple
+from typing import Protocol
 from dataclasses import dataclass
 
 from adbutils import adb, AdbTimeout, AdbError
@@ -130,29 +130,4 @@ class HostProtocol(Protocol):
 
 
 if __name__ == '__main__':
-    from . import bluestack_global
-    from pprint import pprint
-    logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s][%(levelname)s] %(message)s')
-    # bluestack_global.
-    ins = Instance(id='1', name='test', adb_port=5555)
-    ins.wait_available()
-
-    # 
-    # while not tcp_ping('127.0.0.1', 16384):
-    #     print('waiting for bluestacks to start...')
-    
-    # while True:
-    #     print('connecting to bluestacks...')
-    #     try:
-    #         adb.connect('127.0.0.1:16384', timeout=0.1)
-    #         print('connected to bluestacks')
-    #         if d := adb.device_list()[0]:
-    #             if d.get_state() == 'device':
-    #                 if d.shell('getprop sys.boot_completed').strip() == '1':
-    #                     if 'launcher' in d.app_current().package:
-    #                         break
-    #     except Exception as e:
-    #         print(e)
-    #     time.sleep(0.5)
-    # time.sleep(1)
-    # print('bluestacks is ready')
+    pass

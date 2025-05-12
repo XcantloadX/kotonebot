@@ -11,7 +11,7 @@ from typing_extensions import deprecated
 from dataclasses import dataclass
 
 from kotonebot.backend.ocr import StringMatchFunction
-from kotonebot.util import Rect, is_rect
+from kotonebot.primitives import Rect, is_rect
 
 from .core import Image
 

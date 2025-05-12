@@ -8,10 +8,10 @@ from adbutils import adb
 from cv2.typing import MatLike
 from adbutils._device import AdbDevice as AdbUtilsDevice
 
-from kotonebot.backend.core import HintBox
-from kotonebot.util import Rect, Point, is_rect, is_point
-from .protocol import ClickableObjectProtocol, Commandable, Touchable, Screenshotable
 from ..backend.debug import result
+from kotonebot.backend.core import HintBox
+from kotonebot.primitives import Rect, Point, is_point
+from .protocol import ClickableObjectProtocol, Commandable, Touchable, Screenshotable
 
 logger = logging.getLogger(__name__)
 
@@ -119,14 +119,7 @@ class Device:
         点击屏幕上的某个点
         """
         ...
-
-    @overload
-    def click(self, hint_box: HintBox) -> None:
-        """
-        点击屏幕上的某个矩形区域
-        """
-        ...
-
+    
     @overload
     def click(self, rect: Rect) -> None:
         """
@@ -136,7 +129,6 @@ class Device:
 
     @overload
     def click(self, clickable: ClickableObjectProtocol) -> None:
-
         """
         点击屏幕上的某个可点击对象
         """
@@ -147,9 +139,7 @@ class Device:
         arg2 = args[1] if len(args) > 1 else None
         if arg1 is None:
             self.__click_last()
-        elif isinstance(arg1, HintBox):
-            self.__click_hint_box(arg1)
-        elif is_rect(arg1):
+        elif isinstance(arg1, Rect):
             self.__click_rect(arg1)
         elif is_point(arg1):
             self.__click_point_tuple(arg1)
@@ -167,8 +157,8 @@ class Device:
 
     def __click_rect(self, rect: Rect) -> None:
         # 从矩形中心的 60% 内部随机选择一点
-        x = rect[0] + rect[2] // 2 + np.random.randint(-int(rect[2] * 0.3), int(rect[2] * 0.3))
-        y = rect[1] + rect[3] // 2 + np.random.randint(-int(rect[3] * 0.3), int(rect[3] * 0.3))
+        x = rect.x1 + rect.w // 2 + np.random.randint(-int(rect.w * 0.3), int(rect.w * 0.3))
+        y = rect.y1 + rect.h // 2 + np.random.randint(-int(rect.h * 0.3), int(rect.h * 0.3))
         x = int(x)
         y = int(y)
         self.click(x, y)
@@ -195,9 +185,6 @@ class Device:
 
     def __click_clickable(self, clickable: ClickableObjectProtocol) -> None:
         self.click(clickable.rect)
-
-    def __click_hint_box(self, hint_box: HintBox) -> None:
-        self.click(hint_box.rect)
 
     def click_center(self) -> None:
         """
@@ -234,7 +221,7 @@ class Device:
     def double_click(self, *args, **kwargs) -> None:
         from kotonebot import sleep
         arg0 = args[0]
-        if is_rect(arg0) or isinstance(arg0, ClickableObjectProtocol):
+        if isinstance(arg0, Rect) or isinstance(arg0, ClickableObjectProtocol):
             rect = arg0
             interval = kwargs.get('interval', 0.4)
             self.click(rect)

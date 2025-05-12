@@ -45,10 +45,7 @@ class MockDevice(Device):
     def click(self, *args, **kwargs):
         if len(args) == 0:
             if isinstance(self.last_find, ClickableObjectProtocol):
-                rect = self.last_find.rect
-                x = (rect[0] + rect[2]) // 2
-                y = (rect[1] + rect[3]) // 2
-                self.last_click = (x, y)
+                self.last_click = self.last_find.rect.center.xy
             elif isinstance(self.last_find, tuple) and len(self.last_find) == 2:
                 self.last_click = self.last_find
             else:
@@ -59,10 +56,7 @@ class MockDevice(Device):
             self.last_click = (x, y)
         elif len(args) == 1:
             assert isinstance(args[0], ClickableObjectProtocol)
-            rect = args[0].rect
-            x = (rect[0] + rect[2] // 2)
-            y = (rect[1] + rect[3] // 2)
-            self.last_click = (x, y)
+            self.last_click = args[0].rect.center.xy
         else:
             raise ValueError("Invalid arguments")
             

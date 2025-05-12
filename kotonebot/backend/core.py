@@ -1,14 +1,13 @@
 import logging
 from functools import cache
-from typing import Callable, overload, TYPE_CHECKING
+from typing import Callable
 
 import cv2
 from cv2.typing import MatLike
 
 from kotonebot.util import cv2_imread
+from kotonebot.primitives import RectTuple, Rect, Point
 from kotonebot.errors import ResourceFileMissingError
-if TYPE_CHECKING:
-    from kotonebot.util import Rect
 
 class Ocr:
     def __init__(
@@ -67,20 +66,7 @@ class Image:
             return f'<Image: "{self.name}" at {self.path}>'
 
 
-class HintBox(tuple[int, int, int, int]):
-    def __new__(
-        cls,
-        x1: int,
-        y1: int,
-        x2: int,
-        y2: int,
-        *,
-        source_resolution: tuple[int, int],
-    ):
-        w = x2 - x1
-        h = y2 - y1
-        return super().__new__(cls, [x1, y1, w, h])
-    
+class HintBox(Rect):
     def __init__(
         self,
         x1: int,
@@ -92,11 +78,7 @@ class HintBox(tuple[int, int, int, int]):
         description: str | None = None,
         source_resolution: tuple[int, int],
     ):
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
-        self.name = name
+        super().__init__(x1, y1, x2 - x1, y2 - y1, name=name)
         self.description = description
         self.source_resolution = source_resolution
 
@@ -109,17 +91,12 @@ class HintBox(tuple[int, int, int, int]):
         return self.y2 - self.y1
     
     @property
-    def rect(self) -> 'Rect':
+    def rect(self) -> RectTuple:
         return self.x1, self.y1, self.width, self.height
 
-class HintPoint(tuple[int, int]):
-    def __new__(cls, x: int, y: int):
-        return super().__new__(cls, (x, y))
-    
+class HintPoint(Point):
     def __init__(self, x: int, y: int, *, name: str | None = None, description: str | None = None):
-        self.x = x
-        self.y = y
-        self.name = name
+        super().__init__(x, y, name=name)
         self.description = description
 
     def __repr__(self) -> str:

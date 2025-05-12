@@ -1,4 +1,3 @@
-
 from typing import Protocol, Literal
 
 import cv2

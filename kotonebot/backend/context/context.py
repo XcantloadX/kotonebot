@@ -25,7 +25,6 @@ import cv2
 from cv2.typing import MatLike
 
 from kotonebot.client.device import Device
-from kotonebot.util import Rect
 import kotonebot.backend.image as raw_image
 from kotonebot.backend.image import (
     TemplateMatchResult,
@@ -52,6 +51,7 @@ from kotonebot.backend.core import Image, HintBox
 from kotonebot.errors import KotonebotWarning
 from kotonebot.client.factory import DeviceImpl
 from kotonebot.backend.preprocessor import PreprocessorProtocol
+from kotonebot.primitives import Rect
 
 OcrLanguage = Literal['jp', 'en']
 ScreenshotMode = Literal['auto', 'manual', 'manual-inherit']
@@ -803,11 +803,12 @@ class Context(Generic[T]):
     def config(self) -> 'ContextConfig[T]':
         return self.__config
 
+@deprecated('使用 Rect 类的实例方法代替')
 def rect_expand(rect: Rect, left: int = 0, top: int = 0, right: int = 0, bottom: int = 0) -> Rect:
     """
     向四个方向扩展矩形区域。
     """
-    return (rect[0] - left, rect[1] - top, rect[2] + right + left, rect[3] + bottom + top)
+    return Rect(rect.x1 - left, rect.y1 - top, rect.w + right + left, rect.h + bottom + top)
 
 def use_screenshot(*args: MatLike | None) -> MatLike:
     for img in args:

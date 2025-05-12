@@ -15,8 +15,9 @@ from thefuzz import fuzz as _fuzz
 from rapidocr_onnxruntime import RapidOCR
 
 
+from ..util import lf_path
+from ..primitives import Rect, Point
 from .core import HintBox, Image, unify_image
-from ..util import Rect, lf_path
 from .debug import result as debug_result, debug
 
 logger = logging.getLogger(__name__)
@@ -65,16 +66,16 @@ class OcrResultList(list[OcrResult]):
         将所有识别结果合并为一个大结果。
         """
         if not self:
-            return OcrResult('', (0, 0, 0, 0), 0, (0, 0, 0, 0))
+            return OcrResult('', Rect(0, 0, 0, 0), 0, Rect(0, 0, 0, 0))
         text = [r.text for r in self]
         confidence = sum(r.confidence for r in self) / len(self)
         points = []
         for r in self:
-            points.append((r.rect[0], r.rect[1]))
-            points.append((r.rect[0] + r.rect[2], r.rect[1]))
-            points.append((r.rect[0], r.rect[1] + r.rect[3]))
-            points.append((r.rect[0] + r.rect[2], r.rect[1] + r.rect[3]))
-        rect = bounding_box(points)
+            points.append(Point(r.rect.x1, r.rect.y1))
+            points.append(Point(r.rect.x1 + r.rect.w, r.rect.y1))
+            points.append(Point(r.rect.x1, r.rect.y1 + r.rect.h))
+            points.append(Point(r.rect.x1 + r.rect.w, r.rect.y1 + r.rect.h))
+        rect = Rect(xywh=bounding_box(points))
         text = '\n'.join(text)
         if remove_newlines:
             text = text.replace('\n', '')
@@ -245,7 +246,7 @@ def _draw_result(image: 'MatLike', result: list[OcrResult]) -> 'MatLike':
     for r in result:
         # 画矩形框
         draw.rectangle(
-            [r.rect[0], r.rect[1], r.rect[0] + r.rect[2], r.rect[1] + r.rect[3]], 
+            [r.rect.x1, r.rect.y1, r.rect.x1 + r.rect.w, r.rect.y1 + r.rect.h], 
             outline=(255, 0, 0), 
             width=2
         )
@@ -257,8 +258,8 @@ def _draw_result(image: 'MatLike', result: list[OcrResult]) -> 'MatLike':
         text_height = text_bbox[3] - text_bbox[1]
         
         # 计算文本位置
-        text_x = r.rect[0]
-        text_y = r.rect[1] - text_height - 5 if r.rect[1] > text_height + 5 else r.rect[1] + r.rect[3] + 5
+        text_x = r.rect.x1
+        text_y = r.rect.y1 - text_height - 5 if r.rect.y1 > text_height + 5 else r.rect.y1 + r.rect.h + 5
         
         # 添加padding
         padding = 4
@@ -313,7 +314,7 @@ class Ocr:
         :return: 所有识别结果
         """
         if rect is not None:
-            x, y, w, h = rect
+            x, y, w, h = rect.xywh
             img = img[y:y+h, x:x+w]
         original_img = img
         if pad:
@@ -338,8 +339,8 @@ class Ocr:
             # result_rect (x, y, w, h)
             if rect is not None:
                 original_rect = (
-                    result_rect[0] + rect[0] - pos_in_padded_img[0],
-                    result_rect[1] + rect[1] - pos_in_padded_img[1],
+                    result_rect[0] + rect.x1 - pos_in_padded_img[0],
+                    result_rect[1] + rect.y1 - pos_in_padded_img[1],
                     result_rect[2],
                     result_rect[3]
                 )
@@ -352,8 +353,8 @@ class Ocr:
             confidence = float(r[2])
             ret.append(OcrResult(
                 text=text,
-                rect=result_rect,
-                original_rect=original_rect,
+                rect=Rect(xywh=result_rect),
+                original_rect=Rect(xywh=original_rect),
                 confidence=confidence
             ))
         ret = OcrResultList(ret)
@@ -392,7 +393,7 @@ class Ocr:
         """
         if hint is not None:
             warnings.warn("使用 `rect` 参数代替")
-            if ret := self.find(img, text, rect=hint):
+            if ret := self.find(img, text, rect=Rect(xywh=hint.rect)):
                 logger.debug(f"find: {text} SUCCESS [hint={hint}]")
                 return ret
             logger.debug(f"find: {text} FAILED [hint={hint}]")
@@ -430,7 +431,7 @@ class Ocr:
         # HintBox 处理
         if hint is not None:
             warnings.warn("使用 `rect` 参数代替")
-            result = self.find_all(img, texts, rect=hint, pad=pad)
+            result = self.find_all(img, texts, rect=Rect(xywh=hint.rect), pad=pad)
             if all(result):
                 return result
 
