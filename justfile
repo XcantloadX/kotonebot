@@ -87,8 +87,8 @@ extract-game-data:
         Write-Host "Game data needs update. Extracting..."
 
         $currentHash | Out-File -FilePath $hashFile
-        rm .\kotonebot\tasks\resources\game.db
-        python .\tools\db\extract_schema.py -i .\submodules\gakumasu-diff -d .\kotonebot\tasks\resources\game.db
+        rm .\kotonebot\kaa\resources\game.db
+        python .\tools\db\extract_schema.py -i .\submodules\gakumasu-diff -d .\kotonebot\kaa\resources\game.db
         python .\tools\db\extract_resources.py
     }
 
