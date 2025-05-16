@@ -82,7 +82,7 @@ class BaseTestCase(unittest.TestCase):
         cls.device = MockDevice()
         from kotonebot.backend.debug.server import start_server
         from kotonebot.backend.debug import debug
-        from kotonebot.tasks.common import BaseConfig
+        from kotonebot.kaa.common import BaseConfig
         debug.enabled = True
         # debug.wait_for_message_sent = True
         start_server()

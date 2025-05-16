@@ -20,21 +20,6 @@ from ..util import Rect, lf_path
 from .debug import result as debug_result, debug
 
 logger = logging.getLogger(__name__)
-
-# TODO: 这个路径需要能够独立设置
-_engine_jp = RapidOCR(
-    rec_model_path=lf_path('models/japan_PP-OCRv4_rec_infer.onnx'),
-    use_det=True,
-    use_cls=False,
-    use_rec=True,
-)
-_engine_en = RapidOCR(
-    rec_model_path=lf_path('models/en_PP-OCRv3_rec_infer.onnx'),
-    use_det=True,
-    use_cls=False,
-    use_rec=True,
-)
-
 StringMatchFunction = Callable[[str], bool]
 REGEX_NUMBERS = re.compile(r'\d+')
 
@@ -483,13 +468,42 @@ class Ocr:
             raise TextNotFoundError(text, img)
         return ret
 
+# TODO: 这个路径需要能够独立设置
+_engine_jp: RapidOCR | None = None
+_engine_en: RapidOCR | None = RapidOCR(
+    rec_model_path=lf_path('models/en_PP-OCRv3_rec_infer.onnx'),
+    use_det=True,
+    use_cls=False,
+    use_rec=True,
+)
 
+def jp() -> Ocr:
+    """
+    日语 OCR 引擎。
+    """
+    global _engine_jp
+    if _engine_jp is None:
+        _engine_jp = RapidOCR(
+            rec_model_path=lf_path('models/japan_PP-OCRv3_rec_infer.onnx'),
+            use_det=True,
+            use_cls=False,
+            use_rec=True,
+        )
+    return Ocr(_engine_jp)
 
-jp = Ocr(_engine_jp)
-"""日语 OCR 引擎。"""
-en = Ocr(_engine_en)
-"""英语 OCR 引擎。"""
-
+def en() -> Ocr:
+    """
+    英语 OCR 引擎。
+    """
+    global _engine_en
+    if _engine_en is None:
+        _engine_en = RapidOCR(
+            rec_model_path=lf_path('models/en_PP-OCRv3_rec_infer.onnx'),
+            use_det=True,
+            use_cls=False,
+            use_rec=True,
+        )
+    return Ocr(_engine_en)
 
 
 if __name__ == '__main__':

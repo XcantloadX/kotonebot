@@ -51,11 +51,11 @@ class TestOcr(unittest.TestCase):
         assert bounding_box(points) == (5, 5, 0, 0)
 
     def test_ocr_basic(self):
-        result = jp.ocr(self.img)
+        result = jp().ocr(self.img)
         self.assertGreater(len(result), 0)
 
     def test_ocr_rect(self):
-        result = jp.ocr(self.img, rect=(147, 614, 417, 32), pad=True)
+        result = jp().ocr(self.img, rect=(147, 614, 417, 32), pad=True)
         self.assertEqual(result[0].text, '受け取るPドリンクを選んでください。')
         x, y, w, h = result[0].original_rect
         self.assertAlmostEqual(x, 147, delta=10)
@@ -63,7 +63,7 @@ class TestOcr(unittest.TestCase):
         self.assertAlmostEqual(w, 417, delta=10)
         self.assertAlmostEqual(h, 32, delta=10)
 
-        result = jp.ocr(self.img, rect=(147, 614, 417, 32), pad=False)
+        result = jp().ocr(self.img, rect=(147, 614, 417, 32), pad=False)
         self.assertEqual(result[0].text, '受け取るPドリンクを選んでください。')
         x, y, w, h = result[0].original_rect
         self.assertAlmostEqual(x, 147, delta=10)
@@ -72,9 +72,9 @@ class TestOcr(unittest.TestCase):
         self.assertAlmostEqual(h, 32, delta=10)
 
     def test_find(self):
-        self.assertTrue(jp.find(self.img, '中間まで'))
-        self.assertTrue(jp.find(self.img, '受け取るPドリンクを選んでください。'))
-        self.assertTrue(jp.find(self.img, '受け取る'))
+        self.assertTrue(jp().find(self.img, '中間まで'))
+        self.assertTrue(jp().find(self.img, '受け取るPドリンクを選んでください。'))
+        self.assertTrue(jp().find(self.img, '受け取る'))
 
 
 class TestOcrResult(unittest.TestCase):

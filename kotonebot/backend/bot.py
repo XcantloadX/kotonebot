@@ -1,22 +1,17 @@
+import io
+import os
 import logging
 import pkgutil
 import importlib
+import threading
 from typing_extensions import Self
 from dataclasses import dataclass, field
-import threading
-import traceback
-import os
-import zipfile
-import cv2
-from datetime import datetime
-import io
 from typing import Any, Literal, Callable, Generic, TypeVar, ParamSpec
 
-from kotonebot.backend.context import Task, Action
-from kotonebot.backend.context import init_context, vars
-from kotonebot.backend.context import task_registry, action_registry, current_callstack, Task, Action
-from kotonebot.client.host.protocol import Instance
 from kotonebot.ui import user
+from kotonebot.client.host.protocol import Instance
+from kotonebot.backend.context import init_context, vars
+from kotonebot.backend.context import task_registry, action_registry, Task, Action
 
 log_stream = io.StringIO()
 stream_handler = logging.StreamHandler(log_stream)
@@ -38,41 +33,6 @@ class RunStatus:
 
     def interrupt(self):
         vars.interrupted.set()
-
-def _save_error_report(
-    exception: Exception,
-    *,
-    path: str | None = None
-) -> str:
-    """
-    保存错误报告
-
-    :param path: 保存的路径。若为 `None`，则保存到 `./reports/{YY-MM-DD HH-MM-SS}.zip`。
-    :return: 保存的路径
-    """
-    from kotonebot import device
-    try:
-        if path is None:
-            path = f'./reports/{datetime.now().strftime("%Y-%m-%d %H-%M-%S")}.zip'
-        exception_msg = '\n'.join(traceback.format_exception(exception))
-        task_callstack = '\n'.join([f'{i+1}. name={task.name} priority={task.priority}' for i, task in enumerate(current_callstack)])
-        screenshot = device.screenshot()
-        logs = log_stream.getvalue()
-        with open('config.json', 'r', encoding='utf-8') as f:
-            config_content = f.read()
-
-        if not os.path.exists(os.path.dirname(path)):
-            os.makedirs(os.path.dirname(path))
-        with zipfile.ZipFile(path, 'w') as zipf:
-            zipf.writestr('exception.txt', exception_msg)
-            zipf.writestr('task_callstack.txt', task_callstack)
-            zipf.writestr('screenshot.png', cv2.imencode('.png', screenshot)[1].tobytes())
-            zipf.writestr('config.json', config_content)
-            zipf.writestr('logs.txt', logs)
-        return path
-    except Exception as e:
-        logger.exception(f'Failed to save error report:')
-        return ''
 
 # Modified from https://stackoverflow.com/questions/70982565/how-do-i-make-an-event-listener-with-decorators-in-python
 Params = ParamSpec('Params')
@@ -125,11 +85,12 @@ class KotoneBot:
     def __init__(
         self,
         module: str,
+        config_path: str,
         config_type: type = dict[str, Any],
         *,
         debug: bool = False,
         resume_on_error: bool = False,
-        auto_save_error_report: bool = True,
+        auto_save_error_report: bool = False,
     ):
         """
         初始化 KotoneBot。
@@ -141,6 +102,7 @@ class KotoneBot:
         :param auto_save_error_report: 是否自动保存错误报告。
         """
         self.module = module
+        self.config_path = config_path
         self.config_type = config_type
         # HACK: 硬编码
         self.current_config: int | str = 0
@@ -149,6 +111,9 @@ class KotoneBot:
         self.auto_save_error_report = auto_save_error_report
         self.events = KotoneBotEvents()
         self.backend_instance: Instance | None = None
+
+        if self.auto_save_error_report:
+            raise NotImplementedError('auto_save_error_report not implemented yet.')
 
     def initialize(self):
         """
@@ -176,7 +141,7 @@ class KotoneBot:
         from kotonebot.client.host import create_custom
         from kotonebot.config.manager import load_config
         # HACK: 硬编码
-        config = load_config('config.json', type=self.config_type)
+        config = load_config(self.config_path, type=self.config_type)
         config = config.user_configs[0]
         logger.info('Checking backend...')
         if config.backend.type == 'custom' and config.backend.check_emulator:
@@ -207,7 +172,7 @@ class KotoneBot:
         按优先级顺序运行所有任务。
         """
         self.check_backend()
-        init_context(config_type=self.config_type)
+        init_context(config_path=self.config_path, config_type=self.config_type)
         vars.interrupted.clear()
 
         if by_priority:
@@ -238,7 +203,7 @@ class KotoneBot:
                     logger.exception(f'Error: ')
                     report_path = None
                     if self.auto_save_error_report:
-                        report_path = _save_error_report(e)
+                        raise NotImplementedError
                     self.events.task_status_changed.trigger(task, 'error')
                     if not self.resume_on_error:
                         for task1 in tasks[tasks.index(task)+1:]:
