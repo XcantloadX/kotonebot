@@ -6,6 +6,7 @@ from typing import Optional, ParamSpec, TypeVar, TypeGuard
 from typing_extensions import override
 
 from kotonebot import logging
+from kotonebot.client.device import Device
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,10 @@ class CustomInstance(Instance):
             else:
                 return False
 
+    @override
+    def refresh(self):
+        pass
+
     def __repr__(self) -> str:
         return f'CustomInstance(#{self.id}# at "{self.exe_path}" with {self.adb_ip}:{self.adb_port})'
 
@@ -63,8 +68,8 @@ def _type_check(ins: Instance) -> CustomInstance:
         raise ValueError(f'Instance {ins} is not a CustomInstance')
     return ins
 
-def create(exe_path: str, adb_ip: str, adb_port: int, adb_emulator_name: str, emulator_args: str = "") -> CustomInstance:
-    return CustomInstance(exe_path, emulator_args=emulator_args, id='custom', name='Custom', adb_ip=adb_ip, adb_port=adb_port, adb_emulator_name=adb_emulator_name)
+def create(exe_path: str, adb_ip: str, adb_port: int, adb_name: str, emulator_args: str = "") -> CustomInstance:
+    return CustomInstance(exe_path, emulator_args=emulator_args, id='custom', name='Custom', adb_ip=adb_ip, adb_port=adb_port, adb_name=adb_name)
 
 
 if __name__ == '__main__':

@@ -15,12 +15,29 @@ DeviceImpl = Literal['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_window
 def create_device(
     addr: str,
     impl: DeviceImpl,
+    *,
+    connect: bool = True,
+    device_serial: str | None = None
 ) -> Device:
+    """
+    根据指定的实现方式创建 Device 实例。
+    
+    :param addr: 设备地址，如 `127.0.0.1:5555`。
+        仅当通过无线方式连接 Android 设备，或者使用 `remote_windows` 时有效。
+    :param impl: 实现方式。
+    :param connect: 是否在创建时连接设备，默认为 True。
+        仅对 ADB-based 的实现方式有效。
+    :param device_serial: 设备序列号，默认为 None。
+        若为非 None，则当存在多个设备时通过该值判断是否为目标设备。
+        仅对 ADB-based 的实现方式有效。
+    """
     if impl in ['adb', 'adb_raw', 'uiautomator2']:
-        result = adb.connect(addr)
-        if 'cannot connect to' in result:
-            raise ValueError(result)
-        d = [d for d in adb.device_list() if d.serial == addr]
+        if connect:
+            result = adb.connect(addr)
+            if 'cannot connect to' in result:
+                raise ValueError(result)
+        serial = device_serial or addr
+        d = [d for d in adb.device_list() if d.serial == serial]
         if len(d) == 0:
             raise ValueError(f"Device {addr} not found")
         d = d[0]

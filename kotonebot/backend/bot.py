@@ -155,7 +155,7 @@ class KotoneBot:
             self.backend_instance = create_custom(
                 adb_ip=config.backend.adb_ip,
                 adb_port=config.backend.adb_port,
-                adb_emulator_name=config.backend.adb_emulator_name,
+                adb_name=config.backend.adb_emulator_name,
                 exe_path=exe,
                 emulator_args=config.backend.emulator_args
             )
