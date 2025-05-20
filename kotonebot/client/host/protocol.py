@@ -80,7 +80,7 @@ class Instance(ABC):
     def running(self) -> bool:
         raise NotImplementedError()
 
-    def create_device(self, impl: DeviceImpl) -> Device:
+    def create_device(self, impl: DeviceImpl, *, timeout: float = 180) -> Device:
         """
         创建 Device 实例，可用于控制模拟器系统。
         
@@ -92,6 +92,8 @@ class Instance(ABC):
             addr=f'{self.adb_ip}:{self.adb_port}',
             impl=impl,
             device_serial=self.adb_name,
+            connect=True,
+            timeout=timeout
         )
 
     def wait_available(self, timeout: float = 180):

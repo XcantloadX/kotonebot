@@ -5,6 +5,7 @@ from typing import Any
 from typing_extensions import override
 
 from kotonebot import logging
+from kotonebot.client import DeviceImpl, Device
 from kotonebot.util import Countdown, Interval
 from .protocol import HostProtocol, Instance, copy_type
 

@@ -8,6 +8,8 @@ from typing_extensions import Self
 from dataclasses import dataclass, field
 from typing import Any, Literal, Callable, Generic, TypeVar, ParamSpec
 
+from kotonebot.client import Device
+from kotonebot.client.host import Mumu12Host, LeidianHost
 from kotonebot.ui import user
 from kotonebot.client.host.protocol import Instance
 from kotonebot.backend.context import init_context, vars
@@ -137,14 +139,14 @@ class KotoneBot:
         logger.info('Tasks and actions initialized.')
         logger.info(f'{len(task_registry)} task(s) and {len(action_registry)} action(s) loaded.')
 
-    def check_backend(self):
+    def check_backend(self) -> Device:
         from kotonebot.client.host import create_custom
         from kotonebot.config.manager import load_config
         # HACK: 硬编码
         config = load_config(self.config_path, type=self.config_type)
         config = config.user_configs[0]
         logger.info('Checking backend...')
-        if config.backend.type == 'custom' and config.backend.check_emulator:
+        if config.backend.type == 'custom':
             exe = config.backend.emulator_path
             if exe is None:
                 user.error('「检查并启动模拟器」已开启但未配置「模拟器 exe 文件路径」。')
@@ -159,20 +161,51 @@ class KotoneBot:
                 exe_path=exe,
                 emulator_args=config.backend.emulator_args
             )
+            if config.backend.check_emulator:
+                if not self.backend_instance.running():
+                    logger.info('Starting custom backend...')
+                    self.backend_instance.start()
+                    logger.info('Waiting for custom backend to be available...')
+                    self.backend_instance.wait_available()
+                else:
+                    logger.info('Custom backend "%s" already running.', self.backend_instance)
+        elif config.backend.type == 'mumu12':
+            if config.backend.instance_id is None:
+                raise ValueError('MuMu12 instance ID is not set.')
+            self.backend_instance = Mumu12Host.query(id=config.backend.instance_id)
+            if self.backend_instance is None:
+                raise ValueError(f'MuMu12 instance not found: {config.backend.instance_id}')
             if not self.backend_instance.running():
-                logger.info('Starting custom backend...')
+                logger.info('Starting MuMu12 backend...')
                 self.backend_instance.start()
-                logger.info('Waiting for custom backend to be available...')
+                logger.info('Waiting for MuMu12 backend to be available...')
                 self.backend_instance.wait_available()
             else:
-                logger.info('Custom backend "%s" already running.', self.backend_instance)
+                logger.info('MuMu12 backend "%s" already running.', self.backend_instance)
+        elif config.backend.type == 'leidian':
+            if config.backend.instance_id is None:
+                raise ValueError('Leidian instance ID is not set.')
+            self.backend_instance = LeidianHost.query(id=config.backend.instance_id)
+            if self.backend_instance is None:
+                raise ValueError(f'Leidian instance not found: {config.backend.instance_id}')
+            if not self.backend_instance.running():
+                logger.info('Starting Leidian backend...')
+                self.backend_instance.start()
+                logger.info('Waiting for Leidian backend to be available...')
+                self.backend_instance.wait_available()
+            else:
+                logger.info('Leidian backend "%s" already running.', self.backend_instance)
+        else:
+            raise ValueError(f'Unsupported backend type: {config.backend.type}')
+        assert self.backend_instance is not None, 'Backend instance is not set.'
+        return self.backend_instance.create_device(config.backend.screenshot_impl)
 
     def run(self, tasks: list[Task], *, by_priority: bool = True):
         """
         按优先级顺序运行所有任务。
         """
-        self.check_backend()
-        init_context(config_path=self.config_path, config_type=self.config_type)
+        d = self.check_backend()
+        init_context(config_path=self.config_path, config_type=self.config_type, target_device=d)
         vars.interrupted.clear()
 
         if by_priority:

@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing_extensions import override
 
 from kotonebot import logging
+from kotonebot.client import DeviceImpl, create_device
 from kotonebot.client.device import Device
 from kotonebot.util import Countdown, Interval
 from .protocol import HostProtocol, Instance, copy_type
@@ -67,10 +68,18 @@ class LeidianInstance(Instance):
     def running(self) -> bool:
         result = LeidianHost._invoke_manager(['isrunning', '--index', str(self.index)])
         return result.strip() == 'running'
-    
+
     @override
-    def create_device(self) -> Device:
-        raise NotImplementedError('CustomInstance does not support create_device.')
+    def create_device(self, impl: DeviceImpl, *, timeout: float = 180) -> Device:
+        if self.adb_port is None:
+            raise ValueError("ADB port is not set and is required.")
+        return create_device(
+            addr=f'{self.adb_ip}:{self.adb_port}',
+            impl=impl,
+            device_serial=self.adb_name,
+            connect=False,
+            timeout=timeout
+        )
 
 class LeidianHost(HostProtocol):
     @staticmethod

@@ -1,4 +1,4 @@
-from enum import Enum
+from time import sleep
 from typing import Literal
 
 from .implements.adb import AdbImpl
@@ -17,7 +17,9 @@ def create_device(
     impl: DeviceImpl,
     *,
     connect: bool = True,
-    device_serial: str | None = None
+    disconnect: bool = True,
+    device_serial: str | None = None,
+    timeout: float = 180,
 ) -> Device:
     """
     根据指定的实现方式创建 Device 实例。
@@ -27,16 +29,23 @@ def create_device(
     :param impl: 实现方式。
     :param connect: 是否在创建时连接设备，默认为 True。
         仅对 ADB-based 的实现方式有效。
+    :param disconnect: 是否在连接前先断开设备，默认为 True。
+        仅对 ADB-based 的实现方式有效。
     :param device_serial: 设备序列号，默认为 None。
         若为非 None，则当存在多个设备时通过该值判断是否为目标设备。
         仅对 ADB-based 的实现方式有效。
+    :param timeout: 连接超时时间，默认为 180 秒。
+        仅对 ADB-based 的实现方式有效。
     """
     if impl in ['adb', 'adb_raw', 'uiautomator2']:
+        if disconnect:
+            adb.disconnect(addr)
         if connect:
             result = adb.connect(addr)
             if 'cannot connect to' in result:
                 raise ValueError(result)
         serial = device_serial or addr
+        adb.wait_for(serial, timeout=timeout)
         d = [d for d in adb.device_list() if d.serial == serial]
         if len(d) == 0:
             raise ValueError(f"Device {addr} not found")

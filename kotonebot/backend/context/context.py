@@ -730,7 +730,13 @@ class ContextDevice(Device):
 
 
 class Context(Generic[T]):
-    def __init__(self, config_path: str, config_type: Type[T], screenshot_impl: Optional[DeviceImpl] = None):
+    def __init__(
+        self,
+        config_path: str,
+        config_type: Type[T],
+        screenshot_impl: Optional[DeviceImpl] = None,
+        device: Optional[Device] = None
+    ):
         self.__ocr = ContextOcr(self)
         self.__image = ContextImage(self)
         self.__color = ContextColor(self)
@@ -744,7 +750,7 @@ class Context(Generic[T]):
         if screenshot_impl is None:
             screenshot_impl = self.config.current.backend.screenshot_impl
         logger.info(f'Using "{screenshot_impl}" as screenshot implementation')
-        self.__device = ContextDevice(create_device(f'{ip}:{port}', screenshot_impl))
+        self.__device = ContextDevice(device or create_device(f'{ip}:{port}', screenshot_impl))
 
     def inject(
         self,
@@ -855,7 +861,8 @@ def init_context(
     config_path: str = 'config.json',
     config_type: Type[T] = dict[str, Any],
     force: bool = False,
-    screenshot_impl: Optional[DeviceImpl] = None
+    screenshot_impl: Optional[DeviceImpl] = None,
+    target_device: Device | None = None,
 ):
     """
     初始化 Context 模块。
@@ -868,11 +875,17 @@ def init_context(
         若为 `True`，则忽略已存在的 Context 实例，并重新创建一个新的实例。
     :param screenshot_impl: 截图实现。
         若为 `None`，则使用默认配置文件中指定的截图实现。
+    :param target_device: 目标设备
     """
     global _c, device, ocr, image, color, vars, debug, config
     if _c is not None and not force:
         return
-    _c = Context(config_path=config_path, config_type=config_type, screenshot_impl=screenshot_impl)
+    _c = Context(
+        config_path=config_path,
+        config_type=config_type,
+        screenshot_impl=screenshot_impl,
+        device=target_device
+    )
     device._FORWARD_getter = lambda: _c.device # type: ignore
     ocr._FORWARD_getter = lambda: _c.ocr # type: ignore
     image._FORWARD_getter = lambda: _c.image # type: ignore
