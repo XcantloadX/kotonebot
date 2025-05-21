@@ -81,4 +81,6 @@ def create_device(
         remote_impl = RemoteWindowsImpl(device, host, port)
         device._touch = remote_impl
         device._screenshot = remote_impl
+    else:
+        raise ValueError(f"Unsupported device implementation: {impl}")
     return device

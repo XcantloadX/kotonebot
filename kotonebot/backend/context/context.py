@@ -174,11 +174,30 @@ def is_manual_screenshot_mode() -> bool:
 
 class ContextGlobalVars:
     def __init__(self):
-        self.auto_collect: bool = False
-        """遇到未知P饮料/卡片时，是否自动截图并收集"""
+        self.__vars = dict[str, Any]()
         self.interrupted: Event = Event()
         """用户请求中断事件"""
 
+    def __getitem__(self, key: str) -> Any:
+        return self.__vars[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.__vars[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.__vars[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.__vars
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.__vars.get(key, default)
+
+    def set(self, key: str, value: Any) -> None:
+        self.__vars[key] = value
+
+    def clear(self):
+        self.__vars.clear()
 
 class ContextStackVars:
     stack: list['ContextStackVars'] = []
