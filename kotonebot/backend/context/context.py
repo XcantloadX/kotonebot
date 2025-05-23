@@ -25,7 +25,6 @@ import cv2
 from cv2.typing import MatLike
 
 from kotonebot.client.device import Device
-from kotonebot.util import Rect
 import kotonebot.backend.image as raw_image
 from kotonebot.backend.image import (
     TemplateMatchResult,
@@ -52,6 +51,7 @@ from kotonebot.backend.core import Image, HintBox
 from kotonebot.errors import KotonebotWarning
 from kotonebot.client.factory import DeviceImpl
 from kotonebot.backend.preprocessor import PreprocessorProtocol
+from kotonebot.primitives import Rect
 
 OcrLanguage = Literal['jp', 'en']
 ScreenshotMode = Literal['auto', 'manual', 'manual-inherit']
@@ -174,11 +174,30 @@ def is_manual_screenshot_mode() -> bool:
 
 class ContextGlobalVars:
     def __init__(self):
-        self.auto_collect: bool = False
-        """遇到未知P饮料/卡片时，是否自动截图并收集"""
+        self.__vars = dict[str, Any]()
         self.interrupted: Event = Event()
         """用户请求中断事件"""
 
+    def __getitem__(self, key: str) -> Any:
+        return self.__vars[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.__vars[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.__vars[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.__vars
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.__vars.get(key, default)
+
+    def set(self, key: str, value: Any) -> None:
+        self.__vars[key] = value
+
+    def clear(self):
+        self.__vars.clear()
 
 class ContextStackVars:
     stack: list['ContextStackVars'] = []
@@ -730,7 +749,13 @@ class ContextDevice(Device):
 
 
 class Context(Generic[T]):
-    def __init__(self, config_path: str, config_type: Type[T], screenshot_impl: Optional[DeviceImpl] = None):
+    def __init__(
+        self,
+        config_path: str,
+        config_type: Type[T],
+        screenshot_impl: Optional[DeviceImpl] = None,
+        device: Optional[Device] = None
+    ):
         self.__ocr = ContextOcr(self)
         self.__image = ContextImage(self)
         self.__color = ContextColor(self)
@@ -744,7 +769,7 @@ class Context(Generic[T]):
         if screenshot_impl is None:
             screenshot_impl = self.config.current.backend.screenshot_impl
         logger.info(f'Using "{screenshot_impl}" as screenshot implementation')
-        self.__device = ContextDevice(create_device(f'{ip}:{port}', screenshot_impl))
+        self.__device = ContextDevice(device or create_device(f'{ip}:{port}', screenshot_impl))
 
     def inject(
         self,
@@ -803,11 +828,12 @@ class Context(Generic[T]):
     def config(self) -> 'ContextConfig[T]':
         return self.__config
 
+@deprecated('使用 Rect 类的实例方法代替')
 def rect_expand(rect: Rect, left: int = 0, top: int = 0, right: int = 0, bottom: int = 0) -> Rect:
     """
     向四个方向扩展矩形区域。
     """
-    return (rect[0] - left, rect[1] - top, rect[2] + right + left, rect[3] + bottom + top)
+    return Rect(rect.x1 - left, rect.y1 - top, rect.w + right + left, rect.h + bottom + top)
 
 def use_screenshot(*args: MatLike | None) -> MatLike:
     for img in args:
@@ -854,7 +880,8 @@ def init_context(
     config_path: str = 'config.json',
     config_type: Type[T] = dict[str, Any],
     force: bool = False,
-    screenshot_impl: Optional[DeviceImpl] = None
+    screenshot_impl: Optional[DeviceImpl] = None,
+    target_device: Device | None = None,
 ):
     """
     初始化 Context 模块。
@@ -867,11 +894,17 @@ def init_context(
         若为 `True`，则忽略已存在的 Context 实例，并重新创建一个新的实例。
     :param screenshot_impl: 截图实现。
         若为 `None`，则使用默认配置文件中指定的截图实现。
+    :param target_device: 目标设备
     """
     global _c, device, ocr, image, color, vars, debug, config
     if _c is not None and not force:
         return
-    _c = Context(config_path=config_path, config_type=config_type, screenshot_impl=screenshot_impl)
+    _c = Context(
+        config_path=config_path,
+        config_type=config_type,
+        screenshot_impl=screenshot_impl,
+        device=target_device
+    )
     device._FORWARD_getter = lambda: _c.device # type: ignore
     ocr._FORWARD_getter = lambda: _c.ocr # type: ignore
     image._FORWARD_getter = lambda: _c.image # type: ignore

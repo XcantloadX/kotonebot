@@ -1,10 +1,11 @@
 from unittest import TestCase
-from kotonebot.kaa.game_ui.badge import match, BadgeResult
-from kotonebot.util import Rect
+
+from kotonebot.primitives import Rect
+from kotonebot.kaa.game_ui.badge import match
 
 def rect_from_center(x: int, y: int) -> Rect:
     w, h = 20, 20
-    return x - w // 2, y - h // 2, w, h
+    return Rect(x - w // 2, y - h // 2, w, h)
 
 class TestBadge(TestCase):
     def test_match(self):

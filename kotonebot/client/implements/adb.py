@@ -32,7 +32,7 @@ class AdbImpl(Commandable, Touchable, Screenshotable):
         if result_text == '':
             logger.error("No current package found")
             return None
-        _, activity, _, pid = result_text.split(' ')
+        _, activity, *_ = result_text.split(' ')
         package = activity.split('/')[0]
         return package
 

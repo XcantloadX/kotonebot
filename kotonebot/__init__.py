@@ -17,13 +17,11 @@ from .backend.context import (
     wait
 )
 from .util import (
-    Rect,
     cropped,
     AdaptiveWait,
     Countdown,
     Interval,
     until,
-    crop_rect,
 )
 from .backend.color import (
     hsv_cv2web,

@@ -19,5 +19,6 @@
         ".venv",
         "venv",
         "**/node_modules"
-    ]
+    ],
+    "python.analysis.diagnosticMode": "workspace"
 }

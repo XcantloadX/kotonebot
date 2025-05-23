@@ -8,7 +8,7 @@ from typing_extensions import Self
 from dataclasses import dataclass, field
 from typing import Any, Literal, Callable, Generic, TypeVar, ParamSpec
 
-from kotonebot.ui import user
+from kotonebot.client import Device
 from kotonebot.client.host.protocol import Instance
 from kotonebot.backend.context import init_context, vars
 from kotonebot.backend.context import task_registry, action_registry, Task, Action
@@ -130,49 +130,34 @@ class KotoneBot:
             logger.debug(f'Loading sub-module: {name}')
             try:
                 importlib.import_module(name)
-            except Exception as e:
+            except Exception:
                 logger.error(f'Failed to load sub-module: {name}')
-                logger.exception(f'Error: ')
+                logger.exception('Error: ')
         
         logger.info('Tasks and actions initialized.')
         logger.info(f'{len(task_registry)} task(s) and {len(action_registry)} action(s) loaded.')
 
-    def check_backend(self):
-        from kotonebot.client.host import create_custom
-        from kotonebot.config.manager import load_config
-        # HACK: 硬编码
-        config = load_config(self.config_path, type=self.config_type)
-        config = config.user_configs[0]
-        logger.info('Checking backend...')
-        if config.backend.type == 'custom' and config.backend.check_emulator:
-            exe = config.backend.emulator_path
-            if exe is None:
-                user.error('「检查并启动模拟器」已开启但未配置「模拟器 exe 文件路径」。')
-                raise ValueError('Emulator executable path is not set.')
-            if not os.path.exists(exe):
-                user.error('「模拟器 exe 文件路径」对应的文件不存在！请检查路径是否正确。')
-                raise FileNotFoundError(f'Emulator executable not found: {exe}')
-            self.backend_instance = create_custom(
-                adb_ip=config.backend.adb_ip,
-                adb_port=config.backend.adb_port,
-                adb_emulator_name=config.backend.adb_emulator_name,
-                exe_path=exe,
-                emulator_args=config.backend.emulator_args
-            )
-            if not self.backend_instance.running():
-                logger.info('Starting custom backend...')
-                self.backend_instance.start()
-                logger.info('Waiting for custom backend to be available...')
-                self.backend_instance.wait_available()
-            else:
-                logger.info('Custom backend "%s" already running.', self.backend_instance)
+    def _on_create_device(self) -> Device:
+        """
+        抽象方法，用于创建 Device 类，在 `run()` 方法执行前会被调用。
+
+        所有子类都需要重写该方法。
+        """
+        raise NotImplementedError('Implement `_create_device` before using Kotonebot.')
+
+    def _on_after_init_context(self):
+        """
+        抽象方法，在 init_context() 被调用后立即执行。
+        """
+        pass
 
     def run(self, tasks: list[Task], *, by_priority: bool = True):
         """
         按优先级顺序运行所有任务。
         """
-        self.check_backend()
-        init_context(config_path=self.config_path, config_type=self.config_type)
+        d = self._on_create_device()
+        init_context(config_path=self.config_path, config_type=self.config_type, target_device=d)
+        self._on_after_init_context()
         vars.interrupted.clear()
 
         if by_priority:

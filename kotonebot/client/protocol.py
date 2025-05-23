@@ -2,7 +2,7 @@ from typing import Protocol, TYPE_CHECKING, runtime_checkable, Literal
 
 from cv2.typing import MatLike
 
-from kotonebot.util import Rect
+from kotonebot.primitives import Rect
 if TYPE_CHECKING:
     from .device import Device
 

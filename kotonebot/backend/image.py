@@ -1,16 +1,16 @@
 import os
 from logging import getLogger
-from typing import NamedTuple, Protocol, TypeVar, Sequence, runtime_checkable
+from typing import NamedTuple, Protocol, Sequence, runtime_checkable
 
 import cv2
 import numpy as np
-from cv2.typing import MatLike, Size
+from cv2.typing import MatLike, Rect as CvRect
 from skimage.metrics import structural_similarity
 
 from .core import Image, unify_image
-from ..util import Rect, Point
-from .debug import result as debug_result, debug, img
 from .preprocessor import PreprocessorProtocol
+from kotonebot.primitives import Point as KbPoint, Rect as KbRect, Size as KbSize
+from .debug import result as debug_result, debug, img
 
 logger = getLogger(__name__)
 
@@ -24,46 +24,46 @@ class TemplateNoMatchError(Exception):
 @runtime_checkable
 class ResultProtocol(Protocol):
     @property
-    def rect(self) -> Rect:
+    def rect(self) -> KbRect:
         """结果区域。左上角坐标和宽高。"""
         ...
 
 
 class TemplateMatchResult(NamedTuple):
     score: float
-    position: Point
+    position: KbPoint
     """结果位置。左上角坐标。"""
-    size: Size
+    size: KbSize
     """输入模板的大小。宽高。"""
 
     @property
-    def rect(self) -> Rect:
-        """结果区域。左上角坐标和宽高。"""
-        return (self.position[0], self.position[1], self.size[0], self.size[1])
+    def rect(self) -> KbRect:
+        """结果区域。"""
+        return KbRect(self.position[0], self.position[1], self.size[0], self.size[1])
     
     @property
-    def right_bottom(self) -> Point:
+    def right_bottom(self) -> KbPoint:
         """结果右下角坐标。"""
-        return (self.position[0] + self.size[0], self.position[1] + self.size[1])
+        return KbPoint(self.position[0] + self.size[0], self.position[1] + self.size[1])
 
 class MultipleTemplateMatchResult(NamedTuple):
     score: float
-    position: Point
+    position: KbPoint
     """结果位置。左上角坐标。"""
-    size: Size
+    size: KbSize
     """命中模板的大小。宽高。"""
     index: int
     """命中模板在列表中的索引。"""
 
     @property
-    def rect(self) -> Rect:
+    def rect(self) -> KbRect:
         """结果区域。左上角坐标和宽高。"""
-        return (self.position[0], self.position[1], self.size[0], self.size[1])
+        return KbRect(self.position[0], self.position[1], self.size[0], self.size[1])
     
     @property
-    def right_bottom(self) -> Point:
+    def right_bottom(self) -> KbPoint:
         """结果右下角坐标。"""
-        return (self.position[0] + self.size[0], self.position[1] + self.size[1])
+        return KbPoint(self.position[0] + self.size[0], self.position[1] + self.size[1])
 
     @classmethod
     def from_template_match_result(cls, result: TemplateMatchResult, index: int):
@@ -76,13 +76,13 @@ class MultipleTemplateMatchResult(NamedTuple):
 
 class CropResult(NamedTuple):
     score: float
-    position: Point
-    size: Size
+    position: KbPoint
+    size: KbSize
     image: MatLike
 
     @property
-    def rect(self) -> Rect:
-        return (self.position[0], self.position[1], self.size[0], self.size[1])
+    def rect(self) -> KbRect:
+        return KbRect(self.position[0], self.position[1], self.size[0], self.size[1])
 
 def _draw_result(image: MatLike, matches: Sequence[ResultProtocol] | ResultProtocol | None) -> MatLike:
     """在图像上绘制匹配结果的矩形框。"""
@@ -92,7 +92,7 @@ def _draw_result(image: MatLike, matches: Sequence[ResultProtocol] | ResultProto
         matches = [matches]
     result_image = image.copy()
     for match in matches:
-        cv2.rectangle(result_image, match.rect, (0, 0, 255), 2)
+        cv2.rectangle(result_image, match.rect.xywh, (0, 0, 255), 2)
     return result_image
 
 def _img2str(image: MatLike | str | Image | None) -> str:
@@ -229,8 +229,8 @@ def template_match(
         
         matches.append(TemplateMatchResult(
             score=score,
-            position=(int(x), int(y)),
-            size=(int(w), int(h))
+            position=KbPoint(int(x), int(y)),
+            size=KbSize(int(w), int(h))
         ))
         
         # 如果达到最大结果数，提前结束
@@ -242,7 +242,7 @@ def template_match(
 def hist_match(
     image: MatLike | str,
     template: MatLike | str,
-    rect: Rect | None = None,
+    rect: CvRect | None = None,
     threshold: float = 0.9,
 ) -> bool:
     """

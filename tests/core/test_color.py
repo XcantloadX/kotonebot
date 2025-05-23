@@ -3,6 +3,7 @@ import cv2
 
 from util import BaseTestCase
 from kotonebot.backend.color import find, find_all
+from kotonebot.primitives import Rect
 
 def _img_rgb_to_bgr(img: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
@@ -185,12 +186,12 @@ class TestColor(BaseTestCase):
         self.assertEqual(len(results), 10)
 
         # 测试矩形区域搜索
-        rect = (28, 934, 170, 170)
+        rect = Rect(28, 934, 170, 170)
         results = find_all(img, '#ff1249', rect=rect, threshold=0.95)
         for result in results:
             x, y = result.position
-            self.assertTrue(rect[0] <= x < rect[0] + rect[2])
-            self.assertTrue(rect[1] <= y < rect[1] + rect[3])
+            self.assertTrue(rect.x1 <= x < rect.x2)
+            self.assertTrue(rect.y1 <= y < rect.y2)
 
         # 测试无效输入
         # with self.assertRaises(ValueError):

@@ -7,8 +7,8 @@ import cv2
 from cv2.typing import MatLike
 
 from .core import unify_image
+from ..primitives import RectTuple, Rect
 from .debug import result as debug_result, debug, color as debug_color
-from ..util import Rect
 
 RgbColorTuple = tuple[int, int, int]
 RgbColorStr = str
@@ -131,6 +131,7 @@ def find(
     * rgb_dist:
         计算图片中每个点的颜色到目标颜色的欧氏距离，并以 442 为最大值归一化到 0-1 之间。
     """
+    _rect = rect.xywh if rect else None
     ret = None
     ret_similarity = 0
     found_color = None
@@ -167,8 +168,8 @@ def find(
     # 寻找结果
     matches: np.ndarray = dist <= (1 - threshold)
     # 只在rect范围内搜索
-    if rect is not None:
-        x, y, w, h = rect
+    if _rect is not None:
+        x, y, w, h = _rect
         search_area = matches[y:y+h, x:x+w]
         if search_area.any():
             # 在裁剪区域中找到最小距离的点
@@ -199,8 +200,8 @@ def find(
                 (min(result_image.shape[1], x+20), min(result_image.shape[0], y+20)),
                 (255, 0, 0), 2)
         # 绘制搜索范围
-        if rect is not None:
-            x, y, w, h = rect
+        if _rect is not None:
+            x, y, w, h = _rect
             # 红色圈出rect
             cv2.rectangle(result_image, (x, y), (x+w, y+h), (0, 0, 255), 2)
         debug_result(
@@ -219,7 +220,7 @@ def color_distance_map(
     image: MatLike | str,
     color: RgbColor,
     *,
-    rect: Rect | None = None,
+    rect: RectTuple | None = None,
 ) -> np.ndarray:
     """
     计算图像中每个像素点到目标颜色的HSL距离，并返回归一化后的距离矩阵。
@@ -266,7 +267,7 @@ def color_distance_map(
     dist = np.sqrt((h_diff * 2)**2 + l_diff**2 + s_diff**2) / np.sqrt(6)
     return dist
 
-def _rect_intersection(rect1: Rect, rect2: Rect) -> Rect | None:
+def _rect_intersection(rect1: RectTuple, rect2: RectTuple) -> RectTuple | None:
     """
     计算两个矩形的交集区域。
     
@@ -311,6 +312,7 @@ def find_all(
     :param max_results: 最大返回结果数量。如果为 None，则返回所有结果。
     :return: 结果列表。
     """
+    _rect: RectTuple | None = rect.xywh if rect is not None else None
     # 计算距离矩阵
     dist = color_distance_map(image, color)
     # 筛选满足要求的点，二值化
@@ -319,8 +321,8 @@ def find_all(
     def filter_by_point(binary: np.ndarray, target_color: RgbColor, dist: np.ndarray, rect: Rect | None = None, max_results: int | None = None) -> list[FindColorPointResult]:
         results = []
         
-        if rect is not None:
-            x, y, w, h = rect
+        if _rect is not None:
+            x, y, w, h = _rect
             search_area = binary[y:y+h, x:x+w]
             local_dist = dist[y:y+h, x:x+w]
             
@@ -370,8 +372,8 @@ def find_all(
             assert len(contour_rect) == 4
             
             # 如果指定了rect，计算轮廓外接矩形与rect的交集
-            if rect is not None:
-                intersection = _rect_intersection(contour_rect, rect)
+            if _rect is not None:
+                intersection = _rect_intersection(contour_rect, _rect)
                 if intersection is None:
                     continue
                     
@@ -433,8 +435,8 @@ def find_all(
                 (min(result_image.shape[1], x+10), min(result_image.shape[0], y+10)),
                 (255, 0, 0), 1)
         # 绘制搜索范围
-        if rect is not None:
-            x, y, w, h = rect
+        if _rect is not None:
+            x, y, w, h = _rect
             cv2.rectangle(result_image, (x, y), (x+w, y+h), (0, 0, 255), 2)
         
         debug_result(
@@ -466,10 +468,11 @@ def dominant_color(
     :param count: 提取的颜色数量。默认为 1。
     :param rect: 提取范围。如果为 None，则在整个图像中提取。
     """
+    _rect: RectTuple | None = rect.xywh if rect is not None else None
     # 载入/裁剪图像
     img = unify_image(image)
-    if rect is not None:
-        x, y, w, h = rect
+    if _rect is not None:
+        x, y, w, h = _rect
         img = img[y:y+h, x:x+w]
     
     pixels = np.float32(img.reshape(-1, 3))
@@ -497,8 +500,8 @@ def dominant_color(
     if debug.enabled:
         origin_image = unify_image(image)
         result_image = origin_image.copy()
-        if rect is not None:
-            x, y, w, h = rect
+        if _rect is not None:
+            x, y, w, h = _rect
             cv2.rectangle(result_image, (x, y), (x + w, y + h), (0, 0, 255), 2)
         debug_result(
             'color.dominant_color',

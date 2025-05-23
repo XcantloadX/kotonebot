@@ -1,8 +1,8 @@
-import os
-import time
-import unittest
 import logging
-from unittest.mock import Mock, patch, mock_open
+import unittest
+from typing import Literal
+from unittest.mock import Mock, patch
+
 from kotonebot.util import measure_time
 
 class TestMeasureTime(unittest.TestCase):
@@ -36,7 +36,7 @@ class TestMeasureTime(unittest.TestCase):
 
     @patch('time.time')
     def test_different_log_levels(self, mock_time):
-        levels = ['debug', 'info', 'warning', 'error', 'critical']
+        levels: list[Literal['debug', 'info', 'warning', 'error', 'critical']] = ['debug', 'info', 'warning', 'error', 'critical']
         
         for level in levels:
             # Reset mock for each iteration with enough values
