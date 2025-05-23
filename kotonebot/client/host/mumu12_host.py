@@ -84,7 +84,8 @@ class Mumu12Host(HostProtocol):
 
         uninstall_subkeys = [
             r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\MuMuPlayer-12.0',
-            r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\MuMuPlayerGlobal-12.0'
+            # TODO: 支持国际版 MuMu
+            # r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\MuMuPlayerGlobal-12.0'
         ]
 
         for subkey in uninstall_subkeys:
