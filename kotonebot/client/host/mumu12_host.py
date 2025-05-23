@@ -1,4 +1,5 @@
 import os
+import json
 import subprocess
 from functools import lru_cache
 from typing import Any
@@ -117,7 +118,8 @@ class Mumu12Host(HostProtocol):
             creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
         )
         if output.returncode != 0:
-            raise RuntimeError(f'Failed to invoke MuMuManager: {output.stderr}')
+            # raise RuntimeError(f'Failed to invoke MuMuManager: {output.stderr}')
+            logger.warning('Failed to invoke MuMuManager: %s', output.stderr)
         return output.stdout
 
     @staticmethod
@@ -127,9 +129,14 @@ class Mumu12Host(HostProtocol):
     @staticmethod
     def list() -> list[Instance]:
         output = Mumu12Host._invoke_manager(['info', '-v', 'all'])
-        import json
+        logger.debug('MuMuManager.exe output: %s', output)
+        
         try:
-            data: dict[str, dict[str, Any]] = json.loads(output)  # Assuming the output is a JSON array
+            data: dict[str, dict[str, Any]] = json.loads(output)
+            if 'name' in data.keys():
+                # 这里有个坑：
+                # 如果只有一个实例，返回的 JSON 结构是单个对象而不是数组
+                data = { '0': data }
             instances = []
             for index, instance_data in data.items():
                 instance = Mumu12Instance(
