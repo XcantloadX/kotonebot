@@ -73,7 +73,7 @@ def _type_check(ins: Instance) -> CustomInstance:
         raise ValueError(f'Instance {ins} is not a CustomInstance')
     return ins
 
-def create(exe_path: str | None, adb_ip: str, adb_port: int, adb_name: str, emulator_args: str = "") -> CustomInstance:
+def create(exe_path: str | None, adb_ip: str, adb_port: int, adb_name: str | None, emulator_args: str = "") -> CustomInstance:
     return CustomInstance(exe_path, emulator_args=emulator_args, id='custom', name='Custom', adb_ip=adb_ip, adb_port=adb_port, adb_name=adb_name)
 
 

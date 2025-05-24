@@ -1,4 +1,4 @@
-from time import sleep
+import logging
 from typing import Literal
 
 from .implements.adb import AdbImpl
@@ -11,6 +11,7 @@ from .device import Device, AndroidDevice, WindowsDevice
 from adbutils import adb
 
 DeviceImpl = Literal['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows']
+logger = logging.getLogger(__name__)
 
 def create_device(
     addr: str,
@@ -39,14 +40,19 @@ def create_device(
     """
     if impl in ['adb', 'adb_raw', 'uiautomator2']:
         if disconnect:
+            logger.debug('adb disconnect %s', addr)
             adb.disconnect(addr)
         if connect:
+            logger.debug('adb connect %s', addr)
             result = adb.connect(addr)
             if 'cannot connect to' in result:
                 raise ValueError(result)
         serial = device_serial or addr
+        logger.debug('adb wait for %s', serial)
         adb.wait_for(serial, timeout=timeout)
-        d = [d for d in adb.device_list() if d.serial == serial]
+        devices = adb.device_list()
+        logger.debug('adb device_list: %s', devices)
+        d = [d for d in devices if d.serial == serial]
         if len(d) == 0:
             raise ValueError(f"Device {addr} not found")
         d = d[0]
