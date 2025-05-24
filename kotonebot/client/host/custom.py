@@ -14,9 +14,9 @@ P = ParamSpec('P')
 T = TypeVar('T')
 
 class CustomInstance(Instance):
-    def __init__(self, exe_path: str, emulator_args: str = "", *args, **kwargs):
+    def __init__(self, exe_path: str | None, emulator_args: str = "", *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.exe_path: str = exe_path
+        self.exe_path: str | None = exe_path
         self.exe_args: str = emulator_args
         self.process: subprocess.Popen | None = None
 
@@ -26,6 +26,8 @@ class CustomInstance(Instance):
             logger.warning('Process is already running.')
             return
 
+        if not self.exe_path:
+            raise ValueError('Executable path is not set.')
         if self.exe_args:
             logger.info('Starting process "%s" with args "%s"...', self.exe_path, self.exe_args)
             cmd = f'"{self.exe_path}" {self.exe_args}'
@@ -49,6 +51,9 @@ class CustomInstance(Instance):
         if self.process is not None:
             return True
         else:
+            if not self.exe_path:
+                logger.warning('Executable path is not set, cannot check if process is running.')
+                return False
             process_name = os.path.basename(self.exe_path)
             p = next((proc for proc in process_iter() if proc.name() == process_name), None)
             if p:
@@ -68,7 +73,7 @@ def _type_check(ins: Instance) -> CustomInstance:
         raise ValueError(f'Instance {ins} is not a CustomInstance')
     return ins
 
-def create(exe_path: str, adb_ip: str, adb_port: int, adb_name: str, emulator_args: str = "") -> CustomInstance:
+def create(exe_path: str | None, adb_ip: str, adb_port: int, adb_name: str, emulator_args: str = "") -> CustomInstance:
     return CustomInstance(exe_path, emulator_args=emulator_args, id='custom', name='Custom', adb_ip=adb_ip, adb_port=adb_port, adb_name=adb_name)
 
 
