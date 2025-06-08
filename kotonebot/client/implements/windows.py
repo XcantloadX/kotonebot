@@ -7,7 +7,7 @@ import cv2
 import win32ui
 import win32gui
 import numpy as np
-from ahk import AHK
+from ahk import AHK, MsgBoxIcon
 from cv2.typing import MatLike
 
 from ..device import Device
@@ -19,14 +19,26 @@ class WindowsImpl(Touchable, Screenshotable):
         # TODO: 硬编码路径
         self.ahk = AHK(executable_path=str(resources.files('kaa.res.bin') / 'AutoHotkey.exe'))
         self.device = device
-        self.emergency = False
 
         # 设置 DPI aware，否则高缩放显示器上返回的坐标会错误
         windll.user32.SetProcessDPIAware()
-        def toggle_emergency():
-            self.emergency = True
-            self.ahk.msg_box('已启用紧急暂停模式')
-        self.ahk.add_hotkey('^F4', toggle_emergency)
+        # TODO: 这个应该移动到其他地方去
+        def _stop():
+            from kotonebot.backend.context.context import vars
+            vars.flow.request_interrupt()
+            self.ahk.msg_box('任务已停止。', title='琴音小助手', icon=MsgBoxIcon.EXCLAMATION)
+
+        def _toggle_pause():
+            from kotonebot.backend.context.context import vars
+            if vars.flow.is_paused:
+                self.ahk.msg_box('任务即将恢复。\n关闭此消息框后将会继续执行', title='琴音小助手', icon=MsgBoxIcon.EXCLAMATION)
+                vars.flow.request_resume()
+            else:
+                vars.flow.request_pause()
+                self.ahk.msg_box('任务已暂停。\n关闭此消息框后再按一次快捷键恢复执行。', title='琴音小助手', icon=MsgBoxIcon.EXCLAMATION)
+
+        self.ahk.add_hotkey('^F4', _toggle_pause) # Ctrl+F4 暂停/恢复
+        self.ahk.add_hotkey('^F3', _stop)  # Ctrl+F3 停止
         self.ahk.start_hotkeys()
         # 将点击坐标设置为相对 Client
         self.ahk.set_coord_mode('Mouse', 'Client')
@@ -59,11 +71,6 @@ class WindowsImpl(Touchable, Screenshotable):
     def __client_to_screen(self, hwnd: int, x: int, y: int) -> tuple[int, int]:
         """将 Client 区域坐标转换为屏幕坐标"""
         return win32gui.ClientToScreen(hwnd, (x, y))
-
-    def __wait_not_emergency(self):
-        from time import sleep # TODO: 改为 kotonebot.backend.context.sleep
-        while self.emergency:
-            sleep(0.2)
 
     def screenshot(self) -> MatLike:
         if not self.ahk.win_is_active('gakumas'):
@@ -133,7 +140,6 @@ class WindowsImpl(Touchable, Screenshotable):
             return 'portrait'
 
     def click(self, x: int, y: int) -> None:
-        self.__wait_not_emergency()
         # x, y = self.__client_to_screen(self.hwnd, x, y)
         # (0, 0) 很可能会点到窗口边框上
         if x == 0:
@@ -146,7 +152,6 @@ class WindowsImpl(Touchable, Screenshotable):
         self.ahk.click(x, y)
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float | None = None) -> None:
-        self.__wait_not_emergency()
         if not self.ahk.win_is_active('gakumas'):
             self.ahk.win_activate('gakumas')
         x1, y1 = int(x1 / self.scale_ratio), int(y1 / self.scale_ratio)

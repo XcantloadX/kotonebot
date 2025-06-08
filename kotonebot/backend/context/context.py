@@ -3,6 +3,7 @@ import re
 import time
 import logging
 import warnings
+import threading
 from datetime import datetime
 from threading import Event
 from typing import (
@@ -25,6 +26,7 @@ import cv2
 from cv2.typing import MatLike
 
 from kotonebot.client.device import Device
+from kotonebot.backend.flow_controller import FlowController
 import kotonebot.backend.image as raw_image
 from kotonebot.backend.image import (
     TemplateMatchResult,
@@ -126,8 +128,7 @@ def interruptible(func: Callable[P, T]) -> Callable[P, T]:
     """
     def _decorator(*args: P.args, **kwargs: P.kwargs) -> T:
         global vars
-        if vars.interrupted.is_set():
-            raise KeyboardInterrupt("User requested interrupt.")
+        vars.flow.check()
         return func(*args, **kwargs)
     return _decorator
 
@@ -145,15 +146,13 @@ def interruptible_class(cls: Type[T]) -> Type[T]:
 
 def sleep(seconds: float, /):
     """
-    可中断的 sleep 函数。
+    可中断和可暂停的 sleep 函数。
 
     建议使用本函数代替 `time.sleep()`，
-    这样能以最快速度响应用户请求中断。
+    这样能以最快速度响应用户请求中断和暂停。
     """
     global vars
-    vars.interrupted.wait(timeout=seconds)
-    if vars.interrupted.is_set():
-        raise KeyboardInterrupt("User requested interrupt.")
+    vars.flow.sleep(seconds)
 
 def warn_manual_screenshot_mode(name: str, alternative: str):
     """
@@ -175,8 +174,8 @@ def is_manual_screenshot_mode() -> bool:
 class ContextGlobalVars:
     def __init__(self):
         self.__vars = dict[str, Any]()
-        self.interrupted: Event = Event()
-        """用户请求中断事件"""
+        self.flow: FlowController = FlowController()
+        """流程控制器，负责停止、暂停、恢复等操作"""
 
     def __getitem__(self, key: str) -> Any:
         return self.__vars[key]
@@ -198,6 +197,17 @@ class ContextGlobalVars:
 
     def clear(self):
         self.__vars.clear()
+        self.flow.reset()  # 重置流程控制器
+
+def check_flow_control():
+    """
+    统一的流程控制检查函数。
+
+    检查用户是否请求中断或暂停，如果是则相应处理：
+    - 如果请求中断，抛出 KeyboardInterrupt 异常
+    - 如果请求暂停，等待直到恢复
+    """
+    vars.flow.check()
 
 class ContextStackVars:
     stack: list['ContextStackVars'] = []
@@ -716,6 +726,7 @@ class ContextDevice(Device):
         """
         截图。返回截图数据，同时更新当前上下文的截图数据。
         """
+        check_flow_control()
         global next_wait, last_screenshot_time, next_wait_time
         current = ContextStackVars.ensure_current()
         if force:
@@ -951,4 +962,3 @@ def manual_context(screenshot_mode: ScreenshotMode = 'auto') -> ManualContextMan
     如果想要在其他地方使用，使用此函数手动创建一个上下文。
     """
     return ManualContextManager(screenshot_mode)
-
