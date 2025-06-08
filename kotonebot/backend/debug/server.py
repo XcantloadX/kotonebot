@@ -115,7 +115,7 @@ async def run_code(request: RunCodeRequest):
         except KeyboardInterrupt as e:
             result = {"status": "error", "result": stdout.getvalue(), "message": str(e), "traceback": traceback.format_exc()}
         finally:
-            context_vars.interrupted.clear()
+            context_vars.flow.clear_interrupt()
         event.set()
     threading.Thread(target=_runner, daemon=True).start()
     await event.wait()
@@ -124,8 +124,8 @@ async def run_code(request: RunCodeRequest):
 @app.get("/api/code/stop")
 async def stop_code():
     from kotonebot.backend.context import vars
-    vars.interrupted.set()
-    while vars.interrupted.is_set():
+    vars.flow.request_interrupt()
+    while vars.flow.is_interrupted:
         await asyncio.sleep(0.1)
     return {"status": "ok"}
 
