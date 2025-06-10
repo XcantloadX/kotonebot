@@ -6,8 +6,10 @@ import uiautomator2 as u2
 from cv2.typing import MatLike
 
 from kotonebot import logging
-from ..device import Device
+from ..device import Device, AndroidDevice
 from ..protocol import Screenshotable, Commandable, Touchable
+from ..registration import register_impl
+from .adb import AdbImplConfig
 
 logger = logging.getLogger(__name__)
 
@@ -83,3 +85,33 @@ class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
         滑动屏幕
         """
         self.u2_client.swipe(x1, y1, x2, y2, duration=duration or 0.1)
+
+
+# 编写并注册创建函数
+@register_impl('uiautomator2', config_model=AdbImplConfig)
+def create_uiautomator2_device(config: AdbImplConfig) -> Device:
+    from adbutils import adb
+
+    if config.disconnect:
+        logger.debug('adb disconnect %s', config.addr)
+        adb.disconnect(config.addr)
+    if config.connect:
+        logger.debug('adb connect %s', config.addr)
+        result = adb.connect(config.addr)
+        if 'cannot connect to' in result:
+            raise ValueError(result)
+    serial = config.device_serial or config.addr
+    logger.debug('adb wait for %s', serial)
+    adb.wait_for(serial, timeout=config.timeout)
+    devices = adb.device_list()
+    logger.debug('adb device_list: %s', devices)
+    d = [d for d in devices if d.serial == serial]
+    if len(d) == 0:
+        raise ValueError(f"Device {config.addr} not found")
+    d = d[0]
+    device = AndroidDevice(d)
+    impl = UiAutomator2Impl(device)
+    device._command = impl
+    device._touch = impl
+    device._screenshot = impl
+    return device

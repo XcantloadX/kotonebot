@@ -2,6 +2,7 @@ from ctypes import windll
 from typing import Literal
 from importlib import resources
 from functools import cached_property
+from dataclasses import dataclass
 
 import cv2
 import win32ui
@@ -10,14 +11,21 @@ import numpy as np
 from ahk import AHK, MsgBoxIcon
 from cv2.typing import MatLike
 
-from ..device import Device
+from ..device import Device, WindowsDevice
 from ..protocol import Commandable, Touchable, Screenshotable
+from ..registration import register_impl, ImplConfig
+
+# 1. 定义配置模型
+@dataclass
+class WindowsImplConfig(ImplConfig):
+    window_title: str
+    ahk_exe_path: str
 
 class WindowsImpl(Touchable, Screenshotable):
-    def __init__(self, device: Device):
+    def __init__(self, device: Device, window_title: str, ahk_exe_path: str):
         self.__hwnd: int | None = None
-        # TODO: 硬编码路径
-        self.ahk = AHK(executable_path=str(resources.files('kaa.res.bin') / 'AutoHotkey.exe'))
+        self.window_title = window_title
+        self.ahk = AHK(executable_path=ahk_exe_path)
         self.device = device
 
         # 设置 DPI aware，否则高缩放显示器上返回的坐标会错误
@@ -55,9 +63,9 @@ class WindowsImpl(Touchable, Screenshotable):
     @property
     def hwnd(self) -> int:
         if self.__hwnd is None:
-            self.__hwnd = win32gui.FindWindow(None, 'gakumas')
+            self.__hwnd = win32gui.FindWindow(None, self.window_title)
             if self.__hwnd is None or self.__hwnd == 0:
-                raise RuntimeError('Failed to find window')
+                raise RuntimeError(f'Failed to find window: {self.window_title}')
         return self.__hwnd
 
     def __client_rect(self) -> tuple[int, int, int, int]:
@@ -73,8 +81,8 @@ class WindowsImpl(Touchable, Screenshotable):
         return win32gui.ClientToScreen(hwnd, (x, y))
 
     def screenshot(self) -> MatLike:
-        if not self.ahk.win_is_active('gakumas'):
-            self.ahk.win_activate('gakumas')
+        if not self.ahk.win_is_active(self.window_title):
+            self.ahk.win_activate(self.window_title)
         hwnd = self.hwnd
 
         # TODO: 需要检查下面这些 WinAPI 的返回结果
@@ -130,7 +138,7 @@ class WindowsImpl(Touchable, Screenshotable):
             return 720, 1280
 
     def detect_orientation(self) -> None | Literal['portrait'] | Literal['landscape']:
-        pos = self.ahk.win_get_position('gakumas')
+        pos = self.ahk.win_get_position(self.window_title)
         if pos is None:
             return None
         w, h = pos.width, pos.height
@@ -147,24 +155,37 @@ class WindowsImpl(Touchable, Screenshotable):
         if y == 0:
             y = 2
         x, y = int(x / self.scale_ratio), int(y / self.scale_ratio)
-        if not self.ahk.win_is_active('gakumas'):
-            self.ahk.win_activate('gakumas')
+        if not self.ahk.win_is_active(self.window_title):
+            self.ahk.win_activate(self.window_title)
         self.ahk.click(x, y)
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float | None = None) -> None:
-        if not self.ahk.win_is_active('gakumas'):
-            self.ahk.win_activate('gakumas')
+        if not self.ahk.win_is_active(self.window_title):
+            self.ahk.win_activate(self.window_title)
         x1, y1 = int(x1 / self.scale_ratio), int(y1 / self.scale_ratio)
         x2, y2 = int(x2 / self.scale_ratio), int(y2 / self.scale_ratio)
         # TODO: 这个 speed 的单位是什么？
         self.ahk.mouse_drag(x2, y2, from_position=(x1, y1), coord_mode='Client', speed=10)
 
 
+# 3. 编写并注册创建函数
+@register_impl('windows', config_model=WindowsImplConfig)
+def create_windows_device(config: WindowsImplConfig) -> Device:
+    device = WindowsDevice()
+    impl = WindowsImpl(
+        device,
+        window_title=config.window_title,
+        ahk_exe_path=config.ahk_exe_path
+    )
+    device._touch = impl
+    device._screenshot = impl
+    return device
+
+
 if __name__ == '__main__':
     from ..device import Device
-    from time import sleep
     device = Device()
-    impl = WindowsImpl(device)
+    impl = WindowsImpl(device, window_title='gakumas', ahk_exe_path=str(resources.files('kaa.res.bin') / 'AutoHotkey.exe'))
     device._screenshot = impl
     device._touch = impl
     device.swipe_scaled(0.5, 0.8, 0.5, 0.2)

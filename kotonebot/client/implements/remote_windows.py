@@ -14,6 +14,7 @@ import xmlrpc.server
 from typing import Literal, cast, Any, Tuple
 from functools import cached_property
 from threading import Thread
+from dataclasses import dataclass
 
 import cv2
 import numpy as np
@@ -22,9 +23,16 @@ from cv2.typing import MatLike
 from kotonebot import logging
 from ..device import Device, WindowsDevice
 from ..protocol import Touchable, Screenshotable
+from ..registration import register_impl, ImplConfig
 from .windows import WindowsImpl
 
 logger = logging.getLogger(__name__)
+
+# 定义配置模型
+@dataclass
+class RemoteWindowsImplConfig(ImplConfig):
+    host: str = "localhost"
+    port: int = 8000
 
 def _encode_image(image: MatLike) -> str:
     """Encode an image as a base64 string."""
@@ -54,7 +62,7 @@ class RemoteWindowsServer:
         self.port = port
         self.server = None
         self.device = WindowsDevice()
-        self.impl = WindowsImpl(self.device)
+        self.impl = WindowsImpl(self.device, window_title='gakumas', ahk_exe_path=None)
         self.device._screenshot = self.impl
         self.device._touch = self.impl
 
@@ -178,6 +186,16 @@ class RemoteWindowsImpl(Touchable, Screenshotable):
         """Swipe from (x1, y1) to (x2, y2) on the remote server."""
         if not self.proxy.swipe(x1, y1, x2, y2, duration):
             raise RuntimeError(f"Failed to swipe from ({x1}, {y1}) to ({x2}, {y2})")
+
+
+# 编写并注册创建函数
+@register_impl('remote_windows', config_model=RemoteWindowsImplConfig)
+def create_remote_windows_device(config: RemoteWindowsImplConfig) -> Device:
+    device = WindowsDevice()
+    remote_impl = RemoteWindowsImpl(device, config.host, config.port)
+    device._touch = remote_impl
+    device._screenshot = remote_impl
+    return device
 
 
 if __name__ == "__main__":

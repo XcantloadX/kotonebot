@@ -46,12 +46,12 @@ from kotonebot.backend.color import (
 from kotonebot.backend.ocr import (
     Ocr, OcrResult, OcrResultList, jp, en, StringMatchFunction
 )
-from kotonebot.client.factory import create_device
+from kotonebot.client.registration import AdbBasedImpl, create_device
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig
 from kotonebot.backend.core import Image, HintBox
 from kotonebot.errors import KotonebotWarning
-from kotonebot.client.factory import DeviceImpl
+from kotonebot.client import DeviceImpl
 from kotonebot.backend.preprocessor import PreprocessorProtocol
 from kotonebot.primitives import Rect
 
@@ -774,13 +774,46 @@ class Context(Generic[T]):
         self.__debug = ContextDebug(self)
         self.__config = ContextConfig[T](self, config_path, config_type)
         
-        ip = self.config.current.backend.adb_ip
-        port = self.config.current.backend.adb_port
         # TODO: 处理链接失败情况
         if screenshot_impl is None:
             screenshot_impl = self.config.current.backend.screenshot_impl
         logger.info(f'Using "{screenshot_impl}" as screenshot implementation')
-        self.__device = ContextDevice(device or create_device(f'{ip}:{port}', screenshot_impl))
+
+        if device is None:
+            # 根据不同的 impl 类型创建设备
+            if screenshot_impl in ['adb', 'adb_raw', 'uiautomator2']:
+                from kotonebot.client.implements.adb import AdbImplConfig
+                ip = self.config.current.backend.adb_ip
+                port = self.config.current.backend.adb_port
+                config = AdbImplConfig(
+                    addr=f'{ip}:{port}',
+                    connect=True,
+                    disconnect=True,
+                    device_serial=None,
+                    timeout=180
+                )
+                impl = cast(AdbBasedImpl, screenshot_impl) # make pylance happy
+                device = create_device(impl, config)
+            elif screenshot_impl == 'windows':
+                from kotonebot.client.implements.windows import WindowsImplConfig
+                config = WindowsImplConfig(
+                    window_title=getattr(self.config.current.backend, 'windows_window_title', 'gakumas'),
+                    ahk_exe_path=getattr(self.config.current.backend, 'windows_ahk_path', None)
+                )
+                device = create_device(screenshot_impl, config)
+            elif screenshot_impl == 'remote_windows':
+                from kotonebot.client.implements.remote_windows import RemoteWindowsImplConfig
+                ip = self.config.current.backend.adb_ip
+                port = self.config.current.backend.adb_port
+                config = RemoteWindowsImplConfig(
+                    host=ip,
+                    port=port
+                )
+                device = create_device(screenshot_impl, config)
+            else:
+                raise ValueError(f'Unsupported screenshot implementation: {screenshot_impl}')
+
+        self.__device = ContextDevice(device)
 
     def inject(
         self,
