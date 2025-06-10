@@ -33,6 +33,7 @@ class WindowsHostConfig:
 @dataclass
 class RemoteWindowsHostConfig:
     """由外部为远程 Windows 实现提供配置。"""
+    windows_host_config: WindowsHostConfig
     host: str
     port: int
 

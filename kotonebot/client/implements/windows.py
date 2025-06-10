@@ -185,7 +185,9 @@ def create_windows_device(config: WindowsImplConfig) -> Device:
 if __name__ == '__main__':
     from ..device import Device
     device = Device()
-    impl = WindowsImpl(device, window_title='gakumas', ahk_exe_path=str(resources.files('kaa.res.bin') / 'AutoHotkey.exe'))
+    # 在测试环境中直接使用默认路径
+    ahk_path = str(resources.files('kaa.res.bin') / 'AutoHotkey.exe')
+    impl = WindowsImpl(device, window_title='gakumas', ahk_exe_path=ahk_path)
     device._screenshot = impl
     device._touch = impl
     device.swipe_scaled(0.5, 0.8, 0.5, 0.2)

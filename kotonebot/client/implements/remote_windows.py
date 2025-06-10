@@ -24,13 +24,14 @@ from kotonebot import logging
 from ..device import Device, WindowsDevice
 from ..protocol import Touchable, Screenshotable
 from ..registration import register_impl, ImplConfig
-from .windows import WindowsImpl
+from .windows import WindowsImpl, WindowsImplConfig, create_windows_device
 
 logger = logging.getLogger(__name__)
 
 # 定义配置模型
 @dataclass
 class RemoteWindowsImplConfig(ImplConfig):
+    windows_impl_config: WindowsImplConfig
     host: str = "localhost"
     port: int = 8000
 
@@ -56,13 +57,13 @@ class RemoteWindowsServer:
     This class wraps a WindowsImpl instance and exposes its methods via XML-RPC.
     """
 
-    def __init__(self, host="localhost", port=8000):
+    def __init__(self, windows_impl_config: WindowsImplConfig, host="localhost", port=8000):
         """Initialize the server with the given host and port."""
         self.host = host
         self.port = port
         self.server = None
         self.device = WindowsDevice()
-        self.impl = WindowsImpl(self.device, window_title='gakumas', ahk_exe_path=None)
+        self.impl = create_windows_device(windows_impl_config)
         self.device._screenshot = self.impl
         self.device._touch = self.impl
 
@@ -196,20 +197,3 @@ def create_remote_windows_device(config: RemoteWindowsImplConfig) -> Device:
     device._touch = remote_impl
     device._screenshot = remote_impl
     return device
-
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Remote Windows XML-RPC Server")
-    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
-    parser.add_argument("--port", type=int, default=8000, help="Port to bind to")
-    args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO)
-
-    server = RemoteWindowsServer(args.host, args.port)
-    try:
-        server.start()
-    except KeyboardInterrupt:
-        logger.info("Server stopped by user")
