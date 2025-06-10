@@ -764,8 +764,7 @@ class Context(Generic[T]):
         self,
         config_path: str,
         config_type: Type[T],
-        screenshot_impl: Optional[DeviceImpl] = None,
-        device: Optional[Device] = None
+        device: Device
     ):
         self.__ocr = ContextOcr(self)
         self.__image = ContextImage(self)
@@ -773,46 +772,6 @@ class Context(Generic[T]):
         self.__vars = ContextGlobalVars()
         self.__debug = ContextDebug(self)
         self.__config = ContextConfig[T](self, config_path, config_type)
-        
-        # TODO: 处理链接失败情况
-        if screenshot_impl is None:
-            screenshot_impl = self.config.current.backend.screenshot_impl
-        logger.info(f'Using "{screenshot_impl}" as screenshot implementation')
-
-        if device is None:
-            # 根据不同的 impl 类型创建设备
-            if screenshot_impl in ['adb', 'adb_raw', 'uiautomator2']:
-                from kotonebot.client.implements.adb import AdbImplConfig
-                ip = self.config.current.backend.adb_ip
-                port = self.config.current.backend.adb_port
-                config = AdbImplConfig(
-                    addr=f'{ip}:{port}',
-                    connect=True,
-                    disconnect=True,
-                    device_serial=None,
-                    timeout=180
-                )
-                impl = cast(AdbBasedImpl, screenshot_impl) # make pylance happy
-                device = create_device(impl, config)
-            elif screenshot_impl == 'windows':
-                from kotonebot.client.implements.windows import WindowsImplConfig
-                config = WindowsImplConfig(
-                    window_title=getattr(self.config.current.backend, 'windows_window_title', 'gakumas'),
-                    ahk_exe_path=getattr(self.config.current.backend, 'windows_ahk_path', None)
-                )
-                device = create_device(screenshot_impl, config)
-            elif screenshot_impl == 'remote_windows':
-                from kotonebot.client.implements.remote_windows import RemoteWindowsImplConfig
-                ip = self.config.current.backend.adb_ip
-                port = self.config.current.backend.adb_port
-                config = RemoteWindowsImplConfig(
-                    host=ip,
-                    port=port
-                )
-                device = create_device(screenshot_impl, config)
-            else:
-                raise ValueError(f'Unsupported screenshot implementation: {screenshot_impl}')
-
         self.__device = ContextDevice(device)
 
     def inject(
@@ -924,8 +883,7 @@ def init_context(
     config_path: str = 'config.json',
     config_type: Type[T] = dict[str, Any],
     force: bool = False,
-    screenshot_impl: Optional[DeviceImpl] = None,
-    target_device: Device | None = None,
+    target_device: Device,
 ):
     """
     初始化 Context 模块。
@@ -936,8 +894,6 @@ def init_context(
         默认为 `dict[str, Any]`，即普通的 JSON 数据，不包含任何类型信息。
     :param force:  是否强制重新初始化。
         若为 `True`，则忽略已存在的 Context 实例，并重新创建一个新的实例。
-    :param screenshot_impl: 截图实现。
-        若为 `None`，则使用默认配置文件中指定的截图实现。
     :param target_device: 目标设备
     """
     global _c, device, ocr, image, color, vars, debug, config
@@ -946,8 +902,7 @@ def init_context(
     _c = Context(
         config_path=config_path,
         config_type=config_type,
-        screenshot_impl=screenshot_impl,
-        device=target_device
+        device=target_device,
     )
     device._FORWARD_getter = lambda: _c.device # type: ignore
     ocr._FORWARD_getter = lambda: _c.ocr # type: ignore

@@ -216,8 +216,6 @@ def wait_message_all_done():
         threading.Thread(target=_wait, daemon=True).start()
 
 if __name__ == "__main__":
-    from kotonebot.backend.context import init_context
-    init_context()
     debug_vars.debug.hide_server_log = False
     process = subprocess.Popen(["pylsp", "--port", "5479", "--ws"])
     print("LSP started. PID=", process.pid)
