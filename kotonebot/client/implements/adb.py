@@ -79,9 +79,14 @@ class AdbImpl(Commandable, Touchable, Screenshotable):
         self.adb.shell(f"input touchscreen swipe {x1} {y1} {x2} {y2}")
 
 
-# 编写并注册创建函数
-@register_impl('adb', config_model=AdbImplConfig)
-def create_adb_device(config: AdbImplConfig) -> Device:
+def _create_adb_device_base(config: AdbImplConfig, impl_factory: type) -> Device:
+    """
+    通用的 ADB 设备创建工厂函数。
+    其他任意基于 ADB 的 Impl 可以直接复用这个函数。
+
+    :param config: ADB 实现配置
+    :param impl_factory: 实现类工厂函数，接收 device 参数并返回实现实例
+    """
     from adbutils import adb
 
     if config.disconnect:
@@ -102,8 +107,14 @@ def create_adb_device(config: AdbImplConfig) -> Device:
         raise ValueError(f"Device {config.addr} not found")
     d = d[0]
     device = AndroidDevice(d)
-    impl = AdbImpl(device)
+    impl = impl_factory(device)
     device._command = impl
     device._touch = impl
     device._screenshot = impl
     return device
+
+
+@register_impl('adb', config_model=AdbImplConfig)
+def create_adb_device(config: AdbImplConfig) -> Device:
+    """AdbImpl 工厂函数"""
+    return _create_adb_device_base(config, AdbImpl)

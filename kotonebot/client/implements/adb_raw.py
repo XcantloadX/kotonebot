@@ -11,8 +11,8 @@ import numpy as np
 from cv2.typing import MatLike
 from adbutils._utils import adb_path
 
-from .adb import AdbImpl, AdbImplConfig
-from ..device import Device, AndroidDevice
+from .adb import AdbImpl, AdbImplConfig, _create_adb_device_base
+from ..device import Device
 from ..registration import register_impl
 from kotonebot import logging
 
@@ -160,31 +160,7 @@ class AdbRawImpl(AdbImpl):
         return data
 
 
-# 编写并注册创建函数
 @register_impl('adb_raw', config_model=AdbImplConfig)
 def create_adb_raw_device(config: AdbImplConfig) -> Device:
-    from adbutils import adb
-
-    if config.disconnect:
-        logger.debug('adb disconnect %s', config.addr)
-        adb.disconnect(config.addr)
-    if config.connect:
-        logger.debug('adb connect %s', config.addr)
-        result = adb.connect(config.addr)
-        if 'cannot connect to' in result:
-            raise ValueError(result)
-    serial = config.device_serial or config.addr
-    logger.debug('adb wait for %s', serial)
-    adb.wait_for(serial, timeout=config.timeout)
-    devices = adb.device_list()
-    logger.debug('adb device_list: %s', devices)
-    d = [d for d in devices if d.serial == serial]
-    if len(d) == 0:
-        raise ValueError(f"Device {config.addr} not found")
-    d = d[0]
-    device = AndroidDevice(d)
-    impl = AdbRawImpl(device)
-    device._command = impl
-    device._touch = impl
-    device._screenshot = impl
-    return device
+    """AdbRawImpl 工厂函数"""
+    return _create_adb_device_base(config, AdbRawImpl)
