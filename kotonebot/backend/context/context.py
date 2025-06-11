@@ -25,7 +25,7 @@ from typing_extensions import deprecated
 import cv2
 from cv2.typing import MatLike
 
-from kotonebot.client.device import Device
+from kotonebot.client.device import Device, AndroidDevice, WindowsDevice
 from kotonebot.backend.flow_controller import FlowController
 import kotonebot.backend.image as raw_image
 from kotonebot.backend.image import (
@@ -717,9 +717,10 @@ class Forwarded:
             raise ValueError(f"Forwarded object {self._FORWARD_name} called before initialization.")
         setattr(self._FORWARD_getter(), name, value)
 
-# HACK: 这应该要有个更好的实现方式
-class ContextDevice(Device):
-    def __init__(self, device: Device):
+
+T_Device = TypeVar('T_Device', bound=Device)
+class ContextDevice(Generic[T_Device], Device):
+    def __init__(self, device: T_Device):
         self._device = device
 
     def screenshot(self, *, force: bool = False):
@@ -746,7 +747,7 @@ class ContextDevice(Device):
         current._screenshot = img
         return img
 
-    def __getattribute__(self, name: str) -> Any:
+    def __getattribute__(self, name: str):
         if name in ['_device', 'screenshot', 'of_android', 'of_windows']:
             return object.__getattribute__(self, name)
         else:
@@ -758,6 +759,23 @@ class ContextDevice(Device):
         else:
             return setattr(self._device, name, value)
 
+    def of_android(self) -> 'ContextDevice | AndroidDevice':
+        """
+        确保此 ContextDevice 底层为 Android 平台。
+        同时通过返回的对象可以调用 Android 平台特有的方法。
+        """
+        if not isinstance(self._device, AndroidDevice):
+            raise ValueError("Device is not AndroidDevice")
+        return self
+
+    def of_windows(self) -> 'ContextDevice | WindowsDevice':
+        """
+        确保此 ContextDevice 底层为 Windows 平台。
+        同时通过返回的对象可以调用 Windows 平台特有的方法。
+        """
+        if not isinstance(self._device, WindowsDevice):
+            raise ValueError("Device is not WindowsDevice")
+        return self
 
 class Context(Generic[T]):
     def __init__(
