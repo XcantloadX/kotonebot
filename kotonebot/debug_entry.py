@@ -24,6 +24,7 @@ def run_script(script_path: str) -> None:
     config_path = './config.json'
     kaa_instance = Kaa(config_path)
     init_context(config_type=BaseConfig, target_device=kaa_instance._on_create_device())
+    kaa_instance._on_after_init_context()
     manual_context().begin()
     runpy.run_module(module_name, run_name="__main__")
 

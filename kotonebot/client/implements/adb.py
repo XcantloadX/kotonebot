@@ -5,9 +5,10 @@ from typing_extensions import override
 import cv2
 import numpy as np
 from cv2.typing import MatLike
+from adbutils._device import AdbDevice as AdbUtilsDevice
 
-from ..device import Device, AndroidDevice
-from ..protocol import Commandable, Touchable, Screenshotable
+from ..device import AndroidDevice
+from ..protocol import AndroidCommandable, Touchable, Screenshotable
 from ..registration import register_impl, ImplConfig
 from dataclasses import dataclass
 
@@ -22,10 +23,9 @@ class AdbImplConfig(ImplConfig):
     device_serial: str | None = None
     timeout: float = 180
 
-class AdbImpl(Commandable, Touchable, Screenshotable):
-    def __init__(self, device: Device):
-        self.device = device
-        self.adb = device.adb
+class AdbImpl(AndroidCommandable, Touchable, Screenshotable):
+    def __init__(self, adb_connection: AdbUtilsDevice):
+        self.adb = adb_connection
 
     @override
     def launch_app(self, package_name: str) -> None:
@@ -47,6 +47,10 @@ class AdbImpl(Commandable, Touchable, Screenshotable):
         package = activity.split('/')[0]
         return package
 
+    def adb_shell(self, cmd: str) -> str:
+        """执行 ADB shell 命令"""
+        return cast(str, self.adb.shell(cmd))
+
     @override
     def detect_orientation(self):
         # 判断方向：https://stackoverflow.com/questions/10040624/check-if-device-is-landscape-via-adb
@@ -61,7 +65,9 @@ class AdbImpl(Commandable, Touchable, Screenshotable):
     def screen_size(self) -> tuple[int, int]:
         ret = cast(str, self.adb.shell("wm size")).strip('Physical size: ')
         spiltted = tuple(map(int, ret.split("x")))
-        landscape = self.device.orientation == 'landscape'
+        # 检测当前方向
+        orientation = self.detect_orientation()
+        landscape = orientation == 'landscape'
         spiltted = tuple(sorted(spiltted, reverse=landscape))
         if len(spiltted) != 2:
             raise ValueError(f"Invalid screen size: {ret}")
@@ -79,13 +85,13 @@ class AdbImpl(Commandable, Touchable, Screenshotable):
         self.adb.shell(f"input touchscreen swipe {x1} {y1} {x2} {y2}")
 
 
-def _create_adb_device_base(config: AdbImplConfig, impl_factory: type) -> Device:
+def _create_adb_device_base(config: AdbImplConfig, impl_class: type) -> AndroidDevice:
     """
     通用的 ADB 设备创建工厂函数。
     其他任意基于 ADB 的 Impl 可以直接复用这个函数。
 
     :param config: ADB 实现配置
-    :param impl_factory: 实现类工厂函数，接收 device 参数并返回实现实例
+    :param impl_class: 实现类或工厂函数。构造函数接收 adb_connection 参数。
     """
     from adbutils import adb
 
@@ -106,15 +112,17 @@ def _create_adb_device_base(config: AdbImplConfig, impl_factory: type) -> Device
     if len(d) == 0:
         raise ValueError(f"Device {config.addr} not found")
     d = d[0]
+
     device = AndroidDevice(d)
-    impl = impl_factory(device)
-    device._command = impl
+    impl = impl_class(d)
     device._touch = impl
     device._screenshot = impl
+    device.commands = impl
+
     return device
 
 
 @register_impl('adb', config_model=AdbImplConfig)
-def create_adb_device(config: AdbImplConfig) -> Device:
+def create_adb_device(config: AdbImplConfig) -> AndroidDevice:
     """AdbImpl 工厂函数"""
     return _create_adb_device_base(config, AdbImpl)

@@ -747,13 +747,13 @@ class ContextDevice(Device):
         return img
 
     def __getattribute__(self, name: str) -> Any:
-        if name in ['_device', 'screenshot']:
+        if name in ['_device', 'screenshot', 'of_android', 'of_windows']:
             return object.__getattribute__(self, name)
         else:
             return getattr(self._device, name)
         
     def __setattr__(self, name: str, value: Any):
-        if name in ['_device', 'screenshot']:
+        if name in ['_device', 'screenshot', 'of_android', 'of_windows']:
             return object.__setattr__(self, name, value)
         else:
             return setattr(self._device, name, value)
