@@ -9,6 +9,7 @@ from cv2.typing import MatLike
 from adbutils._device import AdbDevice as AdbUtilsDevice
 
 from ..backend.debug import result
+from ..errors import UnscalableResolutionError
 from kotonebot.backend.core import HintBox
 from kotonebot.primitives import Rect, Point, is_point
 from .protocol import ClickableObjectProtocol, Commandable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable
@@ -78,6 +79,12 @@ class Device:
         """
         设备平台名称。
         """
+        self.target_resolution: tuple[int, int] | None = None
+        """
+        目标分辨率。
+        若设置，则在截图、点击、滑动等时会缩放到目标分辨率。
+        仅支持等比例缩放，若无法等比例缩放，则会抛出异常 `UnscalableResolutionError`。
+        """
     
     @property
     def adb(self) -> AdbUtilsDevice:
@@ -88,6 +95,55 @@ class Device:
     @adb.setter
     def adb(self, value: AdbUtilsDevice) -> None:
         self._adb = value
+
+    def _scale_pos_real_to_target(self, real_x: int, real_y: int) -> tuple[int, int]:
+        """将真实屏幕坐标缩放到目标逻辑坐标"""
+        if self.target_resolution is None:
+            return real_x, real_y
+        
+        real_w, real_h = self.screen_size
+        target_w, target_h = self.target_resolution
+
+        if real_w <= 0 or real_h <= 0:
+            raise ValueError(f"Real screen size dimensions must be positive for scaling: {self.screen_size}")
+
+        # target_w 和 target_h 为0或负数的情况也应视为异常，但UnscalableResolutionError主要关注比例
+
+        scale_w = target_w / real_w
+        scale_h = target_h / real_h
+        
+        if abs(scale_w - scale_h) > 1e-9: # 使用容差比较浮点数
+            raise UnscalableResolutionError(self.target_resolution, self.screen_size)
+            
+        return int(real_x * scale_w), int(real_y * scale_h)
+
+    def _scale_pos_target_to_real(self, target_x: int, target_y: int) -> tuple[int, int]:
+        """将目标逻辑坐标缩放到真实屏幕坐标"""
+        if self.target_resolution is None:
+            return target_x, target_y # 输入坐标已是真实坐标
+        
+        real_w, real_h = self.screen_size
+        target_w, target_h = self.target_resolution
+
+        if target_w <= 0 or target_h <= 0:
+            raise ValueError(f"Target resolution dimensions must be positive for scaling: {self.target_resolution}")
+        
+        if real_w <= 0 or real_h <= 0:
+            raise ValueError(f"Real screen size dimensions must be positive for scaling: {self.screen_size}")
+
+        # 检查宽高比是否一致 (target_w / real_w vs target_h / real_h)
+        if abs((target_w / real_w) - (target_h / real_h)) > 1e-9:
+            raise UnscalableResolutionError(self.target_resolution, self.screen_size)
+
+        scale_to_real_w = real_w / target_w
+        scale_to_real_h = real_h / target_h
+        
+        return int(target_x * scale_to_real_w), int(target_y * scale_to_real_h)
+
+    def __scale_image (self, img: MatLike) -> MatLike:
+        if self.target_resolution is None:
+            return img
+        return cv2.resize(img, self.target_resolution)
 
     @overload
     def click(self) -> None:
@@ -161,6 +217,9 @@ class Device:
             logger.debug(f"Executing click hook before: ({x}, {y})")
             x, y = hook(x, y)
             logger.debug(f"Click hook before result: ({x}, {y})")
+        if self.target_resolution is not None:
+            # 输入坐标为逻辑坐标，需要转换为真实坐标
+            x, y = self._scale_pos_target_to_real(x, y)
         logger.debug(f"Click: {x}, {y}")
         from ..backend.context import ContextStackVars
         if ContextStackVars.current() is not None:
@@ -232,6 +291,10 @@ class Device:
         """
         滑动屏幕
         """
+        if self.target_resolution is not None:
+            # 输入坐标为逻辑坐标，需要转换为真实坐标
+            x1, y1 = self._scale_pos_target_to_real(x1, y1)
+            x2, y2 = self._scale_pos_target_to_real(x2, y2)
         self._touch.swipe(x1, y1, x2, y2, duration)
 
     def swipe_scaled(self, x1: float, y1: float, x2: float, y2: float, duration: float|None = None) -> None:
@@ -260,6 +323,8 @@ class Device:
         img = self.screenshot_raw()
         if self.screenshot_hook_after is not None:
             img = self.screenshot_hook_after(img)
+        if self.target_resolution is not None:
+            img = self.__scale_image(img)
         return img
 
     def screenshot_raw(self) -> MatLike:
@@ -296,8 +361,15 @@ class Device:
         `self.orientation` 属性默认为竖屏。如果需要自动检测，
         调用 `self.detect_orientation()` 方法。
         如果已知方向，也可以直接设置 `self.orientation` 属性。
+        
+        即使设置了 `self.target_resolution`，返回的分辨率仍然是真实分辨率。
         """
-        return self._screenshot.screen_size
+        size = self._screenshot.screen_size
+        if self.orientation == 'landscape':
+            size = sorted(size, reverse=True)
+        else:
+            size = sorted(size, reverse=False)
+        return size[0], size[1]
 
     def detect_orientation(self) -> Literal['portrait', 'landscape'] | None:
         """
