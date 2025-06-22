@@ -132,7 +132,7 @@ class Device:
             raise ValueError(f"Real screen size dimensions must be positive for scaling: {self.screen_size}")
 
         # 检查宽高比是否一致 (target_w / real_w vs target_h / real_h)
-        if abs((target_w / real_w) - (target_h / real_h)) > 1e-9:
+        if abs((target_w / real_w) - (target_h / real_h)) > 0.1:
             raise UnscalableResolutionError(self.target_resolution, self.screen_size)
 
         scale_to_real_w = real_w / target_w
