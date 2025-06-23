@@ -24,6 +24,14 @@
             ],
             // "module": "${command:extension.commandvariable.file.relativeDirDots}.${fileBasenameNoExtension}",
         },
+
+        {
+            "name": "Python: Current Module(Without context)",
+            "type": "python",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "module": "${command:extension.commandvariable.file.relativeDirDots}.${fileBasenameNoExtension}",
+        },
         
         {
             "name": "KotonebotDebug: Current Module",
