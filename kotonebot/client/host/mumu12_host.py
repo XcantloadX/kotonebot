@@ -7,8 +7,10 @@ from typing_extensions import override
 
 from kotonebot import logging
 from kotonebot.client import DeviceImpl, Device
+from kotonebot.client.device import AndroidDevice
 from kotonebot.client.registration import AdbBasedImpl, create_device
-from kotonebot.client.implements.adb import AdbImplConfig
+from kotonebot.client.implements.adb import AdbImpl, AdbImplConfig, _create_adb_device_base
+from kotonebot.client.implements.nemu_ipc import NemuIpcImpl, NemuIpcImplConfig
 from kotonebot.util import Countdown, Interval
 from .protocol import HostProtocol, Instance, copy_type, AdbHostConfig
 
@@ -78,6 +80,25 @@ class Mumu12Instance(Instance[AdbHostConfig]):
         if self.adb_port is None:
             raise ValueError("ADB port is not set and is required.")
 
+        # 新增对 nemu_ipc 的支持
+        if impl == 'nemu_ipc':
+            nemu_path = Mumu12Host._read_install_path()
+            if not nemu_path:
+                raise RuntimeError("无法找到 MuMu12 的安装路径。")
+            nemu_config = NemuIpcImplConfig(mumu_shell_folder=nemu_path, instance_id=int(self.id))
+            device = AndroidDevice()
+            nemu_impl = NemuIpcImpl(device, nemu_config)
+            device._screenshot = nemu_impl
+            device._touch = nemu_impl
+
+            # 组装命令部分 (Adb)
+            adb_config = AdbImplConfig(addr=f'{self.adb_ip}:{self.adb_port}', timeout=host_config.timeout)
+            # adb_impl = AdbImpl(device, adb_config)
+            _d = _create_adb_device_base(adb_config, AdbImpl)
+            device.commands = _d.commands
+            
+            return device
+
         # 为 ADB 相关的实现创建配置
         if impl in ['adb', 'adb_raw', 'uiautomator2']:
             config = AdbImplConfig(
@@ -96,10 +117,12 @@ class Mumu12Host(HostProtocol):
     @staticmethod
     @lru_cache(maxsize=1)
     def _read_install_path() -> str | None:
-        """
-        Reads the installation path (DisplayIcon) of MuMu Player 12 from the registry.
+        r"""
+        从注册表中读取 MuMu Player 12 的安装路径。
 
-        :return: The path to the display icon if found, otherwise None.
+        返回的路径为 shell 文件夹。如 `F:\Apps\Netease\MuMuPlayer-12.0\shell`。
+
+        :return: 若找到，则返回安装路径；否则返回 None。
         """
         if os.name != 'nt':
             return None

@@ -7,9 +7,10 @@ if TYPE_CHECKING:
     from .implements.adb import AdbImplConfig
     from .implements.remote_windows import RemoteWindowsImplConfig
     from .implements.windows import WindowsImplConfig
+    from .implements.nemu_ipc import NemuIpcImplConfig
 
 AdbBasedImpl = Literal['adb', 'adb_raw', 'uiautomator2']
-DeviceImpl = str | AdbBasedImpl | Literal['windows', 'remote_windows']
+DeviceImpl = str | AdbBasedImpl | Literal['windows', 'remote_windows', 'nemu_ipc']
 
 # --- 核心类型定义 ---
 
@@ -42,8 +43,8 @@ def register_impl(name: str, config_model: Type[ImplConfig] | None = None) -> Ca
     :param config_model: (可选) 与该实现关联的 dataclass 配置模型
     """
     def decorator(creator_func: Callable[..., Device]) -> Callable[..., Device]:
-        if name in DEVICE_CREATORS:
-            raise ImplRegistrationError(f"实现 '{name}' 已被注册。")
+        # if name in DEVICE_CREATORS:
+        #     raise ImplRegistrationError(f"实现 '{name}' 已被注册。")
         DEVICE_CREATORS[name] = (creator_func, config_model)
         return creator_func
     return decorator
@@ -60,6 +61,10 @@ def create_device(impl_name: Literal['remote_windows'], config: 'RemoteWindowsIm
 
 @overload
 def create_device(impl_name: AdbBasedImpl, config: 'AdbImplConfig') -> Device: ...
+
+# 新增 nemu_ipc overload
+@overload
+def create_device(impl_name: Literal['nemu_ipc'], config: 'NemuIpcImplConfig') -> Device: ...
 
 # 函数的实际实现
 def create_device(impl_name: DeviceImpl, config: ImplConfig | None = None) -> Device:
