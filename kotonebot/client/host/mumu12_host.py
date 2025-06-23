@@ -85,7 +85,7 @@ class Mumu12Instance(Instance[AdbHostConfig]):
             nemu_path = Mumu12Host._read_install_path()
             if not nemu_path:
                 raise RuntimeError("无法找到 MuMu12 的安装路径。")
-            nemu_config = NemuIpcImplConfig(mumu_shell_folder=nemu_path, instance_id=int(self.id))
+            nemu_config = NemuIpcImplConfig(mumu_root_folder=nemu_path, instance_id=int(self.id))
             device = AndroidDevice()
             nemu_impl = NemuIpcImpl(device, nemu_config)
             device._screenshot = nemu_impl
@@ -120,7 +120,7 @@ class Mumu12Host(HostProtocol):
         r"""
         从注册表中读取 MuMu Player 12 的安装路径。
 
-        返回的路径为 shell 文件夹。如 `F:\Apps\Netease\MuMuPlayer-12.0\shell`。
+        返回的路径为根目录。如 `F:\Apps\Netease\MuMuPlayer-12.0`。
 
         :return: 若找到，则返回安装路径；否则返回 None。
         """
@@ -139,6 +139,9 @@ class Mumu12Host(HostProtocol):
                 icon_path = icon_path.replace('"', '')
                 path = os.path.dirname(icon_path)
                 logger.debug('MuMu Player 12 installation path: %s', path)
+                # 返回根目录（去掉 shell 子目录）
+                if os.path.basename(path).lower() == 'shell':
+                    path = os.path.dirname(path)
                 return path
         return None
 
@@ -153,7 +156,7 @@ class Mumu12Host(HostProtocol):
         install_path = Mumu12Host._read_install_path()
         if install_path is None:
             raise RuntimeError('MuMu Player 12 is not installed.')
-        manager_path = os.path.join(install_path, 'MuMuManager.exe')
+        manager_path = os.path.join(install_path, 'shell', 'MuMuManager.exe')
         logger.debug('MuMuManager execute: %s', repr(args))
         output = subprocess.run(
             [manager_path] + args,

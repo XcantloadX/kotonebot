@@ -29,8 +29,8 @@ class NemuIpcError(Exception):
 
 @dataclass
 class NemuIpcImplConfig(ImplConfig):
-    """nemu_ipc 设备实现的配置模型"""
-    mumu_shell_folder: str
+    """nemu_ipc 设备实现的配置模型，mumu_root_folder 为 MuMu 根目录"""
+    mumu_root_folder: str
     instance_id: int
 
 
@@ -52,10 +52,10 @@ class NemuIpcImpl(Touchable, Screenshotable):
         
         如果没有启用「后台保活」功能，一般为主显示器。
         """
-        self.nemu_folder = os.path.abspath(os.path.join(config.mumu_shell_folder, os.pardir))
+        self.nemu_folder = config.mumu_root_folder
 
         # --------------------------- DLL 封装 ---------------------------
-        self._ipc = ExternalRendererIpc(config.mumu_shell_folder)
+        self._ipc = ExternalRendererIpc(config.mumu_root_folder)
         logger.info("ExternalRendererIpc initialized and DLL loaded")
 
     @property

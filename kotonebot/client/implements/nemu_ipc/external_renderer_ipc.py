@@ -10,17 +10,18 @@ class NemuIpcIncompatible(RuntimeError):
 
 
 class ExternalRendererIpc:
-    """对 `external_renderer_ipc.dll` 的轻量封装。
+    r"""对 `external_renderer_ipc.dll` 的轻量封装。
 
     该类仅处理 DLL 加载与原型声明，并提供带有类型提示的薄包装方法，
     方便在其他模块中调用且保持类型安全。
+    传入参数为 MuMu 根目录（如 F:\Apps\Netease\MuMuPlayer-12.0）。
     """
 
-    def __init__(self, mumu_shell_folder: str):
+    def __init__(self, mumu_root_folder: str):
         if os.name != "nt":
             raise NemuIpcIncompatible("ExternalRendererIpc only supports Windows.")
 
-        self.lib = self.__load_dll(mumu_shell_folder)
+        self.lib = self.__load_dll(mumu_root_folder)
         self.raise_on_error: bool = True
         """是否在调用 DLL 函数失败时抛出异常。"""
         self.__declare_prototypes()
@@ -200,12 +201,13 @@ class ExternalRendererIpc:
     # 内部工具
     # ------------------------------------------------------------------
 
-    def __load_dll(self, mumu_shell_folder: str) -> ctypes.CDLL:
-        """尝试多条路径加载 DLL。"""
+    def __load_dll(self, mumu_root_folder: str) -> ctypes.CDLL:
+        """尝试多条路径加载 DLL。传入为 MuMu 根目录。"""
         candidate_paths = [
-            os.path.join(mumu_shell_folder, "sdk", "external_renderer_ipc.dll"),
+            os.path.join(mumu_root_folder, "shell", "sdk", "external_renderer_ipc.dll"),
             os.path.join(
-                mumu_shell_folder,
+                mumu_root_folder,
+                "shell",
                 "nx_device",
                 "12.0",
                 "sdk",
