@@ -11,8 +11,9 @@ from cv2.typing import MatLike
 
 from ...device import AndroidDevice, Device
 from ...protocol import Touchable, Screenshotable
-from ...registration import register_impl, ImplConfig
+from ...registration import ImplConfig
 from .external_renderer_ipc import ExternalRendererIpc
+from kotonebot.errors import KotonebotError
 
 logger = logging.getLogger(__name__)
 
@@ -22,16 +23,23 @@ class NemuIpcIncompatible(Exception):
     pass
 
 
-class NemuIpcError(Exception):
+class NemuIpcError(KotonebotError):
     """调用 IPC 过程中发生错误"""
     pass
 
 
 @dataclass
 class NemuIpcImplConfig(ImplConfig):
-    """nemu_ipc 设备实现的配置模型，mumu_root_folder 为 MuMu 根目录"""
-    mumu_root_folder: str
+    r"""nemu_ipc 能力的配置模型。
+
+    参数说明：
+        nemu_folder: MuMu12 根目录（如 F:\Apps\Netease\MuMuPlayer-12.0）。
+        instance_id: 模拟器实例 ID。
+        display_id: 目标显示器 ID，默认为 0（主显示器）。
+    """
+    nemu_folder: str
     instance_id: int
+    display_id: int = 0
 
 
 class NemuIpcImpl(Touchable, Screenshotable):
@@ -39,23 +47,22 @@ class NemuIpcImpl(Touchable, Screenshotable):
     利用 MuMu12 提供的 external_renderer_ipc.dll 进行截图与触摸控制。
     """
 
-    def __init__(self, device: Device, config: NemuIpcImplConfig):
-        self.device = device
+    def __init__(self, config: NemuIpcImplConfig):
         self.config = config
         self.__width: int = 0
         self.__height: int = 0
         self.__connected: bool = False
         self._connect_id: int = 0
-        self.display_id: int = 0
+        self.display_id: int = config.display_id
         """
         显示器 ID。`0` 表示主显示器。
         
         如果没有启用「后台保活」功能，一般为主显示器。
         """
-        self.nemu_folder = config.mumu_root_folder
+        self.nemu_folder = config.nemu_folder
 
         # --------------------------- DLL 封装 ---------------------------
-        self._ipc = ExternalRendererIpc(config.mumu_root_folder)
+        self._ipc = ExternalRendererIpc(config.nemu_folder)
         logger.info("ExternalRendererIpc initialized and DLL loaded")
 
     @property
@@ -222,16 +229,4 @@ class NemuIpcImpl(Touchable, Screenshotable):
 
         # 最终抬起
         self._ipc.input_touch_up(self._connect_id, self.display_id)
-        sleep(0.01)
-
-# ------------------------------------------------------------------
-# 工厂方法
-# ------------------------------------------------------------------
-@register_impl("nemu_ipc", config_model=NemuIpcImplConfig)
-def create_nemu_ipc_device(config: NemuIpcImplConfig):
-    """创建一个 AndroidDevice，并挂载 NemuIpcImpl。"""
-    device = AndroidDevice()
-    impl = NemuIpcImpl(device, config)
-    device._touch = impl
-    device._screenshot = impl
-    return device 
+        sleep(0.01) 

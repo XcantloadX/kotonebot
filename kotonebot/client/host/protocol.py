@@ -195,7 +195,8 @@ class Instance(Generic[T_HostConfig], ABC):
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(name="{self.name}", id="{self.id}", adb="{self.adb_ip}:{self.adb_port}"({self.adb_name}))'
 
-class HostProtocol(Protocol):
+Recipe = TypeVar('Recipe', bound=str)
+class HostProtocol(Generic[Recipe], Protocol):
     @staticmethod
     def installed() -> bool: ...
     
@@ -205,6 +206,8 @@ class HostProtocol(Protocol):
     @staticmethod
     def query(*, id: str) -> Instance | None: ...
 
+    @staticmethod
+    def recipes() -> 'list[Recipe]': ...
 
 if __name__ == '__main__':
     pass

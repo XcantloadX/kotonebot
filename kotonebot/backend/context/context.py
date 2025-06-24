@@ -46,12 +46,10 @@ from kotonebot.backend.color import (
 from kotonebot.backend.ocr import (
     Ocr, OcrResult, OcrResultList, jp, en, StringMatchFunction
 )
-from kotonebot.client.registration import AdbBasedImpl, create_device
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig
 from kotonebot.backend.core import Image, HintBox
 from kotonebot.errors import KotonebotWarning
-from kotonebot.client import DeviceImpl
 from kotonebot.backend.preprocessor import PreprocessorProtocol
 from kotonebot.primitives import Rect
 

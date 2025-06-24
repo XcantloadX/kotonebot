@@ -13,7 +13,7 @@ from cv2.typing import MatLike
 
 from ..device import Device, WindowsDevice
 from ..protocol import Commandable, Touchable, Screenshotable
-from ..registration import register_impl, ImplConfig
+from ..registration import ImplConfig
 
 # 1. 定义配置模型
 @dataclass
@@ -166,21 +166,6 @@ class WindowsImpl(Touchable, Screenshotable):
         x2, y2 = int(x2 / self.scale_ratio), int(y2 / self.scale_ratio)
         # TODO: 这个 speed 的单位是什么？
         self.ahk.mouse_drag(x2, y2, from_position=(x1, y1), coord_mode='Client', speed=10)
-
-
-# 3. 编写并注册创建函数
-@register_impl('windows', config_model=WindowsImplConfig)
-def create_windows_device(config: WindowsImplConfig) -> Device:
-    device = WindowsDevice()
-    impl = WindowsImpl(
-        device,
-        window_title=config.window_title,
-        ahk_exe_path=config.ahk_exe_path
-    )
-    device._touch = impl
-    device._screenshot = impl
-    return device
-
 
 if __name__ == '__main__':
     from ..device import Device

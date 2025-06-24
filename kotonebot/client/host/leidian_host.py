@@ -1,18 +1,17 @@
 import os
 import subprocess
-from typing import cast
+from typing import Literal
 from functools import lru_cache
 from typing_extensions import override
 
 from kotonebot import logging
-from kotonebot.client import DeviceImpl
-from kotonebot.client.device import Device
-from kotonebot.client.registration import AdbBasedImpl, create_device
-from kotonebot.client.implements.adb import AdbImplConfig
+from kotonebot.client import Device
 from kotonebot.util import Countdown, Interval
 from .protocol import HostProtocol, Instance, copy_type, AdbHostConfig
+from .adb_common import AdbRecipes, CommonAdbCreateDeviceMixin
 
 logger = logging.getLogger(__name__)
+LeidianRecipes = AdbRecipes
 
 if os.name == 'nt':
     from ...interop.win.reg import read_reg
@@ -21,7 +20,7 @@ else:
         """Stub for read_reg on non-Windows platforms."""
         return default
 
-class LeidianInstance(Instance[AdbHostConfig]):
+class LeidianInstance(CommonAdbCreateDeviceMixin, Instance[AdbHostConfig]):
     @copy_type(Instance.__init__)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -64,35 +63,23 @@ class LeidianInstance(Instance[AdbHostConfig]):
         it = Interval(5)
         while not cd.expired() and not self.running():
             it.wait()
+            self.refresh()
         if not self.running():
             raise TimeoutError(f'Leidian instance "{self.name}" is not available.')
 
     @override
     def running(self) -> bool:
-        result = LeidianHost._invoke_manager(['isrunning', '--index', str(self.index)])
-        return result.strip() == 'running'
+        return self.is_running
 
     @override
-    def create_device(self, impl: DeviceImpl, host_config: AdbHostConfig) -> Device:
+    def create_device(self, impl: LeidianRecipes, host_config: AdbHostConfig) -> Device:
         """为雷电模拟器实例创建 Device。"""
         if self.adb_port is None:
             raise ValueError("ADB port is not set and is required.")
 
-        # 为 ADB 相关的实现创建配置
-        if impl in ['adb', 'adb_raw', 'uiautomator2']:
-            config = AdbImplConfig(
-                addr=f'{self.adb_ip}:{self.adb_port}',
-                connect=False,  # 雷电模拟器不需要 adb connect
-                disconnect=False,
-                device_serial=self.adb_name,
-                timeout=host_config.timeout
-            )
-            impl = cast(AdbBasedImpl, impl) # make pylance happy
-            return create_device(impl, config)
-        else:
-            raise ValueError(f'Unsupported device implementation for Leidian: {impl}')
+        return super().create_device(impl, host_config)
 
-class LeidianHost(HostProtocol):
+class LeidianHost(HostProtocol[LeidianRecipes]):
     @staticmethod
     @lru_cache(maxsize=1)
     def _read_install_path() -> str | None:
@@ -196,6 +183,10 @@ class LeidianHost(HostProtocol):
             if instance.id == id:
                 return instance
         return None
+
+    @staticmethod
+    def recipes() -> 'list[LeidianRecipes]':
+        return ['adb', 'adb_raw', 'uiautomator2']
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
