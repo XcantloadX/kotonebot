@@ -191,7 +191,7 @@ class NemuIpcImpl(Touchable, Screenshotable):
 
         self.__width = w_ptr.contents.value
         self.__height = h_ptr.contents.value
-        logger.debug("Parsed resolution %dx%d", self.__width, self.__height)
+        # logger.debug("Parsed resolution %dx%d", self.__width, self.__height)
 
     # ------------------------------------------------------------------
     # Touchable 接口实现

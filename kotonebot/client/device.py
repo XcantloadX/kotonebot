@@ -238,7 +238,7 @@ class Device:
             real_x, real_y = self._scale_pos_target_to_real(x, y)
         else:
             real_x, real_y = x, y
-        logger.debug(f"Click: {x}, {y}%s", f"(=Physical: {real_x}, {real_y})" if self.target_resolution is not None else "")
+        logger.debug(f"Click: {x}, {y}%s", f"(Physical: {real_x}, {real_y})" if self.target_resolution is not None else "")
         from ..backend.context import ContextStackVars
         if ContextStackVars.current() is not None:
             image = ContextStackVars.ensure_current()._screenshot
