@@ -4,6 +4,7 @@ from typing import Literal
 import numpy as np
 import uiautomator2 as u2
 from cv2.typing import MatLike
+from adbutils._device import AdbDevice as AdbUtilsDevice
 
 from kotonebot import logging
 from ..device import Device
@@ -16,9 +17,8 @@ logger = logging.getLogger(__name__)
 SCREENSHOT_INTERVAL = 0.2
 
 class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
-    def __init__(self, device: Device):
-        self.device = device
-        self.u2_client = u2.Device(device.adb.serial)
+    def __init__(self, adb_connection: AdbUtilsDevice):
+        self.u2_client = u2.Device(adb_connection.serial)
         self.__last_screenshot_time = 0
         
     def screenshot(self) -> MatLike:
@@ -40,10 +40,7 @@ class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
     def screen_size(self) -> tuple[int, int]:
         info = self.u2_client.info
         sizes = info['displayWidth'], info['displayHeight']
-        if self.device.orientation == 'landscape':
-            return (max(sizes), min(sizes))
-        else:
-            return (min(sizes), max(sizes))
+        return sizes
     
     def detect_orientation(self) -> Literal['portrait', 'landscape'] | None:
         """

@@ -24,3 +24,10 @@ class TaskNotFoundError(KotonebotError):
     def __init__(self, task_id: str):
         self.task_id = task_id
         super().__init__(f'Task "{task_id}" not found.')
+
+class UnscalableResolutionError(KotonebotError):
+    def __init__(self, target_resolution: tuple[int, int], screen_size: tuple[int, int]):
+        self.target_resolution = target_resolution
+        self.screen_size = screen_size
+        super().__init__(f'Cannot scale to target resolution {target_resolution}. '
+                         f'Screen size: {screen_size}')
