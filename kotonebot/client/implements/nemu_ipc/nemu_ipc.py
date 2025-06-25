@@ -142,8 +142,8 @@ class NemuIpcImpl(Touchable, Screenshotable):
     def screenshot(self) -> MatLike:
         self._ensure_connected()
 
-        # 确保分辨率已知
-        _ = self.screen_size
+        # 必须每次都更新分辨率，因为屏幕可能会旋转
+        self._query_resolution()
 
         length = self.__width * self.__height * 4 # RGBA
         buf_type = ctypes.c_ubyte * length
@@ -229,4 +229,13 @@ class NemuIpcImpl(Touchable, Screenshotable):
 
         # 最终抬起
         self._ipc.input_touch_up(self._connect_id, self.display_id)
-        sleep(0.01) 
+        sleep(0.01)
+        
+if __name__ == '__main__':
+    nemu = NemuIpcImpl(NemuIpcImplConfig(r'F:\Apps\Netease\MuMuPlayer-12.0', 0))
+    nemu.connect()
+    print(nemu.screen_size)
+    im = nemu.screenshot()
+    cv2.imshow('test', im)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
