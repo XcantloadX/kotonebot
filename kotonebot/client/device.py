@@ -119,32 +119,32 @@ class Device:
         """将真实屏幕坐标缩放到目标逻辑坐标"""
         if self.target_resolution is None:
             return real_x, real_y
-        
+
         real_w, real_h = self.screen_size
         target_w, target_h = self.target_resolution
 
-        # 校验分辨率是否可缩放
-        self._assert_scalable((real_w, real_h), (target_w, target_h))
+        # 校验分辨率是否可缩放并获取调整后的目标分辨率
+        adjusted_target_w, adjusted_target_h = self.__assert_scalable((real_w, real_h), (target_w, target_h))
 
-        scale_w = target_w / real_w
-        scale_h = target_h / real_h
-        
+        scale_w = adjusted_target_w / real_w
+        scale_h = adjusted_target_h / real_h
+
         return int(real_x * scale_w), int(real_y * scale_h)
 
     def _scale_pos_target_to_real(self, target_x: int, target_y: int) -> tuple[int, int]:
         """将目标逻辑坐标缩放到真实屏幕坐标"""
         if self.target_resolution is None:
             return target_x, target_y # 输入坐标已是真实坐标
-        
+
         real_w, real_h = self.screen_size
         target_w, target_h = self.target_resolution
 
-        # 校验分辨率是否可缩放
-        self._assert_scalable((real_w, real_h), (target_w, target_h))
+        # 校验分辨率是否可缩放并获取调整后的目标分辨率
+        adjusted_target_w, adjusted_target_h = self.__assert_scalable((real_w, real_h), (target_w, target_h))
 
-        scale_to_real_w = real_w / target_w
-        scale_to_real_h = real_h / target_h
-        
+        scale_to_real_w = real_w / adjusted_target_w
+        scale_to_real_h = real_h / adjusted_target_h
+
         return int(target_x * scale_to_real_w), int(target_y * scale_to_real_h)
 
     def __scale_image (self, img: MatLike) -> MatLike:
@@ -154,12 +154,10 @@ class Device:
         target_w, target_h = self.target_resolution
         h, w = img.shape[:2]
 
-        # 若宽高比不兼容直接抛异常
-        self._assert_scalable((w, h), (target_w, target_h))
+        # 校验分辨率是否可缩放并获取调整后的目标分辨率
+        adjusted_target = self.__assert_scalable((w, h), (target_w, target_h))
 
-
-
-        return cv2.resize(img, self.target_resolution)
+        return cv2.resize(img, adjusted_target)
 
     @overload
     def click(self) -> None:
@@ -398,12 +396,9 @@ class Device:
         """
         return self._screenshot.detect_orientation()
 
-    # ------------------------------------------------------------------
-    # 分辨率处理工具函数
-    # ------------------------------------------------------------------
-
-    def _aspect_ratio_compatible(self, src_size: tuple[int, int], tgt_size: tuple[int, int]) -> bool:
-        """判断两个尺寸在宽高比意义上是否兼容
+    def __aspect_ratio_compatible(self, src_size: tuple[int, int], tgt_size: tuple[int, int]) -> bool:
+        """
+        判断两个尺寸在宽高比意义上是否兼容
 
         若 ``self.match_rotation`` 为 True，忽略方向（长边/短边）进行比较。
         判断标准由 ``self.aspect_ratio_tolerance`` 决定（默认 0.1）。
@@ -431,10 +426,37 @@ class Device:
 
         return False
 
-    def _assert_scalable(self, src_size: tuple[int, int], tgt_size: tuple[int, int]) -> None:
-        """若 ``src_size`` 与 ``tgt_size`` 的宽高比不兼容，则抛出 ``UnscalableResolutionError``"""
-        if not self._aspect_ratio_compatible(src_size, tgt_size):
-            raise UnscalableResolutionError(tgt_size, src_size)
+    def __assert_scalable(self, source: tuple[int, int], target: tuple[int, int]) -> tuple[int, int]:
+        """
+        校验分辨率是否可缩放，并返回调整后的目标分辨率。
+
+        当 match_rotation 为 True 且源分辨率与目标分辨率的旋转方向不一致时，
+        自动交换目标分辨率的宽高，使其与源分辨率的方向保持一致。
+
+        :param src_size: 源分辨率 (width, height)
+        :param tgt_size: 目标分辨率 (width, height)
+        :return: 调整后的目标分辨率 (width, height)
+        :raises UnscalableResolutionError: 若宽高比不兼容
+        """
+        # 智能调整目标分辨率方向
+        adjusted_tgt_size = target
+        if self.match_rotation:
+            src_w, src_h = source
+            tgt_w, tgt_h = target
+
+            # 判断源分辨率和目标分辨率的方向
+            src_is_landscape = src_w > src_h
+            tgt_is_landscape = tgt_w > tgt_h
+
+            # 如果方向不一致，交换目标分辨率的宽高
+            if src_is_landscape != tgt_is_landscape:
+                adjusted_tgt_size = (tgt_h, tgt_w)
+
+        # 校验调整后的分辨率是否兼容
+        if not self.__aspect_ratio_compatible(source, adjusted_tgt_size):
+            raise UnscalableResolutionError(target, source)
+
+        return adjusted_tgt_size
 
 
 class AndroidDevice(Device):
