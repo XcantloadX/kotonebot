@@ -2,17 +2,17 @@ import os
 import json
 import subprocess
 from functools import lru_cache
-from typing import Any, cast
+from typing import Any, Literal
 from typing_extensions import override
 
 from kotonebot import logging
-from kotonebot.client import DeviceImpl, Device
-from kotonebot.client.registration import AdbBasedImpl, create_device
-from kotonebot.client.implements.adb import AdbImplConfig
+from kotonebot.client import Device
+from kotonebot.client.device import AndroidDevice
+from kotonebot.client.implements.adb import AdbImpl
+from kotonebot.client.implements.nemu_ipc import NemuIpcImpl, NemuIpcImplConfig
 from kotonebot.util import Countdown, Interval
 from .protocol import HostProtocol, Instance, copy_type, AdbHostConfig
-
-logger = logging.getLogger(__name__)
+from .adb_common import AdbRecipes, CommonAdbCreateDeviceMixin, connect_adb
 
 if os.name == 'nt':
     from ...interop.win.reg import read_reg
@@ -21,7 +21,10 @@ else:
         """Stub for read_reg on non-Windows platforms."""
         return default
 
-class Mumu12Instance(Instance[AdbHostConfig]):
+logger = logging.getLogger(__name__)
+MuMu12Recipes = AdbRecipes | Literal['nemu_ipc']
+
+class Mumu12Instance(CommonAdbCreateDeviceMixin, Instance[AdbHostConfig]):
     @copy_type(Instance.__init__)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -73,33 +76,44 @@ class Mumu12Instance(Instance[AdbHostConfig]):
         return self.is_android_started
 
     @override
-    def create_device(self, impl: DeviceImpl, host_config: AdbHostConfig) -> Device:
+    def create_device(self, impl: MuMu12Recipes, host_config: AdbHostConfig) -> Device:
         """为MuMu12模拟器实例创建 Device。"""
         if self.adb_port is None:
             raise ValueError("ADB port is not set and is required.")
 
-        # 为 ADB 相关的实现创建配置
-        if impl in ['adb', 'adb_raw', 'uiautomator2']:
-            config = AdbImplConfig(
-                addr=f'{self.adb_ip}:{self.adb_port}',
-                connect=True,
-                disconnect=True,
-                device_serial=self.adb_name,
-                timeout=host_config.timeout
-            )
-            impl = cast(AdbBasedImpl, impl) # make pylance happy
-            return create_device(impl, config)
-        else:
-            raise ValueError(f'Unsupported device implementation for MuMu12: {impl}')
+        if impl == 'nemu_ipc':
+            # NemuImpl
+            nemu_path = Mumu12Host._read_install_path()
+            if not nemu_path:
+                raise RuntimeError("无法找到 MuMu12 的安装路径。")
+            nemu_config = NemuIpcImplConfig(nemu_folder=nemu_path, instance_id=int(self.id))
+            nemu_impl = NemuIpcImpl(nemu_config)
+            # AdbImpl
+            adb_impl = AdbImpl(connect_adb(
+                self.adb_ip,
+                self.adb_port,
+                timeout=host_config.timeout,
+                device_serial=self.adb_name
+            ))
+            device = AndroidDevice()
+            device._screenshot = nemu_impl
+            device._touch = nemu_impl
+            device.commands = adb_impl
 
-class Mumu12Host(HostProtocol):
+            return device
+        else:
+            return super().create_device(impl, host_config)
+
+class Mumu12Host(HostProtocol[MuMu12Recipes]):
     @staticmethod
     @lru_cache(maxsize=1)
     def _read_install_path() -> str | None:
-        """
-        Reads the installation path (DisplayIcon) of MuMu Player 12 from the registry.
+        r"""
+        从注册表中读取 MuMu Player 12 的安装路径。
 
-        :return: The path to the display icon if found, otherwise None.
+        返回的路径为根目录。如 `F:\Apps\Netease\MuMuPlayer-12.0`。
+
+        :return: 若找到，则返回安装路径；否则返回 None。
         """
         if os.name != 'nt':
             return None
@@ -116,6 +130,9 @@ class Mumu12Host(HostProtocol):
                 icon_path = icon_path.replace('"', '')
                 path = os.path.dirname(icon_path)
                 logger.debug('MuMu Player 12 installation path: %s', path)
+                # 返回根目录（去掉 shell 子目录）
+                if os.path.basename(path).lower() == 'shell':
+                    path = os.path.dirname(path)
                 return path
         return None
 
@@ -130,7 +147,7 @@ class Mumu12Host(HostProtocol):
         install_path = Mumu12Host._read_install_path()
         if install_path is None:
             raise RuntimeError('MuMu Player 12 is not installed.')
-        manager_path = os.path.join(install_path, 'MuMuManager.exe')
+        manager_path = os.path.join(install_path, 'shell', 'MuMuManager.exe')
         logger.debug('MuMuManager execute: %s', repr(args))
         output = subprocess.run(
             [manager_path] + args,
@@ -184,6 +201,10 @@ class Mumu12Host(HostProtocol):
             if instance.id == id:
                 return instance
         return None
+
+    @staticmethod
+    def recipes() -> 'list[MuMu12Recipes]':
+        return ['adb', 'adb_raw', 'uiautomator2', 'nemu_ipc']
     
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')

@@ -9,8 +9,6 @@ from adbutils._device import AdbDevice as AdbUtilsDevice
 from kotonebot import logging
 from ..device import Device
 from ..protocol import Screenshotable, Commandable, Touchable
-from ..registration import register_impl
-from .adb import AdbImplConfig, _create_adb_device_base
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +80,3 @@ class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
         滑动屏幕
         """
         self.u2_client.swipe(x1, y1, x2, y2, duration=duration or 0.1)
-
-
-@register_impl('uiautomator2', config_model=AdbImplConfig)
-def create_uiautomator2_device(config: AdbImplConfig) -> Device:
-    """UiAutomator2Impl 工厂函数"""
-    return _create_adb_device_base(config, UiAutomator2Impl)

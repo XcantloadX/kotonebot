@@ -76,6 +76,9 @@ kaa 的开发主要用到了以下开源项目：
 ](https://github.com/AllenHeartcore/GkmasObjectManager)：用于提取游戏图像资源，以 GPLv3 协议开源。
 * [gakumasu-diff](https://github.com/vertesan/gakumasu-diff)：游戏数据。
 
+kaa 的开发还参考了以下开源项目：
+* [EmulatorExtras](https://github.com/MaaXYZ/EmulatorExtras)：MuMu 与雷电模拟器的截图与控制接口定义。
+* [blue_archive_auto_script](https://github.com/pur1fying/blue_archive_auto_script)：MuMu 与雷电模拟器的截图与控制接口的 Python 实现，以及各模拟器的控制实现。
 
 ## 免责声明
 **请在使用本项目前仔细阅读以下内容。使用本脚本将带来包括但不限于账号被封禁的风险。**

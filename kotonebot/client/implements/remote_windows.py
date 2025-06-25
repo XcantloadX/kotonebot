@@ -23,8 +23,8 @@ from cv2.typing import MatLike
 from kotonebot import logging
 from ..device import Device, WindowsDevice
 from ..protocol import Touchable, Screenshotable
-from ..registration import register_impl, ImplConfig
-from .windows import WindowsImpl, WindowsImplConfig, create_windows_device
+from ..registration import ImplConfig
+from .windows import WindowsImpl, WindowsImplConfig
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,11 @@ class RemoteWindowsServer:
         self.port = port
         self.server = None
         self.device = WindowsDevice()
-        self.impl = create_windows_device(windows_impl_config)
+        self.impl = WindowsImpl(
+            WindowsDevice(),
+            ahk_exe_path=windows_impl_config.ahk_exe_path,
+            window_title=windows_impl_config.window_title
+        )
         self.device._screenshot = self.impl
         self.device._touch = self.impl
 
@@ -187,13 +191,3 @@ class RemoteWindowsImpl(Touchable, Screenshotable):
         """Swipe from (x1, y1) to (x2, y2) on the remote server."""
         if not self.proxy.swipe(x1, y1, x2, y2, duration):
             raise RuntimeError(f"Failed to swipe from ({x1}, {y1}) to ({x2}, {y2})")
-
-
-# 编写并注册创建函数
-@register_impl('remote_windows', config_model=RemoteWindowsImplConfig)
-def create_remote_windows_device(config: RemoteWindowsImplConfig) -> Device:
-    device = WindowsDevice()
-    remote_impl = RemoteWindowsImpl(device, config.host, config.port)
-    device._touch = remote_impl
-    device._screenshot = remote_impl
-    return device
