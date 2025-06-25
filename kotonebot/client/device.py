@@ -82,8 +82,27 @@ class Device:
         self.target_resolution: tuple[int, int] | None = None
         """
         目标分辨率。
+        
         若设置，则在截图、点击、滑动等时会缩放到目标分辨率。
         仅支持等比例缩放，若无法等比例缩放，则会抛出异常 `UnscalableResolutionError`。
+        """
+        self.match_rotation: bool = True
+        """
+        分辨率缩放是否自动匹配旋转。
+
+        当目标与真实分辨率的宽高比不一致时，是否允许通过旋转（交换宽高）后再进行匹配。
+        为 True 则忽略方向差异，只要宽高比一致就视为可缩放；False 则必须匹配旋转。
+
+        例如，当目标分辨率为 1920x1080，而真实分辨率为 1080x1920 时，
+        ``match_rotation`` 为 True 则认为可以缩放，为 False 则会抛出异常。
+        """
+        self.aspect_ratio_tolerance: float = 0.1
+        """
+        宽高比容差阈值。
+
+        判断两分辨率宽高比差异是否接受的阈值。
+        该值越小，对比例一致性的要求越严格。
+        默认为 0.1（即 10% 容差）。
         """
     
     @property
@@ -104,17 +123,12 @@ class Device:
         real_w, real_h = self.screen_size
         target_w, target_h = self.target_resolution
 
-        if real_w <= 0 or real_h <= 0:
-            raise ValueError(f"Real screen size dimensions must be positive for scaling: {self.screen_size}")
-
-        # target_w 和 target_h 为0或负数的情况也应视为异常，但UnscalableResolutionError主要关注比例
+        # 校验分辨率是否可缩放
+        self._assert_scalable((real_w, real_h), (target_w, target_h))
 
         scale_w = target_w / real_w
         scale_h = target_h / real_h
         
-        if abs(scale_w - scale_h) > 1e-9: # 使用容差比较浮点数
-            raise UnscalableResolutionError(self.target_resolution, self.screen_size)
-            
         return int(real_x * scale_w), int(real_y * scale_h)
 
     def _scale_pos_target_to_real(self, target_x: int, target_y: int) -> tuple[int, int]:
@@ -125,15 +139,8 @@ class Device:
         real_w, real_h = self.screen_size
         target_w, target_h = self.target_resolution
 
-        if target_w <= 0 or target_h <= 0:
-            raise ValueError(f"Target resolution dimensions must be positive for scaling: {self.target_resolution}")
-        
-        if real_w <= 0 or real_h <= 0:
-            raise ValueError(f"Real screen size dimensions must be positive for scaling: {self.screen_size}")
-
-        # 检查宽高比是否一致 (target_w / real_w vs target_h / real_h)
-        if abs((target_w / real_w) - (target_h / real_h)) > 0.1:
-            raise UnscalableResolutionError(self.target_resolution, self.screen_size)
+        # 校验分辨率是否可缩放
+        self._assert_scalable((real_w, real_h), (target_w, target_h))
 
         scale_to_real_w = real_w / target_w
         scale_to_real_h = real_h / target_h
@@ -143,6 +150,15 @@ class Device:
     def __scale_image (self, img: MatLike) -> MatLike:
         if self.target_resolution is None:
             return img
+
+        target_w, target_h = self.target_resolution
+        h, w = img.shape[:2]
+
+        # 若宽高比不兼容直接抛异常
+        self._assert_scalable((w, h), (target_w, target_h))
+
+
+
         return cv2.resize(img, self.target_resolution)
 
     @overload
@@ -219,8 +235,10 @@ class Device:
             logger.debug(f"Click hook before result: ({x}, {y})")
         if self.target_resolution is not None:
             # 输入坐标为逻辑坐标，需要转换为真实坐标
-            x, y = self._scale_pos_target_to_real(x, y)
-        logger.debug(f"Click: {x}, {y}")
+            real_x, real_y = self._scale_pos_target_to_real(x, y)
+        else:
+            real_x, real_y = x, y
+        logger.debug(f"Click: {x}, {y}%s", f"(=Physical: {real_x}, {real_y})" if self.target_resolution is not None else "")
         from ..backend.context import ContextStackVars
         if ContextStackVars.current() is not None:
             image = ContextStackVars.ensure_current()._screenshot
@@ -228,9 +246,11 @@ class Device:
             image = np.array([])
         if image is not None and image.size > 0:
             cv2.circle(image, (x, y), 10, (0, 0, 255), -1)
-            message = f"point: ({x}, {y})"
+            message = f"Point: ({x}, {y})"
+            if self.target_resolution is not None:
+                message += f" physical: ({real_x}, {real_y})"
             result("device.click", image, message)
-        self._touch.click(x, y)
+        self._touch.click(real_x, real_y)
 
     def __click_point_tuple(self, point: Point) -> None:
         self.click(point[0], point[1])
@@ -323,8 +343,7 @@ class Device:
         img = self.screenshot_raw()
         if self.screenshot_hook_after is not None:
             img = self.screenshot_hook_after(img)
-        if self.target_resolution is not None:
-            img = self.__scale_image(img)
+        img = self.__scale_image(img)
         return img
 
     def screenshot_raw(self) -> MatLike:
@@ -378,6 +397,44 @@ class Device:
         :return: 检测到的方向，如果无法检测到则返回 None。
         """
         return self._screenshot.detect_orientation()
+
+    # ------------------------------------------------------------------
+    # 分辨率处理工具函数
+    # ------------------------------------------------------------------
+
+    def _aspect_ratio_compatible(self, src_size: tuple[int, int], tgt_size: tuple[int, int]) -> bool:
+        """判断两个尺寸在宽高比意义上是否兼容
+
+        若 ``self.match_rotation`` 为 True，忽略方向（长边/短边）进行比较。
+        判断标准由 ``self.aspect_ratio_tolerance`` 决定（默认 0.1）。
+        """
+        src_w, src_h = src_size
+        tgt_w, tgt_h = tgt_size
+
+        # 尺寸必须为正
+        if src_w <= 0 or src_h <= 0:
+            raise ValueError(f"Source size dimensions must be positive for scaling: {src_size}")
+        if tgt_w <= 0 or tgt_h <= 0:
+            raise ValueError(f"Target size dimensions must be positive for scaling: {tgt_size}")
+
+        tolerant = self.aspect_ratio_tolerance
+
+        # 直接比较宽高比
+        if abs((tgt_w / src_w) - (tgt_h / src_h)) <= tolerant:
+            return True
+
+        # 尝试忽略方向差异
+        if self.match_rotation:
+            ratio_src = max(src_w, src_h) / min(src_w, src_h)
+            ratio_tgt = max(tgt_w, tgt_h) / min(tgt_w, tgt_h)
+            return abs(ratio_src - ratio_tgt) <= tolerant
+
+        return False
+
+    def _assert_scalable(self, src_size: tuple[int, int], tgt_size: tuple[int, int]) -> None:
+        """若 ``src_size`` 与 ``tgt_size`` 的宽高比不兼容，则抛出 ``UnscalableResolutionError``"""
+        if not self._aspect_ratio_compatible(src_size, tgt_size):
+            raise UnscalableResolutionError(tgt_size, src_size)
 
 
 class AndroidDevice(Device):
