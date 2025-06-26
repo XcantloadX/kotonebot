@@ -30,16 +30,17 @@ class NemuIpcError(KotonebotError):
 
 @dataclass
 class NemuIpcImplConfig(ImplConfig):
-    r"""nemu_ipc 能力的配置模型。
-
-    参数说明：
-        nemu_folder: MuMu12 根目录（如 F:\Apps\Netease\MuMuPlayer-12.0）。
-        instance_id: 模拟器实例 ID。
-        display_id: 目标显示器 ID，默认为 0（主显示器）。
-    """
+    """nemu_ipc 能力的配置模型。"""
     nemu_folder: str
+    r"""MuMu12 根目录（如 F:\Apps\Netease\MuMuPlayer-12.0）。"""
     instance_id: int
-    display_id: int = 0
+    """模拟器实例 ID。"""
+    display_id: int | None = 0
+    """目标显示器 ID，默认为 0（主显示器）。若为 None 且设置了 target_package_name，则自动获取对应的 display_id。"""
+    target_package_name: str | None = None
+    """目标应用包名，用于自动获取 display_id。"""
+    app_index: int = 0
+    """多开应用索引，传给 get_display_id 方法。"""
 
 
 class NemuIpcImpl(Touchable, Screenshotable):
@@ -53,12 +54,6 @@ class NemuIpcImpl(Touchable, Screenshotable):
         self.__height: int = 0
         self.__connected: bool = False
         self._connect_id: int = 0
-        self.display_id: int = config.display_id
-        """
-        显示器 ID。`0` 表示主显示器。
-        
-        如果没有启用「后台保活」功能，一般为主显示器。
-        """
         self.nemu_folder = config.nemu_folder
 
         # --------------------------- DLL 封装 ---------------------------
@@ -95,6 +90,31 @@ class NemuIpcImpl(Touchable, Screenshotable):
     def _ensure_connected(self) -> None:
         if not self.__connected:
             self.connect()
+
+    def _get_display_id(self) -> int:
+        """获取有效的 display_id。"""
+        # 如果配置中直接指定了 display_id，直接返回
+        if self.config.display_id is not None:
+            return self.config.display_id
+
+        # 如果设置了 target_package_name，实时获取 display_id
+        if self.config.target_package_name:
+            self._ensure_connected()
+            display_id = self._ipc.get_display_id(
+                self._connect_id,
+                self.config.target_package_name,
+                self.config.app_index
+            )
+            # 当程序未启动时，返回值为 -1
+            # if display_id == -1:
+            #     return None
+            if display_id < 0:
+                raise NemuIpcError(f"Failed to get display_id for package '{self.config.target_package_name}', error code={display_id}")
+            # logger.debug("Real-time display_id=%d for package '%s'", display_id, self.config.target_package_name)
+            return display_id
+
+        # 如果都没有设置，抛出错误
+        raise NemuIpcError("display_id is None and target_package_name is not set. Please set display_id or target_package_name in config.")
 
     def connect(self) -> None:
         """连接模拟器。"""
@@ -154,7 +174,7 @@ class NemuIpcImpl(Touchable, Screenshotable):
 
         ret = self._ipc.capture_display(
             self._connect_id,
-            self.display_id,
+            self._get_display_id(),
             length,
             ctypes.cast(w_ptr, ctypes.c_void_p),
             ctypes.cast(h_ptr, ctypes.c_void_p),
@@ -180,7 +200,7 @@ class NemuIpcImpl(Touchable, Screenshotable):
         h_ptr = ctypes.pointer(ctypes.c_int(0))
         ret = self._ipc.capture_display(
             self._connect_id,
-            self.display_id,
+            self._get_display_id(),
             0,
             ctypes.cast(w_ptr, ctypes.c_void_p),
             ctypes.cast(h_ptr, ctypes.c_void_p),
@@ -196,12 +216,24 @@ class NemuIpcImpl(Touchable, Screenshotable):
     # ------------------------------------------------------------------
     # Touchable 接口实现
     # ------------------------------------------------------------------
+    def convert_xy(self, x: int, y: int):
+        display_id = self._get_display_id()
+        if display_id > 0:
+            # 在非主显示器上，坐标系原点为右上角，且坐标格式为 (y, x)
+            self._query_resolution()
+            x = self.width - x
+            return y, x
+        else:
+            return x, y
+    
     @override
     def click(self, x: int, y: int) -> None:
         self._ensure_connected()
-        self._ipc.input_touch_down(self._connect_id, self.display_id, x, y)
+        display_id = self._get_display_id()
+        x, y = self.convert_xy(x, y)
+        self._ipc.input_touch_down(self._connect_id, display_id, x, y)
         sleep(0.01)
-        self._ipc.input_touch_up(self._connect_id, self.display_id)
+        self._ipc.input_touch_up(self._connect_id, display_id)
 
     @override
     def swipe(
@@ -216,26 +248,30 @@ class NemuIpcImpl(Touchable, Screenshotable):
 
         duration = duration or 0.3
         steps = max(int(duration / 0.01), 2)
+        display_id = self._get_display_id()
+        x1, y1 = self.convert_xy(x1, y1)
+        x2, y2 = self.convert_xy(x2, y2)
+
         xs = np.linspace(x1, x2, steps, dtype=int)
         ys = np.linspace(y1, y2, steps, dtype=int)
 
         # 按下第一点
-        self._ipc.input_touch_down(self._connect_id, self.display_id, xs[0], ys[0])
+        self._ipc.input_touch_down(self._connect_id, display_id, xs[0], ys[0])
         sleep(0.01)
         # 中间移动
         for px, py in zip(xs[1:-1], ys[1:-1]):
-            self._ipc.input_touch_down(self._connect_id, self.display_id, px, py)
+            self._ipc.input_touch_down(self._connect_id, display_id, px, py)
             sleep(0.01)
 
         # 最终抬起
-        self._ipc.input_touch_up(self._connect_id, self.display_id)
+        self._ipc.input_touch_up(self._connect_id, display_id)
         sleep(0.01)
         
 if __name__ == '__main__':
-    nemu = NemuIpcImpl(NemuIpcImplConfig(r'F:\Apps\Netease\MuMuPlayer-12.0', 0))
+    nemu = NemuIpcImpl(NemuIpcImplConfig(
+        r'F:\Apps\Netease\MuMuPlayer-12.0', 0, None,
+        target_package_name='com.bandainamcoent.idolmaster_gakuen',
+    ))
     nemu.connect()
-    print(nemu.screen_size)
-    im = nemu.screenshot()
-    cv2.imshow('test', im)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    while True:
+        nemu.click(0, 0)

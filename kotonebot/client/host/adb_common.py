@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Literal, TypeVar
+from typing import Any, Literal, TypeGuard, TypeVar, get_args
 from typing_extensions import assert_never
 
 from adbutils import adb
@@ -10,6 +10,9 @@ from .protocol import Instance, AdbHostConfig, Device
 
 logger = logging.getLogger(__name__)
 AdbRecipes = Literal['adb', 'adb_raw', 'uiautomator2']
+
+def is_adb_recipe(recipe: Any) -> TypeGuard[AdbRecipes]:
+    return recipe in get_args(AdbRecipes)
 
 def connect_adb(
     ip: str,
@@ -82,7 +85,7 @@ class CommonAdbCreateDeviceMixin(ABC):
             case 'uiautomator2':
                 from kotonebot.client.implements.uiautomator2 import UiAutomator2Impl
                 from kotonebot.client.implements.adb import AdbImpl
-                impl = UiAutomator2Impl(d)
+                impl = UiAutomator2Impl(connection)
                 d._screenshot = impl
                 d._touch = impl
                 d.commands = AdbImpl(connection)

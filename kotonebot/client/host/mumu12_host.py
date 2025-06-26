@@ -1,8 +1,9 @@
+from dataclasses import dataclass
 import os
 import json
 import subprocess
 from functools import lru_cache
-from typing import Any, Literal
+from typing import Any, Literal, overload
 from typing_extensions import override
 
 from kotonebot import logging
@@ -12,7 +13,7 @@ from kotonebot.client.implements.adb import AdbImpl
 from kotonebot.client.implements.nemu_ipc import NemuIpcImpl, NemuIpcImplConfig
 from kotonebot.util import Countdown, Interval
 from .protocol import HostProtocol, Instance, copy_type, AdbHostConfig
-from .adb_common import AdbRecipes, CommonAdbCreateDeviceMixin, connect_adb
+from .adb_common import AdbRecipes, CommonAdbCreateDeviceMixin, connect_adb, is_adb_recipe
 
 if os.name == 'nt':
     from ...interop.win.reg import read_reg
@@ -24,7 +25,18 @@ else:
 logger = logging.getLogger(__name__)
 MuMu12Recipes = AdbRecipes | Literal['nemu_ipc']
 
-class Mumu12Instance(CommonAdbCreateDeviceMixin, Instance[AdbHostConfig]):
+@dataclass
+class MuMu12HostConfig(AdbHostConfig):
+    """nemu_ipc 能力的配置模型。"""
+    display_id: int | None = 0
+    """目标显示器 ID，默认为 0（主显示器）。若为 None 且设置了 target_package_name，则自动获取对应的 display_id。"""
+    target_package_name: str | None = None
+    """目标应用包名，用于自动获取 display_id。"""
+    app_index: int = 0
+    """多开应用索引，传给 get_display_id 方法。"""
+
+
+class Mumu12Instance(CommonAdbCreateDeviceMixin, Instance[MuMu12HostConfig]):
     @copy_type(Instance.__init__)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -75,18 +87,29 @@ class Mumu12Instance(CommonAdbCreateDeviceMixin, Instance[AdbHostConfig]):
     def running(self) -> bool:
         return self.is_android_started
 
+    @overload
+    def create_device(self, recipe: Literal['nemu_ipc'], host_config: MuMu12HostConfig) -> Device: ...
+    @overload
+    def create_device(self, recipe: AdbRecipes, host_config: AdbHostConfig) -> Device: ...
+
     @override
-    def create_device(self, impl: MuMu12Recipes, host_config: AdbHostConfig) -> Device:
+    def create_device(self, recipe: MuMu12Recipes, host_config: MuMu12HostConfig | AdbHostConfig) -> Device:
         """为MuMu12模拟器实例创建 Device。"""
         if self.adb_port is None:
             raise ValueError("ADB port is not set and is required.")
 
-        if impl == 'nemu_ipc':
+        if recipe == 'nemu_ipc' and isinstance(host_config, MuMu12HostConfig):
             # NemuImpl
             nemu_path = Mumu12Host._read_install_path()
             if not nemu_path:
                 raise RuntimeError("无法找到 MuMu12 的安装路径。")
-            nemu_config = NemuIpcImplConfig(nemu_folder=nemu_path, instance_id=int(self.id))
+            nemu_config = NemuIpcImplConfig(
+                nemu_folder=nemu_path,
+                instance_id=int(self.id),
+                display_id=host_config.display_id,
+                target_package_name=host_config.target_package_name,
+                app_index=host_config.app_index
+            )
             nemu_impl = NemuIpcImpl(nemu_config)
             # AdbImpl
             adb_impl = AdbImpl(connect_adb(
@@ -101,8 +124,10 @@ class Mumu12Instance(CommonAdbCreateDeviceMixin, Instance[AdbHostConfig]):
             device.commands = adb_impl
 
             return device
+        elif isinstance(host_config, AdbHostConfig) and is_adb_recipe(recipe):
+            return super().create_device(recipe, host_config)
         else:
-            return super().create_device(impl, host_config)
+            raise ValueError(f'Unknown recipe: {recipe}')
 
 class Mumu12Host(HostProtocol[MuMu12Recipes]):
     @staticmethod
