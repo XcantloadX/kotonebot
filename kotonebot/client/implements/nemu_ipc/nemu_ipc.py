@@ -1,6 +1,7 @@
 import os
 import ctypes
 import logging
+import time
 from dataclasses import dataclass
 from time import sleep
 from typing_extensions import override
@@ -41,6 +42,8 @@ class NemuIpcImplConfig(ImplConfig):
     """目标应用包名，用于自动获取 display_id。"""
     app_index: int = 0
     """多开应用索引，传给 get_display_id 方法。"""
+    wait_package_timeout: float = 60  # 单位秒，-1 表示永远等待，0 表示不等待，立即抛出异常
+    wait_package_interval: float = 0.1  # 单位秒
 
 
 class NemuIpcImpl(Touchable, Screenshotable):
@@ -100,18 +103,31 @@ class NemuIpcImpl(Touchable, Screenshotable):
         # 如果设置了 target_package_name，实时获取 display_id
         if self.config.target_package_name:
             self._ensure_connected()
-            display_id = self._ipc.get_display_id(
-                self._connect_id,
-                self.config.target_package_name,
-                self.config.app_index
-            )
-            # 当程序未启动时，返回值为 -1
-            # if display_id == -1:
-            #     return None
-            if display_id < 0:
-                raise NemuIpcError(f"Failed to get display_id for package '{self.config.target_package_name}', error code={display_id}")
-            # logger.debug("Real-time display_id=%d for package '%s'", display_id, self.config.target_package_name)
-            return display_id
+
+            timeout = self.config.wait_package_timeout
+            interval = self.config.wait_package_interval
+            if timeout == -1:
+                timeout = float('inf')
+            start_time = time.time()
+            while True:
+                display_id = self._ipc.get_display_id(
+                    self._connect_id,
+                    self.config.target_package_name,
+                    self.config.app_index
+                )
+                if display_id >= 0:
+                    return display_id
+                elif display_id == -1:
+                    # 可以继续等
+                    pass
+                else:
+                    # 未知错误
+                    raise NemuIpcError(f"Failed to get display_id for package '{self.config.target_package_name}', error code={display_id}")
+                if time.time() - start_time < timeout:
+                    break
+                sleep(interval)
+            
+            raise NemuIpcError(f"Failed to get display_id for package '{self.config.target_package_name}' within {timeout}s")
 
         # 如果都没有设置，抛出错误
         raise NemuIpcError("display_id is None and target_package_name is not set. Please set display_id or target_package_name in config.")
