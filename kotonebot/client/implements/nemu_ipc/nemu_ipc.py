@@ -4,6 +4,7 @@ import logging
 import time
 from dataclasses import dataclass
 from time import sleep
+from typing import Literal
 from typing_extensions import override
 
 import cv2
@@ -123,7 +124,7 @@ class NemuIpcImpl(Touchable, Screenshotable):
                 else:
                     # 未知错误
                     raise NemuIpcError(f"Failed to get display_id for package '{self.config.target_package_name}', error code={display_id}")
-                if time.time() - start_time < timeout:
+                if time.time() - start_time > timeout:
                     break
                 sleep(interval)
             
@@ -161,16 +162,21 @@ class NemuIpcImpl(Touchable, Screenshotable):
     def screen_size(self) -> tuple[int, int]:
         """获取屏幕分辨率。"""
         if self.__width == 0 or self.__height == 0:
-            self._query_resolution()
+            self._refresh_resolution()
         if self.__width == 0 or self.__height == 0:
             raise NemuIpcError("Screen resolution not obtained, please connect to the emulator first.")
         return self.__width, self.__height
 
     @override
     def detect_orientation(self):
-        if self.__width > self.__height:
+        return self.get_display_orientation(self._get_display_id())
+
+    def get_display_orientation(self, display_id: int = 0) -> Literal['portrait', 'landscape'] | None:
+        """获取指定显示屏的方向。"""
+        width, height = self.query_resolution(display_id)
+        if width > height:
             return "landscape"
-        if self.__height > self.__width:
+        if height > width:
             return "portrait"
         return None
 
@@ -179,7 +185,7 @@ class NemuIpcImpl(Touchable, Screenshotable):
         self._ensure_connected()
 
         # 必须每次都更新分辨率，因为屏幕可能会旋转
-        self._query_resolution()
+        self._refresh_resolution()
 
         length = self.__width * self.__height * 4 # RGBA
         buf_type = ctypes.c_ubyte * length
@@ -208,45 +214,70 @@ class NemuIpcImpl(Touchable, Screenshotable):
 
     # --------------------------- 内部工具 -----------------------------
 
-    def _query_resolution(self) -> None:
-        """调用 capture 接口并返回宽高信息，不取像素数据。"""
+    def _refresh_resolution(self) -> None:
+        """刷新分辨率信息。"""
+        display_id = self._get_display_id()
+        self.__width, self.__height = self.query_resolution(display_id)
+
+    def query_resolution(self, display_id: int = 0) -> tuple[int, int]:
+        """
+        查询指定显示屏的分辨率。
+        
+        :param display_id: 显示屏 ID。
+        :return: 分辨率 (width, height)。
+        :raise NemuIpcError: 查询失败。
+        """
         self._ensure_connected()
 
         w_ptr = ctypes.pointer(ctypes.c_int(0))
         h_ptr = ctypes.pointer(ctypes.c_int(0))
         ret = self._ipc.capture_display(
             self._connect_id,
-            self._get_display_id(),
+            display_id,
             0,
             ctypes.cast(w_ptr, ctypes.c_void_p),
             ctypes.cast(h_ptr, ctypes.c_void_p),
             ctypes.c_void_p(),
         )
         if ret != 0:
-            raise NemuIpcError(f"nemu_capture_display 查询分辨率失败，错误码={ret}")
+            raise NemuIpcError(f"Call nemu_capture_display failed. Return value={ret}")
 
-        self.__width = w_ptr.contents.value
-        self.__height = h_ptr.contents.value
-        # logger.debug("Parsed resolution %dx%d", self.__width, self.__height)
+        return w_ptr.contents.value, h_ptr.contents.value
 
     # ------------------------------------------------------------------
     # Touchable 接口实现
     # ------------------------------------------------------------------
-    def convert_xy(self, x: int, y: int):
+    def __convert_pos(self, x: int, y: int) -> tuple[int, int]:
+        # Android 显示屏有两套坐标：逻辑坐标与物理坐标。
+        # 逻辑坐标原点始终是画面左上角，而物理坐标原点则始终是显示屏的左上角。
+        # 如果屏幕画面旋转，会导致两个坐标的原点不同，坐标也不同。
+        # ========
+        # 这里传给 MuMu 的是逻辑坐标，ExternalRendererIpc DLL 内部会
+        # 自动判断旋转，并转换为物理坐标。但是这部分有个 bug：
+        # 旋转没有考虑到多显示器，只是以主显示器为准，若两个显示器旋转不一致，
+        # 会导致错误地转换坐标。因此需要在 Python 层面 workaround 这个问题。
+        # 通过判断主显示器与当前显示器的旋转，将坐标进行预转换，抵消 DLL 层的错误转换。
         display_id = self._get_display_id()
-        if display_id > 0:
-            # 在非主显示器上，坐标系原点为右上角，且坐标格式为 (y, x)
-            self._query_resolution()
-            x = self.width - x
-            return y, x
-        else:
+        if display_id == 0:
             return x, y
+        else:
+            primary = self.get_display_orientation(0)
+            primary_size = self.query_resolution(0)
+            current = self.get_display_orientation(display_id)
+            if primary == current:
+                return x, y
+            else:
+                # 如果旋转不一致，视为顺时针旋转了 90°
+                # 因此我们要提前逆时针旋转 90°
+                self._refresh_resolution()
+                x, y = y, primary_size[1] - x
+                return x, y
     
     @override
     def click(self, x: int, y: int) -> None:
         self._ensure_connected()
         display_id = self._get_display_id()
-        x, y = self.convert_xy(x, y)
+        x, y = self.__convert_pos(x, y)
         self._ipc.input_touch_down(self._connect_id, display_id, x, y)
         sleep(0.01)
         self._ipc.input_touch_up(self._connect_id, display_id)
@@ -265,8 +296,8 @@ class NemuIpcImpl(Touchable, Screenshotable):
         duration = duration or 0.3
         steps = max(int(duration / 0.01), 2)
         display_id = self._get_display_id()
-        x1, y1 = self.convert_xy(x1, y1)
-        x2, y2 = self.convert_xy(x2, y2)
+        x1, y1 = self.__convert_pos(x1, y1)
+        x2, y2 = self.__convert_pos(x2, y2)
 
         xs = np.linspace(x1, x2, steps, dtype=int)
         ys = np.linspace(y1, y2, steps, dtype=int)
@@ -286,8 +317,11 @@ class NemuIpcImpl(Touchable, Screenshotable):
 if __name__ == '__main__':
     nemu = NemuIpcImpl(NemuIpcImplConfig(
         r'F:\Apps\Netease\MuMuPlayer-12.0', 0, None,
-        target_package_name='com.bandainamcoent.idolmaster_gakuen',
+        target_package_name='com.android.chrome',
     ))
     nemu.connect()
-    while True:
-        nemu.click(0, 0)
+    # while True:
+    #     nemu.click(0, 0)
+    nemu.click(100, 100)
+    nemu.click(100*3, 100)
+    nemu.click(100*3, 100*3)
