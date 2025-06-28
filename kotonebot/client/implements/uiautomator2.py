@@ -4,21 +4,19 @@ from typing import Literal
 import numpy as np
 import uiautomator2 as u2
 from cv2.typing import MatLike
+from adbutils._device import AdbDevice as AdbUtilsDevice
 
 from kotonebot import logging
 from ..device import Device
 from ..protocol import Screenshotable, Commandable, Touchable
-from ..registration import register_impl
-from .adb import AdbImplConfig, _create_adb_device_base
 
 logger = logging.getLogger(__name__)
 
 SCREENSHOT_INTERVAL = 0.2
 
 class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
-    def __init__(self, device: Device):
-        self.device = device
-        self.u2_client = u2.Device(device.adb.serial)
+    def __init__(self, adb_connection: AdbUtilsDevice):
+        self.u2_client = u2.Device(adb_connection.serial)
         self.__last_screenshot_time = 0
         
     def screenshot(self) -> MatLike:
@@ -40,10 +38,7 @@ class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
     def screen_size(self) -> tuple[int, int]:
         info = self.u2_client.info
         sizes = info['displayWidth'], info['displayHeight']
-        if self.device.orientation == 'landscape':
-            return (max(sizes), min(sizes))
-        else:
-            return (min(sizes), max(sizes))
+        return sizes
     
     def detect_orientation(self) -> Literal['portrait', 'landscape'] | None:
         """
@@ -85,9 +80,3 @@ class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
         滑动屏幕
         """
         self.u2_client.swipe(x1, y1, x2, y2, duration=duration or 0.1)
-
-
-@register_impl('uiautomator2', config_model=AdbImplConfig)
-def create_uiautomator2_device(config: AdbImplConfig) -> Device:
-    """UiAutomator2Impl 工厂函数"""
-    return _create_adb_device_base(config, UiAutomator2Impl)

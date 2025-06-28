@@ -9,6 +9,7 @@ from cv2.typing import MatLike
 from adbutils._device import AdbDevice as AdbUtilsDevice
 
 from ..backend.debug import result
+from ..errors import UnscalableResolutionError
 from kotonebot.backend.core import HintBox
 from kotonebot.primitives import Rect, Point, is_point
 from .protocol import ClickableObjectProtocol, Commandable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable
@@ -78,6 +79,31 @@ class Device:
         """
         设备平台名称。
         """
+        self.target_resolution: tuple[int, int] | None = None
+        """
+        目标分辨率。
+        
+        若设置，则在截图、点击、滑动等时会缩放到目标分辨率。
+        仅支持等比例缩放，若无法等比例缩放，则会抛出异常 `UnscalableResolutionError`。
+        """
+        self.match_rotation: bool = True
+        """
+        分辨率缩放是否自动匹配旋转。
+
+        当目标与真实分辨率的宽高比不一致时，是否允许通过旋转（交换宽高）后再进行匹配。
+        为 True 则忽略方向差异，只要宽高比一致就视为可缩放；False 则必须匹配旋转。
+
+        例如，当目标分辨率为 1920x1080，而真实分辨率为 1080x1920 时，
+        ``match_rotation`` 为 True 则认为可以缩放，为 False 则会抛出异常。
+        """
+        self.aspect_ratio_tolerance: float = 0.1
+        """
+        宽高比容差阈值。
+
+        判断两分辨率宽高比差异是否接受的阈值。
+        该值越小，对比例一致性的要求越严格。
+        默认为 0.1（即 10% 容差）。
+        """
     
     @property
     def adb(self) -> AdbUtilsDevice:
@@ -88,6 +114,50 @@ class Device:
     @adb.setter
     def adb(self, value: AdbUtilsDevice) -> None:
         self._adb = value
+
+    def _scale_pos_real_to_target(self, real_x: int, real_y: int) -> tuple[int, int]:
+        """将真实屏幕坐标缩放到目标逻辑坐标"""
+        if self.target_resolution is None:
+            return real_x, real_y
+
+        real_w, real_h = self.screen_size
+        target_w, target_h = self.target_resolution
+
+        # 校验分辨率是否可缩放并获取调整后的目标分辨率
+        adjusted_target_w, adjusted_target_h = self.__assert_scalable((real_w, real_h), (target_w, target_h))
+
+        scale_w = adjusted_target_w / real_w
+        scale_h = adjusted_target_h / real_h
+
+        return int(real_x * scale_w), int(real_y * scale_h)
+
+    def _scale_pos_target_to_real(self, target_x: int, target_y: int) -> tuple[int, int]:
+        """将目标逻辑坐标缩放到真实屏幕坐标"""
+        if self.target_resolution is None:
+            return target_x, target_y # 输入坐标已是真实坐标
+
+        real_w, real_h = self.screen_size
+        target_w, target_h = self.target_resolution
+
+        # 校验分辨率是否可缩放并获取调整后的目标分辨率
+        adjusted_target_w, adjusted_target_h = self.__assert_scalable((real_w, real_h), (target_w, target_h))
+
+        scale_to_real_w = real_w / adjusted_target_w
+        scale_to_real_h = real_h / adjusted_target_h
+
+        return int(target_x * scale_to_real_w), int(target_y * scale_to_real_h)
+
+    def __scale_image (self, img: MatLike) -> MatLike:
+        if self.target_resolution is None:
+            return img
+
+        target_w, target_h = self.target_resolution
+        h, w = img.shape[:2]
+
+        # 校验分辨率是否可缩放并获取调整后的目标分辨率
+        adjusted_target = self.__assert_scalable((w, h), (target_w, target_h))
+
+        return cv2.resize(img, adjusted_target)
 
     @overload
     def click(self) -> None:
@@ -161,7 +231,12 @@ class Device:
             logger.debug(f"Executing click hook before: ({x}, {y})")
             x, y = hook(x, y)
             logger.debug(f"Click hook before result: ({x}, {y})")
-        logger.debug(f"Click: {x}, {y}")
+        if self.target_resolution is not None:
+            # 输入坐标为逻辑坐标，需要转换为真实坐标
+            real_x, real_y = self._scale_pos_target_to_real(x, y)
+        else:
+            real_x, real_y = x, y
+        logger.debug(f"Click: {x}, {y}%s", f"(Physical: {real_x}, {real_y})" if self.target_resolution is not None else "")
         from ..backend.context import ContextStackVars
         if ContextStackVars.current() is not None:
             image = ContextStackVars.ensure_current()._screenshot
@@ -169,9 +244,11 @@ class Device:
             image = np.array([])
         if image is not None and image.size > 0:
             cv2.circle(image, (x, y), 10, (0, 0, 255), -1)
-            message = f"point: ({x}, {y})"
+            message = f"Point: ({x}, {y})"
+            if self.target_resolution is not None:
+                message += f" physical: ({real_x}, {real_y})"
             result("device.click", image, message)
-        self._touch.click(x, y)
+        self._touch.click(real_x, real_y)
 
     def __click_point_tuple(self, point: Point) -> None:
         self.click(point[0], point[1])
@@ -232,6 +309,10 @@ class Device:
         """
         滑动屏幕
         """
+        if self.target_resolution is not None:
+            # 输入坐标为逻辑坐标，需要转换为真实坐标
+            x1, y1 = self._scale_pos_target_to_real(x1, y1)
+            x2, y2 = self._scale_pos_target_to_real(x2, y2)
         self._touch.swipe(x1, y1, x2, y2, duration)
 
     def swipe_scaled(self, x1: float, y1: float, x2: float, y2: float, duration: float|None = None) -> None:
@@ -260,6 +341,7 @@ class Device:
         img = self.screenshot_raw()
         if self.screenshot_hook_after is not None:
             img = self.screenshot_hook_after(img)
+        img = self.__scale_image(img)
         return img
 
     def screenshot_raw(self) -> MatLike:
@@ -296,8 +378,15 @@ class Device:
         `self.orientation` 属性默认为竖屏。如果需要自动检测，
         调用 `self.detect_orientation()` 方法。
         如果已知方向，也可以直接设置 `self.orientation` 属性。
+        
+        即使设置了 `self.target_resolution`，返回的分辨率仍然是真实分辨率。
         """
-        return self._screenshot.screen_size
+        size = self._screenshot.screen_size
+        if self.orientation == 'landscape':
+            size = sorted(size, reverse=True)
+        else:
+            size = sorted(size, reverse=False)
+        return size[0], size[1]
 
     def detect_orientation(self) -> Literal['portrait', 'landscape'] | None:
         """
@@ -306,6 +395,68 @@ class Device:
         :return: 检测到的方向，如果无法检测到则返回 None。
         """
         return self._screenshot.detect_orientation()
+
+    def __aspect_ratio_compatible(self, src_size: tuple[int, int], tgt_size: tuple[int, int]) -> bool:
+        """
+        判断两个尺寸在宽高比意义上是否兼容
+
+        若 ``self.match_rotation`` 为 True，忽略方向（长边/短边）进行比较。
+        判断标准由 ``self.aspect_ratio_tolerance`` 决定（默认 0.1）。
+        """
+        src_w, src_h = src_size
+        tgt_w, tgt_h = tgt_size
+
+        # 尺寸必须为正
+        if src_w <= 0 or src_h <= 0:
+            raise ValueError(f"Source size dimensions must be positive for scaling: {src_size}")
+        if tgt_w <= 0 or tgt_h <= 0:
+            raise ValueError(f"Target size dimensions must be positive for scaling: {tgt_size}")
+
+        tolerant = self.aspect_ratio_tolerance
+
+        # 直接比较宽高比
+        if abs((tgt_w / src_w) - (tgt_h / src_h)) <= tolerant:
+            return True
+
+        # 尝试忽略方向差异
+        if self.match_rotation:
+            ratio_src = max(src_w, src_h) / min(src_w, src_h)
+            ratio_tgt = max(tgt_w, tgt_h) / min(tgt_w, tgt_h)
+            return abs(ratio_src - ratio_tgt) <= tolerant
+
+        return False
+
+    def __assert_scalable(self, source: tuple[int, int], target: tuple[int, int]) -> tuple[int, int]:
+        """
+        校验分辨率是否可缩放，并返回调整后的目标分辨率。
+
+        当 match_rotation 为 True 且源分辨率与目标分辨率的旋转方向不一致时，
+        自动交换目标分辨率的宽高，使其与源分辨率的方向保持一致。
+
+        :param src_size: 源分辨率 (width, height)
+        :param tgt_size: 目标分辨率 (width, height)
+        :return: 调整后的目标分辨率 (width, height)
+        :raises UnscalableResolutionError: 若宽高比不兼容
+        """
+        # 智能调整目标分辨率方向
+        adjusted_tgt_size = target
+        if self.match_rotation:
+            src_w, src_h = source
+            tgt_w, tgt_h = target
+
+            # 判断源分辨率和目标分辨率的方向
+            src_is_landscape = src_w > src_h
+            tgt_is_landscape = tgt_w > tgt_h
+
+            # 如果方向不一致，交换目标分辨率的宽高
+            if src_is_landscape != tgt_is_landscape:
+                adjusted_tgt_size = (tgt_h, tgt_w)
+
+        # 校验调整后的分辨率是否兼容
+        if not self.__aspect_ratio_compatible(source, adjusted_tgt_size):
+            raise UnscalableResolutionError(target, source)
+
+        return adjusted_tgt_size
 
 
 class AndroidDevice(Device):

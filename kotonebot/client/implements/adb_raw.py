@@ -11,9 +11,8 @@ import numpy as np
 from cv2.typing import MatLike
 from adbutils._utils import adb_path
 
-from .adb import AdbImpl, AdbImplConfig, _create_adb_device_base
+from .adb import AdbImpl
 from adbutils._device import AdbDevice as AdbUtilsDevice
-from ..registration import register_impl
 from kotonebot import logging
 
 logger = logging.getLogger(__name__)
@@ -158,9 +157,3 @@ class AdbRawImpl(AdbImpl):
         data = self.__data
         self.__data = None
         return data
-
-
-@register_impl('adb_raw', config_model=AdbImplConfig)
-def create_adb_raw_device(config: AdbImplConfig):
-    """AdbRawImpl 工厂函数"""
-    return _create_adb_device_base(config, AdbRawImpl)

@@ -3,10 +3,10 @@ from typing import Generic, TypeVar, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from kotonebot.client import DeviceImpl
 
 T = TypeVar('T')
 BackendType = Literal['custom', 'mumu12', 'leidian', 'dmm']
+DeviceRecipes = Literal['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
 
 class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
@@ -27,7 +27,7 @@ class BackendConfig(ConfigBaseModel):
     雷电模拟器需要设置正确的模拟器名，否则 自动启动模拟器 功能将无法正常工作。
     其他功能不受影响。
     """
-    screenshot_impl: DeviceImpl = 'adb'
+    screenshot_impl: DeviceRecipes = 'adb'
     """
     截图方法。暂时推荐使用【adb】截图方式。
 
@@ -48,6 +48,8 @@ class BackendConfig(ConfigBaseModel):
     """Windows 截图方式的窗口标题"""
     windows_ahk_path: str | None = None
     """Windows 截图方式的 AutoHotkey 可执行文件路径，为 None 时使用默认路径"""
+    mumu_background_mode: bool = False
+    """MuMu12 模拟器后台保活模式"""
 
 class PushConfig(ConfigBaseModel):
     """推送配置。"""

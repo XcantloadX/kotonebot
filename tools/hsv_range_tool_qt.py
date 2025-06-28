@@ -6,6 +6,8 @@ from PyQt6.QtCore import Qt
 import sys
 import cv2
 import numpy as np
+import tempfile
+import os
 
 class HSVRangeTool(QMainWindow):
     def __init__(self):
@@ -32,9 +34,14 @@ class HSVRangeTool(QMainWindow):
         control_layout = QVBoxLayout(control_panel)
         
         # 添加载入图片按钮
-        load_btn = QPushButton('载入图片')
-        load_btn.clicked.connect(self.on_load_image)
-        control_layout.addWidget(load_btn)
+        load_layout = QHBoxLayout()
+        open_btn = QPushButton('打开图片')
+        paste_btn = QPushButton('粘贴图片')
+        open_btn.clicked.connect(self.on_open_image)
+        paste_btn.clicked.connect(self.on_paste_image)
+        load_layout.addWidget(open_btn)
+        load_layout.addWidget(paste_btn)
+        control_layout.addLayout(load_layout)
         
         # 在控制面板添加取色器按钮
         picker_layout = QHBoxLayout()
@@ -156,7 +163,7 @@ class HSVRangeTool(QMainWindow):
             (screen_geometry.height() - size.height()) // 2
         )
         
-    def on_load_image(self):
+    def on_open_image(self):
         file_name, _ = QFileDialog.getOpenFileName(
             self,
             "选择图片",
@@ -169,6 +176,52 @@ class HSVRangeTool(QMainWindow):
             if self.image is not None:
                 self.hsv_image = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)
                 self.update_image()
+    
+    def on_paste_image(self):
+        # 从剪贴板获取图片
+        clipboard = QApplication.clipboard()
+        if clipboard is None:
+            QMessageBox.warning(self, "错误", "无法访问剪贴板")
+            return
+            
+        mime_data = clipboard.mimeData()
+        if mime_data is None:
+            QMessageBox.warning(self, "错误", "无法获取剪贴板数据")
+            return
+        
+        if mime_data.hasImage():
+            # 获取剪贴板中的图片
+            qt_image = clipboard.image()
+            if not qt_image.isNull():
+                # 将Qt图像保存为临时文件
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+                    temp_path = temp_file.name
+                
+                # 保存Qt图像为PNG文件
+                if qt_image.save(temp_path, 'PNG'):
+                    # 使用OpenCV读取临时文件
+                    self.image = cv2.imread(temp_path)
+                    if self.image is not None:
+                        self.hsv_image = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)
+                        self.update_image()
+                    else:
+                        QMessageBox.warning(self, "错误", "无法读取图片数据")
+                    
+                    # 删除临时文件
+                    try:
+                        os.unlink(temp_path)
+                    except:
+                        pass
+                else:
+                    QMessageBox.warning(self, "错误", "无法保存图片数据")
+                    try:
+                        os.unlink(temp_path)
+                    except:
+                        pass
+            else:
+                QMessageBox.warning(self, "错误", "剪贴板中的图片无效")
+        else:
+            QMessageBox.information(self, "提示", "剪贴板中没有图片")
     
     def opencv_hsv_to_qt_hsv(self, h, s, v):
         # OpenCV 的 H 范围是 0-179，需要转换到 Qt 的 0-359

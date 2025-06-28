@@ -9,7 +9,7 @@ from adbutils._device import AdbDevice as AdbUtilsDevice
 
 from ..device import AndroidDevice
 from ..protocol import AndroidCommandable, Touchable, Screenshotable
-from ..registration import register_impl, ImplConfig
+from ..registration import ImplConfig
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -83,46 +83,3 @@ class AdbImpl(AndroidCommandable, Touchable, Screenshotable):
         if duration is not None:
             logger.warning("Swipe duration is not supported with AdbDevice. Ignoring duration.")
         self.adb.shell(f"input touchscreen swipe {x1} {y1} {x2} {y2}")
-
-
-def _create_adb_device_base(config: AdbImplConfig, impl_class: type) -> AndroidDevice:
-    """
-    通用的 ADB 设备创建工厂函数。
-    其他任意基于 ADB 的 Impl 可以直接复用这个函数。
-
-    :param config: ADB 实现配置
-    :param impl_class: 实现类或工厂函数。构造函数接收 adb_connection 参数。
-    """
-    from adbutils import adb
-
-    if config.disconnect:
-        logger.debug('adb disconnect %s', config.addr)
-        adb.disconnect(config.addr)
-    if config.connect:
-        logger.debug('adb connect %s', config.addr)
-        result = adb.connect(config.addr)
-        if 'cannot connect to' in result:
-            raise ValueError(result)
-    serial = config.device_serial or config.addr
-    logger.debug('adb wait for %s', serial)
-    adb.wait_for(serial, timeout=config.timeout)
-    devices = adb.device_list()
-    logger.debug('adb device_list: %s', devices)
-    d = [d for d in devices if d.serial == serial]
-    if len(d) == 0:
-        raise ValueError(f"Device {config.addr} not found")
-    d = d[0]
-
-    device = AndroidDevice(d)
-    impl = impl_class(d)
-    device._touch = impl
-    device._screenshot = impl
-    device.commands = impl
-
-    return device
-
-
-@register_impl('adb', config_model=AdbImplConfig)
-def create_adb_device(config: AdbImplConfig) -> AndroidDevice:
-    """AdbImpl 工厂函数"""
-    return _create_adb_device_base(config, AdbImpl)

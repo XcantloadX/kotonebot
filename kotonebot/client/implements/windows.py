@@ -13,7 +13,7 @@ from cv2.typing import MatLike
 
 from ..device import Device, WindowsDevice
 from ..protocol import Commandable, Touchable, Screenshotable
-from ..registration import register_impl, ImplConfig
+from ..registration import ImplConfig
 
 # 1. 定义配置模型
 @dataclass
@@ -50,15 +50,6 @@ class WindowsImpl(Touchable, Screenshotable):
         self.ahk.start_hotkeys()
         # 将点击坐标设置为相对 Client
         self.ahk.set_coord_mode('Mouse', 'Client')
-
-    @cached_property
-    def scale_ratio(self) -> float:
-        """
-        缩放比例。截图与模拟输入前都会根据这个比例缩放。
-        """
-        left, _, right, _ = self.__client_rect()
-        w = right - left
-        return 720 / w
 
     @property
     def hwnd(self) -> int:
@@ -124,18 +115,14 @@ class WindowsImpl(Touchable, Screenshotable):
 
         # 将 RGBA 转换为 RGB
         cropped_im = cv2.cvtColor(cropped_im, cv2.COLOR_RGBA2RGB)
-        # 缩放
-        cropped_im = cv2.resize(cropped_im, None, fx=self.scale_ratio, fy=self.scale_ratio)
         return cropped_im
 
     @property
     def screen_size(self) -> tuple[int, int]:
-        # 因为截图和点击的坐标都被缩放了，
-        # 因此这里只要返回固定值即可
-        if self.device.orientation == 'landscape':
-            return 1280, 720
-        else:
-            return 720, 1280
+        left, top, right, bot = self.__client_rect()
+        w = right - left
+        h = bot - top
+        return w, h
 
     def detect_orientation(self) -> None | Literal['portrait'] | Literal['landscape']:
         pos = self.ahk.win_get_position(self.window_title)
@@ -154,7 +141,6 @@ class WindowsImpl(Touchable, Screenshotable):
             x = 2
         if y == 0:
             y = 2
-        x, y = int(x / self.scale_ratio), int(y / self.scale_ratio)
         if not self.ahk.win_is_active(self.window_title):
             self.ahk.win_activate(self.window_title)
         self.ahk.click(x, y)
@@ -162,25 +148,8 @@ class WindowsImpl(Touchable, Screenshotable):
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float | None = None) -> None:
         if not self.ahk.win_is_active(self.window_title):
             self.ahk.win_activate(self.window_title)
-        x1, y1 = int(x1 / self.scale_ratio), int(y1 / self.scale_ratio)
-        x2, y2 = int(x2 / self.scale_ratio), int(y2 / self.scale_ratio)
         # TODO: 这个 speed 的单位是什么？
         self.ahk.mouse_drag(x2, y2, from_position=(x1, y1), coord_mode='Client', speed=10)
-
-
-# 3. 编写并注册创建函数
-@register_impl('windows', config_model=WindowsImplConfig)
-def create_windows_device(config: WindowsImplConfig) -> Device:
-    device = WindowsDevice()
-    impl = WindowsImpl(
-        device,
-        window_title=config.window_title,
-        ahk_exe_path=config.ahk_exe_path
-    )
-    device._touch = impl
-    device._screenshot = impl
-    return device
-
 
 if __name__ == '__main__':
     from ..device import Device
