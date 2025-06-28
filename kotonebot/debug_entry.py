@@ -1,8 +1,10 @@
+import sys
+sys.path.append('./projects')
 import runpy
 import logging
 import argparse
 
-from kotonebot.kaa.common import BaseConfig
+from kaa.common import BaseConfig
 
 
 def run_script(script_path: str) -> None:
@@ -14,12 +16,12 @@ def run_script(script_path: str) -> None:
     """
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
     # 获取模块名
-    module_name = script_path.strip('.py').replace('\\', '/').strip('/').replace('/', '.')
+    module_name = script_path.strip('.py').lstrip('projects/').replace('\\', '/').strip('/').replace('/', '.')
 
     print(f"正在运行脚本: {script_path}")
     # 运行脚本
     from kotonebot.backend.context import init_context, manual_context
-    from kotonebot.kaa.main.kaa import Kaa
+    from kaa.main.kaa import Kaa
     logging.getLogger('kotonebot').setLevel(logging.DEBUG)
     config_path = './config.json'
     kaa_instance = Kaa(config_path)
