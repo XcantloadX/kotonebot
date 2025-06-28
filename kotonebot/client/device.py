@@ -339,9 +339,9 @@ class Device:
                 logger.debug("screenshot hook before returned image")
                 return img
         img = self.screenshot_raw()
+        img = self.__scale_image(img)
         if self.screenshot_hook_after is not None:
             img = self.screenshot_hook_after(img)
-        img = self.__scale_image(img)
         return img
 
     def screenshot_raw(self) -> MatLike:
