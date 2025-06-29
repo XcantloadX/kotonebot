@@ -124,3 +124,11 @@ publish-test: package
 
 # 
 build-bootstrap:
+    #!{{shebang_pwsh}}
+    # 构建 Python
+    cd bootstrap
+    python -m zipapp kaa-bootstrap
+    mv kaa-bootstrap.pyz ../dist/bootstrap.pyz -fo
+    cd ..
+
+    # 构建 C++
