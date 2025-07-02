@@ -125,6 +125,7 @@ publish-test: package
 # 
 build-bootstrap:
     #!{{shebang_pwsh}}
+    echo "Building bootstrap"...
     # 构建 Python
     cd bootstrap
     python -m zipapp kaa-bootstrap
@@ -134,7 +135,7 @@ build-bootstrap:
     $msbuild = &"${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe
     if ($msbuild) {
         & $msbuild kaa-wrapper/kaa-wrapper.sln /p:Configuration=Release
-        mv kaa-wrapper/x64/Release/kaa-wrapper.exe ../dist/bootstrap.exe -fo
+        mv kaa-wrapper/x64/Release/kaa-wrapper.exe ../dist/kaa.exe -fo
     } else {
         Write-Host "MSBuild not found. Please install Visual Studio or build kaa-wrapper manually."
     }
