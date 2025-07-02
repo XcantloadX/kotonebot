@@ -41,10 +41,6 @@ env: fetch-submodule
     }
     python tools/make_resources.py
 
-# Build the project using pyinstaller
-build: env
-    pyinstaller -y kotonebot-gr.spec
-
 generate-metadata: env
     #!{{shebang_python}}
     # 更新日志
@@ -125,7 +121,7 @@ publish-test: package
 # 
 build-bootstrap:
     #!{{shebang_pwsh}}
-    echo "Building bootstrap"...
+    echo "Building bootstrap..."
     # 构建 Python
     cd bootstrap
     python -m zipapp kaa-bootstrap
@@ -139,3 +135,6 @@ build-bootstrap:
     } else {
         Write-Host "MSBuild not found. Please install Visual Studio or build kaa-wrapper manually."
     }
+
+# Build kaa and bootstrap
+build: package build-bootstrap
