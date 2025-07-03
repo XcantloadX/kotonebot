@@ -68,6 +68,7 @@ def print_changelog(categories, output_file=None):
         'ui': '界面',
         'core': '框架',
         'devtool': '开发工具',
+        'bootstrap': '启动器',
         '*': '其他'
     }
     
