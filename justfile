@@ -41,10 +41,6 @@ env: fetch-submodule
     }
     python tools/make_resources.py
 
-# Build the project using pyinstaller
-build: env
-    pyinstaller -y kotonebot-gr.spec
-
 generate-metadata: env
     #!{{shebang_python}}
     # 更新日志
@@ -124,3 +120,21 @@ publish-test: package
 
 # 
 build-bootstrap:
+    #!{{shebang_pwsh}}
+    echo "Building bootstrap..."
+    # 构建 Python
+    cd bootstrap
+    python -m zipapp kaa-bootstrap
+    mv kaa-bootstrap.pyz ../dist/bootstrap.pyz -fo
+    
+    # 构建 C++
+    $msbuild = &"${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe
+    if ($msbuild) {
+        & $msbuild kaa-wrapper/kaa-wrapper.sln /p:Configuration=Release
+        mv kaa-wrapper/x64/Release/kaa-wrapper.exe ../dist/kaa.exe -fo
+    } else {
+        Write-Host "MSBuild not found. Please install Visual Studio or build kaa-wrapper manually."
+    }
+
+# Build kaa and bootstrap
+build: package build-bootstrap
