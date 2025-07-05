@@ -27,6 +27,7 @@ from cv2.typing import MatLike
 
 from kotonebot.client.device import Device, AndroidDevice, WindowsDevice
 from kotonebot.backend.flow_controller import FlowController
+from kotonebot.util import Interval
 import kotonebot.backend.image as raw_image
 from kotonebot.backend.image import (
     TemplateMatchResult,
@@ -718,8 +719,20 @@ class Forwarded:
 
 T_Device = TypeVar('T_Device', bound=Device)
 class ContextDevice(Generic[T_Device], Device):
-    def __init__(self, device: T_Device):
+    def __init__(self, device: T_Device, target_screenshot_interval: float | None = None):
+        """
+        :param device: 目标设备。
+        :param target_screenshot_interval: 见 `ContextDevice.target_screenshot_interval`。
+        """
         self._device = device
+        self.target_screenshot_interval: float | None = target_screenshot_interval
+        """
+        目标截图间隔，可用于限制截图速度。若两次截图实际间隔小于该值，则会自动等待。
+        为 None 时不限制截图速度。
+        """
+        self._screenshot_interval: Interval | None = None
+        if self.target_screenshot_interval is not None:
+            self._screenshot_interval = Interval(self.target_screenshot_interval)
 
     def screenshot(self, *, force: bool = False):
         """
@@ -734,6 +747,9 @@ class ContextDevice(Generic[T_Device], Device):
             img = current._inherit_screenshot
             current._inherit_screenshot = None
         else:
+            if self._screenshot_interval is not None:
+                self._screenshot_interval.wait()
+
             if next_wait == 'screenshot':
                 delta = time.time() - last_screenshot_time
                 if delta < next_wait_time:
@@ -780,7 +796,8 @@ class Context(Generic[T]):
         self,
         config_path: str,
         config_type: Type[T],
-        device: Device
+        device: Device,
+        target_screenshot_interval: float | None = None
     ):
         self.__ocr = ContextOcr(self)
         self.__image = ContextImage(self)
@@ -788,7 +805,7 @@ class Context(Generic[T]):
         self.__vars = ContextGlobalVars()
         self.__debug = ContextDebug(self)
         self.__config = ContextConfig[T](self, config_path, config_type)
-        self.__device = ContextDevice(device)
+        self.__device = ContextDevice(device, target_screenshot_interval)
 
     def inject(
         self,
@@ -900,6 +917,7 @@ def init_context(
     config_type: Type[T] = dict[str, Any],
     force: bool = False,
     target_device: Device,
+    target_screenshot_interval: float | None = None,
 ):
     """
     初始化 Context 模块。
@@ -911,6 +929,7 @@ def init_context(
     :param force:  是否强制重新初始化。
         若为 `True`，则忽略已存在的 Context 实例，并重新创建一个新的实例。
     :param target_device: 目标设备
+    :param target_screenshot_interval: 见 `ContextDevice.target_screenshot_interval`。
     """
     global _c, device, ocr, image, color, vars, debug, config
     if _c is not None and not force:
@@ -919,6 +938,7 @@ def init_context(
         config_path=config_path,
         config_type=config_type,
         device=target_device,
+        target_screenshot_interval=target_screenshot_interval,
     )
     device._FORWARD_getter = lambda: _c.device # type: ignore
     ocr._FORWARD_getter = lambda: _c.ocr # type: ignore

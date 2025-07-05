@@ -50,6 +50,8 @@ class BackendConfig(ConfigBaseModel):
     """Windows 截图方式的 AutoHotkey 可执行文件路径，为 None 时使用默认路径"""
     mumu_background_mode: bool = False
     """MuMu12 模拟器后台保活模式"""
+    target_screenshot_interval: float | None = None
+    """最小截图间隔，单位为秒。为 None 时不限制截图速度。"""
 
 class PushConfig(ConfigBaseModel):
     """推送配置。"""

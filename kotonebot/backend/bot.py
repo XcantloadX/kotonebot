@@ -145,6 +145,18 @@ class KotoneBot:
         """
         raise NotImplementedError('Implement `_create_device` before using Kotonebot.')
 
+    def _on_init_context(self) -> None:
+        """
+        初始化 Context 的钩子方法。子类可以重写此方法来自定义初始化逻辑。
+        默认实现调用 init_context 而不传入 target_screenshot_interval。
+        """
+        d = self._on_create_device()
+        init_context(
+            config_path=self.config_path,
+            config_type=self.config_type,
+            target_device=d
+        )
+
     def _on_after_init_context(self):
         """
         抽象方法，在 init_context() 被调用后立即执行。
@@ -155,8 +167,7 @@ class KotoneBot:
         """
         按优先级顺序运行所有任务。
         """
-        d = self._on_create_device()
-        init_context(config_path=self.config_path, config_type=self.config_type, target_device=d)
+        self._on_init_context()
         self._on_after_init_context()
         vars.flow.clear_interrupt()
 
