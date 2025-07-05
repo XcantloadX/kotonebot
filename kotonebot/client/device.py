@@ -29,31 +29,6 @@ class HookContextManager:
     def __exit__(self, exc_type, exc_value, traceback):
         self.device.screenshot_hook_after = self.old_func
 
-
-class PinContextManager:
-    def __init__(self, device: 'Device'):
-        self.device = device
-        self.old_hook = device.screenshot_hook_before
-        self.memo = None
-
-    def __hook(self) -> MatLike:
-        if self.memo is None:
-            self.memo = self.device.screenshot_raw()
-        return self.memo
-
-    def __enter__(self):
-        self.device.screenshot_hook_before = self.__hook
-        return self
-    
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.device.screenshot_hook_before = self.old_hook
-
-    def update(self) -> None:
-        """
-        更新记住的截图
-        """
-        self.memo = self.device.screenshot_raw()
-
 class Device:
     def __init__(self, platform: str = 'unknown') -> None:
         self.screenshot_hook_after: Callable[[MatLike], MatLike] | None = None
@@ -355,16 +330,6 @@ class Device:
         注册 Hook，在截图前将会调用此函数，对截图进行处理
         """
         return HookContextManager(self, func)
-
-    @deprecated('改用 @task/@action 装饰器中的 screenshot_mode 参数')
-    def pinned(self) -> PinContextManager:
-        """
-        记住下次截图结果，并将截图调整为手动挡。
-        之后截图都会返回记住的数据，节省重复截图时间。
-
-        调用返回对象中的 PinContextManager.update() 可以立刻更新记住的截图。
-        """
-        return PinContextManager(self)
 
     @property
     def screen_size(self) -> tuple[int, int]:
