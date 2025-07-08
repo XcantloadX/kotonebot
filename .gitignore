@@ -10,6 +10,7 @@ kotonebot-ui/.vite
 dumps*/
 config.json
 config.v*.json
+conf/
 reports/
 tmp/
 res/sprites_compiled/
