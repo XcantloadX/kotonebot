@@ -285,11 +285,17 @@ class ContextOcr:
         self.context = context
         self.__engine = jp()
 
-    def raw(self, lang: OcrLanguage = 'jp') -> Ocr:
+    def _get_engine(self, lang: OcrLanguage | None = None) -> Ocr:
+        """获取指定语言的OCR引擎，如果lang为None则使用默认引擎。"""
+        return self.__engine if lang is None else self.raw(lang)
+
+    def raw(self, lang: OcrLanguage | None = None) -> Ocr:
         """
         返回 `kotonebot.backend.ocr` 中的 Ocr 对象。\n
         Ocr 对象与此对象（ContextOcr）的区别是，此对象会自动截图，而 Ocr 对象需要手动传入图像参数。
         """
+        if lang is None:
+            lang = 'jp'
         match lang:
             case 'jp':
                 return jp()
@@ -301,9 +307,11 @@ class ContextOcr:
     def ocr(
         self,
         rect: Rect | None = None,
+        lang: OcrLanguage | None = None,
     ) -> OcrResultList:
         """OCR 当前设备画面或指定图像。"""
-        return self.__engine.ocr(ContextStackVars.ensure_current().screenshot, rect=rect)
+        engine = self._get_engine(lang)
+        return engine.ocr(ContextStackVars.ensure_current().screenshot, rect=rect)
 
     def find(
         self,
@@ -311,9 +319,11 @@ class ContextOcr:
         *,
         hint: HintBox | None = None,
         rect: Rect | None = None,
+        lang: OcrLanguage | None = None,
     ) -> OcrResult | None:
         """检查当前设备画面是否包含指定文本。"""
-        ret = self.__engine.find(
+        engine = self._get_engine(lang)
+        ret = engine.find(
             ContextStackVars.ensure_current().screenshot,
             pattern,
             hint=hint,
@@ -328,9 +338,10 @@ class ContextOcr:
         *,
         hint: HintBox | None = None,
         rect: Rect | None = None,
-
+        lang: OcrLanguage | None = None,
     ) -> list[OcrResult | None]:
-        return self.__engine.find_all(
+        engine = self._get_engine(lang)
+        return engine.find_all(
             ContextStackVars.ensure_current().screenshot,
             list(patterns),
             hint=hint,
@@ -343,6 +354,7 @@ class ContextOcr:
         *,
         rect: Rect | None = None,
         hint: HintBox | None = None,
+        lang: OcrLanguage | None = None,
     ) -> OcrResult:
 
         """
@@ -350,7 +362,8 @@ class ContextOcr:
 
         与 `find()` 的区别在于，`expect()` 未找到时会抛出异常。
         """
-        ret = self.__engine.expect(ContextStackVars.ensure_current().screenshot, pattern, rect=rect, hint=hint)
+        engine = self._get_engine(lang)
+        ret = engine.expect(ContextStackVars.ensure_current().screenshot, pattern, rect=rect, hint=hint)
         self.context.device.last_find = ret.original_rect if ret else None
         return ret
     
