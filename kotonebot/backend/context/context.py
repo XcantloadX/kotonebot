@@ -50,7 +50,7 @@ from kotonebot.backend.ocr import (
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig
 from kotonebot.backend.core import Image, HintBox
-from kotonebot.errors import KotonebotWarning
+from kotonebot.errors import ContextNotInitializedError, KotonebotWarning
 from kotonebot.backend.preprocessor import PreprocessorProtocol
 from kotonebot.primitives import Rect
 
@@ -719,14 +719,14 @@ class Forwarded:
         if name.startswith('_FORWARD_'):
             return object.__getattribute__(self, name)
         if self._FORWARD_getter is None:
-            raise ValueError(f"Forwarded object {self._FORWARD_name} called before initialization.")
+            raise ContextNotInitializedError(f"Forwarded object {self._FORWARD_name} called before initialization.")
         return getattr(self._FORWARD_getter(), name)
     
     def __setattr__(self, name: str, value: Any):
         if name.startswith('_FORWARD_'):
             return object.__setattr__(self, name, value)
         if self._FORWARD_getter is None:
-            raise ValueError(f"Forwarded object {self._FORWARD_name} called before initialization.")
+            raise ContextNotInitializedError(f"Forwarded object {self._FORWARD_name} called before initialization.")
         setattr(self._FORWARD_getter(), name, value)
 
 
@@ -974,7 +974,7 @@ def inject_context(
 ):
     global _c
     if _c is None:
-        raise RuntimeError('Context not initialized')
+        raise ContextNotInitializedError('Context not initialized')
     _c.inject(device=device, ocr=ocr, image=image, color=color, vars=vars, debug=debug, config=config)
 
 class ManualContextManager:

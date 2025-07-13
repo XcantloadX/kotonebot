@@ -31,3 +31,7 @@ class UnscalableResolutionError(KotonebotError):
         self.screen_size = screen_size
         super().__init__(f'Cannot scale to target resolution {target_resolution}. '
                          f'Screen size: {screen_size}')
+        
+class ContextNotInitializedError(KotonebotError):
+    def __init__(self, msg: str = 'Context not initialized'):
+        super().__init__(msg)
