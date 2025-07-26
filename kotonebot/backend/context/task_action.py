@@ -1,13 +1,9 @@
 import logging
-from typing import Callable, ParamSpec, TypeVar, overload, Concatenate, Literal
+from typing import Callable, ParamSpec, TypeVar, overload
 from dataclasses import dataclass
-from typing_extensions import deprecated
 
-import cv2
-from cv2.typing import MatLike
 
 from .context import ContextStackVars, ScreenshotMode
-from ..dispatch import dispatcher as dispatcher_decorator, DispatcherContext
 from ...errors import TaskNotFoundError
 
 P = ParamSpec('P')
@@ -98,7 +94,6 @@ def action(
     pass_through: bool = False,
     priority: int = 0,
     screenshot_mode: ScreenshotMode | None = None,
-    dispatcher: Literal[False] = False,
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """
     `action` 装饰器，用于标记一个函数为动作函数。
@@ -110,38 +105,6 @@ def action(
         如果不想跟踪，则设置此参数为 False。
     :param priority: 动作优先级，数字越大优先级越高。
     :param screenshot_mode: 截图模式。
-    :param dispatcher: 
-        是否为分发器模式。默认为假。
-        如果使用分发器，则函数的第一个参数必须为 `ctx: DispatcherContext`。
-    """
-    ...
-
-@overload
-@deprecated('使用普通 while 循环代替')
-def action(
-    name: str,
-    *,
-    description: str|None = None,
-    pass_through: bool = False,
-    priority: int = 0,
-    screenshot_mode: ScreenshotMode | None = None,
-    dispatcher: Literal[True, 'fragment'] = True,
-) -> Callable[[Callable[Concatenate[DispatcherContext, P], R]], Callable[P, R]]:
-    """
-    `action` 装饰器，用于标记一个函数为动作函数。
-
-    此重载启用了分发器模式。被装饰函数的第一个参数必须为 `ctx: DispatcherContext`。
-
-    :param name: 动作名称。如果为 None，则使用函数的名称作为名称。
-    :param description: 动作描述。如果为 None，则使用函数的 docstring 作为描述。
-    :param pass_through: 
-        默认情况下， @action 装饰器会包裹动作函数，跟踪其执行情况。
-        如果不想跟踪，则设置此参数为 False。
-    :param priority: 动作优先级，数字越大优先级越高。
-    :param screenshot_mode: 截图模式，必须为 `'manual' / None`。
-    :param dispatcher: 
-        是否为分发器模式。默认为假。
-        如果使用分发器，则函数的第一个参数必须为 `ctx: DispatcherContext`。
     """
     ...
 
@@ -176,11 +139,6 @@ def action(*args, **kwargs):
         pass_through = kwargs.get('pass_through', False)
         priority = kwargs.get('priority', 0)
         screenshot_mode = kwargs.get('screenshot_mode', None)
-        dispatcher = kwargs.get('dispatcher', False)
-        if dispatcher == True or dispatcher == 'fragment':
-            if not (screenshot_mode is None or screenshot_mode == 'manual'):
-                raise ValueError('`screenshot_mode` must be None or "manual" when `dispatcher=True`.')
-            screenshot_mode = 'manual'
         def _action_decorator(func: Callable):
             nonlocal pass_through
             action = _register(_placeholder, name, description)
@@ -188,8 +146,6 @@ def action(*args, **kwargs):
             if pass_through:
                 return func
             else:
-                if dispatcher:
-                    func = dispatcher_decorator(func, fragment=(dispatcher == 'fragment')) # type: ignore
                 def _wrapper(*args: P.args, **kwargs: P.kwargs):
                     current_callstack.append(action)
                     vars = ContextStackVars.push(screenshot_mode=screenshot_mode)
