@@ -12,7 +12,8 @@ from kotonebot.client import Device
 from kotonebot.client.host.protocol import Instance
 from kotonebot.backend.context import init_context, vars
 from kotonebot.backend.context import task_registry, action_registry, Task, Action
-from kotonebot.errors import StopCurrentTask
+from kotonebot.errors import StopCurrentTask, UserFriendlyError
+from kotonebot.interop.win.task_dialog import TaskDialog
 
 log_stream = io.StringIO()
 stream_handler = logging.StreamHandler(log_stream)
@@ -198,6 +199,20 @@ class KotoneBot:
                         self.events.task_status_changed.trigger(task1, 'cancelled')
                     vars.flow.clear_interrupt()
                     break
+                # 用户可以自行处理的错误
+                except UserFriendlyError as e:
+                    logger.error(f'Task failed: {task.name}')
+                    logger.exception(f'Error: ')
+                    dialog = TaskDialog(
+                        title='琴音小助手',
+                        common_buttons=0,
+                        main_instruction='任务执行失败',
+                        content=e.message,
+                        custom_buttons=e.action_buttons,
+                        main_icon='error'
+                    )
+                    result_custom, _, _ = dialog.show()
+                    e.invoke(result_custom)
                 # 其他错误
                 except Exception as e:
                     logger.error(f'Task failed: {task.name}')

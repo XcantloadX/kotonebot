@@ -12,6 +12,7 @@ from kotonebot.kaa.config.produce import (
     ProduceSolutionManager
 )
 from kotonebot.kaa.config.const import ProduceAction, RecommendCardDetectionMode
+from kotonebot.kaa.errors import ProduceSolutionNotFoundError
 
 
 class TestProduceData(TestCase):
@@ -360,7 +361,7 @@ class TestProduceSolutionManager(TestCase):
 
     def test_read_nonexistent_solution(self):
         """测试读取不存在的方案"""
-        with self.assertRaises(FileNotFoundError) as context:
+        with self.assertRaises(ProduceSolutionNotFoundError) as context:
             self.manager.read('nonexistent_id')
 
         self.assertIn("Solution with id 'nonexistent_id' not found", str(context.exception))
@@ -429,7 +430,7 @@ class TestProduceSolutionManager(TestCase):
 
     def test_duplicate_nonexistent_solution(self):
         """测试复制不存在的方案"""
-        with self.assertRaises(FileNotFoundError):
+        with self.assertRaises(ProduceSolutionNotFoundError):
             self.manager.duplicate('nonexistent_id')
 
     def test_corrupted_json_handling(self):
