@@ -95,7 +95,7 @@ class FlowController:
         logger.info('Interrupt requested.')
         self.interrupt_event.set()
     
-    def request_pause(self) -> None:
+    def request_pause(self, *, wait_resume: bool = False) -> None:
         """
         请求暂停任务。
 
@@ -106,6 +106,8 @@ class FlowController:
             if not self.paused:
                 logger.info('Pause requested.')
                 self.paused = True
+            if wait_resume:
+                self.check()
     
     def request_resume(self) -> None:
         """

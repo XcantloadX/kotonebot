@@ -41,6 +41,7 @@ dependencies = [
     # TODO: move these dependencies to optional-dependencies
     "pywin32==310",
     "ahk==1.8.3",
+    "win11toast==0.35",  # For Windows Toast Notification
 ]
 
 
