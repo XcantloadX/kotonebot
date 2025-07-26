@@ -15,6 +15,13 @@ from kotonebot.backend.context import task_registry, action_registry, Task, Acti
 from kotonebot.errors import StopCurrentTask, UserFriendlyError
 from kotonebot.interop.win.task_dialog import TaskDialog
 
+
+@dataclass
+class PostTaskContext:
+    has_error: bool
+    exception: Exception | None
+
+
 log_stream = io.StringIO()
 stream_handler = logging.StreamHandler(log_stream)
 stream_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] [%(name)s] [%(filename)s:%(lineno)d] - %(message)s'))
@@ -174,20 +181,37 @@ class KotoneBot:
         self._on_after_init_context()
         vars.flow.clear_interrupt()
 
+        pre_tasks = [task for task in tasks if task.run_at == 'pre']
+        regular_tasks = [task for task in tasks if task.run_at == 'regular']
+        post_tasks = [task for task in tasks if task.run_at == 'post']
+
         if by_priority:
-            tasks = sorted(tasks, key=lambda x: x.priority, reverse=True)
-        for task in tasks:
+            pre_tasks = sorted(pre_tasks, key=lambda x: x.priority, reverse=True)
+            regular_tasks = sorted(regular_tasks, key=lambda x: x.priority, reverse=True)
+            post_tasks = sorted(post_tasks, key=lambda x: x.priority, reverse=True)
+
+        all_tasks = pre_tasks + regular_tasks + post_tasks
+        for task in all_tasks:
             self.events.task_status_changed.trigger(task, 'pending')
 
-        for task in tasks:
+        has_error = False
+        exception: Exception | None = None
+
+        for task in all_tasks:
             logger.info(f'Task started: {task.name}')
             self.events.task_status_changed.trigger(task, 'running')
 
             if self.debug:
-                task.func()
+                if task.run_at == 'post':
+                    task.func(PostTaskContext(has_error, exception))
+                else:
+                    task.func()
             else:
                 try:
-                    task.func()
+                    if task.run_at == 'post':
+                        task.func(PostTaskContext(has_error, exception))
+                    else:
+                        task.func()
                     self.events.task_status_changed.trigger(task, 'finished')
                 except StopCurrentTask:
                     logger.info(f'Task skipped/stopped: {task.name}')
@@ -195,7 +219,7 @@ class KotoneBot:
                 # 用户中止
                 except KeyboardInterrupt as e:
                     logger.exception('Keyboard interrupt detected.')
-                    for task1 in tasks[tasks.index(task):]:
+                    for task1 in all_tasks[all_tasks.index(task):]:
                         self.events.task_status_changed.trigger(task1, 'cancelled')
                     vars.flow.clear_interrupt()
                     break
@@ -203,6 +227,8 @@ class KotoneBot:
                 except UserFriendlyError as e:
                     logger.error(f'Task failed: {task.name}')
                     logger.exception(f'Error: ')
+                    has_error = True
+                    exception = e
                     dialog = TaskDialog(
                         title='琴音小助手',
                         common_buttons=0,
@@ -217,12 +243,14 @@ class KotoneBot:
                 except Exception as e:
                     logger.error(f'Task failed: {task.name}')
                     logger.exception(f'Error: ')
+                    has_error = True
+                    exception = e
                     report_path = None
                     if self.auto_save_error_report:
                         raise NotImplementedError
                     self.events.task_status_changed.trigger(task, 'error')
                     if not self.resume_on_error:
-                        for task1 in tasks[tasks.index(task)+1:]:
+                        for task1 in all_tasks[all_tasks.index(task)+1:]:
                             self.events.task_status_changed.trigger(task1, 'cancelled')
                         break
             logger.info(f'Task ended: {task.name}')

@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, ParamSpec, TypeVar, overload
+from typing import Callable, ParamSpec, TypeVar, overload, Literal
 from dataclasses import dataclass
 
 
@@ -9,6 +9,9 @@ from ...errors import TaskNotFoundError
 P = ParamSpec('P')
 R = TypeVar('R')
 logger = logging.getLogger(__name__)
+
+TaskRunAtType = Literal['pre', 'post', 'manual', 'regular'] | str
+
 
 @dataclass
 class Task:
@@ -20,6 +23,8 @@ class Task:
     """
     任务优先级，数字越大优先级越高。
     """
+    run_at: TaskRunAtType = 'regular'
+
 
 @dataclass
 class Action:
@@ -47,6 +52,7 @@ def task(
     pass_through: bool = False,
     priority: int = 0,
     screenshot_mode: ScreenshotMode = 'auto',
+    run_at: TaskRunAtType = 'regular'
 ):
     """
     `task` 装饰器，用于标记一个函数为任务函数。
@@ -58,6 +64,7 @@ def task(
         默认情况下， @task 装饰器会包裹任务函数，跟踪其执行情况。
         如果不想跟踪，则设置此参数为 False。
     :param priority: 任务优先级，数字越大优先级越高。
+    :param run_at: 任务运行时间。
     """
     # 设置 ID
     # 获取 caller 信息
@@ -66,7 +73,7 @@ def task(
         description = description or func.__doc__ or ''
         # TODO: task_id 冲突检测
         task_id = task_id or func.__name__
-        task = Task(name, task_id, description, _placeholder, priority)
+        task = Task(name, task_id, description, _placeholder, priority, run_at)
         task_registry[name] = task
         logger.debug(f'Task "{name}" registered.')
         if pass_through:
