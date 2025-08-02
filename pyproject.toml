@@ -3,53 +3,56 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-dynamic = ["version"]
-name = "ksaa"
-description = "Kotones Auto Assistant(kaa) is a script for game 'Gakuen Idol M@ster' that automates the dailies and produces."
+name = "kotonebot"
+version = "0.1.0"
+description = "Kotonebot is game/app automation library based on computer vision technology, works for Windows and Android."
 readme = "README.md"
-requires-python = "~=3.10"
+requires-python = ">=3.10"
 dependencies = [
     # Image Processing & OCR
-    "opencv-python==4.10.0.84",
-    "rapidocr_onnxruntime==1.4.3",
-    "av==14.0.1",
-    "scikit-image==0.25.0",
-    "thefuzz==0.22.1",
-    # Adb Control
-    "adbutils==2.8.0",
-    "uiautomator2==3.2.8",
-    # Visual Debugger
-    "fastapi==0.115.6",
-    "uvicorn==0.34.0",
-    "python-multipart==0.0.20",
-    "websockets==14.1",
-    "psutil==6.1.1",
-    # GUI
-    "gradio==5.21.0",
+    "opencv-python~=4.10",
+    "rapidocr_onnxruntime~=1.4",
+    "av~=14.0",
+    "scikit-image~=0.25",
+    "thefuzz~=0.22",
     # Configuration
-    "pydantic==2.10.4",
+    "pydantic~=2.10",
     # Resource
-    "ksaa-res==0.2.0",
+    "ksaa-res~=0.2",
     # Other
-    "typing-extensions==4.12.2",
-    "python-dotenv==1.0.1",
-    # ImportError: DLL load failed while importing onnxruntime_pybind11_state
-    "onnxruntime==1.14.0",
-    # A module that was compiled using NumPy 1.x cannot be run in NumPy 2.0.0 as it may crash.
-    "numpy<2.0",
-    # For DMM version
-    # TODO: move these dependencies to optional-dependencies
-    "pywin32==310",
-    "ahk==1.8.3",
-    "win11toast==0.35",  # For Windows Toast Notification
+    "typing-extensions~=4.12",
+    "python-dotenv~=1.0",
+    "onnxruntime~=1.14",
+    "numpy",
 ]
 
+[project.optional-dependencies]
+# Android platform dependencies
+android = [
+    "adbutils~=2.8",
+    "uiautomator2~=3.2",
+]
+
+# Windows platform dependencies
+windows = [
+    "pywin32",
+    "ahk~=1.8",
+    "win11toast~=0.35",  # For Windows Toast Notification
+]
+
+# Debug and development dependencies
+dev = [
+    "fastapi~=0.115",
+    "uvicorn~=0.34",
+    "python-multipart~=0.0",
+    "websockets~=14.1",
+    "psutil~=6.1",
+    "gradio~=5.21",
+    "snakeviz",
+    "build"
+]
+
+all = ["kotonebot[android,windows]"]
 
 [tool.setuptools]
 package-dir = { "kotonebot" = "kotonebot" }
-
-[project.scripts]
-kaa = "kotonebot.kaa.main.cli:main"
-
-[tool.setuptools.dynamic]
-version = {file = "./version"}
