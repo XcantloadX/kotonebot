@@ -71,7 +71,8 @@ class Loop:
             *,
             timeout: float = 300,
             interval: float = 0.3,
-            auto_screenshot: bool = True
+            auto_screenshot: bool = True,
+            skip_first_wait: bool = True
     ):
         self.running = True
         self.found_anything = False
@@ -83,9 +84,12 @@ class Loop:
         self.__interval = Interval(interval)
         self.screenshot: MatLike | None = None
         """上次截图时的图像数据。"""
+        self.__skip_first_wait = skip_first_wait
+        self.__is_first_tick = True
 
     def __iter__(self):
         self.__interval.reset()
+        self.__is_first_tick = True
         return self
 
     def __next__(self):
@@ -96,7 +100,10 @@ class Loop:
         return self.tick()
 
     def tick(self):
-        self.__interval.wait()
+        if not (self.__is_first_tick and self.__skip_first_wait):
+            self.__interval.wait()
+        self.__is_first_tick = False
+
         if self.auto_screenshot:
             self.screenshot = device.screenshot()
         self.__last_loop = time.time()
