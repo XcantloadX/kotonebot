@@ -132,6 +132,7 @@ def template_match(
     image: MatLike | str | Image,
     mask: MatLike | str | Image | None = None,
     *,
+    rect: KbRect | None = None,
     transparent: bool = False,
     threshold: float = 0.8,
     max_results: int = 5,
@@ -149,6 +150,7 @@ def template_match(
     :param template: 模板图像，可以是图像路径或 cv2.Mat。
     :param image: 图像，可以是图像路径或 cv2.Mat。
     :param mask: 掩码图像，可以是图像路径或 cv2.Mat。
+    :param rect: 如果指定，则只在指定矩形区域内进行匹配。
     :param transparent: 若为 True，则认为输入模板是透明的，并自动将透明模板转换为 Mask 图像。
     :param threshold: 阈值，默认为 0.8。
     :param max_results: 最大结果数，默认为 1。
@@ -159,6 +161,13 @@ def template_match(
     # 统一参数
     template = unify_image(template, transparent)
     image = unify_image(image)
+    
+    # 处理矩形区域
+    original_image = image
+    if rect is not None:
+        x, y, w, h = rect.xywh
+        image = image[y:y+h, x:x+w]
+    
     if transparent is True and mask is not None:
         raise ValueError('mask and transparent cannot be used together')
     if mask is not None:
@@ -229,7 +238,7 @@ def template_match(
         
         matches.append(TemplateMatchResult(
             score=score,
-            position=KbPoint(int(x), int(y)),
+            position=KbPoint(int(x) + (rect.x1 if rect else 0), int(y) + (rect.y1 if rect else 0)),
             size=KbSize(int(w), int(h))
         ))
         
@@ -312,6 +321,7 @@ def find_all_crop(
     transparent: bool = False,
     threshold: float = 0.8,
     *,
+    rect: KbRect | None = None,
     colored: bool = False,
     remove_duplicate: bool = True,
     preprocessors: list[PreprocessorProtocol] | None = None,
@@ -324,6 +334,7 @@ def find_all_crop(
     :param mask: 掩码图像，可以是图像路径或 cv2.Mat。
     :param transparent: 若为 True，则认为输入模板是透明的，并自动将透明模板转换为 Mask 图像。
     :param threshold: 阈值，默认为 0.8。
+    :param rect: 如果指定，则只在指定矩形区域内进行匹配。
     :param colored: 是否匹配颜色，默认为 False。
     :param remove_duplicate: 是否移除重复结果，默认为 True。
     :param preprocessors: 预处理列表，默认为 None。
@@ -332,6 +343,7 @@ def find_all_crop(
         template,
         image,
         mask,
+        rect=rect,
         transparent=transparent,
         threshold=threshold,
         max_results=-1,
@@ -355,6 +367,7 @@ def find(
     template: MatLike | str | Image,
     mask: MatLike | str | Image | None = None,
     *,
+    rect: KbRect | None = None,
     transparent: bool = False,
     threshold: float = 0.8,
     debug_output: bool = True,
@@ -368,6 +381,7 @@ def find(
     :param image: 图像，可以是图像路径或 cv2.Mat。
     :param template: 模板图像，可以是图像路径或 cv2.Mat。
     :param mask: 掩码图像，可以是图像路径或 cv2.Mat。
+    :param rect: 如果指定，则只在指定矩形区域内进行匹配。
     :param transparent: 若为 True，则认为输入模板是透明的，并自动将透明模板转换为 Mask 图像。
     :param threshold: 阈值，默认为 0.8。
     :param debug_output: 是否输出调试信息，默认为 True。
@@ -379,6 +393,7 @@ def find(
         template,
         image,
         mask,
+        rect=rect,
         transparent=transparent,
         threshold=threshold,
         max_results=1,
@@ -409,6 +424,7 @@ def find_all(
     template: MatLike | str | Image,
     mask: MatLike | str | Image | None = None,
     *,
+    rect: KbRect | None = None,
     transparent: bool = False,
     threshold: float = 0.8,
     remove_duplicate: bool = True,
@@ -422,6 +438,7 @@ def find_all(
     :param image: 图像，可以是图像路径或 cv2.Mat。
     :param template: 模板图像，可以是图像路径或 cv2.Mat。
     :param mask: 掩码图像，可以是图像路径或 cv2.Mat。
+    :param rect: 如果指定，则只在指定矩形区域内进行匹配。
     :param transparent: 若为 True，则认为输入模板是透明的，并自动将透明模板转换为 Mask 图像。
     :param threshold: 阈值，默认为 0.8。
     :param remove_duplicate: 是否移除重复结果，默认为 True。
@@ -432,6 +449,7 @@ def find_all(
         template,
         image,
         mask,
+        rect=rect,
         transparent=transparent,
         threshold=threshold,
         max_results=-1,
@@ -458,6 +476,7 @@ def find_multi(
     templates: Sequence[MatLike | str | Image],
     masks: Sequence[MatLike | str | Image | None] | None = None,
     *,
+    rect: KbRect | None = None,
     transparent: bool = False,
     threshold: float = 0.8,
     colored: bool = False,
@@ -470,6 +489,7 @@ def find_multi(
     :param image: 图像，可以是图像路径或 cv2.Mat。
     :param templates: 模板图像列表，可以是图像路径或 cv2.Mat。
     :param masks: 掩码图像列表，可以是图像路径或 cv2.Mat。
+    :param rect: 如果指定，则只在指定矩形区域内进行匹配。
     :param transparent: 若为 True，则认为输入模板是透明的，并自动将透明模板转换为 Mask 图像。
     :param threshold: 阈值，默认为 0.8。
     :param colored: 是否匹配颜色，默认为 False。
@@ -486,6 +506,7 @@ def find_multi(
             image,
             template,
             mask,
+            rect=rect,
             transparent=transparent,
             threshold=threshold,
             colored=colored,
@@ -528,6 +549,7 @@ def find_all_multi(
     templates: list[MatLike | str | Image],
     masks: list[MatLike | str | Image | None] | None = None,
     *,
+    rect: KbRect | None = None,
     transparent: bool = False,
     threshold: float = 0.8,
     colored: bool = False,
@@ -547,6 +569,7 @@ def find_all_multi(
     :param image: 图像，可以是图像路径或 cv2.Mat。
     :param templates: 模板图像列表，可以是图像路径或 cv2.Mat。
     :param masks: 掩码图像列表，可以是图像路径或 cv2.Mat。
+    :param rect: 如果指定，则只在指定矩形区域内进行匹配。
     :param transparent: 若为 True，则认为输入模板是透明的，并自动将透明模板转换为 Mask 图像。
     :param threshold: 阈值，默认为 0.8。
     :param colored: 是否匹配颜色，默认为 False。
@@ -565,6 +588,7 @@ def find_all_multi(
             image,
             template,
             mask,
+            rect=rect,
             transparent=transparent,
             threshold=threshold,
             colored=colored,
@@ -614,6 +638,7 @@ def count(
     template: MatLike | str | Image,
     mask: MatLike | str | Image | None = None,
     *,
+    rect: KbRect | None = None,
     transparent: bool = False,
     threshold: float = 0.8,
     remove_duplicate: bool = True,
@@ -626,6 +651,7 @@ def count(
     :param image: 图像，可以是图像路径或 cv2.Mat。
     :param template: 模板图像，可以是图像路径或 cv2.Mat。
     :param mask: 掩码图像，可以是图像路径或 cv2.Mat。
+    :param rect: 如果指定，则只在指定矩形区域内进行匹配。
     :param transparent: 若为 True，则认为输入模板是透明的，并自动将透明模板转换为 Mask 图像。
     :param threshold: 阈值，默认为 0.8。
     :param remove_duplicate: 是否移除重复结果，默认为 True。
@@ -636,6 +662,7 @@ def count(
         template,
         image,
         mask,
+        rect=rect,
         transparent=transparent,
         threshold=threshold,
         max_results=-1,
@@ -667,6 +694,7 @@ def expect(
     template: MatLike | str | Image,
     mask: MatLike | str | Image | None = None,
     *,
+    rect: KbRect | None = None,
     transparent: bool = False,
     threshold: float = 0.8,
     colored: bool = False,
@@ -679,6 +707,7 @@ def expect(
     :param image: 图像，可以是图像路径或 cv2.Mat。
     :param template: 模板图像，可以是图像路径或 cv2.Mat。
     :param mask: 掩码图像，可以是图像路径或 cv2.Mat。
+    :param rect: 如果指定，则只在指定矩形区域内进行匹配。
     :param transparent: 若为 True，则认为输入模板是透明的，并自动将透明模板转换为 Mask 图像。
     :param threshold: 阈值，默认为 0.8。
     :param colored: 是否匹配颜色，默认为 False。
@@ -689,6 +718,7 @@ def expect(
         image,
         template,
         mask,
+        rect=rect,
         transparent=transparent,
         threshold=threshold,
         colored=colored,

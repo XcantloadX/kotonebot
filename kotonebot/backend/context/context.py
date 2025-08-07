@@ -438,6 +438,7 @@ class ContextImage:
             timeout: float = DEFAULT_TIMEOUT,
             colored: bool = False,
             *,
+            rect: Rect | None = None,
             transparent: bool = False,
             interval: float = DEFAULT_INTERVAL,
             preprocessors: list[PreprocessorProtocol] | None = None,
@@ -454,6 +455,7 @@ class ContextImage:
             ret = self.find(
                 template,
                 mask,
+                rect=rect,
                 transparent=transparent,
                 threshold=threshold,
                 colored=colored,
@@ -474,6 +476,7 @@ class ContextImage:
             timeout: float = DEFAULT_TIMEOUT,
             colored: bool = False,
             *,
+            rect: Rect | None = None,
             transparent: bool = False,
             interval: float = DEFAULT_INTERVAL,
             preprocessors: list[PreprocessorProtocol] | None = None,
@@ -495,6 +498,7 @@ class ContextImage:
                 if self.find(
                     template,
                     mask,
+                    rect=rect,
                     transparent=transparent,
                     threshold=threshold,
                     colored=colored,
@@ -513,6 +517,7 @@ class ContextImage:
             timeout: float = DEFAULT_TIMEOUT,
             colored: bool = False,
             *,
+            rect: Rect | None = None,
             transparent: bool = False,
             interval: float = DEFAULT_INTERVAL,
             preprocessors: list[PreprocessorProtocol] | None = None,
@@ -529,6 +534,7 @@ class ContextImage:
             ret = self.find(
                 template,
                 mask,
+                rect=rect,
                 transparent=transparent,
                 threshold=threshold,
                 colored=colored,
@@ -549,6 +555,7 @@ class ContextImage:
             timeout: float = DEFAULT_TIMEOUT,
             colored: bool = False,
             *,
+            rect: Rect | None = None,
             transparent: bool = False,
             interval: float = DEFAULT_INTERVAL,
             preprocessors: list[PreprocessorProtocol] | None = None,
@@ -570,6 +577,7 @@ class ContextImage:
                 ret = self.find(
                     template,
                     mask,
+                    rect=rect,
                     transparent=transparent,
                     threshold=threshold,
                     colored=colored,
