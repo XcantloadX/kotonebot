@@ -292,7 +292,10 @@ class Device:
 
     def swipe_scaled(self, x1: float, y1: float, x2: float, y2: float, duration: float|None = None) -> None:
         """
-        滑动屏幕，参数为屏幕坐标的百分比
+        滑动屏幕，参数为屏幕坐标的百分比。
+
+        如果设置了 `self.target_resolution`，则参数为逻辑坐标百分比。
+        否则为真实坐标百分比。
 
         :param x1: 起始点 x 坐标百分比。范围 [0, 1]
         :param y1: 起始点 y 坐标百分比。范围 [0, 1]
@@ -300,7 +303,7 @@ class Device:
         :param y2: 结束点 y 坐标百分比。范围 [0, 1]
         :param duration: 滑动持续时间，单位秒。None 表示使用默认值。
         """
-        w, h = self.screen_size
+        w, h = self.target_resolution or self.screen_size
         self.swipe(int(w * x1), int(h * y1), int(w * x2), int(h * y2), duration)
     
     def screenshot(self) -> MatLike:
@@ -334,7 +337,7 @@ class Device:
     @property
     def screen_size(self) -> tuple[int, int]:
         """
-        屏幕尺寸。格式为 `(width, height)`。
+        真实屏幕尺寸。格式为 `(width, height)`。
         
         **注意**： 此属性返回的分辨率会随设备方向变化。
         如果 `self.orientation` 为 `landscape`，则返回的分辨率是横屏下的分辨率，
