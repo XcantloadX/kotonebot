@@ -12,64 +12,12 @@
             "program": "${file}",
             "console": "integratedTerminal"
         },
-
         {
             "name": "Python: Current Module",
             "type": "python",
             "request": "launch",
             "console": "integratedTerminal",
-            "module": "kotonebot.debug_entry",
-            "args": [
-                "${relativeFile}"
-            ],
-            // "module": "${command:extension.commandvariable.file.relativeDirDots}.${fileBasenameNoExtension}",
-        },
-
-        {
-            "name": "Python: Current Module(Without context)",
-            "type": "python",
-            "request": "launch",
-            "console": "integratedTerminal",
             "module": "${command:extension.commandvariable.file.relativeDirDots}.${fileBasenameNoExtension}",
-        },
-        
-        {
-            "name": "KotonebotDebug: Current Module",
-            "type": "debugpy",
-            "request": "launch",
-            "console": "integratedTerminal",
-            "module": "kotonebot.backend.debug.entry",
-            "args": [
-                "-s",
-                "${workspaceFolder}/dumps",
-                "-c",
-                "${command:extension.commandvariable.file.relativeDirDots}.${fileBasenameNoExtension}",
-                "-t",
-                "kotonebot.tasks.common.BaseConfig"
-            ]
-        },
-        {
-            "name": "KotonebotDebug: All tasks",
-            "type": "debugpy",
-            "request": "launch",
-            "console": "integratedTerminal",
-            "module": "kotonebot.backend.debug.entry",
-            "args": [
-                "-s",
-                "${workspaceFolder}/dumps",
-                "-c",
-                "kotonebot.run.run",
-                "-t",
-                "kotonebot.tasks.common.BaseConfig"
-            ]
-        },
-        {
-            "name": "KotonebotDebug: Run Debug Server",
-            "type": "debugpy",
-            "request": "launch",
-            "console": "integratedTerminal",
-            "module": "kotonebot.backend.debug.server",
-            "args": []
         },
     ]
 }
