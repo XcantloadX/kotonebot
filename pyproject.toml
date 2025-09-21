@@ -38,6 +38,7 @@ windows = [
     "pywin32",
     "ahk~=1.8",
     "win11toast~=0.35",  # For Windows Toast Notification
+    "psutil~=6.1", # for custom host (kill process)
 ]
 
 # Debug and development dependencies
@@ -56,3 +57,10 @@ all = ["kotonebot[android,windows]"]
 
 [tool.setuptools]
 package-dir = { "kotonebot" = "kotonebot" }
+
+[tool.coverage.run]
+# https://github.com/nedbat/coveragepy/issues/1653
+omit = [
+    "config.py",
+    "config-3.py",
+    ]

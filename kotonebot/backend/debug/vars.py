@@ -4,7 +4,6 @@ import json
 import time
 import uuid
 import shutil
-import psutil
 import hashlib
 import traceback
 from pathlib import Path
@@ -12,6 +11,7 @@ from functools import cache
 from datetime import datetime
 from dataclasses import dataclass
 from typing import NamedTuple, TextIO, Literal
+import warnings
 
 import cv2
 from cv2.typing import MatLike
@@ -188,6 +188,11 @@ IDEType = Literal['vscode', 'cursor', 'windsurf']
 @cache
 def get_current_ide() -> IDEType | None:
     """获取当前IDE类型"""
+    try:
+        import psutil
+    except ImportError:
+        warnings.warn('Not able to detect IDE type. Install psutil for better developer experience.')
+        return None
     me = psutil.Process()
     while True:
         parent = me.parent()
