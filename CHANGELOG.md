@@ -1,4 +1,10 @@
 # 更新日志
+## v0.3.0
+Library:
+1. [feat] 支持 MuMu12 v5.x 模拟器的控制。
+2. [feat] OCR 模块新增识别结果清理功能。
+3. [feat] 移除 debug 模块对 psutil 的强制依赖。
+
 ## v0.2.0
 Framework：
 1. [feat] Loop 类新增参数 skip_first_wait，可选是否跳过第一次等待，默认为 True。
