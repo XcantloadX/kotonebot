@@ -1,4 +1,8 @@
 # 更新日志
+## v0.3.1
+Library:
+1. [fix] 修复 base_config.py 中的 BackendType 类型定义缺少 mumu12v5 的问题。
+
 ## v0.3.0
 Library:
 1. [feat] 支持 MuMu12 v5.x 模拟器的控制。
