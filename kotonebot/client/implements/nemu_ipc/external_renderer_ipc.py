@@ -204,6 +204,7 @@ class ExternalRendererIpc:
     def __load_dll(self, mumu_root_folder: str) -> ctypes.CDLL:
         """尝试多条路径加载 DLL。传入为 MuMu 根目录。"""
         candidate_paths = [
+            # <= 4.x
             os.path.join(mumu_root_folder, "shell", "sdk", "external_renderer_ipc.dll"),
             os.path.join(
                 mumu_root_folder,
@@ -212,6 +213,10 @@ class ExternalRendererIpc:
                 "12.0",
                 "sdk",
                 "external_renderer_ipc.dll",
+            ),
+            # >= 5.x
+            os.path.join(
+                mumu_root_folder, "nx_device", "12.0", "shell", "sdk", "external_renderer_ipc.dll"
             ),
         ]
         for p in candidate_paths:
