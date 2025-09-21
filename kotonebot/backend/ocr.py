@@ -24,6 +24,25 @@ logger = logging.getLogger(__name__)
 StringMatchFunction = Callable[[str], bool]
 REGEX_NUMBERS = re.compile(r'\d+')
 
+global_character_mapping: dict[str, str] = {
+    'ó': '6',
+    'ą': 'a',
+}
+"""
+全局字符映射表。某些字符可能在某些情况下被错误地识别，此时可以在这里添加映射。
+"""
+
+def sanitize_text(text: str) -> str:
+    """
+    对识别结果进行清理。此函数将被所有 OCR 引擎调用。
+    
+    默认使用 `global_character_mapping` 中的映射数据进行清理。
+    可以重写此函数以实现自定义的清理逻辑。
+    """
+    for k, v in global_character_mapping.items():
+        text = text.replace(k, v)
+    return text
+
 @dataclass
 class OcrResult:
     text: str
@@ -330,8 +349,7 @@ class Ocr:
             return OcrResultList()
         ret = []
         for r in result:
-            # HACK: 识别结果中包含奇怪的符号，暂时替换掉
-            text = unicodedata.normalize('NFKC', r[1]).replace('ą', 'a')
+            text = sanitize_text(r[1])
             # r[0] = [左上, 右上, 右下, 左下]
             # 这里有个坑，返回的点不一定是矩形，只能保证是四边形
             # 所以这里需要计算出四个点的外接矩形
