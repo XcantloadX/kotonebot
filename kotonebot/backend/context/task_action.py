@@ -115,9 +115,6 @@ def action(
     """
     ...
 
-# TODO: 需要找个地方统一管理这些属性名
-ATTR_ORIGINAL_FUNC = '_kb_inner'
-ATTR_ACTION_MARK = '__kb_action_mark'
 def action(*args, **kwargs):
     def _register(func: Callable, name: str, description: str|None = None, priority: int = 0) -> Action:
         description = description or func.__doc__ or ''
@@ -136,8 +133,6 @@ def action(*args, **kwargs):
             ContextStackVars.pop()
             current_callstack.pop()
             return ret
-        setattr(_wrapper, ATTR_ORIGINAL_FUNC, func)
-        setattr(_wrapper, ATTR_ACTION_MARK, True)
         action.func = _wrapper
         return _wrapper
     else:
@@ -160,8 +155,6 @@ def action(*args, **kwargs):
                     ContextStackVars.pop()
                     current_callstack.pop()
                     return ret
-                setattr(_wrapper, ATTR_ORIGINAL_FUNC, func)
-                setattr(_wrapper, ATTR_ACTION_MARK, True)
                 action.func = _wrapper
                 return _wrapper
         return _action_decorator
