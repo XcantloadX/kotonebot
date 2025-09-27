@@ -1,6 +1,8 @@
 import logging
-from typing import Callable, ParamSpec, TypeVar, overload, Literal
+import warnings
 from dataclasses import dataclass
+from typing_extensions import deprecated
+from typing import Callable, ParamSpec, TypeVar, overload, Literal
 
 
 from .context import ContextStackVars, ScreenshotMode
@@ -93,6 +95,17 @@ def task(
 @overload
 def action(func: Callable[P, R]) -> Callable[P, R]: ...
 
+@deprecated('Use `action` with screenshot_mode=`manual` instead.')
+@overload
+def action(
+    name: str,
+    *,
+    description: str|None = None,
+    pass_through: bool = False,
+    priority: int = 0,
+    screenshot_mode: Literal['manual-inherit'],
+) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
+
 @overload
 def action(
     name: str,
@@ -141,6 +154,8 @@ def action(*args, **kwargs):
         pass_through = kwargs.get('pass_through', False)
         priority = kwargs.get('priority', 0)
         screenshot_mode = kwargs.get('screenshot_mode', None)
+        if screenshot_mode == 'manual-inherit':
+            warnings.warn('`screenshot_mode=manual-inherit` is deprecated. Use `screenshot_mode=manual` instead.')
         def _action_decorator(func: Callable):
             nonlocal pass_through
             action = _register(_placeholder, name, description)

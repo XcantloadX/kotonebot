@@ -175,6 +175,8 @@ class ContextGlobalVars:
         self.__vars = dict[str, Any]()
         self.flow: FlowController = FlowController()
         """流程控制器，负责停止、暂停、恢复等操作"""
+        self.screenshot_data: MatLike | None = None
+        """截图数据"""
 
     def __getitem__(self, key: str) -> Any:
         return self.__vars[key]
@@ -197,6 +199,7 @@ class ContextGlobalVars:
     def clear(self):
         self.__vars.clear()
         self.flow.reset()  # 重置流程控制器
+        self.screenshot_data = None
 
 def check_flow_control():
     """
@@ -220,45 +223,40 @@ class ContextStackVars:
             自动截图。即调用 `color`、`image`、`ocr` 上的方法时，会自动更新截图。
         * `manual`
             完全手动截图，不自动截图。如果在没有截图数据的情况下调用 `color` 等的方法，会抛出异常。
-        * `manual-inherit`：
-            第一张截图继承自调用者，此后同手动截图。
-            如果调用者没有截图数据，则继承的截图数据为空。
-            如果在没有截图数据的情况下调用 `color` 等的方法，会抛出异常。
+        * ~~`manual-inherit`~~：
+            已废弃。
         """
-        self._screenshot: MatLike | None = None
-        """截图数据"""
-        self._inherit_screenshot: MatLike | None = None
-        """继承的截图数据"""
 
     @property
     def screenshot(self) -> MatLike:
         match self.screenshot_mode:
-            case 'manual':
-                if self._screenshot is None:
+            case 'manual' | 'manual-inherit':
+                if vars.screenshot_data is None:
                     raise ValueError("No screenshot data found.")
-                return self._screenshot
-            case 'manual-inherit':
-                # TODO: 这一部分要考虑和 device.screenshot() 合并
-                if self._inherit_screenshot is not None:
-                    self._screenshot = self._inherit_screenshot
-                    self._inherit_screenshot = None
-                if self._screenshot is None:
-                    raise ValueError("No screenshot data found.")
-                return self._screenshot
+                return vars.screenshot_data
             case 'auto':
-                self._screenshot = device.screenshot()
-                return self._screenshot
+                device.screenshot()
+                if vars.screenshot_data is None:
+                    raise ValueError("No screenshot data found.")
+                return vars.screenshot_data
             case _:
                 raise ValueError(f"Invalid screenshot mode: {self.screenshot_mode}")
+
+    @property
+    @deprecated('Use `vars.screenshot_data` instead.')
+    def _screenshot(self) -> MatLike | None:
+        return vars.screenshot_data
+
+    @_screenshot.setter
+    @deprecated('Use `vars.screenshot_data` instead.')
+    def _screenshot(self, value: MatLike | None) -> None:
+        vars.screenshot_data = value
 
     @staticmethod
     def push(*, screenshot_mode: ScreenshotMode | None = None) -> 'ContextStackVars':
         vars = ContextStackVars()
         if screenshot_mode is not None:
             vars.screenshot_mode = screenshot_mode
-        current = ContextStackVars.current()
-        if current and vars.screenshot_mode == 'manual-inherit':
-            vars._inherit_screenshot = current._screenshot
         ContextStackVars.stack.append(vars)
         return vars
 
@@ -761,25 +759,20 @@ class ContextDevice(Generic[T_Device], Device):
         """
         check_flow_control()
         global next_wait, last_screenshot_time, next_wait_time
-        current = ContextStackVars.ensure_current()
-        if force:
-            current._inherit_screenshot = None
-        if current._inherit_screenshot is not None:
-            img = current._inherit_screenshot
-            current._inherit_screenshot = None
-        else:
-            if self._screenshot_interval is not None:
-                self._screenshot_interval.wait()
+        ContextStackVars.ensure_current()
 
-            if next_wait == 'screenshot':
-                delta = time.time() - last_screenshot_time
-                if delta < next_wait_time:
-                    sleep(next_wait_time - delta)
-                last_screenshot_time = time.time()
-                next_wait_time = 0
-                next_wait = None
-            img = self._device.screenshot()
-        current._screenshot = img
+        if self._screenshot_interval is not None:
+            self._screenshot_interval.wait()
+
+        if next_wait == 'screenshot':
+            delta = time.time() - last_screenshot_time
+            if delta < next_wait_time:
+                sleep(next_wait_time - delta)
+            last_screenshot_time = time.time()
+            next_wait_time = 0
+            next_wait = None
+        img = self._device.screenshot()
+        vars.screenshot_data = img
         return img
 
     def __getattribute__(self, name: str):
@@ -895,7 +888,7 @@ def rect_expand(rect: Rect, left: int = 0, top: int = 0, right: int = 0, bottom:
 def use_screenshot(*args: MatLike | None) -> MatLike:
     for img in args:
         if img is not None:
-            ContextStackVars.ensure_current()._screenshot = img # HACK
+            vars.screenshot_data = img
             return img
     return device.screenshot()
 
