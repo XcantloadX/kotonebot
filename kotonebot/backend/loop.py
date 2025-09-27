@@ -1,6 +1,7 @@
-import time
+﻿import time
 from functools import lru_cache, partial
 from typing import Callable, Any, overload, Literal, Generic, TypeVar, cast, get_args, get_origin
+from typing_extensions import deprecated
 
 from cv2.typing import MatLike
 
@@ -10,7 +11,7 @@ from kotonebot.backend.core import Image
 from kotonebot.backend.ocr import TextComparator
 from kotonebot.client.protocol import ClickableObjectProtocol
 
-
+@deprecated('No longer used.')
 class LoopAction:
     def __init__(self, loop: 'Loop', func: Callable[[], ClickableObjectProtocol | None]):
         self.loop = loop
@@ -117,13 +118,16 @@ class Loop:
         self.running = False
 
     @overload
+    @deprecated('Use plain if statement instead.')
     def when(self, condition: Image) -> LoopAction:
         ...
 
     @overload
+    @deprecated('Use plain if statement instead.')
     def when(self, condition: TextComparator) -> LoopAction:
         ...
 
+    @deprecated('Use plain if statement instead.')
     def when(self, condition: Any):
         """
         判断某个条件是否成立。
@@ -142,6 +146,7 @@ class Loop:
         la.do()
         return la
 
+    @deprecated('Use plain if statement instead.')
     def until(self, condition: Any):
         """
         当满足指定条件时，结束循环。
@@ -150,6 +155,7 @@ class Loop:
         """
         return self.when(condition).call(lambda _: self.exit())
 
+    @deprecated('Use image.find() and device.click() instead.')
     def click_if(self, condition: Any, *, at: tuple[int, int] | None = None):
         """
         检测指定对象是否出现，若出现，点击该对象或指定位置。
@@ -198,87 +204,3 @@ class StatedLoop(Loop, Generic[StateType]):
             self.states = cast(tuple[StateType, ...], state_values)
             self.state = self.__tmp_initial_state or self.states[0]
             return state_values
-
-
-def StatedLoop2(states: StateType) -> StatedLoop[StateType]:
-    state_values = get_args(states)
-    return cast(StatedLoop[StateType], Loop())
-
-if __name__ == '__main__':
-    from kotonebot.kaa.tasks import R
-    from kotonebot.backend.ocr import contains
-    from kotonebot.backend.context import manual_context, init_context
-
-    # T = TypeVar('T')
-    # class Foo(Generic[T]):
-    #     def get_literal_params(self) -> list | None:
-    #         """
-    #         尝试获取泛型参数 T (如果它是 Literal 类型) 的参数列表。
-    #         """
-    #         # self.__orig_class__ 会是 Foo 的具体参数化类型，
-    #         # 例如 Foo[Literal['p0', 'p1', 'p2', 'p3', 'ap']]
-    #         if not hasattr(self, '__orig_class__'):
-    #             # 如果 Foo 不是以参数化泛型的方式实例化的，可能没有 __orig_class__
-    #             return None
-    #
-    #         # generic_type_args 是传递给 Foo 的类型参数元组
-    #         # 例如 (Literal['p0', 'p1', 'p2', 'p3', 'ap'],)
-    #         generic_type_args = get_args(self.__orig_class__)
-    #
-    #         if not generic_type_args:
-    #             # Foo 没有类型参数
-    #             return None
-    #
-    #         # T_type 是 Foo 的第一个类型参数
-    #         # 例如 Literal['p0', 'p1', 'p2', 'p3', 'ap']
-    #         t_type = generic_type_args[0]
-    #
-    #         # 检查 T_type 是否是 Literal 类型
-    #         if get_origin(t_type) is Literal:
-    #             # literal_args 是 Literal 类型的参数元组
-    #             # 例如 ('p0', 'p1', 'p2', 'p3', 'ap')
-    #             literal_args = get_args(t_type)
-    #             return list(literal_args)
-    #         else:
-    #             # T 不是 Literal 类型
-    #             return None
-    # f = Foo[Literal['p0', 'p1', 'p2', 'p3', 'ap']]()
-    # values = f.get_literal_params()
-    # 1
-
-    from typing_extensions import reveal_type
-    slp = StatedLoop[Literal['p0', 'p1', 'p2', 'p3', 'ap']]()
-    for l in slp:
-        reveal_type(l.states)
-
-    # init_context()
-    # manual_context().begin()
-    # for l in Loop():
-    #     l.when(R.Produce.ButtonUse).click()
-    #     l.when(R.Produce.ButtonRefillAP).click()
-    #     l.when(contains("123")).click()
-    #     l.click_if(contains("!23"), at=(1, 2))
-
-    # State = Literal['p0', 'p1', 'p2', 'p3', 'ap']
-    # for sl in StatedLoop[State]():
-    #     match sl.state:
-    #         case 'p0':
-    #             sl.click_if(R.Produce.ButtonProduce)
-    #             sl.click_if(contains('master'))
-    #             sl.when(R.Produce.ButtonPIdolOverview).goto('p1')
-    #             # AP 不足
-    #             sl.when(R.Produce.TextAPInsufficient).goto('ap')
-    #         case 'ap':
-    #             pass
-    #         # p1: 选择偶像
-    #         case 'p1':
-    #             sl.call(lambda _: select_idol(idol_skin_id), once=True)
-    #             sl.when(R.Produce.TextAnotherIdolAvailableDialog).call(dialog.no)
-    #             sl.click_if(R.Common.ButtonNextNoIcon)
-    #             sl.until(R.Produce.TextStepIndicator2).goto('p2')
-    #         case 'p2':
-    #             sl.when(contains("123")).click()
-    #         case 'p3':
-    #             sl.click_if(contains("!23"), at=(1, 2))
-    #         case _:
-    #             assert_never(sl.state)
