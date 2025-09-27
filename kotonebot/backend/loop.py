@@ -1,4 +1,4 @@
-﻿import time
+import time
 from functools import lru_cache, partial
 from typing import Callable, Any, overload, Literal, Generic, TypeVar, cast, get_args, get_origin
 
@@ -81,14 +81,14 @@ class Loop:
         是否在每次循环开始时（Loop.tick() 被调用时）截图。
         """
         self.__last_loop: float = -1
-        self.__interval = Interval(interval)
+        self.interval = interval
+        """每次循环后等待的时间。"""
         self.screenshot: MatLike | None = None
         """上次截图时的图像数据。"""
         self.__skip_first_wait = skip_first_wait
         self.__is_first_tick = True
 
     def __iter__(self):
-        self.__interval.reset()
         self.__is_first_tick = True
         return self
 
@@ -101,7 +101,7 @@ class Loop:
 
     def tick(self):
         if not (self.__is_first_tick and self.__skip_first_wait):
-            self.__interval.wait()
+            time.sleep(self.interval)
         self.__is_first_tick = False
 
         if self.auto_screenshot:
