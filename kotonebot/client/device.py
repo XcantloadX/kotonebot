@@ -239,7 +239,8 @@ class Device:
         调用前确保 `orientation` 属性与设备方向一致，
         否则点击位置会不正确。
         """
-        x, y = self.screen_size[0] // 2, self.screen_size[1] // 2
+        size = self.target_resolution or self.screen_size
+        x, y = size[0] // 2, size[1] // 2
         self.click(x, y)
     
     @overload
