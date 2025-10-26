@@ -10,6 +10,7 @@ from kotonebot import device, image, ocr
 from kotonebot.backend.core import Image
 from kotonebot.backend.ocr import TextComparator
 from kotonebot.client.protocol import ClickableObjectProtocol
+from .context import vars
 
 @deprecated('No longer used.')
 class LoopAction:
@@ -91,6 +92,7 @@ class Loop:
 
     def __iter__(self):
         self.__is_first_tick = True
+        vars.flow.check()
         return self
 
     def __next__(self):
