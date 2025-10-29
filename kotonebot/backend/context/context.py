@@ -232,12 +232,12 @@ class ContextStackVars:
         match self.screenshot_mode:
             case 'manual' | 'manual-inherit':
                 if vars.screenshot_data is None:
-                    raise ValueError("No screenshot data found.")
+                    raise ValueError("No screenshot data found. Did you forget to call `device.screenshot()`?")
                 return vars.screenshot_data
             case 'auto':
                 device.screenshot()
                 if vars.screenshot_data is None:
-                    raise ValueError("No screenshot data found.")
+                    raise ValueError("No screenshot data found. Did you forget to call `device.screenshot()`?")
                 return vars.screenshot_data
             case _:
                 raise ValueError(f"Invalid screenshot mode: {self.screenshot_mode}")
@@ -264,7 +264,7 @@ class ContextStackVars:
     def pop() -> 'ContextStackVars':
         last = ContextStackVars.stack.pop()
         return last
-    
+
     @staticmethod
     def current() -> 'ContextStackVars | None':
         if len(ContextStackVars.stack) == 0:
@@ -329,7 +329,7 @@ class ContextOcr:
         )
         self.context.device.last_find = ret.original_rect if ret else None
         return ret
-    
+
     def find_all(
         self,
         patterns: Sequence[str | re.Pattern | StringMatchFunction],
@@ -364,7 +364,7 @@ class ContextOcr:
         ret = engine.expect(ContextStackVars.ensure_current().screenshot, pattern, rect=rect, hint=hint)
         self.context.device.last_find = ret.original_rect if ret else None
         return ret
-    
+
     def expect_wait(
         self,
         pattern: str | re.Pattern | StringMatchFunction,
@@ -445,7 +445,7 @@ class ContextImage:
         等待指定图像出现。
         """
         is_manual = is_manual_screenshot_mode()
-        
+
         start_time = time.time()
         while True:
             if is_manual:
@@ -700,7 +700,7 @@ class ContextConfig(Generic[T]):
     def current(self) -> UserConfig[T]:
         """
         当前配置数据。
-        
+
         如果当前配置不存在，则使用默认值自动创建一个新配置。
         （不推荐，建议在 UI 中启动前要求用户手动创建，或自行创建一个默认配置。）
         """
@@ -727,7 +727,7 @@ class Forwarded:
         if self._FORWARD_getter is None:
             raise ContextNotInitializedError(f"Forwarded object {self._FORWARD_name} called before initialization.")
         return getattr(self._FORWARD_getter(), name)
-    
+
     def __setattr__(self, name: str, value: Any):
         if name.startswith('_FORWARD_'):
             return object.__setattr__(self, name, value)
@@ -780,7 +780,7 @@ class ContextDevice(Generic[T_Device], Device):
             return object.__getattribute__(self, name)
         else:
             return getattr(self._device, name)
-        
+
     def __setattr__(self, name: str, value: Any):
         if name in ['_device', 'screenshot', 'of_android', 'of_windows']:
             return object.__setattr__(self, name, value)
@@ -846,7 +846,7 @@ class Context(Generic[T]):
         if vars is not None:
             self.__vars = vars
         if debug is not None:
-            self.__debug = debug    
+            self.__debug = debug
         if config is not None:
             self.__config = config
 
@@ -857,7 +857,7 @@ class Context(Generic[T]):
     @property
     def ocr(self) -> 'ContextOcr':
         return self.__ocr
-    
+
     @property
     def image(self) -> 'ContextImage':
         return self.__image
@@ -869,7 +869,7 @@ class Context(Generic[T]):
     @property
     def vars(self) -> 'ContextGlobalVars':
         return self.__vars
-    
+
     @property
     def debug(self) -> 'ContextDebug':
         return self.__debug
