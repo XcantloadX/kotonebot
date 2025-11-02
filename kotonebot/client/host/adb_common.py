@@ -28,11 +28,15 @@ def connect_adb(
     if disconnect:
         logger.debug('adb disconnect %s:%d', ip, port)
         adb.disconnect(f'{ip}:{port}')
+    else:
+        logger.debug('Skip adb disconnect.')
     if connect:
         logger.debug('adb connect %s:%d', ip, port)
         result = adb.connect(f'{ip}:{port}')
         if 'cannot connect to' in result:
             raise ValueError(result)
+    else:
+        logger.debug('Skip adb connect.')
     serial = device_serial or f'{ip}:{port}'
     logger.debug('adb wait for %s', serial)
     adb.wait_for(serial, timeout=timeout)
@@ -56,15 +60,20 @@ class CommonAdbCreateDeviceMixin(ABC):
         self.adb_port: int
         self.adb_name: str
     
-    def create_device(self, recipe: AdbRecipes, config: AdbHostConfig) -> Device:
+    def create_device(self, recipe: AdbRecipes, config: AdbHostConfig, *, connect: bool = True, disconnect: bool = True) -> Device:
         """
         创建 ADB 设备。
+
+        :param recipe: 连接方式配方名称。
+        :param config: ADB 配置。
+        :param connect: 创建设备实例前，是否连接 ADB（执行 adb connect）。
+        :param disconnect: 创建设备实例前，是否先断开已有 ADB 连接（执行 adb disconnect）。
         """
         connection = connect_adb(
             self.adb_ip,
             self.adb_port,
-            connect=True,
-            disconnect=True,
+            connect=connect,
+            disconnect=disconnect,
             timeout=config.timeout,
             device_serial=self.adb_name
         )

@@ -77,7 +77,7 @@ class LeidianInstance(CommonAdbCreateDeviceMixin, Instance[AdbHostConfig]):
         if self.adb_port is None:
             raise ValueError("ADB port is not set and is required.")
 
-        return super().create_device(impl, host_config)
+        return super().create_device(impl, host_config, connect=False, disconnect=False)
 
 class LeidianHost(HostProtocol[LeidianRecipes]):
     @staticmethod
