@@ -1,6 +1,7 @@
 import logging
 from functools import cache
 from typing import Callable
+from typing_extensions import deprecated
 
 import cv2
 from cv2.typing import MatLike
@@ -9,6 +10,7 @@ from kotonebot.util import cv2_imread
 from kotonebot.primitives import RectTuple, Rect, Point
 from kotonebot.errors import ResourceFileMissingError
 
+@deprecated('unused')
 class Ocr:
     def __init__(
         self,
@@ -19,7 +21,8 @@ class Ocr:
         self.text = text
         self.language = language
 
-
+# TODO: 这个类和 kotonebot.primitives.Image 重复了
+@deprecated('Use kotonebot.primitives.Image instead.')
 class Image:
     def __init__(
         self,
@@ -65,7 +68,7 @@ class Image:
         else:
             return f'<Image: "{self.name}" at {self.path}>'
 
-
+# TODO: 这里的其他类应该移动到 primitives 模块下面
 class HintBox(Rect):
     def __init__(
         self,
