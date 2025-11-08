@@ -1,10 +1,6 @@
-"""
-Remote Windows implementation using XML-RPC.
-
-This module provides:
-1. RemoteWindowsImpl - Client implementation that connects to a remote Windows machine
-2. RemoteWindowsServer - Server implementation that exposes a WindowsImpl instance via XML-RPC
-"""
+# ruff: noqa: E402
+from kotonebot.util import require_windows
+require_windows('"RemoteWindowsImpl" implementation')
 
 import io
 import base64

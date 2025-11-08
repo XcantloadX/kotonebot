@@ -4,7 +4,12 @@ import time
 
 import cv2
 from cv2.typing import MatLike
-from win11toast import toast
+from kotonebot.util import is_windows
+if is_windows():
+    from win11toast import toast
+else:
+    def toast(title: str, message: str | None = None, buttons: list[str] | None = None):
+        raise ImportError('toast notification is only available on Windows')
 
 from .pushkit import Wxpusher
 from .. import logging

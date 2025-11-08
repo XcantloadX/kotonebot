@@ -4,15 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kotonebot"
-version = "0.3.1"
-description = "Kotonebot is game/app automation library based on computer vision technology, works for Windows and Android."
+version = "0.4.0"
+description = "Kotonebot is game automation library based on computer vision technology, works for Windows and Android."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     # Image Processing & OCR
     "opencv-python~=4.10",
     "rapidocr_onnxruntime~=1.4",
-    "av~=14.0",
     "scikit-image~=0.25",
     "thefuzz~=0.22",
     # Configuration
@@ -29,31 +28,36 @@ dependencies = [
 [project.optional-dependencies]
 # Android platform dependencies
 android = [
-    "adbutils~=2.8",
-    "uiautomator2~=3.2",
+    "adbutils>=2.8",
+    "uiautomator2>=3.2",
 ]
 
 # Windows platform dependencies
 windows = [
     "pywin32",
-    "ahk~=1.8",
-    "win11toast~=0.35",  # For Windows Toast Notification
-    "psutil~=6.1", # for custom host (kill process)
+    "ahk>=1.8",
+    "win11toast>=0.35",  # For Windows Toast Notification
+    "psutil>=6.1", # for custom host (kill process)
 ]
 
-# Debug and development dependencies
+# Development and debugging dependencies
 dev = [
     "fastapi~=0.115",
     "uvicorn~=0.34",
     "python-multipart~=0.0",
     "websockets~=14.1",
     "psutil~=6.1",
-    "gradio~=5.21",
+    # Development tools
+    "twine~=6.1",
+    "build",
     "snakeviz",
-    "build"
+    # Additional utilities
+    "jinja2~=3.1",
+    "tqdm~=4.67",
 ]
 
-all = ["kotonebot[android,windows]"]
+# All optional dependencies
+all = ["kotonebot[android,windows,dev]"]
 
 [tool.setuptools]
 package-dir = { "kotonebot" = "kotonebot" }
@@ -64,3 +68,14 @@ omit = [
     "config.py",
     "config-3.py",
     ]
+
+# UV specific configuration
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+    "black>=24.0.0",
+    "isort>=5.0.0",
+    "ruff>=0.2.0",
+]

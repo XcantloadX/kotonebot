@@ -4,6 +4,7 @@ import pstats
 import typing
 import logging
 import cProfile
+import platform
 from importlib import resources
 from functools import lru_cache
 from typing import Literal, Callable, TYPE_CHECKING, TypeGuard
@@ -17,6 +18,32 @@ if TYPE_CHECKING:
     from kotonebot.client.protocol import Device
 
 logger = logging.getLogger(__name__)
+_WINDOWS_ONLY_MSG = (
+    "This feature is only available on Windows. "
+    f"You are using {platform.system()}.\n"
+    "The requested feature is: {feature_name}\n"
+)
+
+def is_windows() -> bool:
+    """检查当前是否为 Windows 系统"""
+    return platform.system() == 'Windows'
+
+def is_linux() -> bool:
+    """检查当前是否为 Linux 系统"""
+    return platform.system() == 'Linux'
+
+def is_macos() -> bool:
+    """检查当前是否为 macOS 系统"""
+    return platform.system() == 'Darwin'
+
+def require_windows(feature_name: str | None = None, class_: type | None = None) -> None:
+    """要求必须在 Windows 系统上运行，否则抛出 ImportError"""
+    if not is_windows():
+        feature_name = feature_name or 'not specified'
+        if class_:
+            full_name = '.'.join([class_.__module__, class_.__name__])
+            feature_name += f' ({full_name})'
+        raise ImportError(_WINDOWS_ONLY_MSG.format(feature_name=feature_name))
 
 
 

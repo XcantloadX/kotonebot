@@ -1,4 +1,18 @@
 # 更新日志
+## v0.4.0
+Framework：
+1. [feat] Loop 每次循环从动态延时改为固定延时
+2. [chore] 废弃 when()、until()、click_if() 等方法，推荐使用原生 if 语句
+3. [feat] 优化当前上下文无截图数据的异常信息
+
+Library：
+1. [feat] 改进跨平台兼容性，新增平台检查工具函数和条件导入，现在在非 Windows 平台上导入不再出错
+2. [fix] 修复雷电模拟器创建设备失败问题
+3. [fix] 修复 device.click_center() 方法未正确缩放处理的问题
+
+其他：
+1. [chore] 迁移到项目工具链到 uv
+
 ## v0.3.1
 Library:
 1. [fix] 修复 base_config.py 中的 BackendType 类型定义缺少 mumu12v5 的问题。
