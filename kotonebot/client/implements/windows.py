@@ -1,3 +1,7 @@
+# ruff: noqa: E402
+from kotonebot.util import require_windows
+require_windows('"WindowsImpl" implementation')
+
 from ctypes import windll
 from typing import Literal
 from importlib import resources

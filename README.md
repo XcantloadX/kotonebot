@@ -28,6 +28,10 @@ pip install kotonebot[dev]
 ## 快速开始
 WIP
 
+### 协同开发
+有时候你可能想以源码方式安装 kotonebot，以便与自己的项目一起调试修改。此时，如果你以 `pip install -e /path/to/kotonebot` 的方式安装，Pylance 可能无法正常静态分析。
+解决方案是在 VSCode 里搜索 `python.analysis.extraPaths` 并将其设置为你本地 kotonebot 的根目录。
+
 ## 文档
 WIP
 

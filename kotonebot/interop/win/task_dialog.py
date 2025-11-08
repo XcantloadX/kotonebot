@@ -1,3 +1,47 @@
+"""
+Windows Task Dialog interop module.
+
+This module provides Windows TaskDialog functionality and is only available on Windows systems.
+"""
+
+import platform
+import warnings
+
+from kotonebot.util import is_windows
+
+# 检查是否在 Windows 平台上
+if not is_windows():
+    _WINDOWS_ONLY_MSG = (
+        f"TaskDialog is only available on Windows systems. "
+        f"Current system: non-Windows\n"
+        "To use Windows TaskDialog features, please run this code on a Windows system."
+    )
+
+    
+    # 提供虚拟类以避免导入错误
+    class TaskDialog:
+        def __init__(self, *args, **kwargs):
+            raise ImportError(_WINDOWS_ONLY_MSG)
+    
+    # 导出所有常量作为 None
+    __all__ = [
+        "TaskDialog",
+        "TDCBF_OK_BUTTON", "TDCBF_YES_BUTTON", "TDCBF_NO_BUTTON", "TDCBF_CANCEL_BUTTON",
+        "TDCBF_RETRY_BUTTON", "TDCBF_CLOSE_BUTTON",
+        "IDOK", "IDCANCEL", "IDABORT", "IDRETRY", "IDIGNORE", "IDYES", "IDNO", "IDCLOSE",
+        "TD_WARNING_ICON", "TD_ERROR_ICON", "TD_INFORMATION_ICON", "TD_SHIELD_ICON"
+    ]
+    
+    # 设置所有常量为 None 或保留为模块级变量
+    TDCBF_OK_BUTTON = TDCBF_YES_BUTTON = TDCBF_NO_BUTTON = TDCBF_CANCEL_BUTTON = None
+    TDCBF_RETRY_BUTTON = TDCBF_CLOSE_BUTTON = None
+    IDOK = IDCANCEL = IDABORT = IDRETRY = IDIGNORE = IDYES = IDNO = IDCLOSE = None
+    TD_WARNING_ICON = TD_ERROR_ICON = TD_INFORMATION_ICON = TD_SHIELD_ICON = None
+    
+    # 阻止模块加载
+    raise ImportError(_WINDOWS_ONLY_MSG)
+
+# 如果是 Windows，继续正常加载
 import ctypes
 from ctypes import wintypes
 import time

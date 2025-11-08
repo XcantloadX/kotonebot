@@ -4,6 +4,7 @@ from typing_extensions import assert_never
 
 from kotonebot import logging
 from kotonebot.client.device import WindowsDevice
+from kotonebot.util import require_windows
 from .protocol import Device, WindowsHostConfig, RemoteWindowsHostConfig
 
 logger = logging.getLogger(__name__)
@@ -19,11 +20,13 @@ class CommonWindowsCreateDeviceMixin(ABC):
     """
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        require_windows('CommonWindowsCreateDeviceMixin', self.__class__)
     
     def create_device(self, recipe: WindowsRecipes, config: WindowsHostConfigs) -> Device:
         """
         创建 Windows 设备。
         """
+        require_windows('CommonWindowsCreateDeviceMixin.create_device', self.__class__)
         match recipe:
             case 'windows':
                 if not isinstance(config, WindowsHostConfig):
