@@ -15,7 +15,7 @@ function toString(data: ImageMetaData): string {
         }
         return value;
     };
-    return JSON.stringify(data, replacer);
+    return JSON.stringify(data, replacer, 2);
 }
 
 
