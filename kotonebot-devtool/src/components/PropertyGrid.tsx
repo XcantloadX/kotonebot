@@ -24,6 +24,14 @@ interface PropertyRenderInputOptions {
     value: string,
     onChange: (value: string) => void
   },
+  number: {
+    value: string | number,
+    onChange: (value: string | number) => void,
+    min?: number,
+    max?: number,
+    step?: number,
+    placeholder?: string
+  },
   select: SelectOption<string>
 }
 type RenderType = keyof PropertyRenderInputOptions;
@@ -169,6 +177,20 @@ const PropertyGrid: React.FC<PropertyGridProps> = ({ properties, titleColumnWidt
       } else if (type === 'long-text') {
         const propertyLongText = property.render as PropertyRenderInputOptions['long-text'];
         field = <textarea value={propertyLongText.value} onChange={(e) => propertyLongText.onChange(e.target.value)} />;
+      } else if (type === 'number') {
+        const propertyNumber = property.render as PropertyRenderInputOptions['number'];
+        field = (
+          <input 
+            type="number"
+            value={propertyNumber.value}
+            placeholder={propertyNumber.placeholder}
+            min={propertyNumber.min}
+            max={propertyNumber.max}
+            step={propertyNumber.step}
+            onChange={(e) => propertyNumber.onChange(e.target.value === '' ? '' : Number(e.target.value))}
+            style={{ width: '100%', padding: '4px' }}
+          />
+        );
       } else if (type === 'select') {
         const propertySelect = property.render as PropertyRenderInputOptions['select'];
         field = (

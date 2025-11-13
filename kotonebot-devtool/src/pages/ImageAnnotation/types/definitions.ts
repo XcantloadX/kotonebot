@@ -24,7 +24,15 @@ export interface TemplateDefinition extends BaseDefinition {
      * 若为 true，则运行时会先在这个范围内寻找，
      * 如果没找到，再在整张截图中寻找。
      */
-    useHintRect: boolean
+    fixed: boolean
+    /**
+     * 模板匹配阈值，null 表示使用默认值
+     */
+    threshold: number | null
+    /**
+     * 是否启用颜色识别，null 表示使用默认设置
+     */
+    colored: boolean | null
 }
 
 export interface HintBoxDefinition extends BaseDefinition {

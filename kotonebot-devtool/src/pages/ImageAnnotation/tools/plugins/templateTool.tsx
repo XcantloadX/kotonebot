@@ -21,7 +21,9 @@ const templateTool: ToolPlugin = {
             description: '',
             type: 'template',
             annotationId: annotation.id,
-            useHintRect: false,
+            fixed: false,
+            threshold: null,
+            colored: null,
         };
     },
     PropertiesComponent: TemplateToolProperties,
