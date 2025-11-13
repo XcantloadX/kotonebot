@@ -1,5 +1,5 @@
 import styled from '@emotion/styled';
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 
 export interface PropertyRenderBase {
   required?: boolean,

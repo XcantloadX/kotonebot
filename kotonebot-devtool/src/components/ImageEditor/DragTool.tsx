@@ -158,11 +158,11 @@ function DragTool(props: ToolHandlerProps) {
 
     const renderAnnotationWithHover = (annotations?: Annotation[]) => {
         if (!annotations) return null;
-        return annotations.map((anno) => (
+        return annotations.filter(anno => anno.type === 'rect').map((anno) => (
             <RectBox
                 key={anno.id}
                 mode={selectedRectId === anno.id ? "resize" : "move"}
-                rect={Convertor.rectImage2Container(anno.data)}
+                rect={Convertor.rectImage2Container(anno.data as RectPoints)}
                 lineColor={getLineColor(anno.id)}
                 onNativeMouseEnter={() => handleRectMouseEnter(anno.id)}
                 onNativeMouseMove={handleMouseMove}    
@@ -179,10 +179,10 @@ function DragTool(props: ToolHandlerProps) {
     if (hoveredRectId !== null) {
         // 当有矩形被悬停时，只显示该矩形的遮罩
         const rect = queryAnnotation(hoveredRectId);
-        if (rect) {
+        if (rect && rect.type === 'rect') {
             rectMask = (
                 <RectMask
-                    rects={[{...rect.data}]}
+                    rects={[{...(rect.data as RectPoints)}]}
                     alpha={shouldShowMask() ? 0.7 : 0}
                     transition={true}
                     scale={state.imageScale}
@@ -199,9 +199,9 @@ function DragTool(props: ToolHandlerProps) {
         // 默认显示所有矩形的遮罩
         rectMask = (
             <RectMask
-                rects={editorProps.annotations?.map(anno => ({
+                rects={editorProps.annotations?.filter(anno => anno.type === 'rect').map(anno => ({
                     // 获取图像坐标
-                    ...anno.data
+                    ...(anno.data as RectPoints)
                 })) || []}
                 alpha={shouldShowMask() ? editorProps.maskAlpha : 0}
                 transition={true}
