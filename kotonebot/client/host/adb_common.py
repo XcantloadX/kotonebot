@@ -2,8 +2,12 @@ from abc import ABC
 from typing import Any, Literal, TypeGuard, TypeVar, get_args
 from typing_extensions import assert_never
 
-from adbutils import adb
-from adbutils._device import AdbDevice
+try:
+    from adbutils import adb
+    from adbutils._device import AdbDevice
+except ImportError as _e:
+    from kotonebot.errors import MissingDependencyError
+    raise MissingDependencyError(_e, 'android')
 from kotonebot import logging
 from kotonebot.client.device import AndroidDevice
 from .protocol import Instance, AdbHostConfig, Device

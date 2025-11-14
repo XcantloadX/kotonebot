@@ -1,6 +1,10 @@
 import os
 import subprocess
-from psutil import process_iter
+try:
+    from psutil import process_iter
+except ImportError as _e:
+    from kotonebot.errors import MissingDependencyError
+    raise MissingDependencyError(_e, 'windows')
 from .protocol import Instance, AdbHostConfig, HostProtocol
 from typing import ParamSpec, TypeVar
 from typing_extensions import override

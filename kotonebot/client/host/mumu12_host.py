@@ -14,13 +14,8 @@ from kotonebot.client.implements.nemu_ipc import NemuIpcImpl, NemuIpcImplConfig
 from kotonebot.util import Countdown, Interval
 from .protocol import HostProtocol, Instance, copy_type, AdbHostConfig
 from .adb_common import AdbRecipes, CommonAdbCreateDeviceMixin, connect_adb, is_adb_recipe
+from ...interop.win.reg import read_reg
 
-if os.name == 'nt':
-    from ...interop.win.reg import read_reg
-else:
-    def read_reg(key, subkey, name, *, default=None, **kwargs):
-        """Stub for read_reg on non-Windows platforms."""
-        return default
 
 # Forward declarations for type hints
 if TYPE_CHECKING:
