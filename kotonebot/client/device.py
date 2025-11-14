@@ -1,12 +1,12 @@
 import logging
 from typing_extensions import deprecated
-from typing import Callable, Literal, overload
+from typing import Callable, Literal, overload, TYPE_CHECKING
 
 import cv2
 import numpy as np
-from adbutils import adb
 from cv2.typing import MatLike
-from adbutils._device import AdbDevice as AdbUtilsDevice
+if TYPE_CHECKING:
+    from adbutils._device import AdbDevice as AdbUtilsDevice
 
 from ..backend.debug import result
 from ..errors import UnscalableResolutionError
@@ -79,16 +79,6 @@ class Device:
         该值越小，对比例一致性的要求越严格。
         默认为 0.1（即 10% 容差）。
         """
-    
-    @property
-    def adb(self) -> AdbUtilsDevice:
-        if self._adb is None:
-            raise ValueError("AdbClient is not connected")
-        return self._adb
-
-    @adb.setter
-    def adb(self, value: AdbUtilsDevice) -> None:
-        self._adb = value
 
     def _scale_pos_real_to_target(self, real_x: int, real_y: int) -> tuple[int, int]:
         """将真实屏幕坐标缩放到目标逻辑坐标"""
@@ -429,9 +419,9 @@ class Device:
 
 
 class AndroidDevice(Device):
-    def __init__(self, adb_connection: AdbUtilsDevice | None = None) -> None:
+    def __init__(self, adb_connection: 'AdbUtilsDevice | None' = None) -> None:
         super().__init__('android')
-        self._adb: AdbUtilsDevice | None = adb_connection
+        self._adb: 'AdbUtilsDevice | None' = adb_connection
         self.commands: AndroidCommandable
         
     def current_package(self) -> str | None:

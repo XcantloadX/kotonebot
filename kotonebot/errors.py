@@ -7,6 +7,11 @@ class KotonebotError(Exception):
 class KotonebotWarning(Warning):
     pass
 
+class MissingDependencyError(KotonebotError, ImportError):
+    def __init__(self, e: ImportError, group_name: str) -> None:
+        self.original_error = e
+        super().__init__(f'Cannot import module "{e.name}". Did you forget to run "pip install kotonebot[{group_name}]"?')
+
 class UserFriendlyError(KotonebotError):
     def __init__(
         self,

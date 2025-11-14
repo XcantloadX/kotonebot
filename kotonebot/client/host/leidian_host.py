@@ -9,16 +9,11 @@ from kotonebot.client import Device
 from kotonebot.util import Countdown, Interval
 from .protocol import HostProtocol, Instance, copy_type, AdbHostConfig
 from .adb_common import AdbRecipes, CommonAdbCreateDeviceMixin
+from ...interop.win.reg import read_reg
 
 logger = logging.getLogger(__name__)
 LeidianRecipes = AdbRecipes
 
-if os.name == 'nt':
-    from ...interop.win.reg import read_reg
-else:
-    def read_reg(key, subkey, name, *, default=None, **kwargs):
-        """Stub for read_reg on non-Windows platforms."""
-        return default
 
 class LeidianInstance(CommonAdbCreateDeviceMixin, Instance[AdbHostConfig]):
     @copy_type(Instance.__init__)

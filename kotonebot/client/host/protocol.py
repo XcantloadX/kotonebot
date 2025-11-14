@@ -4,9 +4,6 @@ from abc import ABC, abstractmethod
 from typing import Callable, TypeVar, Protocol, Any, Generic
 from dataclasses import dataclass
 
-from adbutils import adb, AdbTimeout, AdbError
-from adbutils._device import AdbDevice
-
 from kotonebot import logging
 from kotonebot.client import Device, DeviceImpl
 
@@ -118,7 +115,11 @@ class Instance(Generic[T_HostConfig], ABC):
         """
         raise NotImplementedError()
 
+    # TODO: [refactor] 这个方法不应该挂在 Instance，而是 AndroidEmulatorInstance 上
     def wait_available(self, timeout: float = 180):
+        from adbutils import adb, AdbTimeout, AdbError
+        from adbutils._device import AdbDevice
+        
         logger.info('Starting to wait for emulator %s(127.0.0.1:%d) to be available...', self.name, self.adb_port)
         state = 0
         port = self.require_adb_port() 

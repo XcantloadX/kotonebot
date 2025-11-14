@@ -1,15 +1,71 @@
+from typing import TYPE_CHECKING
 from kotonebot.util import is_windows, require_windows
 
-# 基础实现
-from . import adb  # noqa: F401
-from . import adb_raw  # noqa: F401
-from . import uiautomator2  # noqa: F401
+if TYPE_CHECKING:
+    from .adb import AdbImpl, AdbImplConfig
+    from .adb_raw import AdbRawImpl
+    from .uiautomator2 import UiAutomator2Impl
+    from .windows import WindowsImpl, WindowsImplConfig
+    from .remote_windows import RemoteWindowsImpl, RemoteWindowsImplConfig, RemoteWindowsServer
+    from .nemu_ipc import NemuIpcImpl, NemuIpcImplConfig, ExternalRendererIpc
 
-# Windows 实现（默认仅在 Windows 上导入）
-if is_windows():
+
+def _require_windows():
+    global WindowsImpl, WindowsImplConfig
+    global RemoteWindowsImpl, RemoteWindowsImplConfig, RemoteWindowsServer
+    global NemuIpcImpl, NemuIpcImplConfig, ExternalRendererIpc
+    
+    if not is_windows():
+        require_windows('"windows", "remote_windows" and "nemu_ipc" implementations')
+    from .windows import WindowsImpl, WindowsImplConfig
+    from .remote_windows import RemoteWindowsImpl, RemoteWindowsImplConfig, RemoteWindowsServer
+    from .nemu_ipc import NemuIpcImpl, NemuIpcImplConfig, ExternalRendererIpc
+
+def _require_adb():
+    global AdbImpl, AdbImplConfig
+    global AdbRawImpl
+    
+    from .adb import AdbImpl, AdbImplConfig
+    from .adb_raw import AdbRawImpl
+
+def _require_uiautomator2():
+    global UiAutomator2Impl
+    
+    from .uiautomator2 import UiAutomator2Impl
+
+_IMPORT_NAMES = [
+    (_require_windows, [
+        'WindowsImpl', 'WindowsImplConfig',
+        'RemoteWindowsImpl', 'RemoteWindowsImplConfig', 'RemoteWindowsServer',
+        'NemuIpcImpl', 'NemuIpcImplConfig', 'ExternalRendererIpc'
+    ]),
+    (_require_adb, [
+        'AdbImpl', 'AdbImplConfig',
+        'AdbRawImpl'
+    ]),
+    (_require_uiautomator2, [
+        'UiAutomator2Impl'
+    ]),
+]
+
+
+def __getattr__(name: str):
+    for item in _IMPORT_NAMES:
+        if name in item[1]:
+            item[0]()
+            break
     try:
-        from . import nemu_ipc  # noqa: F401
-        from . import windows  # noqa: F401
-        from . import remote_windows  # noqa: F401
-    except ImportError:
-        require_windows('"windows" and "remote_windows" implementations')
+        return globals()[name]
+    except KeyError:
+        raise AttributeError(name=name)
+
+__all__ = [
+    # windows
+    'WindowsImpl', 'WindowsImplConfig',
+    'RemoteWindowsImpl', 'RemoteWindowsImplConfig', 'RemoteWindowsServer',
+    'NemuIpcImpl', 'NemuIpcImplConfig', 'ExternalRendererIpc',
+    # android
+    'AdbImpl', 'AdbImplConfig',
+    'AdbRawImpl',
+    'UiAutomator2Impl'
+]
