@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Sequence
 
 import cv2
-import requests
 import numpy as np
 from cv2.typing import MatLike
 from dotenv import load_dotenv
@@ -23,6 +22,8 @@ def _upload_single(image: MatLike | str) -> str:
     
     :param image: OpenCV MatLike 或本地图片文件路径
     """
+    import requests
+    
     api_url = 'https://freeimage.host/api/1/upload'
     api_key = os.getenv('FREEIMAGEHOST_KEY')
     

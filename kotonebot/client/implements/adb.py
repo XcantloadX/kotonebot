@@ -5,7 +5,11 @@ from typing_extensions import override
 import cv2
 import numpy as np
 from cv2.typing import MatLike
-from adbutils._device import AdbDevice as AdbUtilsDevice
+try:
+    from adbutils._device import AdbDevice as AdbUtilsDevice
+except ImportError as _e:
+    from kotonebot.errors import MissingDependencyError
+    raise MissingDependencyError(_e, 'android')
 
 from ..device import AndroidDevice
 from ..protocol import AndroidCommandable, Touchable, Screenshotable

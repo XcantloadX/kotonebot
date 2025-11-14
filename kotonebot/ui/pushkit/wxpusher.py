@@ -1,7 +1,6 @@
 import os
 import json
 from typing import Sequence
-import requests
 from cv2.typing import MatLike
 from dotenv import dotenv_values
 
@@ -16,6 +15,8 @@ class Wxpusher(PushkitProtocol):
         self.uid = uid or config["WXPUSHER_UID"]
 
     def push(self, title: str, message: str, *, images: Sequence[str | MatLike] | None = None) -> None:
+        import requests
+        
         summary = title
         content = message
 
