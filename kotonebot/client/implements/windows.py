@@ -9,10 +9,14 @@ from functools import cached_property
 from dataclasses import dataclass
 
 import cv2
-import win32ui
-import win32gui
 import numpy as np
-from ahk import AHK, MsgBoxIcon
+try:
+    import win32ui
+    import win32gui
+    from ahk import AHK, MsgBoxIcon
+except ImportError as _e:
+    from kotonebot.errors import MissingDependencyError
+    raise MissingDependencyError(_e, 'windows')
 from cv2.typing import MatLike
 
 from ..device import Device, WindowsDevice

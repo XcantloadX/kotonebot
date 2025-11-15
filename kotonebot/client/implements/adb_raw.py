@@ -9,10 +9,14 @@ from typing_extensions import override
 import cv2
 import numpy as np
 from cv2.typing import MatLike
-from adbutils._utils import adb_path
+try:
+    from adbutils._utils import adb_path
+    from adbutils._device import AdbDevice as AdbUtilsDevice
+except ImportError as _e:
+    from kotonebot.errors import MissingDependencyError
+    raise MissingDependencyError(_e, 'android')
 
 from .adb import AdbImpl
-from adbutils._device import AdbDevice as AdbUtilsDevice
 from kotonebot import logging
 
 logger = logging.getLogger(__name__)

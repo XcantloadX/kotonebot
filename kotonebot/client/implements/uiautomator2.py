@@ -2,9 +2,13 @@ import time
 from typing import Literal
 
 import numpy as np
-import uiautomator2 as u2
+try:
+    import uiautomator2 as u2
+    from adbutils._device import AdbDevice as AdbUtilsDevice
+except ImportError as _e:
+    from kotonebot.errors import MissingDependencyError
+    raise MissingDependencyError(_e, 'android')
 from cv2.typing import MatLike
-from adbutils._device import AdbDevice as AdbUtilsDevice
 
 from kotonebot import logging
 from ..device import Device
