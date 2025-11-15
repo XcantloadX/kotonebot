@@ -23,6 +23,7 @@ dependencies = [
     "python-dotenv~=1.0",
     "onnxruntime~=1.14",
     "numpy",
+    "mouse>=0.7.1",
 ]
 
 [project.optional-dependencies]
@@ -79,3 +80,9 @@ dev-dependencies = [
     "isort>=5.0.0",
     "ruff>=0.2.0",
 ]
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
