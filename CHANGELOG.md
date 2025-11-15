@@ -1,4 +1,8 @@
 # 更新日志
+## v0.4.1
+Library：
+1. [feat] 优化 kotonebot.geometry 下的 Point 与 Rect 类，新增常见运算符重载与相等比较，以及多个实用方法，包括复制、偏移、相交包含判断等
+
 ## v0.4.0
 Framework：
 1. [feat] Loop 每次循环从动态延时改为固定延时
