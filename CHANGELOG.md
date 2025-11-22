@@ -2,6 +2,8 @@
 ## v0.4.1
 Library：
 1. [feat] 优化 kotonebot.geometry 下的 Point 与 Rect 类，新增常见运算符重载与相等比较，以及多个实用方法，包括复制、偏移、相交包含判断等
+2. [feat] 优化可选依赖导入，现在核心库即使不安装 Android 或 Windows 平台依赖，也可以导入
+3. [feat] Device 类新增 `log_level` 属性，用于设置日志等级。同时 `click`、`double_click` 等方法支持 `log` 参数指定日志等级
 
 ## v0.4.0
 Framework：

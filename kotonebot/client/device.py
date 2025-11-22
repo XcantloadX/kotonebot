@@ -1,4 +1,3 @@
-import logging
 from typing_extensions import deprecated
 from typing import Callable, Literal, overload, TYPE_CHECKING
 
@@ -8,6 +7,7 @@ from cv2.typing import MatLike
 if TYPE_CHECKING:
     from adbutils._device import AdbDevice as AdbUtilsDevice
 
+from kotonebot import logging
 from ..backend.debug import result
 from ..errors import UnscalableResolutionError
 from kotonebot.backend.core import HintBox
@@ -15,6 +15,7 @@ from kotonebot.primitives import Rect, Point, is_point
 from .protocol import ClickableObjectProtocol, Commandable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable
 
 logger = logging.getLogger(__name__)
+LogLevel = Literal['info', 'debug', 'verbose', 'silent']
 
 class HookContextManager:
     def __init__(self, device: 'Device', func: Callable[[MatLike], MatLike]):
@@ -79,6 +80,8 @@ class Device:
         该值越小，对比例一致性的要求越严格。
         默认为 0.1（即 10% 容差）。
         """
+        self.log_level: LogLevel = 'debug'
+        """默认日志级别。"""
 
     def _scale_pos_real_to_target(self, real_x: int, real_y: int) -> tuple[int, int]:
         """将真实屏幕坐标缩放到目标逻辑坐标"""
@@ -123,9 +126,27 @@ class Device:
         adjusted_target = self.__assert_scalable((w, h), (target_w, target_h))
 
         return cv2.resize(img, adjusted_target)
+    
+    def __log(self, message: str, level: LogLevel | None = None, *args):
+        """以指定的日志级别输出日志。
+
+        :param message: 要输出的日志信息。
+        :param level: 要使用的日志级别。可以是 'info', 'debug', 'verbose', 'silent' 中的一个，或者是 None。
+                       如果为 None，则使用实例的 `log_level` 属性。
+        """
+        effective_level = level if level is not None else self.log_level
+
+        if effective_level == 'info':
+            logger.info(message, *args)
+        elif effective_level == 'debug':
+            logger.debug(message, *args)
+        elif effective_level == 'verbose':
+            logger.verbose(message, *args)
+        elif effective_level == 'silent':
+            pass # Do nothing
 
     @overload
-    def click(self) -> None:
+    def click(self, *, log: "LogLevel | None" = None) -> None:
         """
         点击上次 `image` 对象或 `ocr` 对象的寻找结果（仅包括返回单个结果的函数）。
         （不包括 `image.raw()` 和 `ocr.raw()` 的结果。）
@@ -135,63 +156,64 @@ class Device:
         ...
 
     @overload
-    def click(self, x: int, y: int) -> None:
+    def click(self, x: int, y: int, *, log: "LogLevel | None" = None) -> None:
         """
         点击屏幕上的某个点
         """
         ...
 
     @overload
-    def click(self, point: Point) -> None:
+    def click(self, point: Point, *, log: "LogLevel | None" = None) -> None:
         """
         点击屏幕上的某个点
         """
         ...
     
     @overload
-    def click(self, rect: Rect) -> None:
+    def click(self, rect: Rect, *, log: "LogLevel | None" = None) -> None:
         """
         从屏幕上的某个矩形区域随机选择一个点并点击
         """
         ...
 
     @overload
-    def click(self, clickable: ClickableObjectProtocol) -> None:
+    def click(self, clickable: ClickableObjectProtocol, *, log: "LogLevel | None" = None) -> None:
         """
         点击屏幕上的某个可点击对象
         """
         ...
 
     def click(self, *args, **kwargs) -> None:
+        log: LogLevel | None = kwargs.pop('log', None)
         arg1 = args[0] if len(args) > 0 else None
         arg2 = args[1] if len(args) > 1 else None
         if arg1 is None:
-            self.__click_last()
+            self.__click_last(log=log)
         elif isinstance(arg1, Rect):
-            self.__click_rect(arg1)
+            self.__click_rect(arg1, log=log)
         elif is_point(arg1):
-            self.__click_point_tuple(arg1)
+            self.__click_point_tuple(arg1, log=log)
         elif isinstance(arg1, int) and isinstance(arg2, int):
-            self.__click_point(arg1, arg2)
+            self.__click_point(arg1, arg2, log=log)
         elif isinstance(arg1, ClickableObjectProtocol):
-            self.__click_clickable(arg1)
+            self.__click_clickable(arg1, log=log)
         else:
             raise ValueError(f"Invalid arguments: {arg1}, {arg2}")
 
-    def __click_last(self) -> None:
+    def __click_last(self, *, log: "LogLevel | None" = None) -> None:
         if self.last_find is None:
             raise ValueError("No last find result. Make sure you are not calling the 'raw' functions.")
-        self.click(self.last_find)
+        self.click(self.last_find, log=log)
 
-    def __click_rect(self, rect: Rect) -> None:
+    def __click_rect(self, rect: Rect, *, log: "LogLevel | None" = None) -> None:
         # 从矩形中心的 60% 内部随机选择一点
         x = rect.x1 + rect.w // 2 + np.random.randint(-int(rect.w * 0.3), int(rect.w * 0.3))
         y = rect.y1 + rect.h // 2 + np.random.randint(-int(rect.h * 0.3), int(rect.h * 0.3))
         x = int(x)
         y = int(y)
-        self.click(x, y)
+        self.click(x, y, log=log)
 
-    def __click_point(self, x: int, y: int) -> None:
+    def __click_point(self, x: int, y: int, *, log: "LogLevel | None" = None) -> None:
         for hook in self.click_hooks_before:
             logger.debug(f"Executing click hook before: ({x}, {y})")
             x, y = hook(x, y)
@@ -201,7 +223,11 @@ class Device:
             real_x, real_y = self._scale_pos_target_to_real(x, y)
         else:
             real_x, real_y = x, y
-        logger.debug(f"Click: {x}, {y}%s", f"(Physical: {real_x}, {real_y})" if self.target_resolution is not None else "")
+        
+        log_message = f"Click: {x}, {y}%s"
+        log_details = f"(Physical: {real_x}, {real_y})" if self.target_resolution is not None else ""
+        self.__log(log_message, log, log_details)
+
         from ..backend.context import ContextStackVars
         if ContextStackVars.current() is not None:
             image = ContextStackVars.ensure_current()._screenshot
@@ -215,13 +241,13 @@ class Device:
             result("device.click", image, message)
         self._touch.click(real_x, real_y)
 
-    def __click_point_tuple(self, point: Point) -> None:
-        self.click(point[0], point[1])
+    def __click_point_tuple(self, point: Point, *, log: "LogLevel | None" = None) -> None:
+        self.click(point[0], point[1], log=log)
 
-    def __click_clickable(self, clickable: ClickableObjectProtocol) -> None:
-        self.click(clickable.rect)
+    def __click_clickable(self, clickable: ClickableObjectProtocol, *, log: "LogLevel | None" = None) -> None:
+        self.click(clickable.rect, log=log)
 
-    def click_center(self) -> None:
+    def click_center(self, *, log: "LogLevel | None" = None) -> None:
         """
         点击屏幕中心。
         
@@ -231,24 +257,24 @@ class Device:
         """
         size = self.target_resolution or self.screen_size
         x, y = size[0] // 2, size[1] // 2
-        self.click(x, y)
+        self.click(x, y, log=log)
     
     @overload
-    def double_click(self, x: int, y: int, interval: float = 0.4) -> None:
+    def double_click(self, x: int, y: int, interval: float = 0.4, *, log: "LogLevel | None" = None) -> None:
         """
         双击屏幕上的某个点
         """
         ...
 
     @overload
-    def double_click(self, rect: Rect, interval: float = 0.4) -> None:
+    def double_click(self, rect: Rect, interval: float = 0.4, *, log: "LogLevel | None" = None) -> None:
         """
         双击屏幕上的某个矩形区域
         """
         ...
     
     @overload
-    def double_click(self, clickable: ClickableObjectProtocol, interval: float = 0.4) -> None:
+    def double_click(self, clickable: ClickableObjectProtocol, interval: float = 0.4, *, log: "LogLevel | None" = None) -> None:
         """
         双击屏幕上的某个可点击对象
         """
@@ -257,31 +283,40 @@ class Device:
     def double_click(self, *args, **kwargs) -> None:
         from kotonebot import sleep
         arg0 = args[0]
+        log = kwargs.get('log', None)
         if isinstance(arg0, Rect) or isinstance(arg0, ClickableObjectProtocol):
             rect = arg0
             interval = kwargs.get('interval', 0.4)
-            self.click(rect)
+            self.click(rect, log=log)
             sleep(interval)
-            self.click(rect)
+            self.click(rect, log=log)
         else:
             x = args[0]
             y = args[1]
             interval = kwargs.get('interval', 0.4)
-            self.click(x, y)
+            self.click(x, y, log=log)
             sleep(interval)
-            self.click(x, y)
+            self.click(x, y, log=log)
 
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float|None = None) -> None:
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float|None = None, *, log: "LogLevel | None" = None) -> None:
         """
         滑动屏幕
         """
         if self.target_resolution is not None:
             # 输入坐标为逻辑坐标，需要转换为真实坐标
-            x1, y1 = self._scale_pos_target_to_real(x1, y1)
-            x2, y2 = self._scale_pos_target_to_real(x2, y2)
-        self._touch.swipe(x1, y1, x2, y2, duration)
+            real_x1, real_y1 = self._scale_pos_target_to_real(x1, y1)
+            real_x2, real_y2 = self._scale_pos_target_to_real(x2, y2)
+            log_message = f"Swipe: from ({x1}, {y1}) to ({x2}, {y2}) (Physical: from ({real_x1}, {real_y1}) to ({real_x2}, {real_y2}))"
+        else:
+            real_x1, real_y1 = x1, y1
+            real_x2, real_y2 = x2, y2
+            log_message = f"Swipe: from ({x1}, {y1}) to ({x2}, {y2})"
 
-    def swipe_scaled(self, x1: float, y1: float, x2: float, y2: float, duration: float|None = None) -> None:
+        self.__log(log_message, log)
+
+        self._touch.swipe(real_x1, real_y1, real_x2, real_y2, duration)
+
+    def swipe_scaled(self, x1: float, y1: float, x2: float, y2: float, duration: float|None = None, *, log: "LogLevel | None" = None) -> None:
         """
         滑动屏幕，参数为屏幕坐标的百分比。
 
@@ -295,7 +330,7 @@ class Device:
         :param duration: 滑动持续时间，单位秒。None 表示使用默认值。
         """
         w, h = self.target_resolution or self.screen_size
-        self.swipe(int(w * x1), int(h * y1), int(w * x2), int(h * y2), duration)
+        self.swipe(int(w * x1), int(h * y1), int(w * x2), int(h * y2), duration, log=log)
     
     def screenshot(self) -> MatLike:
         """
