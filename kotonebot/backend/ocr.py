@@ -36,9 +36,15 @@ def sanitize_text(text: str) -> str:
     """
     对识别结果进行清理。此函数将被所有 OCR 引擎调用。
     
-    默认使用 `global_character_mapping` 中的映射数据进行清理。
+    默认行为为先将文本 `Unicode 规范化`_，然后使用 `global_character_mapping` 中的映射数据进行清理。
     可以重写此函数以实现自定义的清理逻辑。
+
+    .. note::
+        Unicode 规范化最常见的一个行为是将全角字符转换为半角字符。
+
+    .. _Unicode 规范化: https://docs.python.org/zh-cn/3.14/library/unicodedata.html#unicodedata.normalize
     """
+    text = unicodedata.normalize('NFKC', text)
     for k, v in global_character_mapping.items():
         text = text.replace(k, v)
     return text
