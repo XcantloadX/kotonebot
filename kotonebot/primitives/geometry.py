@@ -847,8 +847,13 @@ class Rect:
         raise TypeError("Argument must be a Point, PointF, 2-tuple of int or float, or Rect.")
 
 AnyPoint = Union[Point, PointF]
+"""任意 Point 对象，包括 Point 与 PointF。"""
 AnyPointTuple = Union[PointTuple, PointFTuple]
-
+"""任意 Point 元组，包括 tuple[int, int] 与 tuple[float, float]。"""
+PointLike = Union[AnyPoint, AnyPointTuple]
+"""任意类似于 Point 的对象，包括 Point、PointF、tuple[int, int]、tuple[float, float]。"""
+RectLike = Union[Rect, RectTuple]
+"""任意类似于 Rect 的对象，包括 Rect、tuple[int, int, int, int]。"""
 def is_point(obj: object) -> TypeGuard[Point]:
     return isinstance(obj, Point)
 
@@ -860,3 +865,83 @@ def is_any_point(obj: object) -> TypeGuard[AnyPoint]:
 
 def is_rect(obj: object) -> TypeGuard[Rect]:
     return isinstance(obj, Rect)
+
+def unify_point(point: PointLike) -> Point:
+    """
+    将点或元组统一转换为 `Point` 对象。
+
+    :param point: 要转换的点或元组。
+    :return: 转换后的 `Point` 对象。
+    :raises TypeError: 如果输入类型不正确则抛出。
+
+    .. note::
+        若输入数据为 float，会被强制转换为 int。
+    """
+    # If already an integer Point, return it directly
+    if is_point(point):
+        return point
+
+    # If it's a PointF, convert to Point by casting coordinates to int
+    if is_point_f(point):
+        return Point(int(point.x), int(point.y), name=point.name)
+
+    # If it's a tuple-like (x, y) sequence, attempt to extract
+    if isinstance(point, (tuple, list)) and len(point) == 2:
+        x, y = point[0], point[1]
+        try:
+            return Point(int(x), int(y))
+        except Exception:
+            raise TypeError('Point tuple must contain numeric values')
+
+    raise TypeError('Argument must be a Point, PointF, or 2-tuple of numbers')
+
+def unify_pointf(point: PointLike) -> PointF:
+    """
+    将点或元组统一转换为 `PointF` 对象。
+
+    :param point: 要转换的点或元组。
+    :return: 转换后的 `PointF` 对象。
+    :raises TypeError: 如果输入类型不正确则抛出。
+    """
+    # If already a PointF, return it
+    if is_point_f(point):
+        return point
+
+    # If it's an integer Point, convert to PointF preserving name
+    if is_point(point):
+        return PointF(float(point.x), float(point.y), name=point.name)
+
+    # If it's a tuple-like (x, y), convert elements to float
+    if isinstance(point, (tuple, list)) and len(point) == 2:
+        x, y = point[0], point[1]
+        try:
+            return PointF(float(x), float(y))
+        except Exception:
+            raise TypeError('PointF tuple must contain numeric values')
+
+    raise TypeError('Argument must be a Point, PointF, or 2-tuple of numbers')
+
+def unify_rect(rect: RectLike) -> Rect:
+    """
+    将矩形或元组 (x, y, w, h) 统一转换为 `Rect` 对象。
+
+    :param rect: 要转换的矩形或元组。
+    :return: 转换后的 `Rect` 对象。
+    :raises TypeError: 如果输入类型不正确则抛出。
+
+    .. note::
+        若输入数据为 float，会被强制转换为 int。
+    """
+    # If already a Rect, return it
+    if is_rect(rect):
+        return rect
+
+    # If it's a tuple-like (x, y, w, h), convert to ints and construct Rect
+    if isinstance(rect, (tuple, list)) and len(rect) == 4:
+        x, y, w, h = rect[0], rect[1], rect[2], rect[3]
+        try:
+            return Rect(int(x), int(y), int(w), int(h))
+        except Exception:
+            raise TypeError('Rect tuple must contain numeric values')
+
+    raise TypeError('Argument must be a Rect or 4-tuple of numbers (x, y, w, h)')

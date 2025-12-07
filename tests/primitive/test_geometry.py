@@ -2,7 +2,8 @@ import unittest
 from typing import Any
 from kotonebot.primitives.geometry import (
     Vector2D, Vector3D, Vector4D, Point, PointF, Rect,
-    is_point, is_point_f, is_any_point, is_rect
+    is_point, is_point_f, is_any_point, is_rect,
+    unify_point, unify_pointf, unify_rect
 )
 
 class TestVector(unittest.TestCase):
@@ -373,5 +374,197 @@ class TestTypeGuards(unittest.TestCase):
         self.assertTrue(is_rect(r))
         self.assertFalse(is_rect(p))
 
+class TestUnifyFunctions(unittest.TestCase):
+    """测试 unify_point, unify_pointf, unify_rect 函数"""
+
+    def test_unify_point_from_point(self) -> None:
+        """测试从 Point 转换为 Point"""
+        p = Point(10, 20, name="test")
+        result = unify_point(p)
+        # 应该返回同一个对象
+        self.assertIs(result, p)
+        self.assertEqual(result.x, 10)
+        self.assertEqual(result.y, 20)
+        self.assertEqual(result.name, "test")
+
+    def test_unify_point_from_pointf(self) -> None:
+        """测试从 PointF 转换为 Point"""
+        pf = PointF(10.7, 20.3, name="float_point")
+        result = unify_point(pf)
+        # 应该转换为整数坐标
+        self.assertIsInstance(result, Point)
+        self.assertEqual(result.x, 10)
+        self.assertEqual(result.y, 20)
+        self.assertEqual(result.name, "float_point")
+
+    def test_unify_point_from_tuple(self) -> None:
+        """测试从元组转换为 Point"""
+        # 整数元组
+        result1 = unify_point((5, 15))
+        self.assertIsInstance(result1, Point)
+        self.assertEqual(result1.x, 5)
+        self.assertEqual(result1.y, 15)
+        self.assertIsNone(result1.name)
+
+        # 浮点数元组（应该转换为整数）
+        result2 = unify_point((5.9, 15.1))
+        self.assertIsInstance(result2, Point)
+        self.assertEqual(result2.x, 5)
+        self.assertEqual(result2.y, 15)
+
+    def test_unify_point_from_list(self) -> None:
+        """测试从列表转换为 Point"""
+        result = unify_point([100, 200])
+        self.assertIsInstance(result, Point)
+        self.assertEqual(result.x, 100)
+        self.assertEqual(result.y, 200)
+
+    def test_unify_point_invalid_input(self) -> None:
+        """测试 unify_point 的无效输入"""
+        # 错误的元组长度
+        with self.assertRaises(TypeError):
+            unify_point((1, 2, 3))  # type: ignore
+        
+        # 非数值元组
+        with self.assertRaises(TypeError):
+            unify_point(("a", "b"))  # type: ignore
+        
+        # 完全错误的类型
+        with self.assertRaises(TypeError):
+            unify_point("invalid")  # type: ignore
+        
+        with self.assertRaises(TypeError):
+            unify_point(123)  # type: ignore
+
+    def test_unify_pointf_from_pointf(self) -> None:
+        """测试从 PointF 转换为 PointF"""
+        pf = PointF(10.5, 20.7, name="test")
+        result = unify_pointf(pf)
+        # 应该返回同一个对象
+        self.assertIs(result, pf)
+        self.assertEqual(result.x, 10.5)
+        self.assertEqual(result.y, 20.7)
+        self.assertEqual(result.name, "test")
+
+    def test_unify_pointf_from_point(self) -> None:
+        """测试从 Point 转换为 PointF"""
+        p = Point(10, 20, name="int_point")
+        result = unify_pointf(p)
+        # 应该转换为浮点数坐标
+        self.assertIsInstance(result, PointF)
+        self.assertEqual(result.x, 10.0)
+        self.assertEqual(result.y, 20.0)
+        self.assertEqual(result.name, "int_point")
+
+    def test_unify_pointf_from_tuple(self) -> None:
+        """测试从元组转换为 PointF"""
+        # 浮点数元组
+        result1 = unify_pointf((5.5, 15.3))
+        self.assertIsInstance(result1, PointF)
+        self.assertEqual(result1.x, 5.5)
+        self.assertEqual(result1.y, 15.3)
+        self.assertIsNone(result1.name)
+
+        # 整数元组（应该转换为浮点数）
+        result2 = unify_pointf((5, 15))
+        self.assertIsInstance(result2, PointF)
+        self.assertEqual(result2.x, 5.0)
+        self.assertEqual(result2.y, 15.0)
+
+    def test_unify_pointf_from_list(self) -> None:
+        """测试从列表转换为 PointF"""
+        result = unify_pointf([100.5, 200.7])
+        self.assertIsInstance(result, PointF)
+        self.assertEqual(result.x, 100.5)
+        self.assertEqual(result.y, 200.7)
+
+    def test_unify_pointf_invalid_input(self) -> None:
+        """测试 unify_pointf 的无效输入"""
+        # 错误的元组长度
+        with self.assertRaises(TypeError):
+            unify_pointf((1.0, 2.0, 3.0))  # type: ignore
+        
+        # 非数值元组
+        with self.assertRaises(TypeError):
+            unify_pointf(("a", "b"))  # type: ignore
+        
+        # 完全错误的类型
+        with self.assertRaises(TypeError):
+            unify_pointf("invalid")  # type: ignore
+        
+        with self.assertRaises(TypeError):
+            unify_pointf(123.45)  # type: ignore
+
+    def test_unify_rect_from_rect(self) -> None:
+        """测试从 Rect 转换为 Rect"""
+        r = Rect(10, 20, 30, 40, name="test")
+        result = unify_rect(r)
+        # 应该返回同一个对象
+        self.assertIs(result, r)
+        self.assertEqual(result.xywh, (10, 20, 30, 40))
+        self.assertEqual(result.name, "test")
+
+    def test_unify_rect_from_tuple(self) -> None:
+        """测试从元组转换为 Rect"""
+        # 整数元组
+        result1 = unify_rect((5, 10, 100, 200))
+        self.assertIsInstance(result1, Rect)
+        self.assertEqual(result1.xywh, (5, 10, 100, 200))
+        self.assertIsNone(result1.name)
+
+        # 浮点数元组（应该转换为整数）
+        result2 = unify_rect((5.9, 10.1, 100.7, 200.3))
+        self.assertIsInstance(result2, Rect)
+        self.assertEqual(result2.xywh, (5, 10, 100, 200))
+
+    def test_unify_rect_from_list(self) -> None:
+        """测试从列表转换为 Rect"""
+        result = unify_rect([50, 60, 150, 250])
+        self.assertIsInstance(result, Rect)
+        self.assertEqual(result.xywh, (50, 60, 150, 250))
+
+    def test_unify_rect_invalid_input(self) -> None:
+        """测试 unify_rect 的无效输入"""
+        # 错误的元组长度
+        with self.assertRaises(TypeError):
+            unify_rect((1, 2, 3))  # type: ignore
+        
+        with self.assertRaises(TypeError):
+            unify_rect((1, 2, 3, 4, 5))  # type: ignore
+        
+        # 非数值元组
+        with self.assertRaises(TypeError):
+            unify_rect(("a", "b", "c", "d"))  # type: ignore
+        
+        # 完全错误的类型
+        with self.assertRaises(TypeError):
+            unify_rect("invalid")  # type: ignore
+        
+        with self.assertRaises(TypeError):
+            unify_rect(123)  # type: ignore
+
+    def test_unify_functions_edge_cases(self) -> None:
+        """测试边界情况"""
+        # 零值
+        p_zero = unify_point((0, 0))
+        self.assertEqual(p_zero.xy, (0, 0))
+        
+        pf_zero = unify_pointf((0.0, 0.0))
+        self.assertEqual(pf_zero.xy, (0.0, 0.0))
+        
+        r_zero = unify_rect((0, 0, 0, 0))
+        self.assertEqual(r_zero.xywh, (0, 0, 0, 0))
+        
+        # 负值
+        p_neg = unify_point((-10, -20))
+        self.assertEqual(p_neg.xy, (-10, -20))
+        
+        pf_neg = unify_pointf((-10.5, -20.7))
+        self.assertEqual(pf_neg.xy, (-10.5, -20.7))
+        
+        r_neg = unify_rect((-10, -20, 30, 40))
+        self.assertEqual(r_neg.xywh, (-10, -20, 30, 40))
+
+ 
 if __name__ == '__main__':
     unittest.main()
