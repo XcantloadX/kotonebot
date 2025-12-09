@@ -21,6 +21,9 @@ class TestVector(unittest.TestCase):
             _ = v[2]
         self.assertEqual(repr(v), 'Point<"test_vec" at (10, 20)>')
         self.assertEqual(str(v), '(10, 20)')
+        self.assertEqual(tuple(v), (10, 20))
+        x, y = v
+        self.assertEqual((x, y), (10, 20))
 
     def test_vector3d(self) -> None:
         """测试 Vector3D 初始化和索引"""
@@ -35,6 +38,9 @@ class TestVector(unittest.TestCase):
             _ = v[3]
         self.assertEqual(v.xyz, (1, 2, 3))
         self.assertEqual(v.xy, (1, 2))
+        self.assertEqual(tuple(v), (1, 2, 3))
+        x, y, z = v
+        self.assertEqual((x, y, z), (1, 2, 3))
 
     def test_vector4d(self) -> None:
         """测试 Vector4D 初始化和索引"""
@@ -49,6 +55,9 @@ class TestVector(unittest.TestCase):
         self.assertEqual(v[3], 4)
         with self.assertRaises(IndexError):
             _ = v[4]
+        self.assertEqual(tuple(v), (1, 2, 3, 4))
+        x, y, z, w = v
+        self.assertEqual((x, y, z, w), (1, 2, 3, 4))
 
 class TestPoint(unittest.TestCase):
     """测试 Point 和 _BasePoint 类"""

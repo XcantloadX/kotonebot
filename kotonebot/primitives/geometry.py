@@ -88,6 +88,10 @@ class Vector2D(Generic[T]):
         else:
             raise IndexError
 
+    def __iter__(self):
+        yield self.x
+        yield self.y
+
     def __repr__(self) -> str:
         return f'Point<"{self.name}" at ({self.x}, {self.y})>'
 
@@ -134,6 +138,11 @@ class Vector3D(Generic[T]):
             return self.z
         else:
             raise IndexError
+
+    def __iter__(self):
+        yield self.x
+        yield self.y
+        yield self.z
 
     @property
     def xyz(self) -> tuple[T, T, T]:
@@ -191,6 +200,12 @@ class Vector4D(Generic[T]):
             return self.w
         else:
             raise IndexError
+
+    def __iter__(self):
+        yield self.x
+        yield self.y
+        yield self.z
+        yield self.w
 
 Size = Vector2D[int]
 """尺寸。相当于 Vector2D[int]"""
