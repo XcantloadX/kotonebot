@@ -74,6 +74,8 @@ class Vector2D(Generic[T]):
     print(center)  # Point<"屏幕中心" at (640, 360)>
     ```
     """
+    __slots__ = ('x', 'y', 'name')
+    
     def __init__(self, x: T, y: T, *, name: str | None = None):
         self.x = x
         self.y = y
@@ -122,6 +124,8 @@ class Vector3D(Generic[T]):
     print(f"RGB: {rgb.rgb if hasattr(v3, 'rgb') else '未定义'}")
     ```
     """
+    __slots__ = ('x', 'y', 'z', 'name')
+    
     def __init__(self, x: T, y: T, z: T, *, name: str | None = None):
         self.x = x
         self.y = y
@@ -181,6 +185,8 @@ class Vector4D(Generic[T]):
     # 注意：Vector4D 未定义运算，但可用于数据存储
     ```
     """
+    __slots__ = ('x', 'y', 'z', 'w', 'name')
+    
     def __init__(self, x: T, y: T, z: T, w: T, *, name: str | None = None):
         self.x = x
         self.y = y
@@ -215,12 +221,16 @@ PointTuple = tuple[int, int]
 """点。(x, y)"""
 PointFTuple = tuple[float, float]
 """浮点数点。(x, y)"""
+SizeTuple = tuple[int, int]
+"""尺寸。(width, height)"""
 
 
 Number = TypeVar('Number', int, float)
 """数字类型，可以是整数或浮点数。"""
 NumberTuple2D = tuple[Number, Number]
 class _BasePoint(Vector2D[Number]):
+    __slots__ = (*Vector2D.__slots__,)
+    
     @property
     def xy(self) -> NumberTuple2D:
         """
@@ -385,6 +395,7 @@ class PointF(_BasePoint[float]):
     moved = p1.offset(5.0, 10.0)  # 偏移坐标
     ```
     """
+    __slots__ = (*_BasePoint.__slots__,)
 
 
 class Point(_BasePoint[int]):
@@ -414,6 +425,7 @@ class Point(_BasePoint[int]):
     precise = center + (5.5, 3.2)  # 结果为PointF类型
     ```
     """
+    __slots__ = (*_BasePoint.__slots__,)
 
 class Rect:
     """
@@ -450,6 +462,8 @@ class Rect:
     intersection = rect.intersection_of(other_rect)  # 交集
     ```
     """
+    __slots__ = ('x1', 'y1', 'w', 'h', 'name')
+    
     def __init__(
         self,
         x: int | None = None,
@@ -865,7 +879,9 @@ AnyPoint = Union[Point, PointF]
 """任意 Point 对象，包括 Point 与 PointF。"""
 AnyPointTuple = Union[PointTuple, PointFTuple]
 """任意 Point 元组，包括 tuple[int, int] 与 tuple[float, float]。"""
-PointLike = Union[AnyPoint, AnyPointTuple]
+PointLike = Union[Point, PointTuple]
+PointFLike = Union[PointF, PointFTuple]
+AnyPointLike = Union[AnyPoint, AnyPointTuple]
 """任意类似于 Point 的对象，包括 Point、PointF、tuple[int, int]、tuple[float, float]。"""
 RectLike = Union[Rect, RectTuple]
 """任意类似于 Rect 的对象，包括 Rect、tuple[int, int, int, int]。"""
@@ -933,6 +949,38 @@ def unify_pointf(point: PointLike) -> PointF:
             return PointF(float(x), float(y))
         except Exception:
             raise TypeError('PointF tuple must contain numeric values')
+
+    raise TypeError('Argument must be a Point, PointF, or 2-tuple of numbers')
+
+def unify_any_point(point: AnyPointLike) -> Point | PointF:
+    """
+    将点或元组统一转换为 `Point` 或 `PointF` 对象。
+
+    如果输入已是 `Point` 或 `PointF` 对象，直接返回。
+    如果输入是元组，根据其数值类型决定返回类型：
+    - 若所有坐标为整数，返回 `Point`
+    - 若有任何坐标为浮点数，返回 `PointF`
+
+    :param point: 要转换的点或元组。
+    :return: 转换后的 `Point` 或 `PointF` 对象。
+    :raises TypeError: 如果输入类型不正确则抛出。
+    """
+    # If already a Point or PointF, return it directly
+    if is_any_point(point):
+        return point
+
+    # If it's a sequence, check types and convert accordingly
+    if isinstance(point, (tuple, list)) and len(point) == 2:
+        x, y = point[0], point[1]
+        try:
+            # If both are integers, return Point
+            if isinstance(x, int) and isinstance(y, int):
+                return Point(x, y)
+            # Otherwise, return PointF
+            else:
+                return PointF(float(x), float(y))
+        except Exception:
+            raise TypeError('Point tuple must contain numeric values')
 
     raise TypeError('Argument must be a Point, PointF, or 2-tuple of numbers')
 
