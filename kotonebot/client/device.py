@@ -1,18 +1,19 @@
-from typing_extensions import deprecated
 from typing import Callable, Literal, overload, TYPE_CHECKING
 
 import cv2
 import numpy as np
 from cv2.typing import MatLike
+
 if TYPE_CHECKING:
     from adbutils._device import AdbDevice as AdbUtilsDevice
 
 from kotonebot import logging
 from ..backend.debug import result
-from ..errors import UnscalableResolutionError
-from kotonebot.backend.core import HintBox
 from kotonebot.primitives import Rect, Point, is_point
 from .protocol import ClickableObjectProtocol, Commandable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable
+from .scaler import AbstractScaler
+from kotonebot.config.config import conf
+from kotonebot.primitives.geometry import Size
 
 logger = logging.getLogger(__name__)
 LogLevel = Literal['info', 'debug', 'verbose', 'silent']
@@ -31,7 +32,7 @@ class HookContextManager:
         self.device.screenshot_hook_after = self.old_func
 
 class Device:
-    def __init__(self, platform: str = 'unknown') -> None:
+    def __init__(self, platform: str = 'unknown', scaler: AbstractScaler | None = None) -> None:
         self.screenshot_hook_after: Callable[[MatLike], MatLike] | None = None
         """截图后调用的函数"""
         self.screenshot_hook_before: Callable[[], MatLike | None] | None = None
@@ -55,78 +56,32 @@ class Device:
         """
         设备平台名称。
         """
-        self.target_resolution: tuple[int, int] | None = None
-        """
-        目标分辨率。
-        
-        若设置，则在截图、点击、滑动等时会缩放到目标分辨率。
-        仅支持等比例缩放，若无法等比例缩放，则会抛出异常 `UnscalableResolutionError`。
-        """
-        self.match_rotation: bool = True
-        """
-        分辨率缩放是否自动匹配旋转。
-
-        当目标与真实分辨率的宽高比不一致时，是否允许通过旋转（交换宽高）后再进行匹配。
-        为 True 则忽略方向差异，只要宽高比一致就视为可缩放；False 则必须匹配旋转。
-
-        例如，当目标分辨率为 1920x1080，而真实分辨率为 1080x1920 时，
-        ``match_rotation`` 为 True 则认为可以缩放，为 False 则会抛出异常。
-        """
-        self.aspect_ratio_tolerance: float = 0.1
-        """
-        宽高比容差阈值。
-
-        判断两分辨率宽高比差异是否接受的阈值。
-        该值越小，对比例一致性的要求越严格。
-        默认为 0.1（即 10% 容差）。
-        """
         self.log_level: LogLevel = 'debug'
         """默认日志级别。"""
-
-    def _scale_pos_real_to_target(self, real_x: int, real_y: int) -> tuple[int, int]:
-        """将真实屏幕坐标缩放到目标逻辑坐标"""
-        if self.target_resolution is None:
-            return real_x, real_y
-
-        real_w, real_h = self.screen_size
-        target_w, target_h = self.target_resolution
-
-        # 校验分辨率是否可缩放并获取调整后的目标分辨率
-        adjusted_target_w, adjusted_target_h = self.__assert_scalable((real_w, real_h), (target_w, target_h))
-
-        scale_w = adjusted_target_w / real_w
-        scale_h = adjusted_target_h / real_h
-
-        return int(real_x * scale_w), int(real_y * scale_h)
-
-    def _scale_pos_target_to_real(self, target_x: int, target_y: int) -> tuple[int, int]:
-        """将目标逻辑坐标缩放到真实屏幕坐标"""
-        if self.target_resolution is None:
-            return target_x, target_y # 输入坐标已是真实坐标
-
-        real_w, real_h = self.screen_size
-        target_w, target_h = self.target_resolution
-
-        # 校验分辨率是否可缩放并获取调整后的目标分辨率
-        adjusted_target_w, adjusted_target_h = self.__assert_scalable((real_w, real_h), (target_w, target_h))
-
-        scale_to_real_w = real_w / adjusted_target_w
-        scale_to_real_h = real_h / adjusted_target_h
-
-        return int(target_x * scale_to_real_w), int(target_y * scale_to_real_h)
-
-    def __scale_image (self, img: MatLike) -> MatLike:
-        if self.target_resolution is None:
-            return img
-
-        target_w, target_h = self.target_resolution
-        h, w = img.shape[:2]
-
-        # 校验分辨率是否可缩放并获取调整后的目标分辨率
-        adjusted_target = self.__assert_scalable((w, h), (target_w, target_h))
-
-        return cv2.resize(img, adjusted_target)
     
+        self._scaler = scaler or conf().device.default_scaler_factory()
+        self._scaler_initialized = False
+
+    @property
+    def scaler(self) -> AbstractScaler:
+        # TODO: 应该要有一种更好的方式，把从延迟初始化的 _screenshot 中获取到屏幕大小，以初始化 scaler 的逻辑放到更合适的位置。
+        if not self._scaler.physical_resolution:
+            self._scaler.logic_resolution = conf().device.default_logic_resolution
+            self._scaler.physical_resolution = Size(*self._screenshot.screen_size)
+            self._scaler_initialized = True
+        return self._scaler
+
+    def setup(self, 
+        *, 
+        screenshot: Screenshotable,
+        touch: Touchable,
+        commands: Commandable | None = None,
+        scaler: AbstractScaler | None = None,
+    ):
+        self._screenshot = screenshot
+        self._touch = touch
+        self.commands = commands
+
     def __log(self, message: str, level: LogLevel | None = None, *args):
         """以指定的日志级别输出日志。
 
@@ -218,14 +173,12 @@ class Device:
             logger.debug(f"Executing click hook before: ({x}, {y})")
             x, y = hook(x, y)
             logger.debug(f"Click hook before result: ({x}, {y})")
-        if self.target_resolution is not None:
-            # 输入坐标为逻辑坐标，需要转换为真实坐标
-            real_x, real_y = self._scale_pos_target_to_real(x, y)
-        else:
-            real_x, real_y = x, y
+        
+        real_pos = self.scaler.logic_to_physical((x, y))
+        real_x, real_y = int(real_pos[0]), int(real_pos[1])
         
         log_message = f"Click: {x}, {y}%s"
-        log_details = f"(Physical: {real_x}, {real_y})" if self.target_resolution is not None else ""
+        log_details = f"(Physical: {real_x}, {real_y})"
         self.__log(log_message, log, log_details)
 
         from ..backend.context import ContextStackVars
@@ -236,8 +189,7 @@ class Device:
         if image is not None and image.size > 0:
             cv2.circle(image, (x, y), 10, (0, 0, 255), -1)
             message = f"Point: ({x}, {y})"
-            if self.target_resolution is not None:
-                message += f" physical: ({real_x}, {real_y})"
+            message += f" physical: ({real_x}, {real_y})"
             result("device.click", image, message)
         self._touch.click(real_x, real_y)
 
@@ -255,7 +207,7 @@ class Device:
         调用前确保 `orientation` 属性与设备方向一致，
         否则点击位置会不正确。
         """
-        size = self.target_resolution or self.screen_size
+        size = self.scaler.physical_to_logic(self.screen_size)
         x, y = size[0] // 2, size[1] // 2
         self.click(x, y, log=log)
     
@@ -302,15 +254,11 @@ class Device:
         """
         滑动屏幕
         """
-        if self.target_resolution is not None:
-            # 输入坐标为逻辑坐标，需要转换为真实坐标
-            real_x1, real_y1 = self._scale_pos_target_to_real(x1, y1)
-            real_x2, real_y2 = self._scale_pos_target_to_real(x2, y2)
-            log_message = f"Swipe: from ({x1}, {y1}) to ({x2}, {y2}) (Physical: from ({real_x1}, {real_y1}) to ({real_x2}, {real_y2}))"
-        else:
-            real_x1, real_y1 = x1, y1
-            real_x2, real_y2 = x2, y2
-            log_message = f"Swipe: from ({x1}, {y1}) to ({x2}, {y2})"
+        real_pos1 = self.scaler.logic_to_physical((x1, y1))
+        real_x1, real_y1 = int(real_pos1[0]), int(real_pos1[1])
+        real_pos2 = self.scaler.logic_to_physical((x2, y2))
+        real_x2, real_y2 = int(real_pos2[0]), int(real_pos2[1])
+        log_message = f"Swipe: from ({x1}, {y1}) to ({x2}, {y2}) (Physical: from ({real_x1}, {real_y1}) to ({real_x2}, {real_y2}))"
 
         self.__log(log_message, log)
 
@@ -329,7 +277,7 @@ class Device:
         :param y2: 结束点 y 坐标百分比。范围 [0, 1]
         :param duration: 滑动持续时间，单位秒。None 表示使用默认值。
         """
-        w, h = self.target_resolution or self.screen_size
+        w, h = self.scaler.physical_to_logic(self.screen_size)
         self.swipe(int(w * x1), int(h * y1), int(w * x2), int(h * y2), duration, log=log)
     
     def screenshot(self) -> MatLike:
@@ -343,7 +291,7 @@ class Device:
                 logger.debug("screenshot hook before returned image")
                 return img
         img = self.screenshot_raw()
-        img = self.__scale_image(img)
+        img = self.scaler.transform_screenshot(img)
         if self.screenshot_hook_after is not None:
             img = self.screenshot_hook_after(img)
         return img
@@ -390,68 +338,6 @@ class Device:
         """
         return self._screenshot.detect_orientation()
 
-    def __aspect_ratio_compatible(self, src_size: tuple[int, int], tgt_size: tuple[int, int]) -> bool:
-        """
-        判断两个尺寸在宽高比意义上是否兼容
-
-        若 ``self.match_rotation`` 为 True，忽略方向（长边/短边）进行比较。
-        判断标准由 ``self.aspect_ratio_tolerance`` 决定（默认 0.1）。
-        """
-        src_w, src_h = src_size
-        tgt_w, tgt_h = tgt_size
-
-        # 尺寸必须为正
-        if src_w <= 0 or src_h <= 0:
-            raise ValueError(f"Source size dimensions must be positive for scaling: {src_size}")
-        if tgt_w <= 0 or tgt_h <= 0:
-            raise ValueError(f"Target size dimensions must be positive for scaling: {tgt_size}")
-
-        tolerant = self.aspect_ratio_tolerance
-
-        # 直接比较宽高比
-        if abs((tgt_w / src_w) - (tgt_h / src_h)) <= tolerant:
-            return True
-
-        # 尝试忽略方向差异
-        if self.match_rotation:
-            ratio_src = max(src_w, src_h) / min(src_w, src_h)
-            ratio_tgt = max(tgt_w, tgt_h) / min(tgt_w, tgt_h)
-            return abs(ratio_src - ratio_tgt) <= tolerant
-
-        return False
-
-    def __assert_scalable(self, source: tuple[int, int], target: tuple[int, int]) -> tuple[int, int]:
-        """
-        校验分辨率是否可缩放，并返回调整后的目标分辨率。
-
-        当 match_rotation 为 True 且源分辨率与目标分辨率的旋转方向不一致时，
-        自动交换目标分辨率的宽高，使其与源分辨率的方向保持一致。
-
-        :param src_size: 源分辨率 (width, height)
-        :param tgt_size: 目标分辨率 (width, height)
-        :return: 调整后的目标分辨率 (width, height)
-        :raises UnscalableResolutionError: 若宽高比不兼容
-        """
-        # 智能调整目标分辨率方向
-        adjusted_tgt_size = target
-        if self.match_rotation:
-            src_w, src_h = source
-            tgt_w, tgt_h = target
-
-            # 判断源分辨率和目标分辨率的方向
-            src_is_landscape = src_w > src_h
-            tgt_is_landscape = tgt_w > tgt_h
-
-            # 如果方向不一致，交换目标分辨率的宽高
-            if src_is_landscape != tgt_is_landscape:
-                adjusted_tgt_size = (tgt_h, tgt_w)
-
-        # 校验调整后的分辨率是否兼容
-        if not self.__aspect_ratio_compatible(source, adjusted_tgt_size):
-            raise UnscalableResolutionError(target, source)
-
-        return adjusted_tgt_size
-
 
 class AndroidDevice(Device):
     def __init__(self, adb_connection: 'AdbUtilsDevice | None' = None) -> None:
@@ -481,49 +367,3 @@ class WindowsDevice(Device):
     def __init__(self) -> None:
         super().__init__('windows')
         self.commands: WindowsCommandable
-
-        
-if __name__ == "__main__":
-    from kotonebot.client.implements.adb import AdbImpl
-    from kotonebot.client.implements.adb_raw import AdbRawImpl
-    from .implements.uiautomator2 import UiAutomator2Impl
-    print("server version:", adb.server_version())
-    adb.connect("127.0.0.1:5555")
-    print("devices:", adb.device_list())
-    d = adb.device_list()[-1]
-    d.shell("dumpsys activity top | grep ACTIVITY | tail -n 1")
-    dd = AndroidDevice(d)
-    adb_imp = AdbRawImpl(d)
-    dd._touch = adb_imp
-    dd._screenshot = adb_imp
-    dd.commands = adb_imp
-    # dd._screenshot = MinicapScreenshotImpl(dd)
-    # dd._screenshot = UiAutomator2Impl(dd)
-
-    # 实时展示画面
-    import cv2
-    import numpy as np
-    import time
-    last_time = time.time()
-    while True:
-        start_time = time.time()
-        img = dd.screenshot()
-        # 50% 缩放
-        img = cv2.resize(img, (img.shape[1] // 2, img.shape[0] // 2))
-        
-        # 计算帧间隔
-        interval = start_time - last_time
-        fps = 1 / interval if interval > 0 else 0
-        last_time = start_time
-        
-        # 获取当前时间和帧率信息
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        fps_text = f"FPS: {fps:.1f} {interval*1000:.1f}ms"
-        
-        # 在图像上绘制信息
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(img, current_time, (10, 30), font, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
-        cv2.putText(img, fps_text, (10, 60), font, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
-        
-        cv2.imshow("screen", img)
-        cv2.waitKey(1)

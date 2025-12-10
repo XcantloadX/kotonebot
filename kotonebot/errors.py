@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Sequence
 
 
 class KotonebotError(Exception):
@@ -63,7 +63,7 @@ class TaskNotFoundError(KotonebotError):
         super().__init__(f'Task "{task_id}" not found.')
 
 class UnscalableResolutionError(KotonebotError):
-    def __init__(self, target_resolution: tuple[int, int], screen_size: tuple[int, int]):
+    def __init__(self, target_resolution: Sequence[int], screen_size: Sequence[int]):
         self.target_resolution = target_resolution
         self.screen_size = screen_size
         super().__init__(f'Cannot scale to target resolution {target_resolution}. '

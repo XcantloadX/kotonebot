@@ -225,16 +225,18 @@ class Vector4D(Generic[T]):
         """Return coordinates as a tuple of ints: (x, y, z, w)."""
         return self.x, self.y, self.z, self.w
 
-Size = Vector2D[int]
-"""尺寸。相当于 Vector2D[int]"""
 RectTuple = tuple[int, int, int, int]
 """矩形。(x, y, w, h)"""
 PointTuple = tuple[int, int]
 """点。(x, y)"""
 PointFTuple = tuple[float, float]
 """浮点数点。(x, y)"""
+Size = Vector2D[int]
+"""尺寸。相当于 Vector2D[int]"""
 SizeTuple = tuple[int, int]
 """尺寸。(width, height)"""
+SizeLike = Union[Size, SizeTuple]
+"""尺寸类型，可以是 Size 对象或尺寸元组。"""
 
 
 Number = TypeVar('Number', int, float)
