@@ -94,6 +94,10 @@ class Vector2D(Generic[T]):
         yield self.x
         yield self.y
 
+    def as_tuple(self) -> tuple[T, T]:
+        """Return coordinates as a tuple of ints: (x, y)."""
+        return self.x, self.y
+
     def __repr__(self) -> str:
         return f'Point<"{self.name}" at ({self.x}, {self.y})>'
 
@@ -147,6 +151,10 @@ class Vector3D(Generic[T]):
         yield self.x
         yield self.y
         yield self.z
+
+    def as_tuple(self) -> tuple[T, T, T]:
+        """Return coordinates as a tuple of ints: (x, y, z)."""
+        return self.x, self.y, self.z
 
     @property
     def xyz(self) -> tuple[T, T, T]:
@@ -212,6 +220,10 @@ class Vector4D(Generic[T]):
         yield self.y
         yield self.z
         yield self.w
+
+    def as_tuple(self) -> tuple[T, T, T, T]:
+        """Return coordinates as a tuple of ints: (x, y, z, w)."""
+        return self.x, self.y, self.z, self.w
 
 Size = Vector2D[int]
 """尺寸。相当于 Vector2D[int]"""

@@ -24,6 +24,8 @@ class TestVector(unittest.TestCase):
         self.assertEqual(tuple(v), (10, 20))
         x, y = v
         self.assertEqual((x, y), (10, 20))
+        # as_tuple returns integer tuple of coordinates
+        self.assertEqual(v.as_tuple(), (10, 20))
 
     def test_vector3d(self) -> None:
         """测试 Vector3D 初始化和索引"""
@@ -41,6 +43,8 @@ class TestVector(unittest.TestCase):
         self.assertEqual(tuple(v), (1, 2, 3))
         x, y, z = v
         self.assertEqual((x, y, z), (1, 2, 3))
+        # as_tuple returns integer tuple of coordinates
+        self.assertEqual(v.as_tuple(), (1, 2, 3))
 
     def test_vector4d(self) -> None:
         """测试 Vector4D 初始化和索引"""
@@ -58,6 +62,8 @@ class TestVector(unittest.TestCase):
         self.assertEqual(tuple(v), (1, 2, 3, 4))
         x, y, z, w = v
         self.assertEqual((x, y, z, w), (1, 2, 3, 4))
+        # as_tuple returns integer tuple of coordinates
+        self.assertEqual(v.as_tuple(), (1, 2, 3, 4))
 
 class TestPoint(unittest.TestCase):
     """测试 Point 和 _BasePoint 类"""
