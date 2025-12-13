@@ -1,4 +1,8 @@
 # 更新日志
+## v0.6.0
+Library:
+1. [feat] 新增类 kotonebot.interop.win.ShakeMouse，支持检测晃动鼠标检测动作，可以用于实现晃动鼠标自动停止脚本执行的功能
+
 ## v0.5.0
 Library：
 1. [feat] 优化 kotonebot.geometry 下的 Point 与 Rect 类，新增常见运算符重载与相等比较，以及多个实用方法，包括复制、偏移、相交包含判断等
