@@ -1,8 +1,10 @@
 """Tests for kotonebot.devtools.resgen.codegen module"""
 
 import unittest
-from kotonebot.devtools.resgen.codegen import StandardGenerator
+
+from kotonebot.devtools.resgen.codegen import EntityGenerator, StandardGenerator
 from kotonebot.devtools.resgen.core import ClassNode, ResourceNode
+from kotonebot.devtools.resgen.core import BoxData, ImageAsset, PointData
 
 
 class TestStandardGenerator(unittest.TestCase):
@@ -278,6 +280,127 @@ class TestStandardGenerator(unittest.TestCase):
         # Should have empty lines between attributes
         lines = content.split('\n')
         self.assertTrue(any(line == '' for line in lines))
+
+
+class TestEntityGenerator(unittest.TestCase):
+    """Test EntityGenerator class"""
+
+    def test_header_imports(self):
+        gen = EntityGenerator(production=False)
+        out = gen.generate([ClassNode(name="Root")])
+
+        self.assertIn("from kotonebot.core import TemplateMatchPrefab", out)
+        self.assertIn("from kotonebot.primitives import Image, Rect", out)
+        self.assertIn("from kotonebot.backend.core import HintBox, HintPoint", out)
+
+    def test_image_asset_generates_prefab_nested_class(self):
+        gen = EntityGenerator(production=False)
+
+        node = ClassNode(
+            name="Root",
+            attributes=[
+                ResourceNode(
+                    name="StartButton",
+                    type="template",
+                    value=ImageAsset(path=r"assets\start.png", rect=(10, 20, 30, 60)),
+                    docstring="Start button template",
+                    metadata={"display_name": "Start"},
+                )
+            ],
+        )
+
+        out = gen.generate([node])
+
+        self.assertIn("class Root:", out)
+        self.assertIn("    class StartButton(TemplateMatchPrefab):", out)
+        self.assertIn('        template = Image(file_path="assets/start.png")', out)
+        self.assertIn('        display_name = "Start"', out)
+        self.assertIn("        _orig_rect = Rect(x=10, y=20, w=20, h=40)", out)
+
+    def test_image_asset_without_rect_sets_none(self):
+        gen = EntityGenerator(production=False)
+
+        node = ClassNode(
+            name="Root",
+            attributes=[
+                ResourceNode(
+                    name="NoRect",
+                    type="template",
+                    value=ImageAsset(path="a/b.png", rect=None),
+                    docstring="",
+                    metadata={},
+                )
+            ],
+        )
+
+        out = gen.generate([node])
+        self.assertIn("    class NoRect(TemplateMatchPrefab):", out)
+        self.assertIn("        _orig_rect = None", out)
+
+    def test_box_and_point_generate_assignments(self):
+        gen = EntityGenerator(production=False)
+
+        node = ClassNode(
+            name="Root",
+            attributes=[
+                ResourceNode(
+                    name="MyBox",
+                    type="hint-box",
+                    value=BoxData(x1=1, y1=2, x2=3, y2=4, resolution=(720, 1280)),
+                ),
+                ResourceNode(
+                    name="MyPoint",
+                    type="hint-point",
+                    value=PointData(x=5, y=6),
+                ),
+            ],
+        )
+
+        out = gen.generate([node])
+        self.assertIn(
+            "    MyBox = HintBox(x1=1, y1=2, x2=3, y2=4, source_resolution=(720, 1280))",
+            out,
+        )
+        self.assertIn("    MyPoint = HintPoint(x=5, y=6)", out)
+
+    def test_docstring_preview_vscode_uses_origin_file(self):
+        gen = EntityGenerator(production=False, ide_type="vscode")
+
+        node = ClassNode(
+            name="Root",
+            attributes=[
+                ResourceNode(
+                    name="WithPreview",
+                    type="template",
+                    value=ImageAsset(path="rel.png"),
+                    docstring="Doc line",
+                    metadata={"origin_file": r"C:\tmp\origin.png"},
+                )
+            ],
+        )
+
+        out = gen.generate([node])
+        self.assertIn("Doc line", out)
+        # vscode 链接会统一路径分隔符
+        self.assertIn("vscode-file://vscode-app/C:/tmp/origin.png", out)
+        self.assertIn('title="Preview"', out)
+
+    def test_fallback_unknown_type_uses_standard_assignment(self):
+        gen = EntityGenerator(production=True)
+
+        node = ClassNode(
+            name="Root",
+            attributes=[
+                ResourceNode(
+                    name="Unknown",
+                    type="unknown",
+                    value="abc",
+                )
+            ],
+        )
+
+        out = gen.generate([node])
+        self.assertIn("    Unknown = abc", out)
 
 
 if __name__ == '__main__':

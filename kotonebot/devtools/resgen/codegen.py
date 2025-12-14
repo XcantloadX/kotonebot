@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import Any, List
 
 from .core import CodeWriter, ClassNode, ResourceNode, ImageAsset, BoxData, PointData
 from .utils import unify_path
@@ -105,3 +105,128 @@ class StandardGenerator:
             return f'.. image:: http://localhost:6532/image?path={path}'
         else:
             return f'<img src="file:///{path}" title="{title}" height="{height}" />'
+        
+
+class EntityGenerator(StandardGenerator):
+    """
+    KotoneBot 实体代码生成器。
+    
+    输出规范:
+    1. Template (图片) -> 生成继承自 TemplateMatchPrefab 的嵌套类。
+    2. HintBox/Point -> 生成类的静态属性实例。
+    """
+
+    def render_header(self):
+        w = self.writer
+        w.write("#######           实体资源文件         #######")
+        w.write("#######    此文件为自动生成，请勿编辑     #######")
+        w.write("####### AUTO GENERATED. DO NOT EDIT. #######")
+        w.write_empty_line()
+        w.write("from kotonebot.core import TemplateMatchPrefab")
+        w.write("from kotonebot.primitives import Image, Rect")
+        w.write("from kotonebot.backend.core import HintBox, HintPoint")
+        w.write_empty_line()
+
+    def render_attribute(self, attr: ResourceNode):
+        """
+        核心分发逻辑：
+        根据 ResourceNode 携带的 value 类型，决定生成策略。
+        """
+        data = attr.value
+
+        if isinstance(data, ImageAsset):
+            self._render_prefab_class(attr, data)
+        elif isinstance(data, (BoxData, PointData)):
+            self._render_primitive_assignment(attr, data)
+        else:
+            # 兜底：如果 value 是未知类型或纯字符串，回退到默认赋值
+            super().render_attribute(attr)
+
+    def _render_prefab_class(self, node: ResourceNode, data: ImageAsset):
+        """
+        渲染 TemplateMatchPrefab 嵌套类
+        """
+        w = self.writer
+        class_name = node.name
+        
+        # 1. 类定义
+        w.write(f"class {class_name}(TemplateMatchPrefab):")
+        
+        with w.indent():
+            # 2. Docstring
+            if not self.production:
+                self.render_docstring(node)
+            
+            # 3. template 属性 (Image)
+            # 确保路径分隔符统一，避免 Windows 反斜杠问题
+            clean_path = unify_path(data.path)
+            w.write(f'template = Image(file_path="{clean_path}")')
+            
+            # 4. display_name 属性
+            # 优先从 metadata 取，如果没有则用变量名
+            display_name = node.metadata.get('display_name', node.name)
+            w.write(f'display_name = "{display_name}"')
+            
+            # 5. _orig_rect 属性 (用于调试或记录原始位置)
+            if data.rect:
+                x1, y1, x2, y2 = data.rect
+                w.write(f"_orig_rect = Rect(x={x1}, y={y1}, w={x2-x1}, h={y2-y1})")
+            else:
+                w.write("_orig_rect = None")
+
+    def _render_primitive_assignment(self, node: ResourceNode, data: Any):
+        """
+        渲染 HintBox 或 HintPoint 的赋值语句
+        Example: MyBox = HintBox(x1=1, y1=2...)
+        """
+        # 1. 生成 Docstring (如果是非生产模式)
+        if not self.production:
+            # 对于属性赋值，docstring 通常写在上方，或者不写
+            # Python 标准是将 docstring 写在赋值语句下方，但这在类属性中不太常见
+            # 这里我们选择不为 HintBox 生成复杂的 docstring，或者作为注释生成
+            pass 
+
+        # 2. 构造构造函数字符串
+        constructor_str = ""
+        
+        if isinstance(data, BoxData):
+            constructor_str = (
+                f"HintBox("
+                f"x1={data.x1}, y1={data.y1}, "
+                f"x2={data.x2}, y2={data.y2}, "
+                f"source_resolution={data.resolution})"
+            )
+            
+        elif isinstance(data, PointData):
+            constructor_str = f"HintPoint(x={data.x}, y={data.y})"
+
+        # 3. 写入代码
+        self.writer.write(f"{node.name} = {constructor_str}")
+
+    def render_docstring(self, attr: ResourceNode):
+        """
+        重写文档渲染逻辑，支持 markdown 图片预览
+        """
+        w = self.writer
+        lines = []
+        
+        # 基础描述
+        if attr.docstring:
+            lines.extend(attr.docstring.split('\n'))
+            
+        # 图片预览 (仅当它是 ImageAsset 且有绝对路径用于 IDE 预览时)
+        # 注意：这里的 abs_path 需要 Parser 在 metadata 里额外塞进去，
+        # 因为 ImageAsset.path 可能已经是相对路径了。
+        if self.ide_type and isinstance(attr.value, ImageAsset):
+            preview_path = attr.metadata.get('origin_file') or attr.metadata.get('abs_path')
+            if preview_path:
+                lines.append("")
+                lines.append(self._make_img_tag(preview_path, "Preview"))
+
+        if not lines:
+            return
+
+        w.write('"""')
+        for line in lines:
+            w.write(line)
+        w.write('"""')
