@@ -2,7 +2,8 @@ import webbrowser
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 import uvicorn
 
 
@@ -20,7 +21,22 @@ def create_app() -> FastAPI:
     
     # Mount static files if dist directory exists
     if dist_dir.exists():
-        app.mount("/", StaticFiles(directory=dist_dir, html=True), name="static")
+        # 优先将打包好的静态资源挂载到 /assets（如果构建将资源放在 dist/assets）
+        assets_dir = dist_dir / "assets"
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+        # SPA: 直接将除 /api/* 之外的所有路径映射到 index.html
+        @app.get("/{_path:path}")
+        async def spa_catchall(_path: str):
+            # 保留 API 路由的行为
+            if _path.startswith("api/"):
+                return JSONResponse({"detail": "Not Found"}, status_code=404)
+
+            index_file = dist_dir / "index.html"
+            if index_file.exists():
+                return HTMLResponse(index_file.read_text(encoding="utf-8"))
+
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
     else:
         # If dist doesn't exist, provide a helpful message
         @app.get("/")
