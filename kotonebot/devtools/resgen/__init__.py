@@ -1,12 +1,18 @@
-from .resgen import (
+from .core import (
     CodeWriter,
     ResourceNode,
     ClassNode,
     SchemaParser,
+)
+from .codegen import (
     StandardGenerator,
+)
+from .parsers import (
     ParserRegistry,
     KotoneV1Parser,
     BasicSpriteParser,
+)
+from .utils import (
     to_camel_case,
     unify_path,
     build_class_tree,
@@ -34,4 +40,3 @@ __all__ = [
     "build_class_tree",
     "ImageProcessor",
 ]
-
