@@ -25,6 +25,10 @@ resource:
 devtool:
     cd kotonebot-devtool; npm run dev
 
+# Build devtool frontend
+build-devtool:
+    cd kotonebot-devtool; npm run build
+
 # Check and create virtual environment using uv
 env: fetch-submodule
     #!{{shebang_pwsh}}
@@ -76,3 +80,9 @@ publish:
 publish-test:
     @Write-Host "Uploading to PyPI-Test..."
     twine upload --repository testpypi dist/* -u __token__ -p $env:PYPI_TEST_TOKEN
+
+# Build: compile devtool frontend and package everything
+build: build-devtool
+    #!{{shebang_pwsh}}
+    Write-Host "Building Python package..."
+    python -m build

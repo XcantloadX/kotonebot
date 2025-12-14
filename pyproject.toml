@@ -18,6 +18,9 @@ dependencies = [
     "pydantic~=2.10",
     # Resource
     "ksaa-res~=0.2",
+    # Web Server & DevTools
+    "fastapi~=0.115",
+    "uvicorn~=0.34",
     # Other
     "typing-extensions~=4.12",
     "python-dotenv~=1.0",
@@ -60,8 +63,14 @@ dev = [
 # All optional dependencies
 all = ["kotonebot[android,windows,dev]"]
 
+[project.scripts]
+kbot = "kotonebot.devtools.cli:main"
+
 [tool.setuptools]
 package-dir = { "kotonebot" = "kotonebot" }
+
+[tool.setuptools.package-data]
+kotonebot = ["devtools/web/dist/**/*"]
 
 [tool.coverage.run]
 # https://github.com/nedbat/coveragepy/issues/1653

@@ -1,5 +1,6 @@
 graft kotonebot/kaa/sprites
 graft kotonebot/kaa/resources
+graft kotonebot/devtools/web/dist
 prune tests
 prune tools
 prune experiments
