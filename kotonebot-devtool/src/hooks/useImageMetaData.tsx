@@ -1,41 +1,8 @@
 import { Annotation } from "../components/ImageEditor/types";
 import { useImmer } from "use-immer";
+import { DefinitionType, BaseDefinition, TemplateDefinition, HintBoxDefinition, HintPointDefinition, Definition, Definitions, ImageMetaData } from "../pages/ImageAnnotation/types/definitions";
 
-export type DefinitionType = 'template' | 'ocr' | 'color' | 'hint-box' | 'hint-point';
-
-export interface BaseDefinition {
-    /** 最终出现在 R.py 中的名称 */
-    name: string;
-    /** 显示在调试器与调试输出中的名称 */
-    displayName: string;
-    /** 描述信息 */
-    description: string;
-    type: DefinitionType;
-    /** 标注 ID */
-    annotationId: string;
-}
-
-
-export interface TemplateDefinition extends BaseDefinition {
-    type: 'template';
-}
-
-export interface HintBoxDefinition extends BaseDefinition {
-    type: 'hint-box';
-}
-
-export interface HintPointDefinition extends BaseDefinition {
-    type: 'hint-point';
-}
-
-export type Definition = TemplateDefinition | HintBoxDefinition | HintPointDefinition;
-
-export type Definitions = Record<string, Definition>;
-
-export interface ImageMetaData {
-    definitions: Definitions;
-    annotations: Annotation[];
-}
+export type { DefinitionType, BaseDefinition, TemplateDefinition, HintBoxDefinition, HintPointDefinition, Definition, Definitions, ImageMetaData };
 
 function fromString(data: string): ImageMetaData {
     return JSON.parse(data);
@@ -48,7 +15,7 @@ function toString(data: ImageMetaData): string {
         }
         return value;
     };
-    return JSON.stringify(data, replacer);
+    return JSON.stringify(data, replacer, 2);
 }
 
 

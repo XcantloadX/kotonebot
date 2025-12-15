@@ -255,7 +255,6 @@ interface ToolCheckboxProps {
 
 // 子组件定义
 export const ToolButton: React.FC<ToolButtonProps> = ({
-  id,
   icon,
   label,
   title,

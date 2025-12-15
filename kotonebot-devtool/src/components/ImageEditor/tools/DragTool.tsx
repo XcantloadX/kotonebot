@@ -101,7 +101,7 @@ function DragToolComponent(props: ToolProps) {
       editorProps.onAnnotationSelected?.(anno);
   };
 
-  const handleContainerClick = (e: MouseEvent) => {
+  const handleContainerClick = () => {
     setSelectedRectId(null);
     setHoveredRectId(null);
     editorProps.onAnnotationSelected?.(null);

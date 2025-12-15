@@ -1,6 +1,5 @@
 import { EditorOverlay, OverlayProps } from '../core/types';
 import RectMask from '../RectMask';
-import { RectPoints } from '../types';
 
 const RectMaskComponent: React.FC<OverlayProps> = ({ editorState: [state], editorProps }) => {
   if (!editorProps.enableMask || editorProps.annotations.length === 0) {
