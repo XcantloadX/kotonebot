@@ -1,6 +1,7 @@
-import argparse
 import sys
-from .server import start_devtools
+import argparse
+
+from ..web.server.server import start_devtools
 
 
 def main():

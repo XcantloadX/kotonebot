@@ -5,11 +5,21 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, HTMLResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import uvicorn
+import socketio
+
+from kotonebot.devtools.project.project import Project
+from .rpc import RPCManager
+from . import prefabs
 
 
-def create_app() -> FastAPI:
+def create_app():
     """Create and configure the FastAPI application."""
     app = FastAPI(title="KotoneBot DevTools")
+
+    sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
+    rpc = RPCManager(sio)
+    project = Project()
+    prefabs.init(rpc, project)
     
     # Get the dist directory path
     dist_dir = Path(__file__).parent.parent / "web" / "dist"
@@ -47,7 +57,7 @@ def create_app() -> FastAPI:
                 "info": "Build the frontend using: npm run build in kotonebot-devtool directory"
             }, status_code=503)
     
-    return app
+    return app, sio
 
 
 def start_devtools(
@@ -62,7 +72,8 @@ def start_devtools(
         port: Port to listen on (default: 1178)
         open_browser: Automatically open browser (default: True)
     """
-    app = create_app()
+    app, sio = create_app()
+    asgi_app = socketio.ASGIApp(sio, app)
     
     # Open browser before starting server
     if open_browser:
@@ -71,7 +82,7 @@ def start_devtools(
     
     # Start server
     uvicorn.run(
-        app,
+        asgi_app,
         host=host,
         port=port,
         log_level="info"

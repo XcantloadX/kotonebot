@@ -13,6 +13,8 @@ from .resgen import (
     ImageProcessor,
 )
 
+from .project.schema import EditorMetadata
+
 __all__ = [
     # core
     "CodeWriter",
@@ -33,5 +35,8 @@ __all__ = [
     "unify_path",
     "build_class_tree",
     "ImageProcessor",
+
+    # plugin
+    "EditorMetadata",
 ]
 

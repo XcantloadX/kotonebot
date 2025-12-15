@@ -183,7 +183,7 @@ class TestImportAll(unittest.TestCase):
             with self.assertRaises(ImportError):
                 importlib.import_module('kotonebot.client.host.adb_common')
 
-        with patch.dict('sys.modules', {'win32ui': None, 'win32gui': None, 'ahk': None}):
+        with patch.dict('sys.modules', {'win32ui': None, 'win32gui': None, 'win32api': None, 'win32con': None, 'ahk': None}):
             with self.assertRaises(ImportError):
                 importlib.import_module('kotonebot.client.implements.windows')
 
@@ -227,6 +227,8 @@ class TestImportAll(unittest.TestCase):
                 'winreg': MagicMock(),
                 'win32ui': MagicMock(),
                 'win32gui': MagicMock(),
+                'win32api': MagicMock(),
+                'win32con': MagicMock(),
                 'ahk': MagicMock(),
             }):
                 importlib.import_module('kotonebot.interop.win.task_dialog')

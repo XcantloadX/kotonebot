@@ -52,6 +52,10 @@ dev = [
     "twine~=6.1",
     "build",
     "snakeviz",
+    "tomli; python_version < '3.11'",
+    "dataclass-wizard",
+    "python-socketio~=5.11",
+    "python-engineio~=4.9",
     # Additional utilities
     "jinja2~=3.1",
     "tqdm~=4.67",
@@ -92,3 +96,6 @@ name = "testpypi"
 url = "https://test.pypi.org/simple/"
 publish-url = "https://test.pypi.org/legacy/"
 explicit = true
+
+[tool.kotonebot.editor]
+prefabs_module = "1"
