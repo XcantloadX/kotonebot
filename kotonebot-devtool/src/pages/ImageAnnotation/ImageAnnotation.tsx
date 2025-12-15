@@ -324,21 +324,11 @@ const usePropertyGridData = (
 
     let specificProperties: Array<PropertyCategory | Property> = [];
     if (definition.type === 'template') {
-        const rectDef = definition as TemplateDefinition;
+        // 保留 "模板" 分类，但移除 "提示矩形" 属性
         specificProperties = [
             {
                 title: '模板',
-                properties: [
-                    {
-                        title: '提示矩形',
-                        render: {
-                            type: 'checkbox',
-                            required: false,
-                            value: rectDef.useHintRect,
-                            onChange: (value: boolean) => onDefinitionChange?.(selectedAnnotation.id, { useHintRect: value }),
-                        }
-                    }
-                ],
+                properties: [],
                 foldable: true,
             }
         ];
@@ -417,7 +407,6 @@ const ImageAnnotation: React.FC = () => {
                 displayName: '',
                 type: type,
                 annotationId: e.annotation.id,
-                useHintRect: false,
             } as TemplateDefinition);
             setIsDirty(true);
         } else if (e.type === 'update') {

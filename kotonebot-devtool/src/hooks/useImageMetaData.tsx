@@ -18,14 +18,6 @@ export interface BaseDefinition {
 
 export interface TemplateDefinition extends BaseDefinition {
     type: 'template';
-    /**
-     * 是否将这个模板的矩形范围作为运行时
-     * 执行模板寻找函数时的提示范围。
-     * 
-     * 若为 true，则运行时会先在这个范围内寻找，
-     * 如果没找到，再在整张截图中寻找。
-     */
-    useHintRect: boolean
 }
 
 export interface HintBoxDefinition extends BaseDefinition {

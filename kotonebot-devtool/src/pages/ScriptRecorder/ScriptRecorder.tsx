@@ -636,7 +636,6 @@ const ScriptRecorder: React.FC = () => {
                 displayName: '',
                 type: type,
                 annotationId: e.annotation.id,
-                useHintRect: false,
             } as TemplateDefinition;
             Definitions.add(definition);
 
