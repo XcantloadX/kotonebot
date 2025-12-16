@@ -5,6 +5,7 @@ from typing_extensions import deprecated
 
 from cv2.typing import MatLike
 
+from kotonebot.config.config import conf
 from kotonebot.util import Interval
 from kotonebot import device, image, ocr
 from kotonebot.backend.core import Image
@@ -111,6 +112,10 @@ class Loop:
             self.screenshot = device.screenshot()
         self.__last_loop = time.time()
         self.found_anything = False
+        # 执行全局回调
+        callbacks = conf().loop.loop_callbacks
+        for cb in callbacks:
+            cb(self)
         return self
 
     def exit(self):

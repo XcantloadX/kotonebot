@@ -1,8 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable
 from contextvars import ContextVar
 
 if TYPE_CHECKING:
+    from kotonebot import Loop
     from kotonebot.client.scaler import AbstractScaler
 from kotonebot.primitives import Size
 
@@ -23,8 +24,18 @@ class DeviceConfig:
 
 
 @dataclass
+class LoopConfig:
+    loop_callbacks: 'list[Callable[[Loop], None]]' = field(default_factory=list)
+    """全局 Loop 回调函数。
+    
+    每次 Loop 循环一次时，都会调用此处的处理函数。
+    可以在这里放置一些需要全局处理的内容，如网络错误等。
+    """
+
+@dataclass
 class Config:
     device: DeviceConfig
+    loop: LoopConfig
 
 
 _global_config: ContextVar[Config | None] = ContextVar('kotonebot_global_config', default=None)
@@ -43,7 +54,8 @@ def conf(*, auto_create: bool = True) -> Config:
             device=DeviceConfig(
                 default_scaler_factory=lambda: ProportionalScaler(),
                 default_logic_resolution=None
-            )
+            ),
+            loop=LoopConfig()
         )
         _global_config.set(c)
     return c
