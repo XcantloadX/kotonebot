@@ -1,7 +1,7 @@
 import os
 from typing import Any, List
 
-from .core import CodeWriter, ClassNode, ResourceNode, ImageAsset, BoxData, PointData
+from .core import CodeWriter, ClassNode, ResourceNode, ImageAsset, BoxData, PointData, PrefabData
 from .utils import unify_path
 
 class StandardGenerator:
@@ -136,11 +136,44 @@ class EntityGenerator(StandardGenerator):
 
         if isinstance(data, ImageAsset):
             self._render_prefab_class(attr, data)
+        elif isinstance(data, PrefabData):
+            self._render_custom_prefab_class(attr, data)
         elif isinstance(data, (BoxData, PointData)):
             self._render_primitive_assignment(attr, data)
         else:
             # 兜底：如果 value 是未知类型或纯字符串，回退到默认赋值
             super().render_attribute(attr)
+
+    def _render_custom_prefab_class(self, node: ResourceNode, data: PrefabData):
+        """
+        渲染自定义基类的 Prefab 嵌套类
+        """
+        w = self.writer
+        class_name = node.name
+        base_class = data.class_name
+        
+        # 1. 类定义
+        w.write(f"class {class_name}({base_class}):")
+        
+        with w.indent():
+            # 2. Docstring
+            if not self.production:
+                self.render_docstring(node)
+            
+            # 3. template 属性 (Image)
+            clean_path = unify_path(data.image.path)
+            w.write(f'template = Image(file_path="{clean_path}")')
+            
+            # 4. display_name 属性
+            display_name = node.metadata.get('display_name', node.name)
+            w.write(f'display_name = "{display_name}"')
+            
+            # 5. _orig_rect 属性
+            if data.image.rect:
+                x1, y1, x2, y2 = data.image.rect
+                w.write(f"_orig_rect = Rect(x={x1}, y={y1}, w={x2-x1}, h={y2-y1})")
+            else:
+                w.write("_orig_rect = None")
 
     def _render_prefab_class(self, node: ResourceNode, data: ImageAsset):
         """

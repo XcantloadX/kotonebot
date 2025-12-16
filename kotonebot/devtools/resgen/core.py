@@ -37,6 +37,13 @@ class ImageAsset:
 
 
 @dataclass
+class PrefabData:
+    """代表自定义 Prefab 资源的结构化数据"""
+    image: ImageAsset
+    class_name: str
+
+
+@dataclass
 class BoxData:
     """代表矩形区域的结构化数据"""
     x1: int
@@ -57,8 +64,8 @@ class PointData:
 class ResourceNode:
     """资源的最小单元 (Sprite, HintBox 等)。value 存放 IR 对象，而不是代码字符串。"""
     name: str
-    type: str  # 'template', 'hint-box', 'hint-point'
-    value: Union[ImageAsset, BoxData, PointData, Any]
+    type: str  # 'template', 'hint-box', 'hint-point', 'prefab'
+    value: Union[ImageAsset, BoxData, PointData, PrefabData, Any]
     docstring: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict) # 原始数据备份，用于扩展
 

@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 from typing import List, Dict, Any
-from .core import SchemaParser, ResourceNode, ImageAsset, BoxData, PointData
+from .core import SchemaParser, ResourceNode, ImageAsset, BoxData, PointData, PrefabData
 from .utils import to_camel_case, ImageProcessor
 
 class ParserRegistry:
@@ -92,6 +92,40 @@ class KotoneV1Parser(SchemaParser):
                         name=attr_name,
                         type='template',
                         value=ImageAsset(path=metadata['abs_path'], rect=rect),
+                        docstring=self._build_docstring(display_name, desc, class_path, metadata['abs_path'], png_file),
+                        metadata=metadata
+                    )
+                    resources.append(node)
+
+            elif def_type == 'prefab':
+                prefab_def = definition.get('prefab')
+                if not prefab_def or not prefab_def.get('className'):
+                    raise ValueError(f"Prefab definition {def_id} missing className")
+                
+                class_name_ref = prefab_def['className']
+
+                if annotation and annotation['type'] == 'rect':
+                    rect_data = annotation['data']
+                    rect = (rect_data['x1'], rect_data['y1'], rect_data['x2'], rect_data['y2'])
+                    
+                    # 裁剪并保存
+                    img_uuid = annot_id
+                    save_path = ImageProcessor.save_crop(png_file, rect, output_dir, f"tmpl_{attr_name}")
+                    
+                    final_name = f"{img_uuid}.png"
+                    final_path = os.path.join(output_dir, final_name)
+                    if os.path.exists(save_path) and save_path != final_path:
+                         os.rename(save_path, final_path)
+                    
+                    metadata['abs_path'] = os.path.abspath(final_path)
+
+                    node = ResourceNode(
+                        name=attr_name,
+                        type='prefab',
+                        value=PrefabData(
+                            image=ImageAsset(path=metadata['abs_path'], rect=rect),
+                            class_name=class_name_ref
+                        ),
                         docstring=self._build_docstring(display_name, desc, class_path, metadata['abs_path'], png_file),
                         metadata=metadata
                     )
