@@ -1,7 +1,7 @@
 import unittest
 import cv2
 
-from kotonebot.core.entities.base import GameObject, TemplateMatchPrefab, OcrPrefab
+from kotonebot.core.entities.base import GameObject, TemplateMatchPrefab, OcrPrefab, Prefab
 from kotonebot.primitives import Image, Rect
 from kotonebot.backend.context.context import manual_context, init_context
 from kotonebot.backend.image import TemplateNoMatchError
@@ -197,6 +197,43 @@ class TestOcrPrefab(unittest.TestCase):
         objs = _Prefab.find_all(predicate=lambda o: False)
         self.assertEqual(len(objs), 0)
 
+
+class TestCompoundPrefab(unittest.TestCase):
+    def test_any_of(self):
+        from kotonebot.core.entities.compound import AnyOf
+        
+        class P1(Prefab):
+            @classmethod
+            def find(cls, **kwargs): return None
+            @classmethod
+            def exists(cls, **kwargs): return False
+            @classmethod
+            def find_all(cls, **kwargs): return []
+            @classmethod
+            def require(cls, **kwargs): raise RuntimeError("Not found")
+            
+        class P2(Prefab):
+            @classmethod
+            def find(cls, **kwargs): return GameObject()
+            @classmethod
+            def exists(cls, **kwargs): return True
+            @classmethod
+            def find_all(cls, **kwargs): return [GameObject()]
+            @classmethod
+            def require(cls, **kwargs): return GameObject()
+            
+        Compound = AnyOf[P1, P2]
+        self.assertTrue(Compound.exists())
+        self.assertIsNotNone(Compound.find())
+        self.assertEqual(len(Compound.find_all()), 1)
+        self.assertIsNotNone(Compound.require())
+        
+        Compound2 = AnyOf[P1]
+        self.assertFalse(Compound2.exists())
+        self.assertIsNone(Compound2.find())
+        self.assertEqual(len(Compound2.find_all()), 0)
+        with self.assertRaises(RuntimeError):
+            Compound2.require()
 
 if __name__ == '__main__':
     unittest.main()
