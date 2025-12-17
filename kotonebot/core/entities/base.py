@@ -1,6 +1,6 @@
 import time
 from abc import ABC
-from typing import Any, Callable, Type, cast, get_args
+from typing import TYPE_CHECKING, Any, Callable, Type, cast, get_args
 from typing_extensions import Generic, TypeVar, override, Unpack, TypedDict
 
 from kotonebot.primitives import Rect, Image
@@ -164,6 +164,23 @@ class GameObject:
         from kotonebot import device
         device.double_click(*self.rect.center)
 
+class TemplateMatchFindKargs(PrefabKwargs[GameObjectType], total=False):
+    threshold: float | None
+    """匹配阈值
+    
+    如果指定，则覆盖 TemplateMatchPrefab 中定义的 threshold 属性。
+    """
+    colored: bool | None
+    """是否匹配颜色
+    
+    如果指定，则覆盖 TemplateMatchPrefab 中定义的 colored 属性。
+    """
+    region: Rect | None
+    """搜索区域
+    
+    如果指定，则覆盖 TemplateMatchPrefab 中定义的 region 属性。
+    """
+
 class TemplateMatchPrefab(Prefab[GameObjectType]):
     """基于模版匹配的 Prefab"""
     template: Image
@@ -192,14 +209,19 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
 
     @override
     @classmethod
-    def find(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> GameObjectType | None:
+    def find(cls, **kwargs: Unpack[TemplateMatchFindKargs[GameObjectType]]) -> GameObjectType | None:
         from kotonebot import image
         predicate = kwargs.get('predicate')
+        threshold_override = kwargs.get('threshold')
+        threshold = cls.threshold if threshold_override is None else threshold_override
+        colored_override = kwargs.get('colored')
+        colored = cls.colored if colored_override is None else colored_override
+        region = kwargs.get('region', cls.region)
         result = image.find(
             cls.template.pixels,
-            rect=cls.region,
-            threshold=cls.threshold,
-            colored=cls.colored,
+            rect=region,
+            threshold=threshold,
+            colored=colored,
         )
         if result is None:
             return None
@@ -213,14 +235,19 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
     
     @override
     @classmethod
-    def find_all(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> list[GameObjectType]:
+    def find_all(cls, **kwargs: Unpack[TemplateMatchFindKargs[GameObjectType]]) -> list[GameObjectType]:
         from kotonebot import image
         predicate = kwargs.get('predicate')
+        threshold_override = kwargs.get('threshold')
+        threshold = cls.threshold if threshold_override is None else threshold_override
+        colored_override = kwargs.get('colored')
+        colored = cls.colored if colored_override is None else colored_override
+        region = kwargs.get('region', cls.region)
         results = image.find_all(
             cls.template.pixels,
-            rect=cls.region,
-            threshold=cls.threshold,
-            colored=cls.colored,
+            rect=region,
+            threshold=threshold,
+            colored=colored,
         )
         obj_class = cls._get_object_class()
         objects: list[GameObjectType] = []
@@ -234,17 +261,22 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
     
     @override
     @classmethod
-    def require(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> GameObjectType:
+    def require(cls, **kwargs: Unpack[TemplateMatchFindKargs[GameObjectType]]) -> GameObjectType:
         from kotonebot import image, device
         from kotonebot.backend.image import TemplateNoMatchError
         predicate = kwargs.get('predicate')
+        threshold_override = kwargs.get('threshold')
+        threshold = cls.threshold if threshold_override is None else threshold_override
+        colored_override = kwargs.get('colored')
+        colored = cls.colored if colored_override is None else colored_override
+        region = kwargs.get('region', cls.region)
         if predicate is None:
             # 直接使用 expect，未找到会抛出 TemplateNoMatchError
             result = image.expect(
                 cls.template.pixels,
-                rect=cls.region,
-                threshold=cls.threshold,
-                colored=cls.colored,
+                rect=region,
+                threshold=threshold,
+                colored=colored,
             )
             obj_class = cls._get_object_class()
             obj = obj_class()
@@ -255,9 +287,9 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
             # 需要满足 predicate，则遍历所有匹配项
             results = image.find_all(
                 cls.template.pixels,
-                rect=cls.region,
-                threshold=cls.threshold,
-                colored=cls.colored,
+                rect=region,
+                threshold=threshold,
+                colored=colored,
             )
             obj_class = cls._get_object_class()
             for r in results:
@@ -269,6 +301,17 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
             # 没有任何匹配满足 predicate，抛出未找到异常
             raise TemplateNoMatchError(device.screenshot(), cls.template.pixels)
 
+    if TYPE_CHECKING:
+        # 这个方法只需要重载声明，实际实现由基类提供不变
+        @classmethod
+        def exists(cls, **kwargs: Unpack[TemplateMatchFindKargs[GameObjectType]]) -> bool: ...
+
+class OcrFindKargs(PrefabKwargs[GameObjectType], total=False):
+    region: Rect | None
+    """搜索区域
+    
+    如果指定，则覆盖 OcrPrefab 中定义的 region 属性。
+    """
 
 class OcrPrefab(Prefab[GameObjectType]):
     """基于 Ocr 的 Prefab"""
@@ -283,10 +326,11 @@ class OcrPrefab(Prefab[GameObjectType]):
 
     @override
     @classmethod
-    def find(cls, **kwargs: Unpack[PrefabKwargs]) -> GameObjectType | None:
+    def find(cls, **kwargs: Unpack[OcrFindKargs[GameObjectType]]) -> GameObjectType | None:
         from kotonebot import ocr
         predicate = kwargs.get('predicate')
-        result = ocr.find(cls.pattern, rect=cls.region)
+        region = kwargs.get('region', cls.region)
+        result = ocr.find(cls.pattern, rect=region)
         if result is None:
             return None
         obj_class = cls._get_object_class()
@@ -300,11 +344,12 @@ class OcrPrefab(Prefab[GameObjectType]):
 
     @override
     @classmethod
-    def find_all(cls, **kwargs: Unpack[PrefabKwargs]) -> list[GameObjectType]:
+    def find_all(cls, **kwargs: Unpack[OcrFindKargs[GameObjectType]]) -> list[GameObjectType]:
         from kotonebot import ocr
         predicate = kwargs.get('predicate')
+        region = kwargs.get('region', cls.region)
         # 获取所有 OCR 结果后按文本过滤
-        results = ocr.ocr(rect=cls.region)
+        results = ocr.ocr(rect=region)
         obj_class = cls._get_object_class()
         objects: list[GameObjectType] = []
         for r in results:
@@ -318,12 +363,13 @@ class OcrPrefab(Prefab[GameObjectType]):
 
     @override
     @classmethod
-    def require(cls, **kwargs: Unpack[PrefabKwargs]) -> GameObjectType:
+    def require(cls, **kwargs: Unpack[OcrFindKargs[GameObjectType]]) -> GameObjectType:
         from kotonebot import ocr, device
         from kotonebot.backend.ocr import TextNotFoundError
         predicate = kwargs.get('predicate')
+        region = kwargs.get('region', cls.region)
         if predicate is None:
-            result = ocr.expect(cls.pattern, rect=cls.region)
+            result = ocr.expect(cls.pattern, rect=region)
             obj_class = cls._get_object_class()
             obj = obj_class()
             obj.rect = result.original_rect

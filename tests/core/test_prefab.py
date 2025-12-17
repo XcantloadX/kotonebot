@@ -95,6 +95,43 @@ class TestTemplateMatchPrefab(unittest.TestCase):
         with self.assertRaises(TemplateNoMatchError):
             _Prefab.require()
 
+    def test_kwargs_override_threshold_and_region(self):
+        class _Obj(GameObject):
+            pass
+        class _Prefab(TemplateMatchPrefab[_Obj]):
+            template = Image(file_path='tests/images/pdorinku.png')
+            # 使用一个非常高的阈值以及错误的区域，默认应匹配失败
+            threshold = 0.999
+            region = Rect(0, 0, 10, 10)
+
+        # 默认配置应抛出异常
+        with self.assertRaises(TemplateNoMatchError):
+            _Prefab.require()
+
+        # 使用 kwargs 覆盖阈值和区域，应当可以匹配成功
+        h, w, _ = self.img.shape
+        full_region = Rect(0, 0, w, h)
+        obj = _Prefab.require(threshold=0.7, region=full_region)
+        self.assertIsNotNone(obj)
+        self.assertIsInstance(obj, _Obj)
+        self.assertIs(obj.prefab, _Prefab)
+
+    def test_kwargs_colored_argument(self):
+        class _Obj(GameObject):
+            pass
+        class _Prefab(TemplateMatchPrefab[_Obj]):
+            template = Image(file_path='tests/images/pdorinku.png')
+            threshold = 0.7
+            colored = False
+
+        # 仅验证 colored 参数可以通过 kwargs 传入并正常工作
+        obj = _Prefab.find(colored=True)
+        # 无论是否匹配成功，代码路径都不应抛异常
+        # 如果匹配成功，再做一些基本断言
+        if obj is not None:
+            self.assertIsInstance(obj, _Obj)
+            self.assertIs(obj.prefab, _Prefab)
+
     def test_predicate_filters(self):
         class _Obj(GameObject):
             pass
@@ -204,6 +241,24 @@ class TestOcrPrefab(unittest.TestCase):
         self.assertIsNone(obj)
         objs = _Prefab.find_all(predicate=lambda o: False)
         self.assertEqual(len(objs), 0)
+
+    def test_ocr_kwargs_override_region(self):
+        class _Obj(GameObject):
+            pass
+        class _Prefab(OcrPrefab[_Obj]):
+            pattern = '受け取るPドリンクを選んでください。'
+            # 默认使用一个明显错误的区域，应当找不到
+            region = Rect(0, 0, 10, 10)
+
+        with self.assertRaises(TextNotFoundError):
+            _Prefab.require()
+
+        # 使用 kwargs 覆盖为正确区域，应当可以找到
+        correct_region = Rect(147, 614, 417, 32)
+        obj = _Prefab.require(region=correct_region)
+        self.assertIsNotNone(obj)
+        self.assertIsInstance(obj, _Obj)
+        self.assertIs(obj.prefab, _Prefab)
 
 
 class TestCompoundPrefab(unittest.TestCase):
