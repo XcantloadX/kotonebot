@@ -1,6 +1,6 @@
 import time
 from abc import ABC
-from typing import Callable, Type, cast, get_args
+from typing import Any, Callable, Type, cast, get_args
 from typing_extensions import Generic, TypeVar, override, Unpack, TypedDict
 
 from kotonebot.primitives import Rect, Image
@@ -151,6 +151,8 @@ class GameObject:
     可选，用于在编辑器或日志中显示更友好的名称。
     如果未设置，则使用类名。
     """
+    prefab: type[Prefab[Any]]
+    """当前对象对应的 Prefab 类"""
 
     def click(self) -> None:
         """点击当前对象的中心位置。"""
@@ -204,6 +206,7 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
         obj_class = cls._get_object_class()
         obj = obj_class()
         obj.rect = result.rect
+        obj.prefab = cls
         if predicate is not None and not predicate(obj):
             return None
         return obj
@@ -224,6 +227,7 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
         for r in results:
             obj = obj_class()
             obj.rect = r.rect
+            obj.prefab = cls
             if predicate is None or predicate(obj):
                 objects.append(obj)
         return objects
@@ -245,6 +249,7 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
             obj_class = cls._get_object_class()
             obj = obj_class()
             obj.rect = result.rect
+            obj.prefab = cls
             return obj
         else:
             # 需要满足 predicate，则遍历所有匹配项
@@ -259,6 +264,7 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
                 obj = obj_class()
                 obj.rect = r.rect
                 if predicate(obj):
+                    obj.prefab = cls
                     return obj
             # 没有任何匹配满足 predicate，抛出未找到异常
             raise TemplateNoMatchError(device.screenshot(), cls.template.pixels)
@@ -287,6 +293,7 @@ class OcrPrefab(Prefab[GameObjectType]):
         obj = obj_class()
         # 使用原图坐标
         obj.rect = result.original_rect
+        obj.prefab = cls
         if predicate is not None and not predicate(obj):
             return None
         return obj
@@ -304,6 +311,7 @@ class OcrPrefab(Prefab[GameObjectType]):
             if r.text == cls.pattern:
                 obj = obj_class()
                 obj.rect = r.original_rect
+                obj.prefab = cls
                 if predicate is None or predicate(obj):
                     objects.append(obj)
         return objects
@@ -319,6 +327,7 @@ class OcrPrefab(Prefab[GameObjectType]):
             obj_class = cls._get_object_class()
             obj = obj_class()
             obj.rect = result.original_rect
+            obj.prefab = cls
             return obj
         else:
             # 扫描所有 OCR 结果，匹配文本并套用 predicate
@@ -329,5 +338,6 @@ class OcrPrefab(Prefab[GameObjectType]):
                     obj = obj_class()
                     obj.rect = r.original_rect
                     if predicate(obj):
+                        obj.prefab = cls
                         return obj
             raise TextNotFoundError(cls.pattern, device.screenshot())

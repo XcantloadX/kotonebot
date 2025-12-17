@@ -54,6 +54,8 @@ class TestTemplateMatchPrefab(unittest.TestCase):
         self.assertIsNotNone(obj)
         self.assertTrue(_Prefab.exists())
         assert obj is not None
+        # prefab 属性应指向对应的 Prefab 类
+        self.assertIs(obj.prefab, _Prefab)
         self.assertGreater(obj.rect.w, 0)
         self.assertGreater(obj.rect.h, 0)
 
@@ -67,6 +69,7 @@ class TestTemplateMatchPrefab(unittest.TestCase):
         self.assertGreater(len(objs), 0)
         for o in objs:
             self.assertIsInstance(o, _Obj)
+            self.assertIs(o.prefab, _Prefab)
             self.assertGreater(o.rect.w, 0)
             self.assertGreater(o.rect.h, 0)
 
@@ -78,6 +81,7 @@ class TestTemplateMatchPrefab(unittest.TestCase):
             threshold = 0.7
         obj = _Prefab.require()
         self.assertIsInstance(obj, _Obj)
+        self.assertIs(obj.prefab, _Prefab)
         self.assertGreater(obj.rect.w, 0)
         self.assertGreater(obj.rect.h, 0)
 
@@ -149,6 +153,8 @@ class TestOcrPrefab(unittest.TestCase):
         self.assertIsNotNone(obj)
         self.assertTrue(_Prefab.exists())
         assert obj is not None
+        # prefab 属性应指向对应的 Prefab 类
+        self.assertIs(obj.prefab, _Prefab)
         # 位置应在区域附近
         self.assertGreaterEqual(obj.rect.x1, _Prefab.region.x1)
         self.assertGreaterEqual(obj.rect.y1, _Prefab.region.y1)
@@ -163,6 +169,7 @@ class TestOcrPrefab(unittest.TestCase):
         self.assertGreaterEqual(len(objs), 1)
         for o in objs:
             self.assertIsInstance(o, _Obj)
+            self.assertIs(o.prefab, _Prefab)
             self.assertGreater(o.rect.w, 0)
             self.assertGreater(o.rect.h, 0)
 
@@ -174,6 +181,7 @@ class TestOcrPrefab(unittest.TestCase):
             region = Rect(147, 614, 417, 32)
         obj = _Prefab.require()
         self.assertIsInstance(obj, _Obj)
+        self.assertIs(obj.prefab, _Prefab)
         self.assertGreater(obj.rect.w, 0)
         self.assertGreater(obj.rect.h, 0)
 
