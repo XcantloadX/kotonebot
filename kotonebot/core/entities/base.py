@@ -8,12 +8,12 @@ from kotonebot.devtools import EditorMetadata
 
 GameObjectType = TypeVar('GameObjectType', bound='GameObject', default='GameObject')
 
-class PrefabKwargs(TypedDict, Generic[GameObjectType], total=False):
+class FindKwargs(TypedDict, Generic[GameObjectType], total=False):
     predicate: 'Callable[[GameObjectType], bool] | None'
 
 
-class ClickKwargs(TypedDict, total=False):
-    pass
+class ClickKwargs(TypedDict, Generic[GameObjectType], total=False):
+    find_kargs: FindKwargs[GameObjectType]
 
 
 class Prefab(Generic[GameObjectType], ABC):
@@ -52,7 +52,7 @@ class Prefab(Generic[GameObjectType], ABC):
         return cast(Type[GameObjectType], GameObject)
 
     @classmethod
-    def find(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> GameObjectType | None:
+    def find(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> GameObjectType | None:
         """在屏幕画面中寻找当前 Prefab，并返回对应的第一个 GameObject 实例。
 
         :return: 寻找结果。如果没有找到，返回 None。
@@ -60,7 +60,7 @@ class Prefab(Generic[GameObjectType], ABC):
         raise NotImplementedError
     
     @classmethod
-    def find_all(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> list[GameObjectType]:
+    def find_all(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> list[GameObjectType]:
         """在屏幕画面中寻找当前 Prefab，并返回对应的所有 GameObject 实例。
 
         :return: 寻找结果列表。如果没有找到，返回空列表。
@@ -68,7 +68,7 @@ class Prefab(Generic[GameObjectType], ABC):
         raise NotImplementedError
     
     @classmethod
-    def require(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> GameObjectType:
+    def require(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> GameObjectType:
         """在屏幕画面中寻找当前 Prefab，并返回对应的第一个 GameObject 实例。
         
         此方法与 find 类似，但如果没有找到任何结果，则会抛出异常。
@@ -79,7 +79,7 @@ class Prefab(Generic[GameObjectType], ABC):
         raise NotImplementedError
     
     @classmethod
-    def exists(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> bool:
+    def exists(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> bool:
         """判断当前 Prefab 是否存在于屏幕画面中。
         
         此方法为 find 的简化版，仅返回是否存在。
@@ -164,7 +164,7 @@ class GameObject:
         from kotonebot import device
         device.double_click(*self.rect.center)
 
-class TemplateMatchFindKargs(PrefabKwargs[GameObjectType], total=False):
+class TemplateMatchFindKargs(FindKwargs[GameObjectType], total=False):
     threshold: float | None
     """匹配阈值
     
@@ -306,7 +306,7 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
         @classmethod
         def exists(cls, **kwargs: Unpack[TemplateMatchFindKargs[GameObjectType]]) -> bool: ...
 
-class OcrFindKargs(PrefabKwargs[GameObjectType], total=False):
+class OcrFindKargs(FindKwargs[GameObjectType], total=False):
     region: Rect | None
     """搜索区域
     

@@ -1,7 +1,7 @@
 from typing import Type, Sequence, cast, Any
 from typing_extensions import Unpack, override
-from kotonebot.core.entities.base import PrefabKwargs, GameObjectType
-from .base import Prefab, GameObject
+from kotonebot.core.entities.base import FindKwargs, GameObjectType
+from .base import Prefab
 
 
 class AnyOf(Prefab[Any]):
@@ -31,7 +31,7 @@ class AnyOf(Prefab[Any]):
 
     @override
     @classmethod
-    def find(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> GameObjectType | None:
+    def find(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> GameObjectType | None:
         # Cast kwargs to Any to bypass contravariance checks on predicate
         unsafe_kwargs = cast(dict[str, Any], kwargs)
         
@@ -44,7 +44,7 @@ class AnyOf(Prefab[Any]):
 
     @override
     @classmethod
-    def find_all(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> list[GameObjectType]:
+    def find_all(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> list[GameObjectType]:
         unsafe_kwargs = cast(dict[str, Any], kwargs)
         results: list[GameObjectType] = []
         for prefab in cls.options:
@@ -55,7 +55,7 @@ class AnyOf(Prefab[Any]):
 
     @override
     @classmethod
-    def exists(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> bool:
+    def exists(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> bool:
         unsafe_kwargs = cast(dict[str, Any], kwargs)
         for prefab in cls.options:
             if prefab.exists(**unsafe_kwargs):
@@ -64,7 +64,7 @@ class AnyOf(Prefab[Any]):
 
     @override
     @classmethod
-    def require(cls, **kwargs: Unpack[PrefabKwargs[GameObjectType]]) -> GameObjectType:
+    def require(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> GameObjectType:
         unsafe_kwargs = cast(dict[str, Any], kwargs)
         for prefab in cls.options:
             obj = prefab.find(**unsafe_kwargs)
