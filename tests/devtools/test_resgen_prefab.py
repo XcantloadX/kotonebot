@@ -124,6 +124,33 @@ class TestPrefabParser(unittest.TestCase):
             
         self.assertIn("missing className", str(cm.exception))
 
+    def test_parse_simple_prefab(self):
+        """Test parsing a prefab definition from simple meta (isSimple true)."""
+        data = {
+            "isSimple": True,
+            "definition": {
+                "name": "MyPrefab",
+                "type": "prefab",
+                "prefab": {
+                    "className": "MyBaseClass",
+                },
+            },
+        }
+
+        json_path = self.create_test_files(data)
+        context = {"output_img_dir": self.output_dir, "root_scan_path": self.tmp_dir.name}
+
+        nodes = self.parser.parse(json_path, context)
+
+        self.assertEqual(len(nodes), 1)
+        node = nodes[0]
+        self.assertEqual(node.name, "MyPrefab")
+        self.assertEqual(node.type, "prefab")
+        self.assertIsInstance(node.value, PrefabData)
+        assert isinstance(node.value, PrefabData)
+        self.assertEqual(node.value.class_name, "MyBaseClass")
+        self.assertIsInstance(node.value.image, ImageAsset)
+
 
 class TestPrefabCodegen(unittest.TestCase):
     """Test code generation for prefab definitions"""

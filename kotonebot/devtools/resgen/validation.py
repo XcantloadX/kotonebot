@@ -1,0 +1,91 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Dict, Literal
+
+
+class MetaValidationError(ValueError):
+    """Raised when a meta JSON file does not conform to expected schema."""
+
+
+MetaFormat = Literal["simple", "complex"]
+
+
+@dataclass
+class MetaSchemaInfo:
+    """Lightweight description of detected meta schema.
+
+    This is intentionally minimal for now but can be extended later
+    (e.g. to carry source path, name list, etc.).
+    """
+
+    format: MetaFormat
+    is_simple_flag: bool | None
+
+
+def _ensure_bool_or_none(value: Any, field_name: str) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    raise MetaValidationError(f"Field '{field_name}' must be boolean if present.")
+
+
+def detect_and_validate_meta_schema(data: Dict[str, Any]) -> MetaSchemaInfo:
+    """Detect whether meta JSON is in simple or complex format and validate structure.
+
+    Rules:
+    - Simple format:
+      * Top-level `isSimple` MUST be true.
+      * MUST contain `definition` (object).
+      * MUST NOT contain `definitions` or `annotations`.
+    - Complex format:
+      * `isSimple` is absent or false (these two are strictly equivalent).
+      * MUST contain `definitions` and `annotations`.
+      * MUST NOT contain `definition`.
+    """
+
+    if not isinstance(data, dict):
+        raise MetaValidationError("Meta JSON root must be an object.")
+
+    raw_flag = data.get("isSimple")
+    is_simple_flag = _ensure_bool_or_none(raw_flag, "isSimple")
+
+    has_definition = "definition" in data
+    has_definitions = "definitions" in data
+    has_annotations = "annotations" in data
+
+    # Simple format branch
+    if is_simple_flag is True:
+        if not has_definition:
+            raise MetaValidationError("Simple meta must contain field 'definition'.")
+        if has_definitions or has_annotations:
+            raise MetaValidationError(
+                "Simple meta must not contain 'definitions' or 'annotations'."
+            )
+        definition = data["definition"]
+        if not isinstance(definition, dict):
+            raise MetaValidationError("Field 'definition' must be an object.")
+        return MetaSchemaInfo(format="simple", is_simple_flag=True)
+
+    # Complex format branch (isSimple is false or missing)
+    if has_definition:
+        # For complex meta, we never allow the single `definition` field.
+        raise MetaValidationError(
+            "Complex meta must not contain top-level field 'definition'."
+        )
+
+    if not (has_definitions and has_annotations):
+        raise MetaValidationError(
+            "Complex meta must contain both 'definitions' and 'annotations'."
+        )
+
+    # Basic structural checks; detailed content validation can be added later.
+    definitions = data["definitions"]
+    annotations = data["annotations"]
+    if not isinstance(definitions, dict):
+        raise MetaValidationError("Field 'definitions' must be an object (mapping).")
+    if not isinstance(annotations, list):
+        raise MetaValidationError("Field 'annotations' must be an array.")
+
+    return MetaSchemaInfo(format="complex", is_simple_flag=False)

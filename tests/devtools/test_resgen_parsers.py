@@ -9,6 +9,7 @@ from kotonebot.devtools.resgen.parsers import (
     KotoneV1Parser,
     BasicSpriteParser,
 )
+from kotonebot.devtools.resgen.validation import MetaValidationError, detect_and_validate_meta_schema
 from kotonebot.devtools.resgen.core import ResourceNode, ImageAsset
 
 
@@ -149,6 +150,25 @@ class TestKotoneV1Parser(unittest.TestCase):
             parser = KotoneV1Parser()
             self.assertTrue(parser.can_parse(json_file))
 
+    def test_can_parse_with_simple_meta_schema(self):
+        """Test can_parse with new simple meta schema (isSimple + definition)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_file = os.path.join(tmpdir, "test.png.json")
+            schema = {
+                "isSimple": True,
+                "definition": {
+                    "name": "Ui.Button",
+                    "type": "template",
+                    "displayName": "按钮",
+                    "description": "测试按钮",
+                },
+            }
+            with open(json_file, 'w') as f:
+                json.dump(schema, f)
+
+            parser = KotoneV1Parser()
+            self.assertTrue(parser.can_parse(json_file))
+
     def test_parse_empty_schema(self):
         """Test parsing empty V1 schema"""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -217,6 +237,120 @@ class TestKotoneV1Parser(unittest.TestCase):
             self.assertTrue(len(result) > 0)
             self.assertEqual(result[0].type, "template")
             self.assertEqual(result[0].name, "button")
+
+    def test_parse_simple_template_definition(self):
+        """Test parsing simple meta with single template definition (isSimple true)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a dummy PNG file
+            png_file = os.path.join(tmpdir, "ui", "button.png")
+            os.makedirs(os.path.dirname(png_file), exist_ok=True)
+            with open(png_file, 'wb') as f:
+                f.write(b'\x89PNG\r\n\x1a\n')
+
+            json_file = png_file + ".json"
+            schema = {
+                "isSimple": True,
+                "definition": {
+                    "name": "ui.button",
+                    "type": "template",
+                    "displayName": "Button",
+                    "description": "Main button",
+                },
+            }
+            with open(json_file, 'w') as f:
+                json.dump(schema, f)
+
+            parser = KotoneV1Parser()
+            context = {"output_img_dir": tmpdir, "root_scan_path": tmpdir}
+            result = parser.parse(json_file, context)
+
+            self.assertEqual(len(result), 1)
+            node = result[0]
+            self.assertEqual(node.type, "template")
+            self.assertEqual(node.name, "button")
+            self.assertIn("class_path", node.metadata)
+            self.assertEqual(node.metadata["class_path"], ["Ui"])
+
+    def test_parse_simple_template_definition_with_empty_name_and_display(self):
+        """Simple meta: empty name/displayName should fall back to file-based defaults."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            png_file = os.path.join(tmpdir, "ui", "button.png")
+            os.makedirs(os.path.dirname(png_file), exist_ok=True)
+            with open(png_file, 'wb') as f:
+                f.write(b'\x89PNG\r\n\x1a\n')
+
+            json_file = png_file + ".json"
+            schema = {
+                "isSimple": True,
+                "definition": {
+                    "name": "",  # empty name
+                    "type": "template",
+                    "displayName": "",  # empty displayName
+                    "description": "Main button",
+                },
+            }
+            with open(json_file, 'w') as f:
+                json.dump(schema, f)
+
+            parser = KotoneV1Parser()
+            context = {"output_img_dir": tmpdir, "root_scan_path": tmpdir}
+            result = parser.parse(json_file, context)
+
+            self.assertEqual(len(result), 1)
+            node = result[0]
+            # name should be derived from file name (CamelCase)
+            self.assertEqual(node.name, "Button")
+            # class_path should come from relative directory
+            self.assertEqual(node.metadata.get("class_path"), ["Ui"])
+            # display_name should fall back to original file name
+            self.assertEqual(node.metadata.get("display_name"), "button.png")
+
+
+class TestMetaValidation(unittest.TestCase):
+    """Tests for meta schema validation logic."""
+
+    def test_detect_complex_meta_without_is_simple(self):
+        data = {"definitions": {}, "annotations": []}
+        info = detect_and_validate_meta_schema(data)
+        self.assertEqual(info.format, "complex")
+        self.assertFalse(info.is_simple_flag)
+
+    def test_detect_complex_meta_with_is_simple_false(self):
+        data = {"isSimple": False, "definitions": {}, "annotations": []}
+        info = detect_and_validate_meta_schema(data)
+        self.assertEqual(info.format, "complex")
+        self.assertFalse(info.is_simple_flag)
+
+    def test_reject_complex_meta_missing_keys(self):
+        with self.assertRaises(MetaValidationError):
+            detect_and_validate_meta_schema({"definitions": {}})
+
+    def test_detect_simple_meta(self):
+        data = {
+            "isSimple": True,
+            "definition": {"name": "Ui.Button", "type": "template"},
+        }
+        info = detect_and_validate_meta_schema(data)
+        self.assertEqual(info.format, "simple")
+        self.assertTrue(info.is_simple_flag)
+
+    def test_simple_meta_forbids_definitions_and_annotations(self):
+        data = {
+            "isSimple": True,
+            "definition": {"name": "Ui.Button", "type": "template"},
+            "definitions": {},
+        }
+        with self.assertRaises(MetaValidationError):
+            detect_and_validate_meta_schema(data)
+
+    def test_complex_meta_forbids_single_definition_field(self):
+        data = {
+            "definition": {"name": "Ui.Button", "type": "template"},
+            "definitions": {},
+            "annotations": [],
+        }
+        with self.assertRaises(MetaValidationError):
+            detect_and_validate_meta_schema(data)
 
     def test_parse_hint_box_definition(self):
         """Test parsing hint-box definition from V1 schema"""
