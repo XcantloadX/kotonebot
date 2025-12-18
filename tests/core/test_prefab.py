@@ -298,5 +298,83 @@ class TestCompoundPrefab(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             Compound2.require()
 
+
+class TestPrefabKwargsAndClickForwarding(unittest.TestCase):
+    def test_wait_unpacks_kwargs_and_forwards_predicate(self):
+        class _Obj(GameObject):
+            pass
+
+        class _Prefab(Prefab[_Obj]):
+            @classmethod
+            def find(cls, **kwargs):
+                # wait should pop timeout/interval before forwarding to find
+                assert 'timeout' not in kwargs
+                assert 'interval' not in kwargs
+                pred = kwargs.get('predicate')
+                obj = _Obj()
+                obj.prefab = cls
+                if pred is None or pred(obj):
+                    return obj
+                return None
+
+        # should return an object when predicate accepts it
+        obj = _Prefab.wait(timeout=1, interval=0, predicate=lambda o: True)
+        self.assertIsNotNone(obj)
+        self.assertIsInstance(obj, _Obj)
+
+    def test_try_wait_returns_none_on_timeout_without_throw(self):
+        class _Obj(GameObject):
+            pass
+
+        class _Prefab(Prefab[_Obj]):
+            @classmethod
+            def find(cls, **kwargs):
+                return None
+
+        # timeout=0 and interval=0 should make wait return immediately with None
+        res = _Prefab.try_wait(timeout=0, interval=0)
+        self.assertIsNone(res)
+
+    def test_click_and_try_click_forward_predicate(self):
+        clicked = []
+
+        class _Obj(GameObject):
+            def click(self):
+                clicked.append(True)
+
+        class _Prefab(Prefab[_Obj]):
+            @classmethod
+            def require(cls, **kwargs):
+                # click should forward predicate to require
+                assert 'predicate' in kwargs
+                obj = _Obj()
+                obj.prefab = cls
+                return obj
+
+            @classmethod
+            def find(cls, **kwargs):
+                pred = kwargs.get('predicate')
+                obj = _Obj()
+                obj.prefab = cls
+                if pred is None or pred(obj):
+                    return obj
+                return None
+
+        # click should call require and thus trigger click
+        _Prefab.click(predicate=lambda o: True)
+        self.assertTrue(clicked)
+        clicked.clear()
+
+        # try_click should return True and click when predicate matches
+        ok = _Prefab.try_click(predicate=lambda o: True)
+        self.assertTrue(ok)
+        self.assertTrue(clicked)
+        clicked.clear()
+
+        # try_click should return False and not click when predicate doesn't match
+        ok = _Prefab.try_click(predicate=lambda o: False)
+        self.assertFalse(ok)
+        self.assertFalse(clicked)
+
 if __name__ == '__main__':
     unittest.main()

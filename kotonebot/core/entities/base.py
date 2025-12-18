@@ -11,13 +11,13 @@ class FindKwargs(TypedDict, Generic[GameObjectType], total=False):
     predicate: 'Callable[[GameObjectType], bool] | None'
 
 
-class ClickKwargs(TypedDict, Generic[GameObjectType], total=False):
-    find_kargs: FindKwargs[GameObjectType]
+class ClickKwargs(FindKwargs[GameObjectType], Generic[GameObjectType], total=False):
+    pass
 
-class WaitKwargs(TypedDict, total=False):
+class WaitKwargs(FindKwargs[GameObjectType], Generic[GameObjectType], total=False):
     timeout: float | None
     interval: float | None
-    throw: bool | None
+
 
 class Prefab(Generic[GameObjectType], ABC):
     __object_class__: Type[GameObjectType] | None = None
@@ -93,34 +93,40 @@ class Prefab(Generic[GameObjectType], ABC):
         return cls.find(**kwargs) is not None
 
     @classmethod
-    def click(cls, **kwargs: Unpack[ClickKwargs]) -> None:
+    def click(cls, **kwargs: Unpack[ClickKwargs[GameObjectType]]) -> None:
         """在屏幕画面中寻找当前 Prefab，并点击第一个找到的 GameObject 实例。
         
         该方法会调用 require 方法，因此如果没有找到任何结果，则会抛出异常。
         """
-        return cls.require().click()
+        return cls.require(**kwargs).click()
     
     @classmethod
-    def try_click(cls, **kwargs: Unpack[ClickKwargs]) -> bool:
+    def try_click(cls, **kwargs: Unpack[ClickKwargs[GameObjectType]]) -> bool:
         """尝试点击当前 Prefab 的第一个找到的 GameObject 实例。
         
         :return: 如果找到了对象并成功点击，返回 True；否则返回 False。
         """
-        obj = cls.find()
+        obj = cls.find(**kwargs)
         if obj is not None:
             obj.click()
             return True
         return False
     
     @classmethod
-    def wait(cls, *, timeout: float | None = None, interval: float | None = None, throw: bool = True):
+    def wait(
+        cls,
+        **kwargs: Unpack[WaitKwargs[GameObjectType]],
+    ) -> GameObjectType:
         """等待当前 Prefab 出现。
         
-        若指定时间内未找到，则根据 throw 参数决定是抛出异常还是返回 None。
+        若指定时间内未找到，则抛出超时异常（wait 不再返回 None）。
         """
+        # 从 kwargs 中分离出用于等待控制的参数，剩下的传递给 `find`
+        timeout = kwargs.pop("timeout", None)
+        interval = kwargs.pop("interval", None)
         start_time = time.time()
         while True:
-            obj = cls.find()
+            obj = cls.find(**kwargs)
             if obj is not None:
                 return obj
             from kotonebot import sleep
@@ -128,17 +134,21 @@ class Prefab(Generic[GameObjectType], ABC):
             if timeout is not None:
                 elapsed = time.time() - start_time
                 if elapsed >= timeout:
-                    if throw:
-                        raise TimeoutError(f"Timeout when waiting for {cls.__name__}（{timeout} s）")
-                    
-                    
+                    raise TimeoutError(f"Timeout when waiting for {cls.__name__}（{timeout} s）")
+
     @classmethod
-    def try_wait(cls, *, timeout: float | None = None, interval: float | None = None):
+    def try_wait(
+        cls,
+        **kwargs: Unpack[WaitKwargs[GameObjectType]],
+    ) -> GameObjectType | None:
         """尝试等待当前 Prefab 出现。
-        
+
         若指定时间内未找到，则返回 None。
         """
-        return cls.wait(timeout=timeout, interval=interval, throw=False)
+        try:
+            return cls.wait(**kwargs)
+        except TimeoutError:
+            return None
 
 class GameObject:
     """## GameObject
