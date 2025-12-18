@@ -1,9 +1,10 @@
+from typing import Generic, TYPE_CHECKING
 from typing_extensions import Unpack, override
 
 from kotonebot.primitives import Rect
 from kotonebot.devtools import EditorMetadata
 
-from .base import Prefab, FindKwargs, GameObjectType
+from .base import Prefab, FindKwargs, GameObjectType, ClickKwargs as _ClickKwargs, WaitKwargs as _WaitKwargs
 
 
 class OcrFindKargs(FindKwargs[GameObjectType], total=False):
@@ -12,6 +13,9 @@ class OcrFindKargs(FindKwargs[GameObjectType], total=False):
     
     如果指定，则覆盖 OcrPrefab 中定义的 region 属性。
     """
+
+class ClickKwargs(OcrFindKargs[GameObjectType], _ClickKwargs[GameObjectType], Generic[GameObjectType], total=False): pass
+class WaitKwargs(OcrFindKargs[GameObjectType], _WaitKwargs[GameObjectType], Generic[GameObjectType], total=False): pass
 
 
 class OcrPrefab(Prefab[GameObjectType]):
@@ -88,3 +92,20 @@ class OcrPrefab(Prefab[GameObjectType]):
                         obj.prefab = cls
                         return obj
             raise TextNotFoundError(cls.pattern, device.screenshot())
+    
+    if TYPE_CHECKING:
+        # 这些方法只需要重载声明，实际实现由基类提供不变
+        @classmethod
+        def exists(cls, **kwargs: Unpack[OcrFindKargs[GameObjectType]]) -> bool: ...
+        
+        @classmethod
+        def click(cls, **kwargs: Unpack[ClickKwargs[GameObjectType]]) -> None: ...
+
+        @classmethod
+        def wait(cls, **kwargs: Unpack[WaitKwargs[GameObjectType]]) -> GameObjectType: ...
+        
+        @classmethod
+        def try_click(cls, **kwargs: Unpack[ClickKwargs[GameObjectType]]) -> bool: ...
+        
+        @classmethod
+        def try_wait(cls, **kwargs: Unpack[WaitKwargs[GameObjectType]]) -> GameObjectType | None: ...

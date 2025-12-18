@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic
 from typing_extensions import Unpack, override
 
 from kotonebot.primitives import Rect, Image
 from kotonebot.devtools import EditorMetadata
 
-from .base import Prefab, FindKwargs, GameObjectType
+from .base import Prefab, FindKwargs, GameObjectType, ClickKwargs as _ClickKwargs, WaitKwargs as _WaitKwargs
 
 
 class TemplateMatchFindKargs(FindKwargs[GameObjectType], total=False):
@@ -23,6 +23,9 @@ class TemplateMatchFindKargs(FindKwargs[GameObjectType], total=False):
     
     如果指定，则覆盖 TemplateMatchPrefab 中定义的 region 属性。
     """
+
+class ClickKwargs(TemplateMatchFindKargs[GameObjectType], _ClickKwargs[GameObjectType], Generic[GameObjectType], total=False): pass
+class WaitKwargs(TemplateMatchFindKargs[GameObjectType], _WaitKwargs[GameObjectType], Generic[GameObjectType], total=False): pass
 
 
 class TemplateMatchPrefab(Prefab[GameObjectType]):
@@ -146,6 +149,18 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
             raise TemplateNoMatchError(device.screenshot(), cls.template.pixels)
 
     if TYPE_CHECKING:
-        # 这个方法只需要重载声明，实际实现由基类提供不变
+        # 这些方法只需要重载声明，实际实现由基类提供不变
         @classmethod
         def exists(cls, **kwargs: Unpack[TemplateMatchFindKargs[GameObjectType]]) -> bool: ...
+        
+        @classmethod
+        def click(cls, **kwargs: Unpack[ClickKwargs[GameObjectType]]) -> None: ...
+
+        @classmethod
+        def wait(cls, **kwargs: Unpack[WaitKwargs[GameObjectType]]) -> GameObjectType: ...
+        
+        @classmethod
+        def try_click(cls, **kwargs: Unpack[ClickKwargs[GameObjectType]]) -> bool: ...
+        
+        @classmethod
+        def try_wait(cls, **kwargs: Unpack[WaitKwargs[GameObjectType]]) -> GameObjectType | None: ...
