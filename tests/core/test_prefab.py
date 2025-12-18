@@ -1,7 +1,7 @@
 import unittest
 import cv2
 
-from kotonebot.core.entities.base import GameObject, TemplateMatchPrefab, OcrPrefab, Prefab
+from kotonebot.core import GameObject, TemplateMatchPrefab, OcrPrefab, Prefab
 from kotonebot.primitives import Image, Rect
 from kotonebot.backend.context.context import manual_context, init_context
 from kotonebot.backend.image import TemplateNoMatchError
