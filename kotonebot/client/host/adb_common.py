@@ -13,7 +13,7 @@ from kotonebot.client.device import AndroidDevice
 from .protocol import Instance, AdbHostConfig, Device
 
 logger = logging.getLogger(__name__)
-AdbRecipes = Literal['adb', 'adb_raw', 'uiautomator2']
+AdbRecipes = Literal['adb', 'uiautomator2']
 
 def is_adb_recipe(recipe: Any) -> TypeGuard[AdbRecipes]:
     return recipe in get_args(AdbRecipes)
@@ -86,12 +86,6 @@ class CommonAdbCreateDeviceMixin(ABC):
             case 'adb':
                 from kotonebot.client.implements.adb import AdbImpl
                 impl = AdbImpl(connection)
-                d._screenshot = impl
-                d._touch = impl
-                d.commands = impl
-            case 'adb_raw':
-                from kotonebot.client.implements.adb_raw import AdbRawImpl
-                impl = AdbRawImpl(connection)
                 d._screenshot = impl
                 d._touch = impl
                 d.commands = impl

@@ -3,7 +3,6 @@ from kotonebot.util import is_windows, require_windows
 
 if TYPE_CHECKING:
     from .adb import AdbImpl, AdbImplConfig
-    from .adb_raw import AdbRawImpl
     from .uiautomator2 import UiAutomator2Impl
     from .windows import WindowsImpl, WindowsImplConfig
     from .remote_windows import RemoteWindowsImpl, RemoteWindowsImplConfig, RemoteWindowsServer
@@ -23,10 +22,8 @@ def _require_windows():
 
 def _require_adb():
     global AdbImpl, AdbImplConfig
-    global AdbRawImpl
     
     from .adb import AdbImpl, AdbImplConfig
-    from .adb_raw import AdbRawImpl
 
 def _require_uiautomator2():
     global UiAutomator2Impl
@@ -41,7 +38,6 @@ _IMPORT_NAMES = [
     ]),
     (_require_adb, [
         'AdbImpl', 'AdbImplConfig',
-        'AdbRawImpl'
     ]),
     (_require_uiautomator2, [
         'UiAutomator2Impl'
@@ -66,6 +62,5 @@ __all__ = [
     'NemuIpcImpl', 'NemuIpcImplConfig', 'ExternalRendererIpc',
     # android
     'AdbImpl', 'AdbImplConfig',
-    'AdbRawImpl',
     'UiAutomator2Impl'
 ]

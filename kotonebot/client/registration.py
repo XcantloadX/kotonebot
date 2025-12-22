@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from .implements.windows import WindowsImplConfig
     from .implements.nemu_ipc import NemuIpcImplConfig
 
-AdbBasedImpl = Literal['adb', 'adb_raw', 'uiautomator2']
+AdbBasedImpl = Literal['adb', 'uiautomator2']
 DeviceImpl = str | AdbBasedImpl | Literal['windows', 'remote_windows', 'nemu_ipc']
 
 # --- 核心类型定义 ---

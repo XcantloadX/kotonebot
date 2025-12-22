@@ -122,7 +122,6 @@ class TestImportAll(unittest.TestCase):
             self.assertTrue(hasattr(kotonebot.client.implements, 'ExternalRendererIpc'))
             self.assertTrue(hasattr(kotonebot.client.implements, 'AdbImpl'))
             self.assertTrue(hasattr(kotonebot.client.implements, 'AdbImplConfig'))
-            self.assertTrue(hasattr(kotonebot.client.implements, 'AdbRawImpl'))
             self.assertTrue(hasattr(kotonebot.client.implements, 'UiAutomator2Impl'))
 
             import kotonebot.client.implements.nemu_ipc

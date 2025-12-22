@@ -181,7 +181,7 @@ class LeidianHost(HostProtocol[LeidianRecipes]):
 
     @staticmethod
     def recipes() -> 'list[LeidianRecipes]':
-        return ['adb', 'adb_raw', 'uiautomator2']
+        return ['adb', 'uiautomator2']
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
