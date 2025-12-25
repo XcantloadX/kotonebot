@@ -37,10 +37,10 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
     
     默认为 None（全屏搜索）。
     """
-    threshold: float = 0.7
+    threshold: float = 0.8
     """[可选] 匹配阈值
     
-    范围 0.0 - 1.0，默认为 0.7。
+    范围 0.0 - 1.0，默认为 0.8。
     """
     colored: bool = False
     """[可选] 是否匹配颜色
