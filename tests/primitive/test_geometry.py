@@ -176,6 +176,32 @@ class TestPoint(unittest.TestCase):
         self.assertIsInstance(res2, PointF)
         self.assertEqual(res2, PointF(3.0, 4.5))
 
+    def test_comparison_operators(self) -> None:
+        """测试 Point 的比较操作符 >, <, >=, <= (Point / tuple / list / PointF)"""
+        p1 = Point(1, 2)
+        p2 = Point(2, 3)
+        p3 = Point(1, 2)
+
+        # Point vs Point
+        self.assertTrue(p1 < p2)
+        self.assertTrue(p2 > p1)
+        self.assertTrue(p1 <= p2)
+        self.assertTrue(p2 >= p1)
+        # equality
+        self.assertTrue(p1 <= p3)
+        self.assertTrue(p1 >= p3)
+
+        # Point vs tuple
+        self.assertTrue(p1 < (2, 3))
+        self.assertTrue(p2 > (1, 2))
+
+        # Point vs PointF
+        pf = PointF(2.0, 3.0)
+        self.assertTrue(p1 < pf)
+        pf_eq = PointF(1.0, 2.0)
+        self.assertTrue(p1 <= pf_eq)
+        self.assertTrue(p1 >= pf_eq)
+
 class TestPointF(unittest.TestCase):
     """测试 PointF 类"""
 

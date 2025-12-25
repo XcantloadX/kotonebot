@@ -283,6 +283,49 @@ class _BasePoint(Vector2D[Number]):
             return self.x == value.x and self.y == value.y
         return False
 
+    def __lt__(self, other: 'AnyPoint | AnyPointTuple') -> bool:
+        """
+        小于比较，按 (x, y) 的字典序进行比较。
+        支持 `Point` / `PointF` 或长度为2的元组/列表。
+        """
+        if is_any_point(other):
+            ox, oy = other.x, other.y
+        elif isinstance(other, tuple) and len(other) == 2:
+            ox, oy = other[0], other[1]
+        else:
+            return NotImplemented
+        return (self.x, self.y) < (ox, oy)
+
+    def __le__(self, other: 'AnyPoint | AnyPointTuple') -> bool:
+        """小于等于比较，按 (x, y) 的字典序比较。"""
+        if is_any_point(other):
+            ox, oy = other.x, other.y
+        elif isinstance(other, tuple) and len(other) == 2:
+            ox, oy = other[0], other[1]
+        else:
+            return NotImplemented
+        return (self.x, self.y) <= (ox, oy)
+
+    def __gt__(self, other: 'AnyPoint | AnyPointTuple') -> bool:
+        """大于比较，按 (x, y) 的字典序比较。"""
+        if is_any_point(other):
+            ox, oy = other.x, other.y
+        elif isinstance(other, tuple) and len(other) == 2:
+            ox, oy = other[0], other[1]
+        else:
+            return NotImplemented
+        return (self.x, self.y) > (ox, oy)
+
+    def __ge__(self, other: 'AnyPoint | AnyPointTuple') -> bool:
+        """大于等于比较，按 (x, y) 的字典序比较。"""
+        if is_any_point(other):
+            ox, oy = other.x, other.y
+        elif isinstance(other, tuple) and len(other) == 2:
+            ox, oy = other[0], other[1]
+        else:
+            return NotImplemented
+        return (self.x, self.y) >= (ox, oy)
+
     def normalized(self) -> 'PointF':
         """
         返回一个新的、方向相同但长度为 1 的 `PointF` 对象（单位向量）。
