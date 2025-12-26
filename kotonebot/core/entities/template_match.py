@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Generic
 from typing_extensions import Unpack, override
 
+from kotonebot.devtools.project.schema import BoolProp, FloatProp, ImageProp, RectProp
 from kotonebot.primitives import Rect, Image
 from kotonebot.devtools import EditorMetadata
 
@@ -49,10 +50,19 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
     """
 
     class _Editor(EditorMetadata):
-        id = 'base_template_match'
         name = '模版'
         description = '基于模版匹配来寻找对象'
-        export_slice = True
+        primary_prop = 'template'
+        icon = 'media'
+        shortcut = 't'
+        props = {
+            'template':  ImageProp(label='模版图像', description='用于匹配的模版图像', default_value=None),
+            'fixed': BoolProp(label='固定位置', description='对象位置是否固定不变，若固定可提升匹配速度', default_value=False),
+            'region': RectProp(label='搜索区域', description='限定搜索区域以提升匹配速度', default_value=None),
+            'threshold': FloatProp(label='匹配阈值', description='模版匹配的相似度阈值，范围 0.0 - 1.0', min=0.0, max=1.0, default_value=0.8),
+            'colored': BoolProp(label='匹配颜色', description='是否在匹配时考虑颜色信息', default_value=False),
+        }
+
 
     @override
     @classmethod

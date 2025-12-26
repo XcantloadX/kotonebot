@@ -38,9 +38,11 @@ class ImageAsset:
 
 @dataclass
 class PrefabData:
-    """代表自定义 Prefab 资源的结构化数据"""
-    image: ImageAsset
-    class_name: str
+    """代表自定义 Prefab 资源的结构化数据
+    """
+    image: Optional[ImageAsset]
+    prefab_id: str
+    props: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

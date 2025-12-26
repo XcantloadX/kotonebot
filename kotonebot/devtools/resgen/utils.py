@@ -116,7 +116,30 @@ class ImageProcessor:
         clip = img[y1:y2, x1:x2]
         filename = f"{prefix}_{uuid.uuid4().hex[:8]}.png"
         out_path = os.path.join(output_dir, filename)
-        
+
+        cv2.imwrite(out_path, clip)
+        return os.path.abspath(out_path)
+
+    @staticmethod
+    def save_crop_to_path(source_path: str, rect: Tuple[float, float, float, float], output_dir: str, filename: str) -> str:
+        """裁剪图片并使用固定文件名保存。
+
+        主要用于 Meta V2 ImageProp 导出的切片命名：<definitionId>_<propKey>.png。
+        """
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        img = cv2.imread(source_path)
+        if img is None:
+            raise ValueError(f"Could not read image: {source_path}")
+
+        x1, y1, x2, y2 = map(int, rect)
+        h, w = img.shape[:2]
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(w, x2), min(h, y2)
+
+        clip = img[y1:y2, x1:x2]
+        out_path = os.path.join(output_dir, filename)
         cv2.imwrite(out_path, clip)
         return os.path.abspath(out_path)
 

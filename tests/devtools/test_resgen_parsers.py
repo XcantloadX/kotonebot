@@ -4,6 +4,7 @@ import os
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from kotonebot.devtools.resgen.parsers import (
     ParserRegistry,
     KotoneV1Parser,
@@ -352,6 +353,17 @@ class TestMetaValidation(unittest.TestCase):
         with self.assertRaises(MetaValidationError):
             detect_and_validate_meta_schema(data)
 
+    def test_detect_meta_v2_basic(self):
+        data = {"version": 2, "definitions": {}}
+        info = detect_and_validate_meta_schema(data)
+        self.assertEqual(info.format, "v2")
+        self.assertIsNone(info.is_simple_flag)
+
+    def test_meta_v2_forbids_annotations(self):
+        data = {"version": 2, "definitions": {}, "annotations": []}
+        with self.assertRaises(MetaValidationError):
+            detect_and_validate_meta_schema(data)
+
     def test_parse_hint_box_definition(self):
         """Test parsing hint-box definition from V1 schema"""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -611,6 +623,72 @@ class TestBasicSpriteParser(unittest.TestCase):
             self.assertIn("Sprite1", names)
             self.assertIn("Sprite2", names)
             self.assertIn("Sprite3", names)
+
+
+class TestKotoneV2Parser(unittest.TestCase):
+    """Tests for KotoneV1Parser (V2 support) and Meta V2 slice naming."""
+
+    def setUp(self) -> None:
+        self.parser = KotoneV1Parser()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def _create_meta_file(self, content: dict) -> str:
+        json_path = os.path.join(self.tmp.name, "test.png.json")
+        png_path = os.path.join(self.tmp.name, "test.png")
+
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(content, f)
+
+        # 为了避免依赖 cv2，这里只创建一个最小 PNG 头部；
+        # 在测试中会 patch ImageProcessor 以绕过真实裁剪。
+        with open(png_path, 'wb') as f:
+            f.write(b"\x89PNG\r\n\x1a\n")
+
+        return json_path
+
+    def test_v2_template_image_slice_naming(self):
+        """ImageProp 应导出 <definitionId>_<propKey>.png 命名的切片。"""
+        data = {
+            "version": 2,
+            "definitions": {
+                "def1": {
+                    "type": "template",
+                    "name": "ui.button",
+                    "displayName": "Button",
+                    "description": "Main button",
+                    "props": {
+                        "templateImage": {
+                            "kind": "image",
+                            "x1": 1,
+                            "y1": 2,
+                            "x2": 10,
+                            "y2": 20,
+                        },
+                        "threshold": 0.8,
+                    },
+                }
+            },
+        }
+
+        json_path = self._create_meta_file(data)
+        context = {"output_img_dir": self.tmp.name, "root_scan_path": self.tmp.name}
+
+        expected_name = os.path.join(self.tmp.name, "def1_templateImage.png")
+
+        # Mock ImageProcessor 以避免依赖实际的图像裁剪库
+        with patch('kotonebot.devtools.resgen.parsers.ImageProcessor') as mock_proc:
+            mock_proc.save_crop_to_path.return_value = expected_name
+            mock_proc.copy_image.side_effect = lambda src, out_dir, new_name=None: os.path.join(out_dir, new_name or "copy.png")
+
+            nodes = self.parser.parse(json_path, context)
+
+        self.assertEqual(len(nodes), 1)
+        node = nodes[0]
+        self.assertEqual(node.type, "template")
+        self.assertTrue(isinstance(node.value, ImageAsset))
+        assert isinstance(node.value, ImageAsset)
+        self.assertEqual(os.path.basename(node.value.path), "def1_templateImage.png")
 
 
 if __name__ == '__main__':

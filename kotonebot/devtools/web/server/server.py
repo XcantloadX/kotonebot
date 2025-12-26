@@ -1,34 +1,27 @@
 import webbrowser
 from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, HTMLResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
 import uvicorn
-import socketio
 
 from kotonebot.devtools.project.project import Project
-from .rpc import RPCManager
-from . import prefabs
+from .rest_api import create_rest_router
 
 
 def create_app():
     """Create and configure the FastAPI application."""
     app = FastAPI(title="KotoneBot DevTools")
 
-    sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
-    rpc = RPCManager(sio)
     project = Project()
-    prefabs.init(rpc, project)
+
+    # REST API for DevTools2 (file IO, images, prefab schema)
+    app.include_router(create_rest_router(project))
     
     # Get the dist directory path
     dist_dir = Path(__file__).parent.parent / "web" / "dist"
-    
-    # Add health check endpoint
-    @app.get("/api/health")
-    async def health_check():
-        return JSONResponse({"status": "ok", "service": "kotonebot-devtools"})
-    
+
     # Mount static files if dist directory exists
     if dist_dir.exists():
         # 优先将打包好的静态资源挂载到 /assets（如果构建将资源放在 dist/assets）
@@ -57,23 +50,22 @@ def create_app():
                 "info": "Build the frontend using: npm run build in kotonebot-devtool directory"
             }, status_code=503)
     
-    return app, sio
+    return app
 
 
 def start_devtools(
     host: str = "127.0.0.1",
     port: int = 1178,
-    open_browser: bool = True
+    open_browser: bool = False
 ) -> None:
     """Start the DevTools web server.
     
     Args:
         host: Host to listen on (default: 127.0.0.1)
         port: Port to listen on (default: 1178)
-        open_browser: Automatically open browser (default: True)
+        open_browser: Automatically open browser (default: False)
     """
-    app, sio = create_app()
-    asgi_app = socketio.ASGIApp(sio, app)
+    app = create_app()
     
     # Open browser before starting server
     if open_browser:
@@ -82,7 +74,7 @@ def start_devtools(
     
     # Start server
     uvicorn.run(
-        asgi_app,
+        app,
         host=host,
         port=port,
         log_level="info"

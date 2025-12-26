@@ -1,8 +1,7 @@
 from pathlib import Path
 
-from dataclass_wizard import fromdict
 try:
-    from tomllib import loads as toml_loader  # py>=3.11
+    from tomllib import loads as toml_loader  # py>=3.11 # type: ignore
 except ModuleNotFoundError:  # pragma: no cover
     from tomli import loads as toml_loader  # py<3.11
 
@@ -29,9 +28,12 @@ class Project:
 
         tool_conf = conf_dict.get('tool', {}).get('kotonebot', {})
         if tool_conf:
-            self.conf = fromdict(PyProjectData, tool_conf)
+            self.conf = PyProjectData.model_validate(tool_conf)
         else:
             self.conf = PyProjectData()
+        
+        if self.conf.editor and self.conf.editor.resource_path is not None:
+            self.conf.editor.resource_path = str(Path(self.conf.editor.resource_path).absolute())
 
 
 if __name__ == '__main__':

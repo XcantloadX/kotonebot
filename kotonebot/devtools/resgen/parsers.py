@@ -29,148 +29,167 @@ class KotoneV1Parser(SchemaParser):
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            detect_and_validate_meta_schema(data)
-            return True
+            info = detect_and_validate_meta_schema(data)
+            # 支持 simple 与 v2 两种格式
+            return info.format in ("simple", "v2")
         except (json.JSONDecodeError, OSError, MetaValidationError):
             return False
 
     def parse(self, file_path: str, context: Dict[str, Any]) -> List[ResourceNode]:
         """
-        解析 V1 Schema。
+        解析 V2 格式的 meta。
         Context 需要包含: 'output_img_dir' (图片输出目录)
         """
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-
         schema_info = detect_and_validate_meta_schema(data)
-
         output_dir = context.get('output_img_dir', 'tmp')
         png_file = file_path.replace('.json', '')
-        resources: List[ResourceNode] = []
 
-        # --- 简单 schema: 单一 definition + isSimple: true ---
         if schema_info.format == "simple":
-            definition = data["definition"]
+            definition = data.get("definition")
+            if not isinstance(definition, dict):
+                raise MetaValidationError("Simple meta missing 'definition' object")
             return self._parse_simple_definition(definition, png_file, output_dir, context)
 
-        # --- 复杂 schema: 原有 definitions + annotations ---
-        # 建立 id -> annotation 的映射
-        annotations = {a['id']: a for a in data.get('annotations', [])}
+        if schema_info.format == "v2":
+            return self._parse_v2_schema(data, png_file, output_dir, context)
+
+        raise MetaValidationError(f"KotoneV1Parser cannot parse meta format: {schema_info.format}")
+
+    def _parse_v2_schema(self, data: Dict[str, Any], png_file: str, output_dir: str, context: Dict[str, Any]) -> List[ResourceNode]:
+        resources: List[ResourceNode] = []
+        definitions = data.get('definitions', {})
         
-        for def_id, definition in data.get('definitions', {}).items():
-            name_parts = definition['name'].split('.')
+        for def_id, definition in definitions.items():
+            def_type = definition['type']
+            name = definition.get('name')
+            
+            if not name:
+                continue
+                
+            name_parts = name.split('.')
             class_path = [to_camel_case(p) for p in name_parts[:-1]]
             attr_name = name_parts[-1]
             display_name = definition.get('displayName', attr_name)
             desc = definition.get('description', '')
-            def_type = definition['type']
-            annot_id = definition.get('annotationId')
             
-            # 基础 metadata
             metadata = {
                 'class_path': class_path,
                 'origin_file': os.path.abspath(png_file),
                 'display_name': display_name,
                 'description': desc
             }
-
-            if def_id not in annotations and def_type != 'template':
-                 # template 类型的 def_id 本身可能不是 annotation id，这里沿用原逻辑
-                 # 但实际上原逻辑 template 的 uuid 也就是 annotationId
-                 pass
-
-            annotation = annotations.get(annot_id)
-
+            
+            props = definition.get('props', {})
+            
             if def_type == 'template':
-                # 模板匹配：需要裁剪出模板图
-                if annotation and annotation['type'] == 'rect':
-                    rect_data = annotation['data']
-                    rect = (rect_data['x1'], rect_data['y1'], rect_data['x2'], rect_data['y2'])
-                    
-                    # 裁剪并保存
-                    img_uuid = annot_id
-                    save_path = ImageProcessor.save_crop(png_file, rect, output_dir, f"tmpl_{attr_name}")
-                    
-                    # 重新命名为 uuid.png 以符合 R.py 的引用习惯
-                    final_name = f"{img_uuid}.png"
-                    final_path = os.path.join(output_dir, final_name)
-                    if os.path.exists(save_path) and save_path != final_path:
-                         os.rename(save_path, final_path)
-                    
-                    metadata['abs_path'] = os.path.abspath(final_path)
+                target_prop = None
+                target_key = None
+
+                for k, v in props.items():
+                    if isinstance(v, dict) and v.get('kind') == 'image':
+                        target_prop = v
+                        target_key = k
+                        break
+
+                if not target_prop:
+                    for k, v in props.items():
+                        if isinstance(v, dict) and v.get('kind') == 'rect':
+                            target_prop = v
+                            target_key = k
+                            break
+
+                if target_prop:
+                    rect = (target_prop['x1'], target_prop['y1'], target_prop['x2'], target_prop['y2'])
+                    final_name = f'{def_id}_{target_key}.png'
+                    metadata['abs_path'] = ImageProcessor.save_crop_to_path(png_file, rect, output_dir, final_name)
 
                     node = ResourceNode(
                         name=attr_name,
                         type='template',
-                        value=ImageAsset(path=metadata['abs_path'], rect=rect),
+                        value=ImageAsset(path=metadata['abs_path']),
                         docstring=self._build_docstring(display_name, desc, class_path, metadata['abs_path'], png_file),
                         metadata=metadata
                     )
                     resources.append(node)
 
             elif def_type == 'prefab':
-                prefab_def = definition.get('prefab')
-                if not prefab_def or not prefab_def.get('className'):
-                    raise ValueError(f"Prefab definition {def_id} missing className")
-                
-                class_name_ref = prefab_def['className']
+                prefab_id = definition.get('prefab_id')
 
-                if annotation and annotation['type'] == 'rect':
-                    rect_data = annotation['data']
-                    rect = (rect_data['x1'], rect_data['y1'], rect_data['x2'], rect_data['y2'])
-                    
-                    # 裁剪并保存
-                    img_uuid = annot_id
-                    save_path = ImageProcessor.save_crop(png_file, rect, output_dir, f"tmpl_{attr_name}")
-                    
-                    final_name = f"{img_uuid}.png"
-                    final_path = os.path.join(output_dir, final_name)
-                    if os.path.exists(save_path) and save_path != final_path:
-                         os.rename(save_path, final_path)
-                    
-                    metadata['abs_path'] = os.path.abspath(final_path)
+                prefab_props = {}
+                for k, v in props.items():
+                    if isinstance(v, dict) and v.get('kind') == 'image':
+                        rect = (v['x1'], v['y1'], v['x2'], v['y2'])
+                        final_name = f'{def_id}_{k}.png'
+                        path = ImageProcessor.save_crop_to_path(png_file, rect, output_dir, final_name)
+                        prefab_props[k] = ImageAsset(path=path)
+                    elif isinstance(v, dict) and v.get('kind') == 'rect':
+                        # keep rect as dict for now; generator can decide how to emit
+                        prefab_props[k] = v
+                    elif isinstance(v, dict) and v.get('kind') == 'point':
+                        prefab_props[k] = v
+                    else:
+                        prefab_props[k] = v
 
-                    node = ResourceNode(
-                        name=attr_name,
-                        type='prefab',
-                        value=PrefabData(
-                            image=ImageAsset(path=metadata['abs_path'], rect=rect),
-                            class_name=class_name_ref
-                        ),
-                        docstring=self._build_docstring(display_name, desc, class_path, metadata['abs_path'], png_file),
-                        metadata=metadata
-                    )
-                    resources.append(node)
+                primary_image = prefab_props.get('templateImage') or prefab_props.get('image')
+                if not isinstance(primary_image, ImageAsset):
+                    for vv in prefab_props.values():
+                        if isinstance(vv, ImageAsset):
+                            primary_image = vv
+                            break
+
+                node = ResourceNode(
+                    name=attr_name,
+                    type='prefab',
+                    value=PrefabData(
+                        image=primary_image,
+                        prefab_id=prefab_id,
+                        props=prefab_props
+                    ),
+                    docstring=self._build_docstring(display_name, desc, class_path, None, png_file),
+                    metadata=metadata
+                )
+                resources.append(node)
 
             elif def_type == 'hint-box':
-                if annotation and annotation['type'] == 'rect':
-                    d = annotation['data']
-                    # HintBox 需要生成裁剪图用于文档预览，但运行时使用坐标
-                    crop_path = ImageProcessor.save_crop(png_file, (d['x1'], d['y1'], d['x2'], d['y2']), os.path.join(output_dir, 'preview'), f"hb_{attr_name}")
-                    metadata['preview_path'] = crop_path
-                    
-                    # HACK: 硬编码分辨率 720x1280，实际应从 content 读取
+                # 寻找 rect 或 image 类型的 props 来生成 BoxData
+                target_prop = None
+                for k, v in props.items():
+                    if isinstance(v, dict) and v.get('kind') in ('rect', 'image'):
+                        target_prop = v
+                        break
+
+                if target_prop:
+                    rect = (target_prop['x1'], target_prop['y1'], target_prop['x2'], target_prop['y2'])
                     node = ResourceNode(
                         name=attr_name,
                         type='hint-box',
-                        value=BoxData(x1=int(d['x1']), y1=int(d['y1']), x2=int(d['x2']), y2=int(d['y2'])),
-                        docstring=self._build_docstring(display_name, desc, class_path, crop_path, png_file),
-                        metadata=metadata
-                    )
-                    resources.append(node)
-
-            elif def_type == 'hint-point':
-                if annotation and annotation['type'] == 'point':
-                    d = annotation['data']
-                    node = ResourceNode(
-                        name=attr_name,
-                        type='hint-point',
-                        value=PointData(x=int(d['x']), y=int(d['y'])),
+                        value=BoxData(x1=rect[0], y1=rect[1], x2=rect[2], y2=rect[3]),
                         docstring=self._build_docstring(display_name, desc, class_path, None, png_file),
                         metadata=metadata
                     )
                     resources.append(node)
 
+            elif def_type == 'hint-point':
+                # 解析 point
+                target_prop = None
+                for k, v in props.items():
+                    if isinstance(v, dict) and v.get('kind') == 'point':
+                        target_prop = v
+                        break
+
+                if target_prop:
+                    pt = (target_prop['x'], target_prop['y'])
+                    node = ResourceNode(
+                        name=attr_name,
+                        type='hint-point',
+                        value=PointData(x=pt[0], y=pt[1]),
+                        docstring=self._build_docstring(display_name, desc, class_path, None, png_file),
+                        metadata=metadata
+                    )
+                    resources.append(node)
+        
         return resources
 
     def _build_docstring(self, name, desc, path_list, img_path, origin_path):
@@ -259,6 +278,7 @@ class KotoneV1Parser(SchemaParser):
             'class_path': class_path,
             'origin_file': os.path.abspath(png_file),
             'abs_path': os.path.abspath(final_path),
+            'isSimple': True,
             'display_name': display_name,
             'description': desc,
         }
@@ -272,17 +292,16 @@ class KotoneV1Parser(SchemaParser):
                 metadata=metadata,
             )
         else:  # prefab
-            prefab_def = definition.get("prefab") or {}
-            class_name_ref = prefab_def.get("className")
-            if not isinstance(class_name_ref, str) or not class_name_ref.strip():
-                raise MetaValidationError("Prefab definition missing className")
+            prefab_id_ref = definition.get('prefab_id')
+            if not isinstance(prefab_id_ref, str) or not prefab_id_ref.strip():
+                raise MetaValidationError(f"Prefab definition missing prefab_id in simple meta for {png_file}")
 
             node = ResourceNode(
                 name=attr_name,
                 type='prefab',
                 value=PrefabData(
                     image=ImageAsset(path=metadata['abs_path'], rect=None),
-                    class_name=class_name_ref,
+                    prefab_id=prefab_id_ref,
                 ),
                 docstring=self._build_docstring(display_name, desc, class_path, metadata['abs_path'], png_file),
                 metadata=metadata,
@@ -337,3 +356,5 @@ class BasicSpriteParser(SchemaParser):
             docstring=doc,
             metadata=metadata
         )]
+
+

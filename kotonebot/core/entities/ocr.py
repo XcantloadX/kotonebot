@@ -1,6 +1,7 @@
 from typing import Generic, TYPE_CHECKING
 from typing_extensions import Unpack, override
 
+from kotonebot.devtools.project.schema import StrProp, RectProp
 from kotonebot.primitives import Rect
 from kotonebot.devtools import EditorMetadata
 
@@ -24,10 +25,15 @@ class OcrPrefab(Prefab[GameObjectType]):
     region: Rect | None = None
 
     class _Editor(EditorMetadata):
-        id = 'base_ocr'
         name = 'OCR'
         description = '基于 OCR + 文字匹配来识别对象'
-        export_slice = False
+        primary_prop = 'region'
+        icon = 'search-text'
+        shortcut = 'o'
+        props = {
+            'pattern':  StrProp(label='匹配文本', description='用于匹配的文本内容', default_value=''),
+            'region': RectProp(label='搜索区域', description='限定搜索区域以提升识别速度', default_value=None),
+        }
 
     @override
     @classmethod

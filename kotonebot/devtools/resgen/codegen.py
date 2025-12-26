@@ -134,6 +134,7 @@ class EntityGenerator(StandardGenerator):
         """
         data = attr.value
 
+        print(f'Writing: {attr.name} of type {type(data)}')
         if isinstance(data, ImageAsset):
             self._render_prefab_class(attr, data)
         elif isinstance(data, PrefabData):
@@ -150,8 +151,10 @@ class EntityGenerator(StandardGenerator):
         """
         w = self.writer
         class_name = node.name
-        base_class = data.class_name
-        
+        if not getattr(data, 'prefab_id', None):
+            raise ValueError(f"PrefabData missing prefab_id for node {node.name}")
+        base_class = data.prefab_id
+
         # 1. 类定义
         w.write(f"class {class_name}({base_class}):")
         
@@ -159,21 +162,29 @@ class EntityGenerator(StandardGenerator):
             # 2. Docstring
             if not self.production:
                 self.render_docstring(node)
+
+            # 3. If PrefabData has an image, expose it as `template` for convenience
+            #    so simple prefab definitions that only provide an image still
+            #    produce a usable `template` attribute on the generated class.
+            # Only expose `template` automatically for prefabs that originated
+            # from a simple meta file (isSimple == True). Complex/v2 prefabs may
+            # define images via props and should not implicitly expose `template`.
+            if data.image is not None and node.metadata.get('isSimple'):
+                clean_path = unify_path(data.image.path)
+                w.write(f'template = Image(file_path="{clean_path}")')
+                w.write_empty_line()
             
-            # 3. template 属性 (Image)
-            clean_path = unify_path(data.image.path)
-            w.write(f'template = Image(file_path="{clean_path}")')
+            # 4. V2 Props
+            for key, value in data.props.items():
+                if isinstance(value, ImageAsset):
+                    clean_path = unify_path(value.path)
+                    w.write(f'{key} = Image(file_path="{clean_path}")')
+                elif isinstance(value, (int, float, str, bool)):
+                    w.write(f'{key} = {repr(value)}')
             
-            # 4. display_name 属性
+            # 5. display_name 属性
             display_name = node.metadata.get('display_name', node.name)
             w.write(f'display_name = "{display_name}"')
-            
-            # 5. _orig_rect 属性
-            if data.image.rect:
-                x1, y1, x2, y2 = data.image.rect
-                w.write(f"_orig_rect = Rect(x={x1}, y={y1}, w={x2-x1}, h={y2-y1})")
-            else:
-                w.write("_orig_rect = None")
 
     def _render_prefab_class(self, node: ResourceNode, data: ImageAsset):
         """
