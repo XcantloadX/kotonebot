@@ -55,7 +55,8 @@ class StandardGenerator:
         if isinstance(val, ImageAsset):
             # 使用相对名作为资源引用（保留原来的 sprite_path 风格）
             rel = os.path.basename(val.path)
-            code_str = f'Image(path=sprite_path("{rel}"))'
+            display_name = attr.metadata.get('display_name', attr.name)
+            code_str = f'Image(path=sprite_path("{rel}"), name="{display_name}")'
         elif isinstance(val, BoxData):
             code_str = (f'HintBox(x1={val.x1}, y1={val.y1}, x2={val.x2}, y2={val.y2}, '
                         f'source_resolution=({val.resolution[0]}, {val.resolution[1]}))')
@@ -163,6 +164,9 @@ class EntityGenerator(StandardGenerator):
             if not self.production:
                 self.render_docstring(node)
 
+            # display_name 属性（用于 Image.name 参数）
+            display_name = node.metadata.get('display_name', node.name)
+
             # 3. If PrefabData has an image, expose it as `template` for convenience
             #    so simple prefab definitions that only provide an image still
             #    produce a usable `template` attribute on the generated class.
@@ -171,14 +175,14 @@ class EntityGenerator(StandardGenerator):
             # define images via props and should not implicitly expose `template`.
             if data.image is not None and node.metadata.get('isSimple'):
                 clean_path = unify_path(data.image.path)
-                w.write(f'template = Image(file_path="{clean_path}")')
+                w.write(f'template = Image(file_path="{clean_path}", name="{display_name}")')
                 w.write_empty_line()
             
             # 4. V2 Props
             for key, value in data.props.items():
                 if isinstance(value, ImageAsset):
                     clean_path = unify_path(value.path)
-                    w.write(f'{key} = Image(file_path="{clean_path}")')
+                    w.write(f'{key} = Image(file_path="{clean_path}", name="{display_name}")')
                 elif isinstance(value, (int, float, str, bool)):
                     w.write(f'{key} = {repr(value)}')
             
@@ -204,19 +208,12 @@ class EntityGenerator(StandardGenerator):
             # 3. template 属性 (Image)
             # 确保路径分隔符统一，避免 Windows 反斜杠问题
             clean_path = unify_path(data.path)
-            w.write(f'template = Image(file_path="{clean_path}")')
+            display_name = node.metadata.get('display_name', node.name)
+            w.write(f'template = Image(file_path="{clean_path}", name="{display_name}")')
             
             # 4. display_name 属性
             # 优先从 metadata 取，如果没有则用变量名
-            display_name = node.metadata.get('display_name', node.name)
             w.write(f'display_name = "{display_name}"')
-            
-            # 5. _orig_rect 属性 (用于调试或记录原始位置)
-            if data.rect:
-                x1, y1, x2, y2 = data.rect
-                w.write(f"_orig_rect = Rect(x={x1}, y={y1}, w={x2-x1}, h={y2-y1})")
-            else:
-                w.write("_orig_rect = None")
 
     def _render_primitive_assignment(self, node: ResourceNode, data: Any):
         """
