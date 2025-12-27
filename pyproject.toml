@@ -52,6 +52,8 @@ dev = [
     "twine~=6.1",
     "build",
     "snakeviz",
+    "tomli; python_version < '3.11'",
+    "dataclass-wizard",
     # Additional utilities
     "jinja2~=3.1",
     "tqdm~=4.67",
@@ -60,8 +62,14 @@ dev = [
 # All optional dependencies
 all = ["kotonebot[android,windows,dev]"]
 
+[project.scripts]
+kbot = "kotonebot.devtools.cli:main"
+
 [tool.setuptools]
 package-dir = { "kotonebot" = "kotonebot" }
+
+[tool.setuptools.package-data]
+kotonebot = ["devtools/web/dist/**/*"]
 
 [tool.coverage.run]
 # https://github.com/nedbat/coveragepy/issues/1653

@@ -4,6 +4,7 @@ Library:
 1. [feat] 新增类 kotonebot.interop.win.ShakeMouse，支持检测晃动鼠标检测动作，可以用于实现晃动鼠标自动停止脚本执行的功能
 2. [feat] 新增 Loop 类的全局回调函数，可以通过全局回调处理一些通用内容，如网络错误弹窗、跨日等
 3. [feat] **BREAKING** 移除 adb_raw 的实现，因为它又慢又不稳定。
+4. [feat] 移除 kotonebot.backend.core.Image 类，新编写代码应该使用 kotonebot.primitives.Image。新的 Image 类暂时保留与原类一直的字段以向后兼容
 
 ## v0.5.0
 Library：

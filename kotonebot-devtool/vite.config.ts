@@ -29,5 +29,8 @@ export default defineConfig({
     react({ jsxImportSource: '@emotion/react' }),
     webComponentImport
   ],
-  
+  build: {
+    outDir: '../kotonebot/devtools/web/dist',
+    emptyOutDir: true,
+  }
 })

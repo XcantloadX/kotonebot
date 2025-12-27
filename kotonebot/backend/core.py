@@ -1,6 +1,5 @@
 import logging
-from functools import cache
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 from typing_extensions import deprecated
 
 import cv2
@@ -8,7 +7,11 @@ from cv2.typing import MatLike
 
 from kotonebot.util import cv2_imread
 from kotonebot.primitives import RectTuple, Rect, Point
-from kotonebot.errors import ResourceFileMissingError
+if TYPE_CHECKING:
+    from kotonebot.primitives.visual import Image
+else:
+    from kotonebot.primitives.visual import Image as _PrimitivesImage
+    Image = deprecated('Use kotonebot.primitives.Image instead.')(_PrimitivesImage)
 
 @deprecated('unused')
 class Ocr:
@@ -21,52 +24,6 @@ class Ocr:
         self.text = text
         self.language = language
 
-# TODO: 这个类和 kotonebot.primitives.Image 重复了
-@deprecated('Use kotonebot.primitives.Image instead.')
-class Image:
-    def __init__(
-        self,
-        *,
-        path: str | None = None,
-        name: str | None = 'untitled',
-        data: MatLike | None = None,
-    ):
-        self.path = path
-        self.name = name
-        self.__data: MatLike | None = data
-        self.__data_with_alpha: MatLike | None = None
-
-    @cache
-    def binary(self) -> 'Image':
-        return Image(data=cv2.cvtColor(self.data, cv2.COLOR_BGR2GRAY))
-
-    @property
-    def data(self) -> MatLike:
-        if self.__data is None:
-            if self.path is None:
-                raise ValueError('Either path or data must be provided.')
-            self.__data = cv2_imread(self.path)
-            if self.__data is None:
-                raise ResourceFileMissingError(self.path, 'sprite')
-            logger.debug(f'Read image "{self.name}" from {self.path}')
-        return self.__data
-    
-    @property
-    def data_with_alpha(self) -> MatLike:
-        if self.__data_with_alpha is None:
-            if self.path is None:
-                raise ValueError('Either path or data must be provided.')
-            self.__data_with_alpha = cv2_imread(self.path, cv2.IMREAD_UNCHANGED)
-            if self.__data_with_alpha is None:
-                raise ResourceFileMissingError(self.path, 'sprite with alpha')
-            logger.debug(f'Read image "{self.name}" from {self.path}')
-        return self.__data_with_alpha
-    
-    def __repr__(self) -> str:
-        if self.path is None:
-            return f'<Image: memory>'
-        else:
-            return f'<Image: "{self.name}" at {self.path}>'
 
 # TODO: 这里的其他类应该移动到 primitives 模块下面
 class HintBox(Rect):
