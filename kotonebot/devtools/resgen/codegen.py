@@ -1,5 +1,5 @@
 import os
-from typing import Any, List
+from typing import Any, List, Callable
 
 from .core import CodeWriter, ClassNode, ResourceNode, ImageAsset, BoxData, PointData, PrefabData
 from .utils import unify_path
@@ -7,10 +7,23 @@ from .utils import unify_path
 class StandardGenerator:
     """标准 Python 生成器基类"""
     
-    def __init__(self, production: bool = False, ide_type: str | None = None):
+    def __init__(self, production: bool = False, ide_type: str | None = None,
+                 path_transformer: Callable[[str], str] | None = None):
         self.writer = CodeWriter()
         self.production = production
         self.ide_type = ide_type
+        self.path_transformer = path_transformer
+
+    def _transform_path(self, original_path: str, default_expr: str) -> str:
+        """Return the code expression for the image path.
+
+        If `path_transformer` is provided, call it with the original path and
+        use its return value verbatim as the expression to emit. Otherwise
+        fall back to `default_expr`.
+        """
+        if self.path_transformer:
+            return self.path_transformer(original_path)
+        return default_expr
 
     def generate(self, root_nodes: List[ClassNode]) -> str:
         self.render_header()
@@ -56,7 +69,9 @@ class StandardGenerator:
             # 使用相对名作为资源引用（保留原来的 sprite_path 风格）
             rel = os.path.basename(val.path)
             display_name = attr.metadata.get('display_name', attr.name)
-            code_str = f'Image(path=sprite_path("{rel}"), name="{display_name}")'
+            default = f'sprite_path("{rel}")'
+            path_expr = self._transform_path(val.path, default)
+            code_str = f'Image(path={path_expr}, name="{display_name}")'
         elif isinstance(val, BoxData):
             code_str = (f'HintBox(x1={val.x1}, y1={val.y1}, x2={val.x2}, y2={val.y2}, '
                         f'source_resolution=({val.resolution[0]}, {val.resolution[1]}))')
@@ -175,14 +190,18 @@ class EntityGenerator(StandardGenerator):
             # define images via props and should not implicitly expose `template`.
             if data.image is not None and node.metadata.get('isSimple'):
                 clean_path = unify_path(data.image.path)
-                w.write(f'template = Image(file_path="{clean_path}", name="{display_name}")')
+                default = f'"{clean_path}"'
+                path_expr = self._transform_path(clean_path, default)
+                w.write(f'template = Image(file_path={path_expr}, name="{display_name}")')
                 w.write_empty_line()
             
             # 4. V2 Props
             for key, value in data.props.items():
                 if isinstance(value, ImageAsset):
                     clean_path = unify_path(value.path)
-                    w.write(f'{key} = Image(file_path="{clean_path}", name="{display_name}")')
+                    default = f'"{clean_path}"'
+                    path_expr = self._transform_path(clean_path, default)
+                    w.write(f'{key} = Image(file_path={path_expr}, name="{display_name}")')
                 elif isinstance(value, (int, float, str, bool)):
                     w.write(f'{key} = {repr(value)}')
             
@@ -209,7 +228,9 @@ class EntityGenerator(StandardGenerator):
             # 确保路径分隔符统一，避免 Windows 反斜杠问题
             clean_path = unify_path(data.path)
             display_name = node.metadata.get('display_name', node.name)
-            w.write(f'template = Image(file_path="{clean_path}", name="{display_name}")')
+            default = f'"{clean_path}"'
+            path_expr = self._transform_path(clean_path, default)
+            w.write(f'template = Image(file_path={path_expr}, name="{display_name}")')
             
             # 4. display_name 属性
             # 优先从 metadata 取，如果没有则用变量名
