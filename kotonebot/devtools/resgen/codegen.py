@@ -40,6 +40,7 @@ class StandardGenerator:
             w.write("#######     此文件为自动生成，请勿编辑    #######")
             w.write("####### AUTO GENERATED. DO NOT EDIT. #######")
         w.write("from kotonebot.backend.core import Image, HintBox, HintPoint")
+        w.write("from kotonebot.primitives import ImageSlice, Rect")
 
     def render_class(self, node: ClassNode):
         """递归渲染类"""
@@ -66,12 +67,20 @@ class StandardGenerator:
         code_str = ""
 
         if isinstance(val, ImageAsset):
+            rect_expr: str
+            if val.rect is not None:
+                x1, y1, x2, y2 = val.rect
+                width = x2 - x1
+                height = y2 - y1
+                rect_expr = f"Rect(x={x1}, y={y1}, w={width}, h={height})"
+            else:
+                rect_expr = "None"
             # 使用相对名作为资源引用（保留原来的 sprite_path 风格）
             rel = os.path.basename(val.path)
             display_name = attr.metadata.get('display_name', attr.name)
             default = f'sprite_path("{rel}")'
             path_expr = self._transform_path(val.path, default)
-            code_str = f'Image(path={path_expr}, name="{display_name}")'
+            code_str = f'ImageSlice(file_path={path_expr}, name="{display_name}", slice_rect={rect_expr})'
         elif isinstance(val, BoxData):
             code_str = (f'HintBox(x1={val.x1}, y1={val.y1}, x2={val.x2}, y2={val.y2}, '
                         f'source_resolution=({val.resolution[0]}, {val.resolution[1]}))')
@@ -139,7 +148,7 @@ class EntityGenerator(StandardGenerator):
         w.write("####### AUTO GENERATED. DO NOT EDIT. #######")
         w.write_empty_line()
         w.write("from kotonebot.core import TemplateMatchPrefab")
-        w.write("from kotonebot.primitives import Image, Rect")
+        w.write("from kotonebot.primitives import Image, ImageSlice, Rect")
         w.write("from kotonebot.backend.core import HintBox, HintPoint")
         w.write_empty_line()
 
@@ -189,19 +198,36 @@ class EntityGenerator(StandardGenerator):
             # from a simple meta file (isSimple == True). Complex/v2 prefabs may
             # define images via props and should not implicitly expose `template`.
             if data.image is not None and node.metadata.get('isSimple'):
+                rect_expr: str
+                if data.image.rect is not None:
+                    x1, y1, x2, y2 = data.image.rect
+                    rect_width = x2 - x1
+                    rect_height = y2 - y1
+                    rect_expr = f"Rect(x={x1}, y={y1}, w={rect_width}, h={rect_height})"
+                else:
+                    rect_expr = "None"
+
                 clean_path = unify_path(data.image.path)
                 default = f'"{clean_path}"'
                 path_expr = self._transform_path(clean_path, default)
-                w.write(f'template = Image(file_path={path_expr}, name="{display_name}")')
+                w.write(f'template = ImageSlice(file_path={path_expr}, name="{display_name}", slice_rect={rect_expr})')
                 w.write_empty_line()
             
             # 4. V2 Props
             for key, value in data.props.items():
                 if isinstance(value, ImageAsset):
+                    rect_expr: str
+                    if value.rect is not None:
+                        x1, y1, x2, y2 = value.rect
+                        rect_width = x2 - x1
+                        rect_height = y2 - y1
+                        rect_expr = f"Rect(x={x1}, y={y1}, w={rect_width}, h={rect_height})"
+                    else:
+                        rect_expr = "None"
                     clean_path = unify_path(value.path)
                     default = f'"{clean_path}"'
                     path_expr = self._transform_path(clean_path, default)
-                    w.write(f'{key} = Image(file_path={path_expr}, name="{display_name}")')
+                    w.write(f'{key} = ImageSlice(file_path={path_expr}, name="{display_name}", slice_rect={rect_expr})')
                 elif isinstance(value, (int, float, str, bool)):
                     w.write(f'{key} = {repr(value)}')
             
@@ -227,10 +253,18 @@ class EntityGenerator(StandardGenerator):
             # 3. template 属性 (Image)
             # 确保路径分隔符统一，避免 Windows 反斜杠问题
             clean_path = unify_path(data.path)
+            rect_expr: str
+            if data.rect is not None:
+                x1, y1, x2, y2 = data.rect
+                rect_width = x2 - x1
+                rect_height = y2 - y1
+                rect_expr = f"Rect(x={x1}, y={y1}, w={rect_width}, h={rect_height})"
+            else:
+                rect_expr = "None"
             display_name = node.metadata.get('display_name', node.name)
             default = f'"{clean_path}"'
             path_expr = self._transform_path(clean_path, default)
-            w.write(f'template = Image(file_path={path_expr}, name="{display_name}")')
+            w.write(f'template = ImageSlice(file_path={path_expr}, name="{display_name}", slice_rect={rect_expr})')
             
             # 4. display_name 属性
             # 优先从 metadata 取，如果没有则用变量名

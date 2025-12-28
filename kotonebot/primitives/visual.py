@@ -5,7 +5,7 @@ from functools import cache
 import cv2
 from cv2.typing import MatLike
 
-from .geometry import Size
+from .geometry import Size, Rect
 from kotonebot.util import cv2_imread
 
 logger = logging.getLogger(__name__)
@@ -108,11 +108,34 @@ class Image:
         return Image(pixels=gray, name=self.name)
 
     def __repr__(self) -> str:
-        # Keep representation similar to the old API (not itself deprecated)
+        class_name = self.__class__.__name__
         if self.file_path is None:
-            return '<Image: memory>'
+            return f'<{class_name}: memory>'
         else:
-            return f'<Image: "{self.name or "untitled"}" at {self.file_path}>'
+            return f'<{class_name}: "{self.name or "untitled"}" at {self.file_path}>'
+
+
+class ImageSlice(Image):
+    def __init__(
+        self,
+        pixels: MatLike | None = None,
+        file_path: str | None = None,
+        lazy_load: bool = False,
+        name: str | None = None,
+        description: str | None = None,
+        *,
+        slice_rect: Rect | None
+    ):
+        super().__init__(
+            pixels=pixels,
+            file_path=file_path,
+            lazy_load=lazy_load,
+            name=name,
+            description=description
+        )
+        self.slice_rect = slice_rect
+        """图像切片的矩形区域。"""
+
 
 class Template(Image):
     """

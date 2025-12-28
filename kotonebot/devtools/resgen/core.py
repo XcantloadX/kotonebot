@@ -33,7 +33,7 @@ class CodeWriter:
 class ImageAsset:
     """代表图片资源的结构化数据"""
     path: str
-    rect: Optional[Tuple[int, int, int, int]] = None  # (x1, y1, x2, y2)
+    rect: Tuple[int, int, int, int] | None  # (x1, y1, x2, y2)
 
 
 @dataclass

@@ -108,7 +108,7 @@ class KotoneV1Parser(SchemaParser):
                     node = ResourceNode(
                         name=attr_name,
                         type='template',
-                        value=ImageAsset(path=metadata['abs_path']),
+                        value=ImageAsset(path=metadata['abs_path'], rect=rect),
                         docstring=self._build_docstring(display_name, desc, class_path, metadata['abs_path'], png_file),
                         metadata=metadata
                     )
@@ -123,7 +123,7 @@ class KotoneV1Parser(SchemaParser):
                         rect = (v['x1'], v['y1'], v['x2'], v['y2'])
                         final_name = f'{def_id}_{k}.png'
                         path = ImageProcessor.save_crop_to_path(png_file, rect, output_dir, final_name)
-                        prefab_props[k] = ImageAsset(path=path)
+                        prefab_props[k] = ImageAsset(path=path, rect=rect)
                     elif isinstance(v, dict) and v.get('kind') == 'rect':
                         # keep rect as dict for now; generator can decide how to emit
                         prefab_props[k] = v
@@ -287,7 +287,7 @@ class KotoneV1Parser(SchemaParser):
             node = ResourceNode(
                 name=attr_name,
                 type='template',
-                value=ImageAsset(path=metadata['abs_path']),
+                value=ImageAsset(path=metadata['abs_path'], rect=None),
                 docstring=self._build_docstring(display_name, desc, class_path, metadata['abs_path'], png_file),
                 metadata=metadata,
             )
@@ -352,7 +352,7 @@ class BasicSpriteParser(SchemaParser):
         return [ResourceNode(
             name=attr_name,
             type='template',
-            value=ImageAsset(path=final_path),
+            value=ImageAsset(path=final_path, rect=None),
             docstring=doc,
             metadata=metadata
         )]

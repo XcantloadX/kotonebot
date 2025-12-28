@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Generic
 from typing_extensions import Unpack, override
 
 from kotonebot.devtools.project.schema import BoolProp, FloatProp, ImageProp, RectProp
-from kotonebot.primitives import Rect, Image
+from kotonebot.primitives import Rect, ImageSlice
 from kotonebot.devtools import EditorMetadata
 
 from .base import Prefab, FindKwargs, GameObjectType, ClickKwargs as _ClickKwargs, WaitKwargs as _WaitKwargs
@@ -31,8 +31,14 @@ class WaitKwargs(TemplateMatchFindKargs[GameObjectType], _WaitKwargs[GameObjectT
 
 class TemplateMatchPrefab(Prefab[GameObjectType]):
     """基于模版匹配的 Prefab"""
-    template: Image
+    template: ImageSlice
     """[必填] 用于匹配的模版图像"""
+    fixed: bool = False
+    """[可选] 是否固定位置。
+
+    当 `fixed` 为 True 时，匹配将限定在 `template.slice_rect`（若存在）定义的区域内。
+    若 `template` 无 `slice_rect`，会在运行时抛出 ValueError，以提示生成代码或资源定义不完整。
+    """
     region: Rect | None = None
     """[可选] 限定搜索区域
     
@@ -74,6 +80,12 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
         colored_override = kwargs.get('colored')
         colored = cls.colored if colored_override is None else colored_override
         region = kwargs.get('region', cls.region)
+        # If prefab is fixed and no explicit region provided, use template.slice_rect
+        if region is None and cls.fixed:
+            slice_rect = cls.template.slice_rect
+            if slice_rect is None:
+                raise ValueError(f"Prefab {cls.__name__} is marked fixed but template has no slice_rect")
+            region = slice_rect
         result = image.find(
             cls.template.pixels,
             rect=region,
@@ -100,6 +112,11 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
         colored_override = kwargs.get('colored')
         colored = cls.colored if colored_override is None else colored_override
         region = kwargs.get('region', cls.region)
+        if region is None and cls.fixed:
+            slice_rect = cls.template.slice_rect
+            if slice_rect is None:
+                raise ValueError(f"Prefab {cls.__name__} is marked fixed but template has no slice_rect")
+            region = slice_rect
         results = image.find_all(
             cls.template.pixels,
             rect=region,
@@ -127,6 +144,11 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
         colored_override = kwargs.get('colored')
         colored = cls.colored if colored_override is None else colored_override
         region = kwargs.get('region', cls.region)
+        if region is None and cls.fixed:
+            slice_rect = cls.template.slice_rect
+            if slice_rect is None:
+                raise ValueError(f"Prefab {cls.__name__} is marked fixed but template has no slice_rect")
+            region = slice_rect
         if predicate is None:
             # 直接使用 expect，未找到会抛出 TemplateNoMatchError
             result = image.expect(
