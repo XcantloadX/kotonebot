@@ -4,6 +4,7 @@ from typing import Any, Callable, Type, cast, get_args
 from typing_extensions import Generic, TypeVar, Unpack, TypedDict
 
 from kotonebot.primitives import Rect
+from kotonebot.backend.context.context import manual_context
 
 GameObjectType = TypeVar('GameObjectType', bound='GameObject', default='GameObject')
 
@@ -125,16 +126,18 @@ class Prefab(Generic[GameObjectType], ABC):
         timeout = kwargs.pop("timeout", None)
         interval = kwargs.pop("interval", None)
         start_time = time.time()
-        while True:
-            obj = cls.find(**kwargs)
-            if obj is not None:
-                return obj
-            from kotonebot import sleep
-            sleep(interval or 1.0)
-            if timeout is not None:
-                elapsed = time.time() - start_time
-                if elapsed >= timeout:
-                    raise TimeoutError(f"Timeout when waiting for {cls.__name__}（{timeout} s）")
+        ctx = manual_context('auto')
+        with ctx:
+            while True:
+                obj = cls.find(**kwargs)
+                if obj is not None:
+                    return obj
+                from kotonebot import sleep
+                sleep(interval or 1.0)
+                if timeout is not None:
+                    elapsed = time.time() - start_time
+                    if elapsed >= timeout:
+                        raise TimeoutError(f"Timeout when waiting for {cls.__name__}（{timeout} s）")
 
     @classmethod
     def try_wait(
