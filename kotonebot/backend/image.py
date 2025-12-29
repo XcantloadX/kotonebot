@@ -194,12 +194,35 @@ def template_match(
             if mask is not None:
                 mask = preprocessor.process(mask)
     # 匹配模板
-    if mask is not None:
-        # https://stackoverflow.com/questions/35642497/python-opencv-cv2-matchtemplate-with-transparency
-        # 使用 Mask 时，必须使用 TM_CCORR_NORMED 方法
-        result = cv2.matchTemplate(image, template, cv2.TM_CCORR_NORMED, mask=mask)
+    if not colored:
+        # 当 colored=False 时，使用灰度匹配以忽略颜色差异并提高速度
+        # 准备灰度图用于匹配
+        if image.ndim == 3:
+            img_for_match = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            img_for_match = image
+
+        if template.ndim == 3:
+            tpl_for_match = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+        else:
+            tpl_for_match = template
+
+        # 如果有 mask，确保为单通道二值掩码
+        if mask is not None:
+            if mask.ndim == 3:
+                mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+            mask = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)[1]
+            # 使用带 mask 的归一化相关性方法
+            result = cv2.matchTemplate(img_for_match, tpl_for_match, cv2.TM_CCORR_NORMED, mask=mask)
+        else:
+            result = cv2.matchTemplate(img_for_match, tpl_for_match, cv2.TM_CCOEFF_NORMED)
     else:
-        result = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
+        if mask is not None:
+        # https://stackoverflow.com/questions/35642497/python-opencv-cv2-matchtemplate-with-transparency
+            # 使用 Mask 时，必须使用 TM_CCORR_NORMED 方法
+            result = cv2.matchTemplate(image, template, cv2.TM_CCORR_NORMED, mask=mask)
+        else:
+            result = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
     
     # ========== 整理结果 ==========
     # 去重、排序、转换为 TemplateMatchResult
