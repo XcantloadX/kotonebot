@@ -1,6 +1,7 @@
 import unittest
 
 import cv2
+import numpy as np
 
 from kotonebot.backend.image import template_match, find_all_crop
 from kotonebot.primitives import Rect
@@ -167,3 +168,20 @@ class TestTemplateMatch(unittest.TestCase):
             # 位置应该被调整（不是相对于矩形原点）
             self.assertGreater(match.position[0], test_rect.x1)
             self.assertGreater(match.position[1], test_rect.y1)
+
+    def test_template_larger_than_image_raises(self):
+        """模板尺寸大于图像时应直接抛出异常。"""
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        template = np.zeros((60, 50, 3), dtype=np.uint8)
+
+        with self.assertRaises(ValueError):
+            template_match(template, image)
+
+    def test_rect_smaller_than_template_raises(self):
+        """rect 区域小于模板尺寸时应直接抛出异常。"""
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        template = np.zeros((20, 20, 3), dtype=np.uint8)
+        rect = Rect(0, 0, 10, 10)
+
+        with self.assertRaises(ValueError):
+            template_match(template, image, rect=rect)

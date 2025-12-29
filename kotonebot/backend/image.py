@@ -161,11 +161,19 @@ def template_match(
     # 统一参数
     template = unify_image(template, transparent)
     image = unify_image(image)
+    th, tw = template.shape[:2]
+    ih, iw = image.shape[:2]
+    if th > ih or tw > iw:
+        raise ValueError(f"Template size ({tw}x{th}) is larger than image size ({iw}x{ih}).")
     
     # 处理矩形区域
     original_image = image
     if rect is not None:
         x, y, w, h = rect.xywh
+        if h < th or w < tw:
+            raise ValueError(
+                f"rect size ({w}x{h}) is smaller than template size ({tw}x{th})."
+            )
         image = image[y:y+h, x:x+w]
     
     if transparent is True and mask is not None:
