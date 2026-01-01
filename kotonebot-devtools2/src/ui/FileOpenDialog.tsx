@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, Classes, Button, Tree, TreeNodeInfo, Spinner } from '@blueprintjs/core';
-import { listDir, getProjectInfo } from '../api/fs';
+import { Dialog, Classes, Button, ButtonGroup, Tree, TreeNodeInfo, Spinner, Popover, PopoverInteractionKind, Position } from '@blueprintjs/core';
+import { listDir, getProjectInfo, FileItem, getImageUrl } from '../api/fs';
+import { useSettingsStore } from "../editor/settings";
 
 interface FileOpenDialogProps {
   isOpen: boolean;
@@ -10,12 +11,129 @@ interface FileOpenDialogProps {
   filter?: (name: string) => boolean;
 }
 
+interface ThumbnailGridProps {
+  items: FileItem[];
+  filter?: (name: string) => boolean;
+  selectedPaths: Set<string>;
+  thumbSize: number;
+  onOpenDirectory: (path: string) => void;
+  onToggleSelect: (path: string, ctrlKey: boolean, shiftKey: boolean) => void;
+}
+
+const ThumbnailGrid: React.FC<ThumbnailGridProps> = ({
+  items,
+  filter,
+  selectedPaths,
+  thumbSize,
+  onOpenDirectory,
+  onToggleSelect,
+}) => {
+  return (
+    <div
+      style={{
+        padding: 8,
+        display: "grid",
+        gridTemplateColumns: `repeat(auto-fill, minmax(${thumbSize}px, 1fr))`,
+        gap: 8,
+      }}
+    >
+      {items
+        .filter(item => item.isDirectory || (filter ? filter(item.name) : true))
+        .map((item) => {
+          const normalizedPath = item.path.replace(/\\/g, "/");
+          const isSelected = selectedPaths.has(normalizedPath);
+          const isImage = !!item.isImage;
+          const thumbnailUrl = item.thumbnailUrl || (isImage ? getImageUrl(normalizedPath) : undefined);
+          const iconSize = Math.max(16, Math.floor(thumbSize / 3));
+
+          return (
+            <div
+              key={normalizedPath}
+              onClick={(e) => {
+                const ctrlKey = e.ctrlKey || e.metaKey;
+                const shiftKey = e.shiftKey;
+                if (item.isDirectory) {
+                  onOpenDirectory(item.path);
+                } else {
+                  onToggleSelect(normalizedPath, ctrlKey, shiftKey);
+                }
+              }}
+              style={{
+                border: isSelected ? "2px solid #137cbd" : "1px solid #d1d8e0",
+                borderRadius: 4,
+                padding: 4,
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: thumbSize - 8,
+                  height: thumbSize - 8,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "#f5f8fa",
+                  overflow: "hidden",
+                }}
+              >
+                {isImage && thumbnailUrl ? (
+                  <img
+                    src={thumbnailUrl}
+                    alt={item.name}
+                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                  />
+                ) : (
+                  <span
+                    className={item.isDirectory ? "bp5-icon bp5-icon-folder-close" : "bp5-icon bp5-icon-document"}
+                    style={{ fontSize: iconSize }}
+                  />
+                )}
+              </div>
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 12,
+                  textAlign: "center",
+                  wordBreak: "break-all",
+                }}
+              >
+                {item.name}
+              </div>
+            </div>
+          );
+        })}
+    </div>
+  );
+};
+
 export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose, onSelect, title = "Open File", filter }) => {
   const [currentPath, setCurrentPath] = useState<string>(".");
   const [nodes, setNodes] = useState<TreeNodeInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [lastSelected, setLastSelected] = useState<string | null>(null);
+  const [items, setItems] = useState<FileItem[]>([]);
+  const viewMode = useSettingsStore(s => s.fileDialogViewMode);
+  const setViewMode = useSettingsStore(s => s.setFileDialogViewMode);
+  const persistedThumbSize = useSettingsStore(s => s.fileDialogThumbSize);
+  const setPersistedThumbSize = useSettingsStore(s => s.setFileDialogThumbSize);
+  const [thumbSize, setThumbSize] = useState<number>(persistedThumbSize);
+
+  useEffect(() => {
+    setThumbSize(persistedThumbSize);
+  }, [persistedThumbSize]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setPersistedThumbSize(thumbSize);
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [thumbSize, setPersistedThumbSize]);
 
   useEffect(() => {
     if (isOpen) {
@@ -44,6 +162,7 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
     setIsLoading(true);
     try {
       const items = await listDir(path);
+      setItems(items);
       const treeNodes: TreeNodeInfo[] = items
         .filter(item => item.isDirectory || (filter ? filter(item.name) : true))
         .map((item) => {
@@ -163,6 +282,41 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
         <div style={{ marginBottom: 10, display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button icon="arrow-up" onClick={handleGoUp} disabled={currentPath === "."} minimal />
           <div style={{ wordBreak: 'break-all', flex: 1 }}>{currentPath.replace(/\\/g, '/')}</div>
+          <ButtonGroup minimal>
+            <Button
+              icon="list"
+              active={viewMode === "list"}
+              onClick={() => setViewMode("list")}
+            />
+            <Popover
+                interactionKind={PopoverInteractionKind.HOVER}
+              position={Position.BOTTOM}
+              content={
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: 8 }}>
+                  <span style={{ fontSize: 12 }}>Size</span>
+                  <input
+                    type="range"
+                    min={64}
+                    max={256}
+                    value={thumbSize}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      if (!Number.isFinite(value) || value <= 0) {
+                        throw new Error("Invalid thumbnail size");
+                      }
+                      setThumbSize(value);
+                    }}
+                  />
+                </div>
+              }
+            >
+              <Button
+                icon="media"
+                active={viewMode === "thumb"}
+                onClick={() => setViewMode("thumb")}
+              />
+            </Popover>
+          </ButtonGroup>
         </div>
         <div style={{ height: 400, overflow: 'auto', border: '1px solid #d1d8e0', position: 'relative' }}>
           {isLoading && (
@@ -174,7 +328,19 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
               <Spinner size={20} />
             </div>
           )}
-          <Tree contents={nodes} onNodeClick={(node, nodePath, e) => handleNodeClick(node, nodePath, e)} />
+          {viewMode === "list" && (
+            <Tree contents={nodes} onNodeClick={(node, nodePath, e) => handleNodeClick(node, nodePath, e)} />
+          )}
+          {viewMode === "thumb" && (
+            <ThumbnailGrid
+              items={items}
+              filter={filter}
+              selectedPaths={selectedPaths}
+              thumbSize={thumbSize}
+              onOpenDirectory={setCurrentPath}
+              onToggleSelect={handleSelect}
+            />
+          )}
         </div>
       </div>
       <div className={Classes.DIALOG_FOOTER}>

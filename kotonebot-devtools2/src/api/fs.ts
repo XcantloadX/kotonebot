@@ -4,6 +4,8 @@ export interface FileItem {
   name: string;
   isDirectory: boolean;
   path: string;
+  isImage?: boolean;
+  thumbnailUrl?: string;
 }
 
 export async function listDir(path: string): Promise<FileItem[]> {

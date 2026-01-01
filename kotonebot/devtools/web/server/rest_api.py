@@ -2,6 +2,8 @@ import os
 import logging
 from pathlib import Path
 from typing import Any, TypeVar, Generic, Optional
+
+import cv2
 from fastapi import APIRouter, HTTPException, Query, Body
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -27,19 +29,57 @@ def create_rest_router(project: Project) -> APIRouter:
     router = APIRouter(prefix="/api")
     _prefabs_cache = None
 
-    def _get_safe_path(path_str: str) -> Path:
-        """Ensure path is within project root. Raises ValueError on invalid access.
-        """
-        root = Path(project.conf_path).parent.resolve()
+    project_root = Path(project.conf_path).parent.resolve()
+    thumbnail_cache_root = project_root / ".kotonebot" / "cache" / "thumbnails"
+    image_suffixes = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 
+    def _is_image_file(path: Path) -> bool:
+        return path.suffix.lower() in image_suffixes
+
+    def _get_thumbnail_path(source: Path, size: int) -> Path:
+        if size <= 0:
+            raise ValueError("size must be positive")
+        try:
+            rel = source.resolve().relative_to(project_root)
+        except Exception as e:
+            raise ValueError(str(e))
+        size_dir = thumbnail_cache_root / str(size)
+        target_dir = size_dir / rel.parent
+        target_dir.mkdir(parents=True, exist_ok=True)
+        return target_dir / rel.name
+
+    def _ensure_thumbnail(source: Path, size: int) -> Path:
+        cache_path = _get_thumbnail_path(source, size)
+        regenerate = True
+        if cache_path.exists():
+            src_stat = source.stat()
+            cache_stat = cache_path.stat()
+            if cache_stat.st_mtime >= src_stat.st_mtime and cache_stat.st_size > 0:
+                regenerate = False
+        if regenerate:
+            img = cv2.imread(str(source))
+            if img is None:
+                raise ValueError(f"Could not read image: {source}")
+            height, width = img.shape[:2]
+            longest = max(width, height)
+            if longest <= 0:
+                raise ValueError("invalid image size")
+            scale = size / float(longest)
+            new_width = max(1, int(round(width * scale)))
+            new_height = max(1, int(round(height * scale)))
+            resized = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            cv2.imwrite(str(cache_path), resized)
+        return cache_path
+
+    def _get_safe_path(path_str: str) -> Path:
         p = Path(path_str)
         if not p.is_absolute():
-            p = root / p
+            p = project_root / p
 
         try:
             p = p.resolve()
-            if not str(p).startswith(str(root)):
-                raise ValueError(f"Access denied: Path {p} is outside project root {root}")
+            if not str(p).startswith(str(project_root)):
+                raise ValueError(f"Access denied: Path {p} is outside project root {project_root}")
         except Exception as e:
             raise ValueError(f"Invalid path: {e}")
 
@@ -56,8 +96,7 @@ def create_rest_router(project: Project) -> APIRouter:
     @router.get("/project/root")
     async def get_project_root():
         try:
-            root = Path(project.conf_path).parent.resolve()
-            data: dict = {"resource_root": str(root)}
+            data: dict = {"resource_root": str(project_root)}
             # include editor configuration if available (prefabs_module, resource_path)
             try:
                 if project.conf and project.conf.editor:
@@ -82,10 +121,18 @@ def create_rest_router(project: Project) -> APIRouter:
             items = []
             entries = sorted(list(safe_path.iterdir()), key=lambda x: (not x.is_dir(), x.name.lower()))
             for item in entries:
+                is_image = _is_image_file(item) if item.is_file() else False
+                thumbnail_url: Optional[str]
+                if is_image:
+                    thumbnail_url = f"/api/image/thumbnail?path={item}&size=128"
+                else:
+                    thumbnail_url = None
                 items.append({
                     "name": item.name,
                     "isDirectory": item.is_dir(),
-                    "path": str(item)
+                    "path": str(item),
+                    "isImage": is_image,
+                    "thumbnailUrl": thumbnail_url,
                 })
 
             return _ok({"items": items})
@@ -128,10 +175,23 @@ def create_rest_router(project: Project) -> APIRouter:
         if not safe_path.exists():
              raise HTTPException(status_code=404, detail="Image not found")
         
-        if safe_path.suffix.lower() not in ['.png', '.jpg', '.jpeg', '.bmp', '.webp']:
+        if not _is_image_file(safe_path):
              raise HTTPException(status_code=400, detail="Not an image file")
              
         return FileResponse(safe_path)
+
+    @router.get("/image/thumbnail")
+    async def get_image_thumbnail(path: str = Query(...), size: int = Query(128, ge=1, le=2048)):
+        safe_path = _get_safe_path(path)
+        if not safe_path.exists():
+            raise HTTPException(status_code=404, detail="Image not found")
+        if not _is_image_file(safe_path):
+            raise HTTPException(status_code=400, detail="Not an image file")
+        try:
+            cache_path = _ensure_thumbnail(safe_path, size)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return FileResponse(cache_path)
 
     @router.get("/prefabs/schema")
     async def get_prefabs_schema():
