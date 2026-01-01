@@ -556,13 +556,13 @@ class Rect:
         else:
             raise ValueError('Either xywh or x, y, w, h must be provided.')
         
-        self.x1 = x
+        self.x1 = int(x)
         """矩形左上角的 X 坐标。"""
-        self.y1 = y
+        self.y1 = int(y)
         """矩形左上角的 Y 坐标。"""
-        self.w = w
+        self.w = int(w)
         """矩形的宽度。"""
-        self.h = h
+        self.h = int(h)
         """矩形的高度。"""
         self.name: str | None = name
         """矩形的名称。"""
@@ -573,7 +573,7 @@ class Rect:
         从 (x1, y1, x2, y2) 创建矩形。
         :return: 创建结果。
         """
-        return cls(x1, y1, x2 - x1, y2 - y1)
+        return cls(int(x1), int(y1), int(x2 - x1), int(y2 - y1))
 
     @property
     def x2(self) -> int:

@@ -6,6 +6,7 @@ Library:
 3. [feat] **BREAKING** 移除 adb_raw 的实现，因为它又慢又不稳定。
 4. [feat] 移除 kotonebot.backend.core.Image 类，新编写代码应该使用 kotonebot.primitives.Image。新的 Image 类暂时保留与原类一直的字段以向后兼容
 5. [feat] **BREAKING** image.xxx 系列方法现在若 `colored=False`，将会采用灰度图像的模板匹配而不是 RGB 三通道的模板匹配
+6. [feat] **BREAKING** 现在 geometry 里的 Rect 类在创建时会自动将传入参数转换为整数
 
 ## v0.5.0
 Library：
