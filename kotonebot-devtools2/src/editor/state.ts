@@ -3,6 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import { current } from 'immer';
 import { MetaV2, ResourceType } from '../model/metaV2';
 import { PrefabSchema } from '../model/prefabSchema';
+import { writeText } from '../api/fs';
 
 export type ToolType = "select" | "rect" | "point";
 
@@ -54,7 +55,7 @@ interface AppState {
   
   undo: () => void;
   redo: () => void;
-  markAsSaved: () => void;
+  saveActiveDocument: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>()(
@@ -178,10 +179,18 @@ export const useAppStore = create<AppState>()(
         }
     }),
 
-    markAsSaved: () => set((state) => {
+    saveActiveDocument: async () => {
+      const current = useAppStore.getState();
+      if (!current.activeDocumentId || !current.documents[current.activeDocumentId]) return;
+      const doc = current.documents[current.activeDocumentId];
+      if (!doc.meta) return;
+      await writeText(doc.meta.path, JSON.stringify(doc.meta.data, null, 2));
+      // mark as saved in the store
+      set((state) => {
         if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-            state.documents[state.activeDocumentId].dirty = false;
+          state.documents[state.activeDocumentId].dirty = false;
         }
-    })
+      });
+    }
   }))
 );

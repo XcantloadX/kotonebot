@@ -4,7 +4,7 @@ import { Button, Icon, Tooltip, Dialog, Menu, MenuItem } from '@blueprintjs/core
 import { useAppStore } from '../editor/state';
 
 export const TabBar: React.FC = () => {
-    const { documents, activeDocumentId, setActiveDocument, closeDocument, markAsSaved } = useAppStore();
+    const { documents, activeDocumentId, setActiveDocument, closeDocument, saveActiveDocument } = useAppStore();
     const scrollRef = useHorizontalScroll();
 
     const docList = Object.values(documents);
@@ -145,12 +145,15 @@ export const TabBar: React.FC = () => {
                     </div>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                         <Button
-                            onClick={() => {
+                            onClick={async () => {
                                 if (!closingDocId) return;
                                 setActiveDocument(closingDocId);
-                                markAsSaved();
+                                try {
+                                    await saveActiveDocument();
+                                } catch (e) {
+                                    console.error('Failed to save:', e);
+                                }
                                 closeDocument(closingDocId);
-                                // advance queue if any
                                 advanceQueueAfterDialog();
                             }}
                             intent="primary"

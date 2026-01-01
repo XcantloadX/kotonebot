@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Toaster, Position as ToasterPosition } from '@blueprintjs/core';
 import { useAppStore } from '../editor/state';
 import { FileOpenDialog } from './FileOpenDialog';
-import { readText, writeText } from '../api/fs';
+import { readText } from '../api/fs';
 import { SideToolBar, Tool } from './SideToolBar';
 
 const toaster = Toaster.create({ position: ToasterPosition.TOP });
@@ -19,7 +19,7 @@ export const LeftToolBar: React.FC = () => {
     setActiveResourceType,
     undo,
     redo,
-    markAsSaved,
+    saveActiveDocument,
     prefabSchema,
     setMode,
     mode
@@ -117,9 +117,8 @@ export const LeftToolBar: React.FC = () => {
   const handleSave = async () => {
     if (!activeMeta || !activeDoc) return;
     try {
-      await writeText(activeMeta.path, JSON.stringify(activeMeta.data, null, 2));
+      await saveActiveDocument();
       toaster.show({ message: "Saved", intent: "success" });
-      markAsSaved();
     } catch (e) {
       toaster.show({ message: "Failed to save", intent: "danger" });
     }
