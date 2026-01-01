@@ -201,9 +201,10 @@ class EntityGenerator(StandardGenerator):
                 rect_expr: str
                 if data.image.rect is not None:
                     x1, y1, x2, y2 = data.image.rect
-                    rect_width = x2 - x1
-                    rect_height = y2 - y1
-                    rect_expr = f"Rect(x={x1}, y={y1}, w={rect_width}, h={rect_height})"
+                    ix1, iy1, ix2, iy2 = map(int, (x1, y1, x2, y2))
+                    rect_width = ix2 - ix1
+                    rect_height = iy2 - iy1
+                    rect_expr = f"Rect(x={ix1}, y={iy1}, w={rect_width}, h={rect_height})"
                 else:
                     rect_expr = "None"
 
@@ -219,9 +220,10 @@ class EntityGenerator(StandardGenerator):
                     rect_expr: str
                     if value.rect is not None:
                         x1, y1, x2, y2 = value.rect
-                        rect_width = x2 - x1
-                        rect_height = y2 - y1
-                        rect_expr = f"Rect(x={x1}, y={y1}, w={rect_width}, h={rect_height})"
+                        ix1, iy1, ix2, iy2 = map(int, (x1, y1, x2, y2))
+                        rect_width = ix2 - ix1
+                        rect_height = iy2 - iy1
+                        rect_expr = f"Rect(x={ix1}, y={iy1}, w={rect_width}, h={rect_height})"
                     else:
                         rect_expr = "None"
                     clean_path = unify_path(value.path)
@@ -256,9 +258,10 @@ class EntityGenerator(StandardGenerator):
             rect_expr: str
             if data.rect is not None:
                 x1, y1, x2, y2 = data.rect
-                rect_width = x2 - x1
-                rect_height = y2 - y1
-                rect_expr = f"Rect(x={x1}, y={y1}, w={rect_width}, h={rect_height})"
+                ix1, iy1, ix2, iy2 = map(int, (x1, y1, x2, y2))
+                rect_width = ix2 - ix1
+                rect_height = iy2 - iy1
+                rect_expr = f"Rect(x={ix1}, y={iy1}, w={rect_width}, h={rect_height})"
             else:
                 rect_expr = "None"
             display_name = node.metadata.get('display_name', node.name)
