@@ -4,6 +4,7 @@ import { current } from 'immer';
 import { MetaV2, ResourceType } from '../model/metaV2';
 import { PrefabSchema } from '../model/prefabSchema';
 import { writeText } from '../api/fs';
+import { toaster } from '../ui/toaster';
 
 export type ToolType = "select" | "rect" | "point";
 
@@ -184,13 +185,18 @@ export const useAppStore = create<AppState>()(
       if (!current.activeDocumentId || !current.documents[current.activeDocumentId]) return;
       const doc = current.documents[current.activeDocumentId];
       if (!doc.meta) return;
-      await writeText(doc.meta.path, JSON.stringify(doc.meta.data, null, 2));
-      // mark as saved in the store
-      set((state) => {
-        if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-          state.documents[state.activeDocumentId].dirty = false;
-        }
-      });
+      try {
+        await writeText(doc.meta.path, JSON.stringify(doc.meta.data, null, 2));
+        // mark as saved in the store
+        set((state) => {
+          if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
+            state.documents[state.activeDocumentId].dirty = false;
+          }
+        });
+      } catch (e: any) {
+        toaster.show({ message: `保存失败: ${e?.message ?? String(e)}`, intent: 'danger' as any });
+        throw e;
+      }
     }
   }))
 );

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Toaster, Position as ToasterPosition } from '@blueprintjs/core';
+import { toaster } from './toaster';
 import { useAppStore } from '../editor/state';
 import { FileOpenDialog } from './FileOpenDialog';
 import { readText } from '../api/fs';
 import { SideToolBar, Tool } from './SideToolBar';
 
-const toaster = Toaster.create({ position: ToasterPosition.TOP });
 
 export const LeftToolBar: React.FC = () => {
   const { 
