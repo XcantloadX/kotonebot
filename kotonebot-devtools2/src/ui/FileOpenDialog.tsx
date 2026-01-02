@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, Classes, Button, ButtonGroup, Tree, TreeNodeInfo, Spinner, Popover, PopoverInteractionKind, Position } from '@blueprintjs/core';
+import React, { useState, useEffect, useRef } from 'react';
+import { Dialog, Classes, Button, ButtonGroup, Tree, TreeNodeInfo, Spinner, Popover, PopoverInteractionKind, Position, InputGroup } from '@blueprintjs/core';
+import ClearableInputGroup from '@/ui/components/ClearableInputGroup';
+import { toaster } from '../ui/toaster';
 import { listDir, getProjectInfo, FileItem, getImageUrl } from '../api/fs';
 import { useSettingsStore } from "../editor/settings";
 
@@ -13,7 +15,6 @@ interface FileOpenDialogProps {
 
 interface ThumbnailGridProps {
   items: FileItem[];
-  filter?: (name: string) => boolean;
   selectedPaths: Set<string>;
   thumbSize: number;
   onOpenDirectory: (path: string) => void;
@@ -22,7 +23,6 @@ interface ThumbnailGridProps {
 
 const ThumbnailGrid: React.FC<ThumbnailGridProps> = ({
   items,
-  filter,
   selectedPaths,
   thumbSize,
   onOpenDirectory,
@@ -37,9 +37,7 @@ const ThumbnailGrid: React.FC<ThumbnailGridProps> = ({
         gap: 8,
       }}
     >
-      {items
-        .filter(item => item.isDirectory || (filter ? filter(item.name) : true))
-        .map((item) => {
+      {items.map((item) => {
           const normalizedPath = item.path.replace(/\\/g, "/");
           const isSelected = selectedPaths.has(normalizedPath);
           const isImage = !!item.isImage;
@@ -113,20 +111,48 @@ const ThumbnailGrid: React.FC<ThumbnailGridProps> = ({
 
 export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose, onSelect, title = "Open File", filter }) => {
   const [currentPath, setCurrentPath] = useState<string>(".");
-  const [nodes, setNodes] = useState<TreeNodeInfo[]>([]);
+  const [backStack, setBackStack] = useState<string[]>([]);
+  const [forwardStack, setForwardStack] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [lastSelected, setLastSelected] = useState<string | null>(null);
   const [items, setItems] = useState<FileItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [currentPathInput, setCurrentPathInput] = useState<string>(currentPath.replace(/\\/g, '/'));
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const viewMode = useSettingsStore(s => s.fileDialogViewMode);
   const setViewMode = useSettingsStore(s => s.setFileDialogViewMode);
   const persistedThumbSize = useSettingsStore(s => s.fileDialogThumbSize);
   const setPersistedThumbSize = useSettingsStore(s => s.setFileDialogThumbSize);
   const [thumbSize, setThumbSize] = useState<number>(persistedThumbSize);
 
+  const visibleItems = items.filter(item => {
+    if (item.isDirectory) return true;
+    if (filter && !filter(item.name)) return false;
+    if (!searchTerm.trim()) return true;
+    return item.name.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  // listview 用的数据
+  const treeNodes: TreeNodeInfo[] = visibleItems.map((item) => {
+    const fullPath = item.path.replace(/\\/g, '/');
+    return {
+      id: fullPath,
+      label: item.name,
+      icon: item.isDirectory ? "folder-close" : "document",
+      nodeData: { ...item, path: fullPath },
+      hasCaret: false,
+      isSelected: !item.isDirectory ? selectedPaths.has(fullPath) : false
+    } as TreeNodeInfo;
+  });
+
   useEffect(() => {
     setThumbSize(persistedThumbSize);
   }, [persistedThumbSize]);
+
+  useEffect(() => {
+    setCurrentPathInput(currentPath.replace(/\\/g, '/'));
+  }, [currentPath]);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -141,71 +167,42 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
         try {
           const info = await getProjectInfo();
           if (info && info.editor && info.editor.resource_path) {
-            setCurrentPath(info.editor.resource_path.replace(/\\/g, '/'));
+            const initial = info.editor.resource_path.replace(/\\/g, '/');
+            tryChangePath(initial, false);
+          } else {
+            tryChangePath(currentPath, false);
           }
         } catch (e) {
-          // fallback to currentPath
+          tryChangePath(currentPath, false);
         }
       })();
       setSelectedPaths(new Set());
       setLastSelected(null);
+      setSearchTerm('');
+      setBackStack([]);
+      setForwardStack([]);
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (isOpen) {
-      loadDir(currentPath);
-    }
-  }, [isOpen, currentPath]);
-
-  const loadDir = async (path: string) => {
+  const tryChangePath = async (newPath: string, addToHistory: boolean = true) => {
+    const normalized = (newPath || '.').replace(/\\/g, '/');
     setIsLoading(true);
     try {
-      const items = await listDir(path);
+      const items = await listDir(normalized);
       setItems(items);
-      const treeNodes: TreeNodeInfo[] = items
-        .filter(item => item.isDirectory || (filter ? filter(item.name) : true))
-        .map((item) => {
-          const fullPath = item.path.replace(/\\/g, '/');
-          return {
-            id: fullPath,
-            label: item.name,
-            icon: item.isDirectory ? "folder-close" : "document",
-            nodeData: { ...item, path: fullPath },
-            hasCaret: false,
-            isSelected: !item.isDirectory ? selectedPaths.has(fullPath) : false
-          };
-        });
-
-      if (path !== "." && path !== "") {
-        treeNodes.unshift({
-          id: "parent",
-          label: "..",
-          icon: "folder-open",
-          nodeData: { isDirectory: true, path: ".." },
-          hasCaret: false
-        });
+      if (addToHistory) {
+        setBackStack(prev => [...prev, currentPath]);
+        setForwardStack([]);
       }
-
-      setNodes(treeNodes);
-    } catch (e) {
-      console.error("Failed to list dir", e);
+      setCurrentPath(normalized);
+      setCurrentPathInput(normalized);
+    } catch (err: any) {
+      const msg = err && err.message ? err.message : 'Failed to open path';
+      toaster.show({ message: `Cannot open path: ${msg}`, intent: 'danger' });
+      setCurrentPathInput(currentPath.replace(/\\/g, '/'));
     } finally {
       setIsLoading(false);
     }
-  };
-  const syncNodeSelection = (nextSelected: Set<string>) => {
-    setNodes(prev => prev.map(node => {
-      const data: any = node.nodeData;
-      if (data && !data.isDirectory && node.id !== "parent") {
-        const id = node.id as string;
-        return {
-          ...node,
-          isSelected: nextSelected.has(id)
-        };
-      }
-      return node;
-    }));
   };
 
   const handleSelect = (path: string, ctrlKey = false, shiftKey = false) => {
@@ -213,10 +210,10 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
       const next = new Set(prev);
 
       if (shiftKey && lastSelected && lastSelected !== path) {
-        const fileIds = nodes
+        const fileIds = treeNodes
           .filter(n => {
             const d: any = n.nodeData;
-            return d && !d.isDirectory && n.id !== "parent";
+            return d && !d.isDirectory;
           })
           .map(n => n.id as string);
 
@@ -244,7 +241,6 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
       }
 
       setLastSelected(path);
-      syncNodeSelection(next);
       return next;
     });
   };
@@ -253,13 +249,8 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
     const shiftKey = !!(e && e.shiftKey);
     const ctrlKey = !!(e && (e.ctrlKey || e.metaKey));
     const item = node.nodeData as any;
-    if (node.id === "parent") {
-      handleGoUp();
-      return;
-    }
-
     if (item.isDirectory) {
-      setCurrentPath(item.path);
+      tryChangePath(item.path);
     } else {
       handleSelect(item.path, ctrlKey, shiftKey);
     }
@@ -268,7 +259,27 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
   const handleGoUp = () => {
     const normalized = currentPath.replace(/\\/g, '/');
     const parent = normalized.split('/').slice(0, -1).join("/") || ".";
-    setCurrentPath(parent);
+    tryChangePath(parent);
+  }
+
+  const handleBack = () => {
+    if (backStack.length === 0) return;
+    const last = backStack[backStack.length - 1];
+    setBackStack(prev => prev.slice(0, -1));
+    setForwardStack(prev => [...prev, currentPath]);
+    tryChangePath(last, false);
+  }
+
+  const handleForward = () => {
+    if (forwardStack.length === 0) return;
+    const next = forwardStack[forwardStack.length - 1];
+    setForwardStack(prev => prev.slice(0, -1));
+    setBackStack(prev => [...prev, currentPath]);
+    tryChangePath(next, false);
+  }
+
+  const handleRefresh = () => {
+    tryChangePath(currentPath, false);
   }
 
   const handleOpen = () => {
@@ -277,11 +288,47 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
   }
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} title={title} style={{ width: 600 }}>
+    <Dialog isOpen={isOpen} onClose={onClose} title={title} style={{ width: 900 }}>
       <div className={Classes.DIALOG_BODY}>
         <div style={{ marginBottom: 10, display: 'flex', gap: 10, alignItems: 'center' }}>
-          <Button icon="arrow-up" onClick={handleGoUp} disabled={currentPath === "."} minimal />
-          <div style={{ wordBreak: 'break-all', flex: 1 }}>{currentPath.replace(/\\/g, '/')}</div>
+          <ButtonGroup minimal>
+            <Button icon="chevron-left" onClick={handleBack} disabled={backStack.length === 0} minimal />
+            <Button icon="chevron-right" onClick={handleForward} disabled={forwardStack.length === 0} minimal />
+            <Button icon="refresh" onClick={handleRefresh} minimal />
+            <Button icon="arrow-up" onClick={handleGoUp} disabled={currentPath === "."} minimal />
+          </ButtonGroup>
+          <div style={{ flex: 1, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <InputGroup
+              small
+              fill
+              value={currentPathInput}
+              onChange={(e) => setCurrentPathInput((e.target as HTMLInputElement).value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  tryChangePath(currentPathInput);
+                }
+              }}
+              onBlur={() => {
+                const p = (currentPathInput || '.').replace(/\\/g, '/');
+                if (p !== currentPath) tryChangePath(p);
+              }}
+              style={{ flex: 1 }}
+              
+            />
+            <ClearableInputGroup
+              small
+              leftIcon="search"
+              placeholder="Search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
+              style={{ width: 260 }}
+              inputRef={(ref: HTMLInputElement | null) => { searchInputRef.current = ref; }}
+              onClear={() => {
+                setSearchTerm('');
+                setTimeout(() => searchInputRef.current?.focus(), 0);
+              }}
+            />
+          </div>
           <ButtonGroup minimal>
             <Button
               icon="list"
@@ -329,15 +376,14 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
             </div>
           )}
           {viewMode === "list" && (
-            <Tree contents={nodes} onNodeClick={(node, nodePath, e) => handleNodeClick(node, nodePath, e)} />
+            <Tree contents={treeNodes} onNodeClick={(node, nodePath, e) => handleNodeClick(node, nodePath, e)} />
           )}
           {viewMode === "thumb" && (
             <ThumbnailGrid
-              items={items}
-              filter={filter}
+              items={visibleItems}
               selectedPaths={selectedPaths}
               thumbSize={thumbSize}
-              onOpenDirectory={setCurrentPath}
+              onOpenDirectory={(p: string) => tryChangePath(p)}
               onToggleSelect={handleSelect}
             />
           )}

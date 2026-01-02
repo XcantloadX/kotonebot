@@ -247,7 +247,7 @@ export const LeftToolBar: React.FC = () => {
         onClose={() => setIsImageOpen(false)} 
         onSelect={handleSelect}
         title="Open Image"
-        filter={name => name.endsWith('.png') || name.endsWith('.jpg')}
+        filter={name => name.endsWith('.png')}
       />
     </>
   );
