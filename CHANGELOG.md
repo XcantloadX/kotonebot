@@ -7,6 +7,19 @@ Library:
 4. [feat] 移除 kotonebot.backend.core.Image 类，新编写代码应该使用 kotonebot.primitives.Image。新的 Image 类暂时保留与原类一直的字段以向后兼容
 5. [feat] **BREAKING** image.xxx 系列方法现在若 `colored=False`，将会采用灰度图像的模板匹配而不是 RGB 三通道的模板匹配
 6. [feat] **BREAKING** 现在 geometry 里的 Rect 类在创建时会自动将传入参数转换为整数
+7. [feat] 新增全局处理分辨率缩放方案，内置等比例、按宽度、按高度缩放逻辑
+8. [feat] geometry 增强：Point/Rect/Vector 变为可迭代对象，新增大小比较与 `as_tuple` 等实用能力，并引入统一化工具函数
+9. [feat] template_match 新增参数合法性检查
+10. [feat] 调整 TemplateMatchPrefab 默认阈值
+
+Framework：
+1. [feat] Loop 类新增全局 callback，在每次循环前调用，可用于全局处理逻辑
+2. [feat] 新增全局框架配置入口，可用于配置分辨率缩放、Loop 全局回调等
+3. [feat] 新引入了 GameObject & Prefab 系统，作为裸露 image.xxx 的高层封装，可用于逻辑复用
+
+Devtools：
+1. [feat] 引入新标准资源文件生成工具，同时兼容新旧两套资源方案
+2. [refactor] 重构 Devtool，优化标注体验
 
 ## v0.5.0
 Library：
