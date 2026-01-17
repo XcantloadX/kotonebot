@@ -114,8 +114,17 @@ class Loop:
         self.found_anything = False
         # 执行全局回调
         callbacks = conf().loop.loop_callbacks
-        for cb in callbacks:
-            cb(self)
+        while True:
+            did = False
+            for cb in callbacks:
+                did = cb(self)
+                if did:
+                    time.sleep(self.interval)
+                    self.screenshot = device.screenshot()
+                    break
+            if not did:
+                break
+
         return self
 
     def exit(self):
