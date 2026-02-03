@@ -1,4 +1,8 @@
 # 更新日志
+## v0.7.0
+Library:
+1. [feat] 支持了 Windows 控制的后台执行版本，recipe 名称为 `windows_background`。底层使用 SendMessage + PrintWindow 实现。
+
 ## v0.6.0
 Library:
 1. [feat] 新增类 kotonebot.interop.win.ShakeMouse，支持检测晃动鼠标检测动作，可以用于实现晃动鼠标自动停止脚本执行的功能

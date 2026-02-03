@@ -8,7 +8,7 @@ from kotonebot.util import require_windows
 from .protocol import Device, WindowsHostConfig, RemoteWindowsHostConfig
 
 logger = logging.getLogger(__name__)
-WindowsRecipes = Literal['windows', 'remote_windows']
+WindowsRecipes = Literal['windows', 'remote_windows', 'windows_background']
 
 # Windows 相关的配置类型联合
 WindowsHostConfigs = WindowsHostConfig | RemoteWindowsHostConfig
@@ -40,6 +40,21 @@ class CommonWindowsCreateDeviceMixin(ABC):
                 )
                 d._screenshot = impl
                 d._touch = impl
+                return d
+            case 'windows_background':
+                if not isinstance(config, WindowsHostConfig):
+                    raise ValueError(f"Expected WindowsHostConfig for 'windows' recipe, got {type(config)}")
+                from kotonebot.client.implements.windows import WindowsImpl
+                d = WindowsDevice()
+                impl = WindowsImpl(
+                    device=d,
+                    window_title=config.window_title,
+                    ahk_exe_path=config.ahk_exe_path
+                )
+                from kotonebot.client.implements.windows.send_message import SendMessageImpl
+                from kotonebot.client.implements.windows.print_window import PrintWindowImpl
+                d._screenshot = PrintWindowImpl(d, config.window_title)
+                d._touch = SendMessageImpl(d, config.window_title)
                 return d
             case 'remote_windows':
                 if not isinstance(config, RemoteWindowsHostConfig):

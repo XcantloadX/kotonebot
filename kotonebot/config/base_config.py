@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 
 T = TypeVar('T')
 BackendType = Literal['custom', 'mumu12', 'mumu12v5', 'leidian', 'dmm']
-DeviceRecipes = Literal['adb', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
+DeviceRecipes = Literal['adb', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc', 'windows_background']
 
 class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(use_attribute_docstrings=True)

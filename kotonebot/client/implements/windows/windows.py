@@ -19,9 +19,9 @@ except ImportError as _e:
     raise MissingDependencyError(_e, 'windows')
 from cv2.typing import MatLike
 
-from ..device import Device, WindowsDevice
-from ..protocol import Commandable, Touchable, Screenshotable
-from ..registration import ImplConfig
+from ...device import Device, WindowsDevice
+from ...protocol import Commandable, Touchable, Screenshotable
+from ...registration import ImplConfig
 
 # 1. 定义配置模型
 @dataclass
@@ -160,7 +160,7 @@ class WindowsImpl(Touchable, Screenshotable):
         self.ahk.mouse_drag(x2, y2, from_position=(x1, y1), coord_mode='Client', speed=10)
 
 if __name__ == '__main__':
-    from ..device import Device
+    from ...device import Device
     device = Device()
     # 在测试环境中直接使用默认路径
     ahk_path = str(resources.files('kaa.res.bin') / 'AutoHotkey.exe')
