@@ -1,6 +1,7 @@
+import time
 from time import sleep
-from typing import Optional, Tuple, Literal, TYPE_CHECKING
 from typing_extensions import assert_never
+from typing import Optional, Tuple, Literal, TYPE_CHECKING
 
 import win32gui
 import win32con
@@ -32,66 +33,46 @@ def _make_wparam(button_data: int, wheel_delta: int = 0) -> int:
     """
     return (wheel_delta << 16) | (button_data & 0xFFFF)
 
+def _wait_cursor_idle(max_speed: float = 50):
+    if max_speed <= 0:
+        return
+    sample_interval = 0.05
+    prev_pos = win32gui.GetCursorPos()
+    prev_t = time.monotonic()
+
+    while True:
+        sleep(sample_interval)
+        cur_pos = win32gui.GetCursorPos()
+        cur_t = time.monotonic()
+
+        dx = cur_pos[0] - prev_pos[0]
+        dy = cur_pos[1] - prev_pos[1]
+        dist = (dx * dx + dy * dy) ** 0.5
+        dt = cur_t - prev_t
+        speed = dist / dt if dt > 0 else float('inf')
+        if speed <= max_speed:
+            return
+
+        prev_pos = cur_pos
+        prev_t = cur_t
 
 class SendMessageWrapper:
-    def __init__(self, hwnd: int):
+    def __init__(self, hwnd: int, wait_cursor_idle: float = -1):
         self.hwnd = hwnd
         self.last_pos = (0, 0)
         self.last_pos_set = False
+        if wait_cursor_idle == -1:
+            self.wait_cursor_idle_speed = 50  # 默认值
+        else:
+            self.wait_cursor_idle_speed = wait_cursor_idle
 
-    def _send_activate(self) -> bool:
-        """
-        发送激活消息
-        使用 SendMessage 发送 WM_ACTIVATE，让窗口认为自己被激活
-        
-        :returns: 操作是否成功
-        """
-        if not self.hwnd:
-            return False
-        
-        self._send_message(win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
-        return True
-    
-    def _get_cursor_pos(self) -> Tuple[int, int]:
-        """
-        获取当前光标位置
-        
-        :returns: 光标位置坐标 (x, y)
-        """
-        point = win32gui.GetCursorPos()
-        return point
-    
-    def _get_window_rect(self) -> Optional[Tuple[int, int, int, int]]:
-        """
-        获取窗口矩形
-        
-        :returns: 窗口矩形 (left, top, right, bottom)，如果失败返回 None
-        """
-        if not self.hwnd:
-            return None
-        
-        rect = win32gui.GetWindowRect(self.hwnd)
-        return rect
-    
-    def _get_client_to_screen_offset(self) -> Tuple[int, int]:
-        """
-        获取客户区到屏幕区的偏移量
-        
-        :returns: 偏移量 (offset_x, offset_y)
-        """
-        if not self.hwnd:
-            return (0, 0)
-        
-        window_rect = win32gui.GetWindowRect(self.hwnd)
-        
-        # 计算边框偏移
-        offset_x = window_rect[0]
-        offset_y = window_rect[1]
-        
-        # 更精确的方法是计算客户区在窗口中的位置
-        # 这里使用简化计算
-        return (offset_x, offset_y)
-    
+    @property
+    def hwnd(self) -> int:
+        return self.window.hwnd
+
+    def _send_activate(self):
+        self.window.post_message(win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
+
     def _align_window(self, target_client_x: int, target_client_y: int) -> bool:
         """
         移动窗口，使得目标客户区坐标对齐到指定的光标位置。
@@ -232,6 +213,7 @@ class SendMessageWrapper:
         """
         # 为避免在一次点击操作中重复激活 -> 先激活一次，然后在 down/up 中禁用额外激活
         self._send_activate()
+        _wait_cursor_idle(self.wait_cursor_idle_speed)
         self._align_window(x, y)
         if self._send_mouse_button(x, y, button, down=True):
             return self._send_mouse_button(x, y, button, down=False)
@@ -342,12 +324,12 @@ class SendMessageWrapper:
         return self.drag(x, y, end_x, end_y, button=button, duration=duration)
 
 class SendMessageImpl(Touchable):
-    def __init__(self, device: 'Device', window_title: str):
+    def __init__(self, device: 'Device', window_title: str, *, wait_cursor_idle: float = -1) -> None:
         self.device = device
         hwnd = win32gui.FindWindow(None, window_title)
         if hwnd is None or hwnd == 0:
             raise RuntimeError(f'Failed to find window: {window_title}')
-        self.wrapper = SendMessageWrapper(hwnd)
+        self.wrapper = SendMessageWrapper(hwnd, wait_cursor_idle)
 
     def click(self, x: int, y: int) -> None:
         self.wrapper.click(x, y, button='left')
@@ -359,5 +341,9 @@ class SendMessageImpl(Touchable):
         
 
 if __name__ == '__main__':
-    impl = SendMessageImpl(None, window_title='gakumas') # type: ignore
-    impl.click(0, 0)
+    # impl = SendMessageImpl(None, window_title='gakumas') # type: ignore
+    # impl.click(0, 0)
+
+    while True:
+        _wait_cursor_idle()
+        print("Cursor idle detected")

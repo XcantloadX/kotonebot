@@ -52,6 +52,13 @@ class BackendConfig(ConfigBaseModel):
     """MuMu12 模拟器后台保活模式"""
     target_screenshot_interval: float | None = None
     """最小截图间隔，单位为秒。为 None 时不限制截图速度。"""
+    cursor_wait_speed: float = -1
+    """
+    使用 DMM 版后台挂机功能时，在点击前会尝试等待光标静止，以避免发生点击偏移。
+    此项规定了速度小于多少时认为光标静止，单位为像素/秒。
+
+    -1 表示使用内置默认值，0 表示禁用该功能。
+    """
 
 class PushConfig(ConfigBaseModel):
     """推送配置。"""
