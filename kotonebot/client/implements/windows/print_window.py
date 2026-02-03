@@ -1,3 +1,7 @@
+# ruff: noqa: E402
+from kotonebot.util import require_windows
+require_windows('"WindowsImpl" implementation')
+
 import ctypes
 import ctypes.wintypes as wt
 from typing import TYPE_CHECKING, Literal
@@ -10,6 +14,7 @@ import win32con
 import win32gui
 
 from ...protocol import Screenshotable
+from kotonebot.interop.win.window import Win32Window
 if TYPE_CHECKING:
     from ...device import Device
 
@@ -90,25 +95,20 @@ def capture_printwindow(hwnd: int) -> MatLike:
 
 class PrintWindowImpl(Screenshotable):
     def __init__(self, device: 'Device', window_title: str):
-        self.hwnd = win32gui.FindWindow(None, window_title)
-        if not self.hwnd:
-            raise RuntimeError(f"Window not found: {window_title}")
+        self.window = Win32Window.require_window('title', window_title)
         ctypes.windll.user32.SetProcessDPIAware()
 
     def __client_rect(self) -> tuple[int, int, int, int]:
         """获取 Client 区域屏幕坐标"""
-        hwnd = self.hwnd
+        hwnd = self.window.hwnd
         client_left, client_top, client_right, client_bottom = win32gui.GetClientRect(hwnd)
         client_left, client_top = win32gui.ClientToScreen(hwnd, (client_left, client_top))
         client_right, client_bottom = win32gui.ClientToScreen(hwnd, (client_right, client_bottom))
         return client_left, client_top, client_right, client_bottom
 
     def detect_orientation(self) -> None | Literal['portrait'] | Literal['landscape']:
-        pos = win32gui.GetWindowRect(self.hwnd)
-        if pos is None:
-            return None
-        w, h = pos[2] - pos[0], pos[3] - pos[1]
-        if w > h:
+        rect = self.window.get_rect()
+        if rect.w > rect.h:
             return 'landscape'
         else:
             return 'portrait'
@@ -121,7 +121,9 @@ class PrintWindowImpl(Screenshotable):
         return w, h
 
     def screenshot(self) -> MatLike:
-        return capture_printwindow(self.hwnd)
+        if self.window.is_minimized():
+            self.window.restore()
+        return capture_printwindow(self.window.hwnd)
 
 if __name__ == "__main__":
     impl = PrintWindowImpl(None, "gakumas")  # type: ignore

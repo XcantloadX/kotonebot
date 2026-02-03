@@ -1,12 +1,17 @@
+# ruff: noqa: E402
+from kotonebot.util import require_windows
+require_windows('"WindowsImpl" implementation')
+
 import time
 from time import sleep
 from typing_extensions import assert_never
-from typing import Optional, Tuple, Literal, TYPE_CHECKING
+from typing import Optional, Literal, TYPE_CHECKING
 
 import win32gui
 import win32con
 
 from ...protocol import Touchable
+from kotonebot.interop.win.window import Win32Window
 if TYPE_CHECKING:
     from ...device import Device
 
@@ -57,8 +62,8 @@ def _wait_cursor_idle(max_speed: float = 50):
         prev_t = cur_t
 
 class SendMessageWrapper:
-    def __init__(self, hwnd: int, wait_cursor_idle: float = -1):
-        self.hwnd = hwnd
+    def __init__(self, window: Win32Window, wait_cursor_idle: float = -1):
+        self.window = window
         self.last_pos = (0, 0)
         self.last_pos_set = False
         if wait_cursor_idle == -1:
@@ -72,56 +77,39 @@ class SendMessageWrapper:
 
     def _send_activate(self):
         self.window.post_message(win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
-
+    
     def _align_window(self, target_client_x: int, target_client_y: int) -> bool:
         """
         移动窗口，使得目标客户区坐标对齐到指定的光标位置。
         如果提供 `cursor_pos` 则使用该屏幕坐标（例如预测值），否则使用真实光标位置。
         """
-        if not self.hwnd:
-            return False
-        window_rect = self._get_window_rect()
+        window_rect = self.window.get_rect()
         if not window_rect:
             return False
         
-        cursor_x, cursor_y = self._get_cursor_pos()
+        cursor_x, cursor_y = win32gui.GetCursorPos()
         # 计算客户区偏移
         client_left, client_top, client_right, client_bottom = win32gui.GetClientRect(self.hwnd)
         client_screen_left, client_screen_top = win32gui.ClientToScreen(self.hwnd, (client_left, client_top))
-        offset_x = client_screen_left - window_rect[0]
-        offset_y = client_screen_top - window_rect[1]
+        offset_x = client_screen_left - window_rect.x1
+        offset_y = client_screen_top - window_rect.y1
 
         new_window_x = cursor_x - target_client_x - offset_x
         new_window_y = cursor_y - target_client_y - offset_y
-
-
-        width = window_rect[2] - window_rect[0]
-        height = window_rect[3] - window_rect[1]
 
         win32gui.SetWindowPos(
             self.hwnd,
             None,
             new_window_x,
             new_window_y,
-            width,
-            height,
+            window_rect.w,
+            window_rect.h,
             win32con.SWP_NOREDRAW | win32con.SWP_NOACTIVATE |
             win32con.SWP_NOZORDER | win32con.SWP_NOCOPYBITS |
             win32con.SWP_NOSENDCHANGING | win32con.SWP_NOOWNERZORDER
         )
 
         return True
-    
-    def _send_message(self, msg: int, w_param: int, l_param: int) -> bool:
-        if not self.hwnd:
-            return False
-        
-        try:
-            # win32gui.SendMessage(self.hwnd, msg, w_param, l_param)
-            win32gui.PostMessage(self.hwnd, msg, w_param, l_param)
-            return True
-        except Exception:
-            return False
     
     def _send_mouse_button(self, x: int, y: int, button: MouseButton, down: bool) -> bool:
         if down:
@@ -152,14 +140,12 @@ class SendMessageWrapper:
                     assert_never("Unknown mouse button")
         
         l_param = _make_lparam(x, y)
-        return self._send_message(msg, w_param, l_param)
+        return self.window.post_message(msg, w_param, l_param)
 
     def _send_mouse_move(self, x: int, y: int, button: Optional[MouseButton] = None) -> bool:
         """
         发送鼠标移动消息，支持在按键按下时携带对应的 wParam 标志（例如拖拽时带 MK_LBUTTON）。
         """
-        if not self.hwnd:
-            return False
 
         if button == 'left':
             w_param = win32con.MK_LBUTTON
@@ -171,7 +157,7 @@ class SendMessageWrapper:
             w_param = 0
 
         l_param = _make_lparam(x, y)
-        return self._send_message(win32con.WM_MOUSEMOVE, w_param, l_param)
+        return self.window.post_message(win32con.WM_MOUSEMOVE, w_param, l_param)
 
     def mouse_down(self, x: int, y: int, button: MouseButton) -> bool:
         """
@@ -201,10 +187,9 @@ class SendMessageWrapper:
         self._align_window(x, y)
         return self._send_mouse_button(x, y, button, down=False)
     
-    def click(self, x: int, y: int, button: MouseButton = 'left') -> bool:
+    def click(self, x: int, y: int, *, button: MouseButton = 'left') -> bool:
         """
-        完整点击操作：按下 + 释放
-        button: 0=左键, 1=右键, 2=中键
+        发送点击事件。
         
         :param x: X 坐标
         :param y: Y 坐标
@@ -226,14 +211,11 @@ class SendMessageWrapper:
         :param key_code: 虚拟键码，例如 win32con.VK_RETURN 等
         :returns: 操作是否成功
         """
-        if not self.hwnd:
-            return False
-        
         # 发送激活消息
         self._send_activate()
         
         # 发送 WM_KEYDOWN 消息
-        result = self._send_message(win32con.WM_KEYDOWN, key_code, 0)
+        result = self.window.post_message(win32con.WM_KEYDOWN, key_code, 0)
         return result
     
     def keyboard_up(self, key_code: int) -> bool:
@@ -243,12 +225,9 @@ class SendMessageWrapper:
         :param key_code: 虚拟键码，例如 win32con.VK_RETURN 等
         :returns: 操作是否成功
         """
-        if not self.hwnd:
-            return False
-        
         # 发送激活消息
         self._send_activate()
-        return self._send_message(win32con.WM_KEYUP, key_code, 0)
+        return self.window.post_message(win32con.WM_KEYUP, key_code, 0)
 
     def drag(
         self, 
@@ -270,8 +249,6 @@ class SendMessageWrapper:
         """
         if duration is None:
             duration = 0.5
-        if not self.hwnd:
-            return False
 
         self._send_activate()
         # 将窗口对齐到起点，确保起始客户区坐标与当前光标对齐
@@ -326,10 +303,8 @@ class SendMessageWrapper:
 class SendMessageImpl(Touchable):
     def __init__(self, device: 'Device', window_title: str, *, wait_cursor_idle: float = -1) -> None:
         self.device = device
-        hwnd = win32gui.FindWindow(None, window_title)
-        if hwnd is None or hwnd == 0:
-            raise RuntimeError(f'Failed to find window: {window_title}')
-        self.wrapper = SendMessageWrapper(hwnd, wait_cursor_idle)
+        window = Win32Window.require_window('title', window_title)
+        self.wrapper = SendMessageWrapper(window, wait_cursor_idle)
 
     def click(self, x: int, y: int) -> None:
         self.wrapper.click(x, y, button='left')

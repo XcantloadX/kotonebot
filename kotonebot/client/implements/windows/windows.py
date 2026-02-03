@@ -5,7 +5,6 @@ require_windows('"WindowsImpl" implementation')
 from ctypes import windll
 from typing import Literal
 from importlib import resources
-from functools import cached_property
 from dataclasses import dataclass
 
 import cv2
@@ -19,8 +18,8 @@ except ImportError as _e:
     raise MissingDependencyError(_e, 'windows')
 from cv2.typing import MatLike
 
-from ...device import Device, WindowsDevice
-from ...protocol import Commandable, Touchable, Screenshotable
+from ...device import Device
+from ...protocol import Touchable, Screenshotable
 from ...registration import ImplConfig
 
 # 1. 定义配置模型
