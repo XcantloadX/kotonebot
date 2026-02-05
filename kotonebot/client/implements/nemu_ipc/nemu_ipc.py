@@ -1,4 +1,3 @@
-import os
 import ctypes
 import logging
 import time
@@ -11,8 +10,7 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from ...device import AndroidDevice, Device
-from ...protocol import Touchable, Screenshotable
+from ...protocol import MultiTouchable, Screenshotable
 from ...registration import ImplConfig
 from .external_renderer_ipc import ExternalRendererIpc
 from kotonebot.errors import KotonebotError
@@ -47,7 +45,7 @@ class NemuIpcImplConfig(ImplConfig):
     wait_package_interval: float = 0.1  # 单位秒
 
 
-class NemuIpcImpl(Touchable, Screenshotable):
+class NemuIpcImpl(MultiTouchable, Screenshotable):
     """
     利用 MuMu12 提供的 external_renderer_ipc.dll 进行截图与触摸控制。
     """
@@ -281,6 +279,19 @@ class NemuIpcImpl(Touchable, Screenshotable):
         self._ipc.input_touch_down(self._connect_id, display_id, x, y)
         sleep(0.01)
         self._ipc.input_touch_up(self._connect_id, display_id)
+
+    @override
+    def multi_touch_down(self, x: int, y: int, pointer_id: int) -> None:
+        self._ensure_connected()
+        display_id = self._get_display_id()
+        x, y = self.__convert_pos(x, y)
+        self._ipc.input_finger_touch_down(self._connect_id, display_id, pointer_id, x, y)
+
+    @override
+    def multi_touch_up(self, _: int, __: int, pointer_id: int) -> None:
+        self._ensure_connected()
+        display_id = self._get_display_id()
+        self._ipc.input_finger_touch_up(self._connect_id, display_id, pointer_id)
 
     @override
     def swipe(

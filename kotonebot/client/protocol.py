@@ -15,13 +15,6 @@ class ClickableObjectProtocol(Protocol):
     def rect(self) -> Rect:
         ...
 
-class DeviceScreenshotProtocol(Protocol):
-    def screenshot(self) -> MatLike:
-        """
-        截图
-        """
-        ...
-
 @runtime_checkable
 class Commandable(Protocol):
     def __init__(self, device: 'Device'): ...
@@ -67,3 +60,24 @@ class Touchable(Protocol):
     def __init__(self, device: 'Device'): ...
     def click(self, x: int, y: int) -> None: ...
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float|None = None) -> None: ...
+
+@runtime_checkable
+class MultiTouchable(Touchable, Protocol):
+    def multi_touch_down(self, x: int, y: int, pointer_id: int) -> None:
+        """以指定的 pointer_id 按下坐标 (x, y)。
+        
+        可以在同一 pointer_id 上传入不同的坐标调用多次以模拟拖动。
+
+        :param x: 横坐标
+        :param y: 纵坐标
+        :param pointer_id: 指针 ID
+        """
+
+    def multi_touch_up(self, x: int, y: int, pointer_id: int) -> None:
+        """抬起指定 pointer_id 的触摸点。
+    
+        :param x: 横坐标
+        :param y: 纵坐标
+        :param pointer_id: 指针 ID
+        """
+    

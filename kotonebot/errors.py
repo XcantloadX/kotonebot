@@ -75,3 +75,8 @@ class ContextNotInitializedError(KotonebotError):
 
 class StopCurrentTask(KotonebotError):
     pass
+
+class CapabilityNotSupportedError(KotonebotError):
+    def __init__(self, capability_name: str):
+        self.capability_name = capability_name
+        super().__init__(f'Capability "{capability_name}" is not supported by the current device implementation.')

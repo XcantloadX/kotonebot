@@ -1,4 +1,8 @@
 # 更新日志
+## v0.8.0
+Library:
+1. [feat] 新增多点触控接口，目前仅 nemu_ipc 实现了多点触控。
+
 ## v0.7.0
 Library:
 1. [feat] 支持了 Windows 控制的后台执行版本，recipe 名称为 `windows_background`。底层使用 SendMessage + PrintWindow 实现。

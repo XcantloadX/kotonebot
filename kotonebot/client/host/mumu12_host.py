@@ -231,6 +231,7 @@ class Mumu12Instance(CommonAdbCreateDeviceMixin, Instance[MuMu12HostConfig]):
             ))
             device = AndroidDevice()
             device._screenshot = nemu_impl
+            device._multitouch = nemu_impl
             device._touch = nemu_impl
             device.commands = adb_impl
 

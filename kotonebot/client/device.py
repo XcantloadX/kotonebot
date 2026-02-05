@@ -4,13 +4,15 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
+from kotonebot.errors import CapabilityNotSupportedError
+
 if TYPE_CHECKING:
     from adbutils._device import AdbDevice as AdbUtilsDevice
 
 from kotonebot import logging
 from ..backend.debug import result
 from kotonebot.primitives import Rect, Point, is_point
-from .protocol import ClickableObjectProtocol, Commandable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable
+from .protocol import ClickableObjectProtocol, Commandable, MultiTouchable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable
 from .scaler import AbstractScaler
 from kotonebot.config.config import conf
 from kotonebot.primitives.geometry import Size
@@ -51,6 +53,7 @@ class Device:
 
         self._touch: Touchable
         self._screenshot: Screenshotable
+        self._multitouch: MultiTouchable | None = None
 
         self.platform: str = platform
         """
@@ -71,15 +74,42 @@ class Device:
             self._scaler_initialized = True
         return self._scaler
 
+    @property
+    def touch(self) -> Touchable:
+        """
+        触摸接口。
+        """
+        return self._touch
+    
+    @property
+    def screenshotable(self) -> Screenshotable:
+        """
+        截图接口。
+        """
+        return self._screenshot
+
+    @property
+    def multi_touch(self) -> MultiTouchable:
+        """
+        多点触控接口。
+        
+        :raises CapabilityNotSupportedError: 如果当前设备实现不支持多点触控，则抛出异常。
+        """
+        if not self._multitouch:
+            raise CapabilityNotSupportedError("multi_touch")
+        return self._multitouch
+
     def setup(self, 
         *, 
         screenshot: Screenshotable,
         touch: Touchable,
         commands: Commandable | None = None,
         scaler: AbstractScaler | None = None,
+        multitouch: MultiTouchable | None = None,
     ):
         self._screenshot = screenshot
         self._touch = touch
+        self._multitouch = multitouch
         self.commands = commands
 
     def __log(self, message: str, level: LogLevel | None = None, *args):
@@ -191,7 +221,7 @@ class Device:
             message = f"Point: ({x}, {y})"
             message += f" physical: ({real_x}, {real_y})"
             result("device.click", image, message)
-        self._touch.click(real_x, real_y)
+        self.touch.click(real_x, real_y)
 
     def __click_point_tuple(self, point: Point, *, log: "LogLevel | None" = None) -> None:
         self.click(point[0], point[1], log=log)
@@ -262,7 +292,7 @@ class Device:
 
         self.__log(log_message, log)
 
-        self._touch.swipe(real_x1, real_y1, real_x2, real_y2, duration)
+        self.touch.swipe(real_x1, real_y1, real_x2, real_y2, duration)
 
     def swipe_scaled(self, x1: float, y1: float, x2: float, y2: float, duration: float|None = None, *, log: "LogLevel | None" = None) -> None:
         """
