@@ -6,13 +6,14 @@ from functools import lru_cache
 from dataclasses import dataclass
 import warnings
 from typing_extensions import Self, deprecated
-from typing import Callable, NamedTuple
+from typing import Callable, TYPE_CHECKING
 
 import cv2
 import numpy as np
 from cv2.typing import MatLike
 from thefuzz import fuzz as _fuzz
-from rapidocr_onnxruntime import RapidOCR
+if TYPE_CHECKING:
+    from rapidocr_onnxruntime import RapidOCR
 
 
 from ..util import lf_path
@@ -314,7 +315,7 @@ def _draw_result(image: 'MatLike', result: list[OcrResult]) -> 'MatLike':
     return result_image
 
 class Ocr:
-    def __init__(self, engine: RapidOCR):
+    def __init__(self, engine: 'RapidOCR'):
         self.__engine = engine
 
     # TODO: 考虑缓存 OCR 结果，避免重复调用。
@@ -494,19 +495,15 @@ class Ocr:
         return ret
 
 # TODO: 这个路径需要能够独立设置
-_engine_jp: RapidOCR | None = None
-_engine_en: RapidOCR | None = RapidOCR(
-    rec_model_path=lf_path('models/en_PP-OCRv3_rec_infer.onnx'),
-    use_det=True,
-    use_cls=False,
-    use_rec=True,
-)
+_engine_jp: 'RapidOCR | None' = None
+_engine_en: 'RapidOCR | None' = None
 
 def jp() -> Ocr:
     """
     日语 OCR 引擎。
     """
     global _engine_jp
+    from rapidocr_onnxruntime import RapidOCR
     if _engine_jp is None:
         _engine_jp = RapidOCR(
             rec_model_path=lf_path('models/japan_PP-OCRv3_rec_infer.onnx'),
@@ -521,6 +518,7 @@ def en() -> Ocr:
     英语 OCR 引擎。
     """
     global _engine_en
+    from rapidocr_onnxruntime import RapidOCR
     if _engine_en is None:
         _engine_en = RapidOCR(
             rec_model_path=lf_path('models/en_PP-OCRv3_rec_infer.onnx'),

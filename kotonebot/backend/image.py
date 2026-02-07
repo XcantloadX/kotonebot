@@ -1,11 +1,11 @@
 import os
 from logging import getLogger
+from typing_extensions import deprecated
 from typing import NamedTuple, Protocol, Sequence, runtime_checkable
 
 import cv2
 import numpy as np
 from cv2.typing import MatLike, Rect as CvRect
-from skimage.metrics import structural_similarity
 
 from .core import Image, unify_image
 from .preprocessor import PreprocessorProtocol
@@ -779,6 +779,7 @@ def expect(
     else:
         return ret
 
+@deprecated("This function is deprecated. Use 'structural_similarity' from 'skimage.metrics' directly instead.")
 def similar(
     image1: MatLike,
     image2: MatLike,
@@ -787,6 +788,7 @@ def similar(
     """
     判断两张图像是否相似（灰度）。输入的两张图片必须为相同尺寸。
     """
+    from skimage.metrics import structural_similarity
     if image1.shape != image2.shape:
         raise ValueError('Expected two images with the same size.')
     image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)

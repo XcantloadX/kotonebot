@@ -1,15 +1,20 @@
 """消息框、通知、推送等 UI 相关函数"""
 import os
 import time
+from typing import TYPE_CHECKING
 
 import cv2
 from cv2.typing import MatLike
 from kotonebot.util import is_windows
-if is_windows():
+if TYPE_CHECKING:
     from win11toast import toast
 else:
-    def toast(title: str, message: str | None = None, buttons: list[str] | None = None):
-        raise ImportError('toast notification is only available on Windows')
+    def toast(*args, **kwargs):
+        if is_windows():
+            from win11toast import toast
+            return toast(*args, **kwargs)
+        else:
+            raise NotImplementedError("Toast notifications are only supported on Windows.")
 
 from .pushkit import Wxpusher
 from .. import logging
