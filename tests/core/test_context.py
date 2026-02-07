@@ -1,5 +1,4 @@
-import unittest
-from threading import Event, Thread
+from threading import Thread
 import time
 
 from kotonebot.backend.context import (

@@ -2,7 +2,6 @@ import importlib
 import unittest
 from unittest.mock import patch, MagicMock
 import sys
-import os
 import pkgutil
 
 def create_cv2_mock():

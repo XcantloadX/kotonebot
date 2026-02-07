@@ -5,7 +5,6 @@ from kotonebot.devtools.resgen.core import (
     CodeWriter,
     ResourceNode,
     ClassNode,
-    SchemaParser,
 )
 
 

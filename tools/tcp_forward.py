@@ -2,9 +2,7 @@
 import argparse
 import socket
 import select
-import sys
-import re
-from typing import Tuple, Optional
+from typing import Tuple
 import time
 
 def parse_address(addr_str: str) -> Tuple[str, int]:

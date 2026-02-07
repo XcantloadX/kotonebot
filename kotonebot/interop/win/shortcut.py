@@ -1,5 +1,4 @@
 import os
-import typing
 
 import pythoncom
 from win32comext.shell import shell, shellcon

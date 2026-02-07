@@ -1,5 +1,3 @@
-import os
-import json
 from typing import Sequence
 from cv2.typing import MatLike
 from dotenv import dotenv_values

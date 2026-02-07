@@ -11,7 +11,6 @@ except ImportError as _e:
 from cv2.typing import MatLike
 
 from kotonebot import logging
-from ..device import Device
 from ..protocol import Screenshotable, Commandable, Touchable
 
 logger = logging.getLogger(__name__)

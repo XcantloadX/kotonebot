@@ -1,6 +1,5 @@
 import json
 import os
-from pathlib import Path
 
 def format_json(data):
     """将 JSON 数据格式化为更易读的字符串"""

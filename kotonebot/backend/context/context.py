@@ -1,16 +1,11 @@
-import os
 import re
 import time
 import logging
 import warnings
-import threading
-from datetime import datetime
-from threading import Event
 from typing import (
     Callable,
     Optional,
     cast,
-    overload,
     Any,
     TypeVar,
     Literal,
@@ -22,7 +17,6 @@ from typing import (
 )
 from typing_extensions import deprecated
 
-import cv2
 from cv2.typing import MatLike
 
 from kotonebot.client.device import Device, AndroidDevice, WindowsDevice
@@ -31,7 +25,6 @@ from kotonebot.util import Interval
 import kotonebot.backend.image as raw_image
 from kotonebot.backend.image import (
     TemplateMatchResult,
-    MultipleTemplateMatchResult,
     find_all_crop,
     expect,
     find as image_find,

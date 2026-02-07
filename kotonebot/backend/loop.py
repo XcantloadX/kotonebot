@@ -1,12 +1,11 @@
 ﻿import time
-from functools import lru_cache, partial
-from typing import Callable, Any, overload, Literal, Generic, TypeVar, cast, get_args, get_origin
+from functools import partial
+from typing import Callable, Any, overload, Generic, TypeVar, cast, get_args
 from typing_extensions import deprecated
 
 from cv2.typing import MatLike
 
 from kotonebot.config.config import conf
-from kotonebot.util import Interval
 from kotonebot import device, image, ocr
 from kotonebot.backend.core import Image
 from kotonebot.backend.ocr import TextComparator

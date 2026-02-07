@@ -4,8 +4,6 @@ Windows Task Dialog interop module.
 This module provides Windows TaskDialog functionality and is only available on Windows systems.
 """
 
-import platform
-import warnings
 
 from kotonebot.util import is_windows
 
@@ -44,7 +42,6 @@ if not is_windows():
 # 如果是 Windows，继续正常加载
 import ctypes
 from ctypes import wintypes
-import time
 from typing import List, Tuple, Optional
 from typing import Literal
 

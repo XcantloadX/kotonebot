@@ -11,7 +11,6 @@ except ImportError as _e:
     from kotonebot.errors import MissingDependencyError
     raise MissingDependencyError(_e, 'android')
 
-from ..device import AndroidDevice
 from ..protocol import AndroidCommandable, Touchable, Screenshotable
 from ..registration import ImplConfig
 from dataclasses import dataclass

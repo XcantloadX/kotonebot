@@ -9,7 +9,7 @@ from kotonebot.devtools.resgen.utils import (
     build_class_tree,
     ImageProcessor,
 )
-from kotonebot.devtools.resgen.core import ResourceNode, ClassNode
+from kotonebot.devtools.resgen.core import ResourceNode
 
 
 class TestToCamelCase(unittest.TestCase):

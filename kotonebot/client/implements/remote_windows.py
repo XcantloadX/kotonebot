@@ -2,12 +2,11 @@
 from kotonebot.util import require_windows
 require_windows('"RemoteWindowsImpl" implementation')
 
-import io
 import base64
 import logging
 import xmlrpc.client
 import xmlrpc.server
-from typing import Literal, cast, Any, Tuple
+from typing import Literal, cast, Tuple
 from functools import cached_property
 from threading import Thread
 from dataclasses import dataclass

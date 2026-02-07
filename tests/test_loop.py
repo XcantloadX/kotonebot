@@ -1,6 +1,6 @@
 import unittest
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 from kotonebot.backend.loop import Loop
 from kotonebot.backend.context.context import init_context, manual_context
 from kotonebot.client.device import Device

@@ -1,10 +1,8 @@
 import wx
 import cv2
-import numpy as np
 import time
 from typing import Optional, Tuple, Callable
 from threading import Thread, Lock
-from cv2.typing import MatLike
 from queue import Queue
 
 from kotonebot.client.device import Device

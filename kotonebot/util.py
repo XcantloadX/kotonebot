@@ -6,8 +6,7 @@ import logging
 import cProfile
 import platform
 from importlib import resources
-from functools import lru_cache
-from typing import Literal, Callable, TYPE_CHECKING, TypeGuard
+from typing import Literal, Callable, TYPE_CHECKING
 from typing_extensions import deprecated
 
 import cv2

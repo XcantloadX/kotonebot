@@ -1,7 +1,7 @@
 import os
-from typing import Type, Generic, TypeVar
+from typing import Type, TypeVar
 
-from .base_config import RootConfig, UserConfig
+from .base_config import RootConfig
 
 T = TypeVar('T')
 
