@@ -3,6 +3,7 @@
 Library:
 1. [feat] 新增多点触控接口，目前仅 nemu_ipc 实现了多点触控。
 2. [feat] 优化库 import 速度，从 2.9 秒降至 0.92 秒，提升了 68%。
+3. [feat] **BREAKING** 移除了内置的配置实体类与管理，以及 Context 上的 config 对象。
 
 ## v0.7.0
 Library:

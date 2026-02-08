@@ -1,1 +1,1 @@
-from .base_config import UserConfig
+from .config import * # noqa

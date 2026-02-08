@@ -40,8 +40,6 @@ from kotonebot.backend.color import (
 from kotonebot.backend.ocr import (
     Ocr, OcrResult, OcrResultList, jp, en, StringMatchFunction
 )
-from kotonebot.config.manager import load_config, save_config
-from kotonebot.config.base_config import UserConfig
 from kotonebot.backend.core import Image, HintBox
 from kotonebot.errors import ContextNotInitializedError, KotonebotWarning
 from kotonebot.backend.preprocessor import PreprocessorProtocol
@@ -638,77 +636,6 @@ class ContextDebug:
         self.save_images: bool = False
         self.save_images_dir: str = "debug_images"
 
-
-V = TypeVar('V')
-class ContextConfig(Generic[T]):
-    def __init__(self, context: 'Context', config_path: str = 'config.json', config_type: Type[T] = dict[str, Any]):
-        self.context = context
-        self.config_path: str = config_path
-        self.current_key: int | str = 0
-        self.config_type: Type = config_type
-        self.root = load_config(self.config_path, type=config_type)
-
-    def to(self, conf_type: Type[V]) -> 'ContextConfig[V]':
-        self.config_type = conf_type
-        return cast(ContextConfig[V], self)
-
-    def create(self, config: UserConfig[T]):
-        """创建新用户配置"""
-        self.root.user_configs.append(config)
-        self.save()
-
-    def get(self, key: str | int | None = None) -> UserConfig[T] | None:
-        """
-        获取指定或当前用户配置数据。
-
-        :param key: 用户配置 ID 或索引（从 0 开始），为 None 时获取当前用户配置
-        :return: 用户配置数据
-        """
-        if isinstance(key, int):
-            if key < 0 or key >= len(self.root.user_configs):
-                return None
-            return self.root.user_configs[key]
-        elif isinstance(key, str):
-            for user in self.root.user_configs:
-                if user.id == key:
-                    return user
-            else:
-                return None
-        else:
-            return self.get(self.current_key)
-
-    def save(self):
-        """保存所有配置数据到本地"""
-        save_config(self.root, self.config_path)
-
-    def load(self):
-        """从本地加载所有配置数据"""
-        self.root = load_config(self.config_path, type=self.config_type)
-
-    def switch(self, key: str | int):
-        """切换到指定用户配置"""
-        self.current_key = key
-
-    @property
-    def current(self) -> UserConfig[T]:
-        """
-        当前配置数据。
-
-        如果当前配置不存在，则使用默认值自动创建一个新配置。
-        （不推荐，建议在 UI 中启动前要求用户手动创建，或自行创建一个默认配置。）
-        """
-        c = self.get(self.current_key)
-        if c is None:
-            if not self.config_type:
-                raise ValueError("No config type specified.")
-            logger.warning("No config found, creating a new one using default values. (NOT RECOMMENDED)")
-            c = self.config_type()
-            u = UserConfig(options=c)
-            self.create(u)
-            c = u
-        return c
-
-
 class Forwarded:
     def __init__(self, getter: Callable[[], T] | None = None, name: str | None = None):
         self._FORWARD_getter = getter
@@ -801,8 +728,6 @@ class ContextDevice(Generic[T_Device], Device):
 class Context(Generic[T]):
     def __init__(
         self,
-        config_path: str,
-        config_type: Type[T],
         device: Device,
         target_screenshot_interval: float | None = None
     ):
@@ -811,7 +736,6 @@ class Context(Generic[T]):
         self.__color = ContextColor(self)
         self.__vars = ContextGlobalVars()
         self.__debug = ContextDebug(self)
-        self.__config = ContextConfig[T](self, config_path, config_type)
         self.__device = ContextDevice(device, target_screenshot_interval)
 
     def inject(
@@ -823,7 +747,6 @@ class Context(Generic[T]):
         color: Optional[ContextColor] = None,
         vars: Optional[ContextGlobalVars] = None,
         debug: Optional[ContextDebug] = None,
-        config: Optional[ContextConfig] = None,
     ):
         if device is not None:
             if isinstance(device, Device):
@@ -840,8 +763,6 @@ class Context(Generic[T]):
             self.__vars = vars
         if debug is not None:
             self.__debug = debug
-        if config is not None:
-            self.__config = config
 
     @property
     def device(self) -> ContextDevice:
@@ -866,10 +787,6 @@ class Context(Generic[T]):
     @property
     def debug(self) -> 'ContextDebug':
         return self.__debug
-
-    @property
-    def config(self) -> 'ContextConfig[T]':
-        return self.__config
 
 @deprecated('使用 Rect 类的实例方法代替')
 def rect_expand(rect: Rect, left: int = 0, top: int = 0, right: int = 0, bottom: int = 0) -> Rect:
@@ -911,8 +828,6 @@ vars: ContextGlobalVars = cast(ContextGlobalVars, Forwarded(name="vars"))
 """全局变量。"""
 debug: ContextDebug = cast(ContextDebug, Forwarded(name="debug"))
 """调试工具。"""
-config: ContextConfig = cast(ContextConfig, Forwarded(name="config"))
-"""配置数据。"""
 last_screenshot_time: float = -1
 """上一次截图的时间。"""
 next_wait: WaitBeforeType | None = None
@@ -920,8 +835,6 @@ next_wait_time: float = 0
 
 def init_context(
     *,
-    config_path: str = 'config.json',
-    config_type: Type[T] = dict[str, Any],
     force: bool = False,
     target_device: Device,
     target_screenshot_interval: float | None = None,
@@ -938,12 +851,10 @@ def init_context(
     :param target_device: 目标设备
     :param target_screenshot_interval: 见 `ContextDevice.target_screenshot_interval`。
     """
-    global _c, device, ocr, image, color, vars, debug, config
+    global _c, device, ocr, image, color, vars, debug
     if _c is not None and not force:
         return
     _c = Context(
-        config_path=config_path,
-        config_type=config_type,
         device=target_device,
         target_screenshot_interval=target_screenshot_interval,
     )
@@ -953,7 +864,6 @@ def init_context(
     color._FORWARD_getter = lambda: _c.color # type: ignore
     vars._FORWARD_getter = lambda: _c.vars # type: ignore
     debug._FORWARD_getter = lambda: _c.debug # type: ignore
-    config._FORWARD_getter = lambda: _c.config # type: ignore
 
 
 def inject_context(
@@ -964,12 +874,11 @@ def inject_context(
     color: Optional[ContextColor] = None,
     vars: Optional[ContextGlobalVars] = None,
     debug: Optional[ContextDebug] = None,
-    config: Optional[ContextConfig] = None,
 ):
     global _c
     if _c is None:
         raise ContextNotInitializedError('Context not initialized')
-    _c.inject(device=device, ocr=ocr, image=image, color=color, vars=vars, debug=debug, config=config)
+    _c.inject(device=device, ocr=ocr, image=image, color=color, vars=vars, debug=debug)
 
 class ManualContextManager:
     def __init__(self, screenshot_mode: ScreenshotMode = 'auto'):
