@@ -3,7 +3,7 @@ import logging
 import pkgutil
 import importlib
 import threading
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 from dataclasses import dataclass, field
 from typing import Any, Literal, Callable, Generic, TypeVar, ParamSpec
 
@@ -99,6 +99,7 @@ class KotoneBotEvents:
         self.finished = Event[[], None]()
 
 
+@deprecated('Use kotonebot.core.bot.KotoneBot instead.')
 class KotoneBot:
     def __init__(
         self,

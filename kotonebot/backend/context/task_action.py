@@ -2,8 +2,7 @@ import logging
 import warnings
 from dataclasses import dataclass
 from typing_extensions import deprecated
-from typing import Callable, ParamSpec, TypeVar, overload, Literal
-
+from typing import Callable, ParamSpec, TypeVar, overload, Literal, Protocol
 
 from .context import ContextStackVars, ScreenshotMode
 from ...errors import TaskNotFoundError
@@ -11,7 +10,6 @@ from ...errors import TaskNotFoundError
 P = ParamSpec('P')
 R = TypeVar('R')
 logger = logging.getLogger(__name__)
-
 TaskRunAtType = Literal['pre', 'post', 'manual', 'regular'] | str
 
 
@@ -27,6 +25,8 @@ class Task:
     """
     run_at: TaskRunAtType = 'regular'
 
+    def __hash__(self) -> int:
+        return hash(self.id)
 
 @dataclass
 class Action:
@@ -37,6 +37,12 @@ class Action:
     """
     动作优先级，数字越大优先级越高。
     """
+
+
+class TaskFuncProtocol(Protocol[P, R]):
+    @property
+    def task(self) -> Task: ...
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
 
 task_registry: dict[str, Task] = {}
@@ -70,7 +76,7 @@ def task(
     """
     # 设置 ID
     # 获取 caller 信息
-    def _task_decorator(func: Callable[P, R]) -> Callable[P, R]:
+    def _task_decorator(func: Callable[P, R]) -> TaskFuncProtocol[P, R]:
         nonlocal description, task_id
         description = description or func.__doc__ or ''
         # TODO: task_id 冲突检测
@@ -81,15 +87,20 @@ def task(
         if pass_through:
             return func
         else:
-            def _wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-                current_callstack.append(task)
-                vars = ContextStackVars.push(screenshot_mode=screenshot_mode)
-                ret = func(*args, **kwargs)
-                ContextStackVars.pop()
-                current_callstack.pop()
-                return ret
-            task.func = _wrapper
-            return _wrapper
+            class TaskWrapper:
+                def __init__(self, task_def: Task) -> None:
+                    self.task = task_def
+                
+                def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
+                    current_callstack.append(task)
+                    vars = ContextStackVars.push(screenshot_mode=screenshot_mode)
+                    ret = func(*args, **kwargs)
+                    ContextStackVars.pop()
+                    current_callstack.pop()
+                    return ret
+            wrapper = TaskWrapper(task)
+            task.func = wrapper
+            return wrapper
     return _task_decorator
 
 @overload
