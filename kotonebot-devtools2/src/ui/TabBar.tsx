@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useHorizontalScroll } from './hooks/useHorizontalScroll';
 import { Button, Icon, Tooltip, Dialog, Menu, MenuItem } from '@blueprintjs/core';
 import { useAppStore } from '../editor/state';
+
+const TAB_MIN_WIDTH = 120;
+const TAB_SIDE_PADDING = 20;
+const TAB_GAP_AND_CLOSE = 24;
+const TAB_FONT = '600 13px system-ui';
+
 
 export const TabBar: React.FC = () => {
     const { documents, activeDocumentId, setActiveDocument, closeDocument, saveActiveDocument } = useAppStore();
@@ -11,8 +17,58 @@ export const TabBar: React.FC = () => {
     const [closingDocId, setClosingDocId] = useState<string | null>(null);
     const [pendingCloseQueue, setPendingCloseQueue] = useState<string[]>([]);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; docId: string } | null>(null);
+    const [containerWidth, setContainerWidth] = useState(0);
 
-    console.log('TabBar rendering, docs:', docList.length);
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const updateWidth = () => setContainerWidth(el.clientWidth);
+        updateWidth();
+        const observer = new ResizeObserver(updateWidth);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [scrollRef, docList.length]);
+
+    // 计算 Tab 宽度。规则（类似于 Chrome Tab）：
+    // 1. 若所有 Tab 的自然宽度之和小于容器宽度，则使用自然宽度。
+    // 2. 否则按比例缩小，最小不小于 TAB_MIN_WIDTH。
+    const tabWidths = useMemo(() => {
+        if (docList.length === 0) return {};
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            return Object.fromEntries(docList.map((doc) => [doc.id, TAB_MIN_WIDTH]));
+        }
+
+        ctx.font = TAB_FONT;
+        const naturalWidths = docList.map((doc) => {
+            const name = doc.id.split(/[/\\]/).pop() || doc.id;
+            const title = `${doc.dirty ? '*' : ''}${name}`;
+            const textWidth = Math.ceil(ctx.measureText(title).width);
+            const natural = Math.max(TAB_MIN_WIDTH, textWidth + TAB_SIDE_PADDING + TAB_GAP_AND_CLOSE);
+            return { id: doc.id, natural };
+        });
+
+        const totalNatural = naturalWidths.reduce((sum, item) => sum + item.natural, 0);
+        if (containerWidth > 0 && totalNatural <= containerWidth) {
+            return Object.fromEntries(naturalWidths.map((item) => [item.id, item.natural]));
+        }
+
+        const shrinkCapacity = naturalWidths.reduce((sum, item) => sum + (item.natural - TAB_MIN_WIDTH), 0);
+        const overflow = Math.max(0, totalNatural - containerWidth);
+
+        if (containerWidth > 0 && overflow > 0 && overflow <= shrinkCapacity) {
+            return Object.fromEntries(naturalWidths.map((item) => {
+                const itemCapacity = item.natural - TAB_MIN_WIDTH;
+                const shrink = shrinkCapacity > 0 ? Math.floor((itemCapacity / shrinkCapacity) * overflow) : 0;
+                const width = Math.max(TAB_MIN_WIDTH, item.natural - shrink);
+                return [item.id, width];
+            }));
+        }
+
+        return Object.fromEntries(naturalWidths.map((item) => [item.id, TAB_MIN_WIDTH]));
+    }, [docList, containerWidth, activeDocumentId]);
 
     function enqueueClosures(ids: string[]) {
         if (!ids || ids.length === 0) return;
@@ -99,8 +155,8 @@ export const TabBar: React.FC = () => {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 8,
-                                    minWidth: 100,
-                                    maxWidth: 200,
+                                    minWidth: TAB_MIN_WIDTH,
+                                    width: tabWidths[doc.id] ?? TAB_MIN_WIDTH,
                                     userSelect: 'none',
                                     color: isActive ? '#182026' : '#5c7080'
                                 }}
