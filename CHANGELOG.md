@@ -3,6 +3,9 @@
 Framework: 
 1. [feat] 为 AnyOf 类支持 `wait` 方法。
 
+Devtools：
+1. [feat] **BREAKING** 现在强制要求在 `pyproject.toml` 中填写 `resource_path` 字段。
+
 ## v0.8.0
 Library:
 1. [feat] 新增多点触控接口，目前仅 nemu_ipc 实现了多点触控。

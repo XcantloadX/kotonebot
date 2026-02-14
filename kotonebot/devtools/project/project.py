@@ -33,7 +33,13 @@ class Project:
             self.conf = PyProjectData()
         
         if self.conf.editor and self.conf.editor.resource_path is not None:
-            self.conf.editor.resource_path = str(Path(self.conf.editor.resource_path).absolute())
+            resource_path = Path(self.conf.editor.resource_path).absolute()
+            if not resource_path.exists():
+                raise FileNotFoundError(
+                    f'resource_path does not exist: {resource_path}. '
+                    'Please set [tool.kotonebot.editor.resource_path] to a valid path in pyproject.toml.'
+                )
+            self.conf.editor.resource_path = str(resource_path)
 
 
 if __name__ == '__main__':
