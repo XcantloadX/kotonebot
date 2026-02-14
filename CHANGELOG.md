@@ -5,6 +5,7 @@ Framework:
 
 Devtools：
 1. [feat] **BREAKING** 现在强制要求在 `pyproject.toml` 中填写 `resource_path` 字段。
+2. [feat] Devtools 中打开文件对话框的默认路径现在变为 `resource_path` 字段的值。
 
 ## v0.8.0
 Library:
