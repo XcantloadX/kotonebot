@@ -1,4 +1,8 @@
 # 更新日志
+## v0.9.0
+Framework: 
+1. [feat] 为 AnyOf 类支持 `wait` 方法。
+
 ## v0.8.0
 Library:
 1. [feat] 新增多点触控接口，目前仅 nemu_ipc 实现了多点触控。

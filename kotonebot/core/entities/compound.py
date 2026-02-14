@@ -1,7 +1,7 @@
 from typing import Type, Sequence, cast, Any
 from typing_extensions import Unpack, override
-from kotonebot.core.entities.base import FindKwargs, GameObjectType
-from .base import Prefab
+from kotonebot.core.entities.base import FindKwargs, GameObjectType, WaitKwargs
+from .base import Prefab, _wait_cond
 
 
 class AnyOf(Prefab[Any]):
@@ -73,3 +73,24 @@ class AnyOf(Prefab[Any]):
         
         names = ", ".join([p.__name__ for p in cls.options])
         raise RuntimeError(f"AnyOf: Could not find any of the following prefabs: [{names}]")
+    
+    @override
+    @classmethod
+    def wait(cls, **kwargs: Unpack[WaitKwargs[Any]]) -> GameObjectType:
+        names = ", ".join([p.__name__ for p in cls.options])
+        err = TimeoutError(f"AnyOf: Timed out waiting for any of the following prefabs: [{names}]")
+        unsafe_kwargs = cast(dict[str, Any], kwargs)
+
+        def _cond():
+            for prefab in cls.options:
+                obj = prefab.find(**unsafe_kwargs)
+                if obj is not None:
+                    return (True, cast(GameObjectType, obj))
+            return (False, None)
+        
+        return _wait_cond(
+            _cond,
+            timeout=kwargs.get("timeout"),
+            interval=kwargs.get("interval"),
+            timeout_err=err
+        )

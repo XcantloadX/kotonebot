@@ -19,6 +19,32 @@ class WaitKwargs(FindKwargs[GameObjectType], Generic[GameObjectType], total=Fals
     timeout: float | None
     interval: float | None
 
+T = TypeVar('T')
+
+def _wait_cond(
+    cond: Callable[[], tuple[bool, T | None]],
+    timeout: float | None,
+    interval: float | None,
+    timeout_err: Exception
+) -> T:
+    ctx = manual_context('auto')
+    with ctx:
+        start_time = time.time()
+        while True:
+            is_found, obj = cond()
+            if is_found:
+                # for type checker
+                assert obj is not None, \
+                    'This should not happen: ' \
+                    'is_found is True but obj is None'
+                return obj
+            from kotonebot import sleep
+            sleep(interval or 1.0)
+            if timeout is not None:
+                elapsed = time.time() - start_time
+                if elapsed >= timeout:
+                    raise timeout_err
+
 
 class Prefab(Generic[GameObjectType], ABC):
     __object_class__: Type[GameObjectType] | None = None
@@ -125,19 +151,15 @@ class Prefab(Generic[GameObjectType], ABC):
         # 从 kwargs 中分离出用于等待控制的参数，剩下的传递给 `find`
         timeout = kwargs.pop("timeout", None)
         interval = kwargs.pop("interval", None)
-        start_time = time.time()
-        ctx = manual_context('auto')
-        with ctx:
-            while True:
-                obj = cls.find(**kwargs)
-                if obj is not None:
-                    return obj
-                from kotonebot import sleep
-                sleep(interval or 1.0)
-                if timeout is not None:
-                    elapsed = time.time() - start_time
-                    if elapsed >= timeout:
-                        raise TimeoutError(f"Timeout when waiting for {cls.__name__}（{timeout} s）")
+        def _cond():
+            obj = cls.find(**kwargs)
+            return (obj is not None, obj)
+        return _wait_cond(
+            _cond,
+            timeout,
+            interval,
+            TimeoutError(f"Timeout when waiting for {cls.__name__}（{timeout} s）")
+        )
 
     @classmethod
     def try_wait(
