@@ -32,7 +32,7 @@ def create_rest_router(project: Project) -> APIRouter:
     if project.conf is None or project.conf.editor is None or project.conf.editor.resource_path is None:
         raise ValueError("Missing [tool.kotonebot.editor.resource_path] in pyproject.toml")
     project_root = Path(project.conf.editor.resource_path).resolve()
-    thumbnail_cache_root = project_root / ".kotonebot" / "cache" / "thumbnails"
+    thumbnail_cache_root = project.pyproject_root / ".kotonebot" / "cache" / "thumbnails"
     image_suffixes = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 
     def _is_image_file(path: Path) -> bool:

@@ -12,7 +12,9 @@ PYPROJECT_PATH = './pyproject.toml'
 
 class Project:
     def __init__(self, *, conf_path: str = PYPROJECT_PATH) -> None:
-        self.conf_path: str = conf_path
+        conf_file = Path(conf_path).resolve()
+        self.conf_path: str = str(conf_file)
+        self.pyproject_root: Path = conf_file.parent
         self.conf: PyProjectData
 
         self.load()
