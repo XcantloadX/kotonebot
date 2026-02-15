@@ -37,8 +37,10 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     closeVariantDialog,
     selectVariantImage,
     importVariantImage,
+    closeActiveDocumentWithChecks,
+    closeAllDocumentsWithChecks,
   } = useEditorCommands();
-  const { undo, redo } = useAppStore();
+  const { undo, redo, activeDocumentId, documents } = useAppStore();
   const fileButtonRef = useRef<HTMLButtonElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const variantButtonRef = useRef<HTMLButtonElement>(null);
@@ -84,6 +86,29 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
             void saveDocument();
           },
         },
+        {
+          icon: "cross",
+          text: "Close Document",
+          label: "Ctrl+2",
+          disabled: !activeDocumentId,
+          onClick: () => {
+            if (!activeDocumentId) {
+              return;
+            }
+            setOpenMenu(null);
+            void closeActiveDocumentWithChecks();
+          },
+        },
+        {
+          icon: "small-cross",
+          text: "Close All Document",
+          label: "Ctrl+Shift+2",
+          disabled: Object.keys(documents).length === 0,
+          onClick: () => {
+            setOpenMenu(null);
+            void closeAllDocumentsWithChecks();
+          },
+        },
       ],
       edit: [
         {
@@ -118,7 +143,19 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
         },
       ],
     }),
-    [canCreateVariantDocument, canSave, createVariantDocument, openImageDialog, redo, saveDocument, undo]
+    [
+      activeDocumentId,
+      canCreateVariantDocument,
+      canSave,
+      closeActiveDocumentWithChecks,
+      closeAllDocumentsWithChecks,
+      createVariantDocument,
+      documents,
+      openImageDialog,
+      redo,
+      saveDocument,
+      undo,
+    ]
   );
 
   const getMenuButton = useCallback((key: MenuId) => {
@@ -237,6 +274,18 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
         }
         e.preventDefault();
         void saveDocument();
+      } else if (e.ctrlKey && key === "2") {
+        if (!activeDocumentId) {
+          return;
+        }
+        e.preventDefault();
+        void closeActiveDocumentWithChecks();
+      } else if (e.ctrlKey && e.shiftKey && key === "2") {
+        if (Object.keys(documents).length === 0) {
+          return;
+        }
+        e.preventDefault();
+        void closeAllDocumentsWithChecks();
       } else if (e.ctrlKey && e.altKey && key === "n") {
         if (!canCreateVariantDocument) {
           return;
@@ -247,7 +296,16 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canCreateVariantDocument, canSave, createVariantDocument, openImageDialog, saveDocument]);
+  }, [
+    activeDocumentId,
+    canCreateVariantDocument,
+    canSave,
+    closeActiveDocumentWithChecks,
+    closeAllDocumentsWithChecks,
+    createVariantDocument,
+    openImageDialog,
+    saveDocument,
+  ]);
 
   const renderMenu = () => {
     if (!openMenu) {

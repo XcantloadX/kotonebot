@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useHorizontalScroll } from './hooks/useHorizontalScroll';
-import { Button, Icon, Tooltip, Dialog, Menu, MenuItem } from '@blueprintjs/core';
+import { Icon, Tooltip, Menu, MenuItem } from '@blueprintjs/core';
 import { useAppStore } from '../editor/state';
+import { useEditorCommands } from '../editor/useEditorCommands';
 
 const TAB_MIN_WIDTH = 120;
 const TAB_SIDE_PADDING = 20;
@@ -10,12 +11,11 @@ const TAB_FONT = '600 13px system-ui';
 
 
 export const TabBar: React.FC = () => {
-    const { documents, activeDocumentId, setActiveDocument, closeDocument, saveActiveDocument } = useAppStore();
+    const { documents, activeDocumentId, setActiveDocument } = useAppStore();
+    const { closeDocumentWithChecks, closeDocumentsWithChecks } = useEditorCommands();
     const scrollRef = useHorizontalScroll();
 
     const docList = Object.values(documents);
-    const [closingDocId, setClosingDocId] = useState<string | null>(null);
-    const [pendingCloseQueue, setPendingCloseQueue] = useState<string[]>([]);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; docId: string } | null>(null);
     const [containerWidth, setContainerWidth] = useState(0);
 
@@ -69,48 +69,6 @@ export const TabBar: React.FC = () => {
 
         return Object.fromEntries(naturalWidths.map((item) => [item.id, TAB_MIN_WIDTH]));
     }, [docList, containerWidth, activeDocumentId]);
-
-    function enqueueClosures(ids: string[]) {
-        if (!ids || ids.length === 0) return;
-        const queue = [...ids];
-        setPendingCloseQueue(queue);
-        // start processing immediately
-        processQueue(queue);
-    }
-
-    function processQueue(queueParam?: string[]) {
-        const queue = queueParam ?? pendingCloseQueue;
-        if (!queue || queue.length === 0) return;
-        const id = queue[0];
-        const doc = documents[id];
-        if (!doc) {
-            const rest = queue.slice(1);
-            setPendingCloseQueue(rest);
-            processQueue(rest);
-            return;
-        }
-        if (doc.dirty) {
-            setClosingDocId(id);
-            return;
-        }
-        // close and continue
-        closeDocument(id);
-        const rest = queue.slice(1);
-        setPendingCloseQueue(rest);
-        if (rest.length > 0) {
-            processQueue(rest);
-        }
-    }
-
-    function advanceQueueAfterDialog() {
-        setPendingCloseQueue((q) => {
-            const [, ...rest] = q;
-            // close next items that are not dirty immediately
-            setTimeout(() => processQueue(rest), 0);
-            setClosingDocId(null);
-            return rest;
-        });
-    }
 
     useEffect(() => {
         if (!contextMenu) return;
@@ -175,11 +133,7 @@ export const TabBar: React.FC = () => {
                                     className="tab-close-btn"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (doc.dirty) {
-                                            setClosingDocId(doc.id);
-                                        } else {
-                                            closeDocument(doc.id);
-                                        }
+                                        void closeDocumentWithChecks(doc.id);
                                     }}
                                     style={{ opacity: 0.6 }}
                                 />
@@ -188,48 +142,6 @@ export const TabBar: React.FC = () => {
                     );
                 })}
             </div>
-            <Dialog
-                isOpen={!!closingDocId}
-                onClose={() => setClosingDocId(null)}
-                title="Unsaved changes"
-            >
-                <div style={{ padding: 16 }}>
-                    <div style={{ marginBottom: 12 }}>
-                        {closingDocId ? (
-                            <>File "{closingDocId.split(/[/\\]/).pop()}" has unsaved changes. Save before closing?</>
-                        ) : null}
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                        <Button
-                            onClick={async () => {
-                                if (!closingDocId) return;
-                                setActiveDocument(closingDocId);
-                                try {
-                                    await saveActiveDocument();
-                                } catch (e) {
-                                    console.error('Failed to save:', e);
-                                }
-                                closeDocument(closingDocId);
-                                advanceQueueAfterDialog();
-                            }}
-                            intent="primary"
-                        >
-                            Save
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                if (!closingDocId) return;
-                                closeDocument(closingDocId);
-                                // advance queue if any
-                                advanceQueueAfterDialog();
-                            }}
-                        >
-                            Don't Save
-                        </Button>
-                        <Button onClick={() => setClosingDocId(null)}>Cancel</Button>
-                    </div>
-                </div>
-            </Dialog>
             {contextMenu ? (
                 <div
                     style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 2000 }}
@@ -239,25 +151,18 @@ export const TabBar: React.FC = () => {
                     <Menu>
                         <MenuItem text="Close" onClick={() => {
                             const id = contextMenu.docId;
-                            const doc = documents[id];
-                            if (doc) {
-                                if (doc.dirty) {
-                                    setClosingDocId(id);
-                                } else {
-                                    closeDocument(id);
-                                }
-                            }
+                            void closeDocumentWithChecks(id);
                             setContextMenu(null);
                         }} />
                         <MenuItem text="Close All" onClick={() => {
                             const ids = Object.keys(documents);
-                            enqueueClosures(ids);
+                            void closeDocumentsWithChecks(ids);
                             setContextMenu(null);
                         }} />
                         <MenuItem text="Close Others" onClick={() => {
                             const id = contextMenu.docId;
                             const ids = Object.keys(documents).filter(i => i !== id);
-                            enqueueClosures(ids);
+                            void closeDocumentsWithChecks(ids);
                             setContextMenu(null);
                         }} />
                     </Menu>

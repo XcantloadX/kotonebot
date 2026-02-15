@@ -20,6 +20,10 @@ export interface EditorCommandsResult {
   closeVariantDialog: () => void;
   selectVariantImage: (paths: string[]) => Promise<void>;
   importVariantImage: (files: File[]) => Promise<boolean>;
+  closeDocumentWithChecks: (id: string) => Promise<boolean>;
+  closeActiveDocumentWithChecks: () => Promise<boolean>;
+  closeDocumentsWithChecks: (ids: string[]) => Promise<boolean>;
+  closeAllDocumentsWithChecks: () => Promise<boolean>;
 }
 
 export function useEditorCommands(): EditorCommandsResult {
@@ -278,6 +282,76 @@ export function useEditorCommands(): EditorCommandsResult {
     [activeDoc, messageBox, pendingVariant, selectVariantImage]
   );
 
+  const closeDocumentWithChecks = useCallback(
+    async (id: string): Promise<boolean> => {
+      const current = useAppStore.getState();
+      const doc = current.documents[id];
+      if (!doc) {
+        throw new Error(`Document not found: ${id}`);
+      }
+      if (!doc.dirty) {
+        current.closeDocument(id);
+        return true;
+      }
+
+      const action = await messageBox.show<"save" | "dont-save" | "cancel">({
+        title: "Unsaved changes",
+        content: `File "${id.split(/[/\\]/).pop()}" has unsaved changes. Save before closing?`,
+        buttons: [
+          { value: "save", text: "Save", intent: "primary" },
+          { value: "dont-save", text: "Don't Save" },
+          { value: "cancel", text: "Cancel" },
+        ],
+        dismissValue: "cancel",
+        canEscapeKeyClose: true,
+        canOutsideClickClose: false,
+      });
+
+      if (action === "cancel") {
+        return false;
+      }
+      if (action === "save") {
+        current.setActiveDocument(id);
+        try {
+          await current.saveActiveDocument();
+        } catch {
+          return false;
+        }
+      }
+      current.closeDocument(id);
+      return true;
+    },
+    [messageBox]
+  );
+
+  const closeDocumentsWithChecks = useCallback(
+    async (ids: string[]): Promise<boolean> => {
+      for (const id of ids) {
+        const ok = await closeDocumentWithChecks(id);
+        if (!ok) {
+          return false;
+        }
+      }
+      return true;
+    },
+    [closeDocumentWithChecks]
+  );
+
+  const closeActiveDocumentWithChecks = useCallback(async (): Promise<boolean> => {
+    const current = useAppStore.getState();
+    const activeId = current.activeDocumentId;
+    if (!activeId) {
+      throw new Error("No active document");
+    }
+    return closeDocumentWithChecks(activeId);
+  }, [closeDocumentWithChecks]);
+
+  const closeAllDocumentsWithChecks = useCallback(async (): Promise<boolean> => {
+    const current = useAppStore.getState();
+    const ids = Object.keys(current.documents);
+    return closeDocumentsWithChecks(ids);
+  }, [closeDocumentsWithChecks]);
+
   return {
     canSave: !!activeMeta,
     canCreateVariantDocument: !!activeDoc?.meta,
@@ -292,5 +366,9 @@ export function useEditorCommands(): EditorCommandsResult {
     closeVariantDialog,
     selectVariantImage,
     importVariantImage,
+    closeDocumentWithChecks,
+    closeActiveDocumentWithChecks,
+    closeDocumentsWithChecks,
+    closeAllDocumentsWithChecks,
   };
 }
