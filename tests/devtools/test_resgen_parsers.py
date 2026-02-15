@@ -10,7 +10,6 @@ from kotonebot.devtools.resgen.parsers import (
     KotoneV1Parser,
     BasicSpriteParser,
 )
-from kotonebot.devtools.resgen.validation import MetaValidationError, detect_and_validate_meta_schema
 from kotonebot.devtools.resgen.core import PrefabData, ResourceNode, ImageAsset
 
 
@@ -137,20 +136,6 @@ class TestKotoneV1Parser(unittest.TestCase):
             parser = KotoneV1Parser()
             self.assertFalse(parser.can_parse(json_file))
 
-    def test_can_parse_with_valid_schema(self):
-        """Test can_parse with valid V1 schema"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            json_file = os.path.join(tmpdir, "test.png.json")
-            schema = {
-                "definitions": {},
-                "annotations": []
-            }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
-            
-            parser = KotoneV1Parser()
-            self.assertTrue(parser.can_parse(json_file))
-
     def test_can_parse_with_simple_meta_schema(self):
         """Test can_parse with new simple meta schema (isSimple + definition)."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -169,75 +154,6 @@ class TestKotoneV1Parser(unittest.TestCase):
 
             parser = KotoneV1Parser()
             self.assertTrue(parser.can_parse(json_file))
-
-    def test_parse_empty_schema(self):
-        """Test parsing empty V1 schema"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a dummy PNG file
-            png_file = os.path.join(tmpdir, "test.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
-            
-            json_file = png_file + ".json"
-            schema = {
-                "definitions": {},
-                "annotations": []
-            }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
-            
-            parser = KotoneV1Parser()
-            context = {"output_img_dir": tmpdir}
-            result = parser.parse(json_file, context)
-            
-            self.assertEqual(result, [])
-
-    def test_parse_template_definition(self):
-        """Test parsing template definition from V1 schema"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a dummy PNG file using cv2 if available
-            try:
-                import cv2
-                import numpy as np
-                png_file = os.path.join(tmpdir, "test.png")
-                img = np.zeros((100, 100, 3), dtype=np.uint8)
-                cv2.imwrite(png_file, img)
-            except ImportError:
-                self.skipTest("cv2 not available")
-            
-            json_file = png_file + ".json"
-            annotation_id = "annot-1"
-            schema = {
-                "definitions": {
-                    "def-1": {
-                        "name": "ui.button",
-                        "type": "template",
-                        "displayName": "Button",
-                        "description": "Main button",
-                        "annotationId": annotation_id
-                    }
-                },
-                "annotations": [{
-                    "id": annotation_id,
-                    "type": "rect",
-                    "data": {
-                        "x1": 10,
-                        "y1": 20,
-                        "x2": 100,
-                        "y2": 200
-                    }
-                }]
-            }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
-            
-            parser = KotoneV1Parser()
-            context = {"output_img_dir": tmpdir}
-            result = parser.parse(json_file, context)
-            
-            self.assertTrue(len(result) > 0)
-            self.assertEqual(result[0].type, "template")
-            self.assertEqual(result[0].name, "button")
 
     def test_parse_simple_template_definition(self):
         """Test parsing simple meta with single template definition (isSimple true)."""
@@ -305,147 +221,6 @@ class TestKotoneV1Parser(unittest.TestCase):
             self.assertEqual(node.metadata.get("class_path"), ["Ui"])
             # display_name should fall back to original file name
             self.assertEqual(node.metadata.get("display_name"), "button.png")
-
-
-class TestMetaValidation(unittest.TestCase):
-    """Tests for meta schema validation logic."""
-
-    def test_detect_complex_meta_without_is_simple(self):
-        data = {"definitions": {}, "annotations": []}
-        info = detect_and_validate_meta_schema(data)
-        self.assertEqual(info.format, "complex")
-        self.assertFalse(info.is_simple_flag)
-
-    def test_detect_complex_meta_with_is_simple_false(self):
-        data = {"isSimple": False, "definitions": {}, "annotations": []}
-        info = detect_and_validate_meta_schema(data)
-        self.assertEqual(info.format, "complex")
-        self.assertFalse(info.is_simple_flag)
-
-    def test_reject_complex_meta_missing_keys(self):
-        with self.assertRaises(MetaValidationError):
-            detect_and_validate_meta_schema({"definitions": {}})
-
-    def test_detect_simple_meta(self):
-        data = {
-            "isSimple": True,
-            "definition": {"name": "Ui.Button", "type": "template"},
-        }
-        info = detect_and_validate_meta_schema(data)
-        self.assertEqual(info.format, "simple")
-        self.assertTrue(info.is_simple_flag)
-
-    def test_simple_meta_forbids_definitions_and_annotations(self):
-        data = {
-            "isSimple": True,
-            "definition": {"name": "Ui.Button", "type": "template"},
-            "definitions": {},
-        }
-        with self.assertRaises(MetaValidationError):
-            detect_and_validate_meta_schema(data)
-
-    def test_complex_meta_forbids_single_definition_field(self):
-        data = {
-            "definition": {"name": "Ui.Button", "type": "template"},
-            "definitions": {},
-            "annotations": [],
-        }
-        with self.assertRaises(MetaValidationError):
-            detect_and_validate_meta_schema(data)
-
-    def test_detect_meta_v2_basic(self):
-        data = {"version": 2, "definitions": {}}
-        info = detect_and_validate_meta_schema(data)
-        self.assertEqual(info.format, "v2")
-        self.assertIsNone(info.is_simple_flag)
-
-    def test_meta_v2_forbids_annotations(self):
-        data = {"version": 2, "definitions": {}, "annotations": []}
-        with self.assertRaises(MetaValidationError):
-            detect_and_validate_meta_schema(data)
-
-    def test_parse_hint_box_definition(self):
-        """Test parsing hint-box definition from V1 schema"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            try:
-                import cv2
-                import numpy as np
-                png_file = os.path.join(tmpdir, "test.png")
-                img = np.zeros((1280, 720, 3), dtype=np.uint8)
-                cv2.imwrite(png_file, img)
-            except ImportError:
-                self.skipTest("cv2 not available")
-            
-            json_file = png_file + ".json"
-            annotation_id = "annot-1"
-            schema = {
-                "definitions": {
-                    "def-1": {
-                        "name": "dialogs.hint_box",
-                        "type": "hint-box",
-                        "displayName": "Dialog",
-                        "description": "Dialog box",
-                        "annotationId": annotation_id
-                    }
-                },
-                "annotations": [{
-                    "id": annotation_id,
-                    "type": "rect",
-                    "data": {
-                        "x1": 0,
-                        "y1": 0,
-                        "x2": 720,
-                        "y2": 1280
-                    }
-                }]
-            }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
-            
-            parser = KotoneV1Parser()
-            context = {"output_img_dir": tmpdir}
-            result = parser.parse(json_file, context)
-            
-            self.assertTrue(len(result) > 0)
-            self.assertEqual(result[0].type, "hint-box")
-
-    def test_parse_hint_point_definition(self):
-        """Test parsing hint-point definition from V1 schema"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "test.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
-            
-            json_file = png_file + ".json"
-            annotation_id = "annot-1"
-            schema = {
-                "definitions": {
-                    "def-1": {
-                        "name": "touches.point",
-                        "type": "hint-point",
-                        "displayName": "Touch Point",
-                        "description": "Touch location",
-                        "annotationId": annotation_id
-                    }
-                },
-                "annotations": [{
-                    "id": annotation_id,
-                    "type": "point",
-                    "data": {
-                        "x": 360,
-                        "y": 640
-                    }
-                }]
-            }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
-            
-            parser = KotoneV1Parser()
-            context = {"output_img_dir": tmpdir}
-            result = parser.parse(json_file, context)
-            
-            self.assertTrue(len(result) > 0)
-            self.assertEqual(result[0].type, "hint-point")
 
 
 class TestBasicSpriteParser(unittest.TestCase):

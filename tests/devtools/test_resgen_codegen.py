@@ -290,7 +290,7 @@ class TestEntityGenerator(unittest.TestCase):
         out = gen.generate([ClassNode(name="Root")])
 
         self.assertIn("from kotonebot.core import TemplateMatchPrefab", out)
-        self.assertIn("from kotonebot.primitives import Image, Rect", out)
+        self.assertIn("from kotonebot.primitives import Image, ImageSlice, Rect", out)
         self.assertIn("from kotonebot.backend.core import HintBox, HintPoint", out)
 
     def test_image_asset_generates_prefab_nested_class(self):
@@ -313,9 +313,11 @@ class TestEntityGenerator(unittest.TestCase):
 
         self.assertIn("class Root:", out)
         self.assertIn("    class StartButton(TemplateMatchPrefab):", out)
-        self.assertIn('        template = Image(file_path="assets/start.png")', out)
+        self.assertIn(
+            '        template = ImageSlice(file_path="assets/start.png", name="Start", slice_rect=Rect(x=10, y=20, w=20, h=40))',
+            out,
+        )
         self.assertIn('        display_name = "Start"', out)
-        self.assertIn("        _orig_rect = Rect(x=10, y=20, w=20, h=40)", out)
 
     def test_image_asset_without_rect_sets_none(self):
         gen = EntityGenerator(production=False)
@@ -335,7 +337,7 @@ class TestEntityGenerator(unittest.TestCase):
 
         out = gen.generate([node])
         self.assertIn("    class NoRect(TemplateMatchPrefab):", out)
-        self.assertIn("        _orig_rect = None", out)
+        self.assertIn('        template = ImageSlice(file_path="a/b.png", name="NoRect", slice_rect=None)', out)
 
     def test_box_and_point_generate_assignments(self):
         gen = EntityGenerator(production=False)
@@ -372,7 +374,7 @@ class TestEntityGenerator(unittest.TestCase):
                 ResourceNode(
                     name="WithPreview",
                     type="template",
-                    value=ImageAsset(path="rel.png"),
+                    value=ImageAsset(path="rel.png", rect=None),
                     docstring="Doc line",
                     metadata={"origin_file": r"C:\tmp\origin.png"},
                 )

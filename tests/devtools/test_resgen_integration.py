@@ -46,7 +46,7 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
             self.assertIn("from kotonebot.backend.core import Image, HintBox, HintPoint", code)
             self.assertIn("class Ui:", code)
             # Attribute name is CamelCase from filename
-            self.assertIn("Button = Image(path=", code)
+            self.assertIn("Button = ImageSlice(file_path=sprite_path(", code)
 
     def test_parse_registry_integration(self):
         """Test ParserRegistry with multiple parsers"""
