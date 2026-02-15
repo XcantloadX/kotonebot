@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getProjectInfo, readText } from "../api/fs";
-import { cloneVariantToImage, importVariantImage as importVariantImageApi, previewVariantImportPath } from "../api/metaIndex";
+import { cloneVariantToImage, importVariantImage as importVariantImageApi, preCheckVariantImportPath } from "../api/metaIndex";
 import { useAppStore } from "./state";
 import { toaster } from "../ui/toaster";
 import { useMessageBox } from "../ui/messageBox";
@@ -227,13 +227,26 @@ export function useEditorCommands(): EditorCommandsResult {
       }
 
       try {
-        const targetPreview = await previewVariantImportPath({
+        const precheck = await preCheckVariantImportPath({
+          sourceMetaPath: activeDoc.meta.path,
           baseImagePath: activeDoc.image.path,
           variant: pendingVariant,
         });
+        const copiedDefinitionNames = precheck.copiedDefinitions.map((definition) => definition.name).join("\n");
         const confirmed = await messageBox.confirm_cancel({
           title: "Confirm Import Target",
-          content: `Import variant image to:\n${targetPreview.targetImagePath}`,
+          content: (
+            <div>
+              <div>Import variant image to:</div>
+              <div>{precheck.targetImagePath}</div>
+              <div style={{ marginTop: 8 }}>Will copy definitions ({precheck.copiedDefinitions.length}):</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{copiedDefinitionNames}</div>
+              <div style={{ marginTop: 8 }}>Skipped definitions ({precheck.skippedDefinitions.length}):</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>
+                {precheck.skippedDefinitions.map((definition) => `${definition.name}: ${definition.reason}`).join("\n")}
+              </div>
+            </div>
+          ),
           confirmText: "Import",
           cancelText: "Cancel",
           confirmIntent: "primary",
@@ -243,25 +256,19 @@ export function useEditorCommands(): EditorCommandsResult {
           return false;
         }
 
-        const importImage = (deleteExistingTarget: boolean) =>
-          importVariantImageApi({
-            baseImagePath: activeDoc.image.path,
-            variant: pendingVariant,
-            image: files[0],
-            deleteExistingTarget,
-          });
-
-        let imported: Awaited<ReturnType<typeof importVariantImageApi>>;
-        try {
-          imported = await importImage(false);
-        } catch (e: any) {
-          const message = e?.message ?? String(e);
-          if (!message.includes("Target image already exists")) {
-            throw e;
-          }
+        const targetExists = precheck.targetImageExists || precheck.targetMetaExists;
+        let deleteExistingTarget = false;
+        if (targetExists) {
           const deleteConfirmed = await messageBox.confirm_cancel({
             title: "Target Image Already Exists",
-            content: `Target image already exists:\n${targetPreview.targetImagePath}\n\nDelete target image and target image document before import?`,
+            content: (
+              <div>
+                <div>Target already exists:</div>
+                <div>{precheck.targetImagePath}</div>
+                <div>{precheck.targetMetaPath}</div>
+                <div style={{ marginTop: 8 }}>Delete target image and target image document before import?</div>
+              </div>
+            ),
             confirmText: "Delete and Import",
             cancelText: "Cancel",
             confirmIntent: "danger",
@@ -270,8 +277,14 @@ export function useEditorCommands(): EditorCommandsResult {
           if (!deleteConfirmed) {
             return false;
           }
-          imported = await importImage(true);
+          deleteExistingTarget = true;
         }
+        const imported = await importVariantImageApi({
+          baseImagePath: activeDoc.image.path,
+          variant: pendingVariant,
+          image: files[0],
+          deleteExistingTarget,
+        });
         await selectVariantImage([imported.targetImagePath]);
         return true;
       } catch (e: any) {

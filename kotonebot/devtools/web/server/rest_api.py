@@ -41,7 +41,8 @@ class CloneVariantToImageRequest(BaseModel):
     forceOverwrite: bool = False
 
 
-class PreviewVariantImportPathRequest(BaseModel):
+class PreCheckVariantImportPathRequest(BaseModel):
+    sourceMetaPath: str
     baseImagePath: str
     variant: str
 
@@ -253,6 +254,59 @@ def create_rest_router(project: Project) -> APIRouter:
             output["prefab_id"] = full.prefab_id
         return output
 
+    def _plan_variant_clone_definitions(
+        *,
+        source_meta_path: Path,
+        target_variant: str,
+    ) -> dict[str, Any]:
+        source_meta = parse_meta_file(source_meta_path)
+        base_by_name: dict[str, DefinitionV2Model] = {}
+        for definition in source_meta.definitions.values():
+            if definition.type != "prefab":
+                continue
+            if definition.name is None:
+                raise ValueError("prefab definition requires name")
+            if definition.variant is None:
+                if definition.name in base_by_name:
+                    raise ValueError(f"duplicate prefab base definition: {definition.name}")
+                base_by_name[definition.name] = definition
+
+        target_definitions: dict[str, Any] = {}
+        copied_definitions: list[dict[str, str]] = []
+        skipped_definitions: list[dict[str, str]] = []
+
+        for definition_id, definition in source_meta.definitions.items():
+            definition_name = definition.name
+            if definition_name is None:
+                raise ValueError(f"definition '{definition_id}' requires name")
+            if definition.type != "prefab":
+                skipped_definitions.append(
+                    {
+                        "definitionId": definition_id,
+                        "name": definition_name,
+                        "reason": "not prefab",
+                    }
+                )
+                continue
+            definition_dump = _build_prefab_variant_definition(
+                definition=definition,
+                base_by_name=base_by_name,
+                target_variant=target_variant,
+            )
+            target_definitions[definition_id] = definition_dump
+            copied_definitions.append(
+                {
+                    "definitionId": definition_id,
+                    "name": definition_name,
+                }
+            )
+
+        return {
+            "targetDefinitions": target_definitions,
+            "copiedDefinitions": copied_definitions,
+            "skippedDefinitions": skipped_definitions,
+        }
+
 
     @router.get("/project/root")
     async def get_project_root():
@@ -412,28 +466,11 @@ def create_rest_router(project: Project) -> APIRouter:
             target_meta_path = Path(str(target_image_path) + ".json")
             if target_meta_path.exists() and not body.forceOverwrite:
                 return _err(f"Target meta already exists: {target_meta_path}")
-
-            source_meta = parse_meta_file(source_meta_path)
-            base_by_name: dict[str, DefinitionV2Model] = {}
-            for definition in source_meta.definitions.values():
-                if definition.type != "prefab":
-                    continue
-                if definition.name is None:
-                    raise ValueError("prefab definition requires name")
-                if definition.variant is None:
-                    if definition.name in base_by_name:
-                        raise ValueError(f"duplicate prefab base definition: {definition.name}")
-                    base_by_name[definition.name] = definition
-
-            target_definitions: dict[str, Any] = {}
-            for definition_id, definition in source_meta.definitions.items():
-                if definition.type != "prefab":
-                    continue
-                target_definitions[definition_id] = _build_prefab_variant_definition(
-                    definition=definition,
-                    base_by_name=base_by_name,
-                    target_variant=variant_name,
-                )
+            plan = _plan_variant_clone_definitions(
+                source_meta_path=source_meta_path,
+                target_variant=variant_name,
+            )
+            target_definitions = plan["targetDefinitions"]
 
             payload = {"version": 2, "definitions": target_definitions}
             target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -447,22 +484,39 @@ def create_rest_router(project: Project) -> APIRouter:
             logging.exception("Error while handling /meta/variant/clone_to_image")
             return _err(str(e))
 
-    @router.post("/meta/variant/import/preview_path")
-    async def preview_variant_import_path(body: PreviewVariantImportPathRequest = Body(...)):
+    @router.post("/meta/variant/import/precheck_path")
+    async def precheck_variant_import_path(body: PreCheckVariantImportPathRequest = Body(...)):
         try:
             variant_name = _assert_variant_declared(body.variant)
+            source_meta_path = _get_safe_path(body.sourceMetaPath)
             base_image_path = _get_safe_path(body.baseImagePath)
+            if not source_meta_path.exists():
+                return _err(f"Source meta not found: {source_meta_path}")
             if not base_image_path.exists():
                 return _err(f"Base image not found: {base_image_path}")
             if not _is_image_file(base_image_path):
                 return _err(f"Base path is not an image: {base_image_path}")
+            plan = _plan_variant_clone_definitions(
+                source_meta_path=source_meta_path,
+                target_variant=variant_name,
+            )
             target_image_path = _resolve_variant_import_target_path(
                 base_image_path=base_image_path,
                 variant_name=variant_name,
             )
-            return _ok({"targetImagePath": target_image_path.as_posix()})
+            target_meta_path = Path(str(target_image_path) + ".json")
+            return _ok(
+                {
+                    "targetImagePath": target_image_path.as_posix(),
+                    "targetImageExists": target_image_path.exists(),
+                    "targetMetaPath": target_meta_path.as_posix(),
+                    "targetMetaExists": target_meta_path.exists(),
+                    "copiedDefinitions": plan["copiedDefinitions"],
+                    "skippedDefinitions": plan["skippedDefinitions"],
+                }
+            )
         except Exception as e:
-            logging.exception("Error while handling /meta/variant/import/preview_path")
+            logging.exception("Error while handling /meta/variant/import/precheck_path")
             return _err(str(e))
 
     @router.post("/meta/variant/import_image")

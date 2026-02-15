@@ -28,13 +28,23 @@ export async function cloneVariantToImage(payload: CloneVariantToImagePayload): 
   });
 }
 
-export interface PreviewVariantImportPathPayload {
+export interface PreCheckVariantImportPathPayload {
+  sourceMetaPath: string;
   baseImagePath: string;
   variant: string;
 }
 
-export async function previewVariantImportPath(payload: PreviewVariantImportPathPayload): Promise<{ targetImagePath: string }> {
-  return fetchJson<{ targetImagePath: string }>("/api/meta/variant/import/preview_path", {
+export interface PreCheckVariantImportPathResult {
+  targetImagePath: string;
+  targetImageExists: boolean;
+  targetMetaPath: string;
+  targetMetaExists: boolean;
+  copiedDefinitions: { definitionId: string; name: string }[];
+  skippedDefinitions: { definitionId: string; name: string; reason: string }[];
+}
+
+export async function preCheckVariantImportPath(payload: PreCheckVariantImportPathPayload): Promise<PreCheckVariantImportPathResult> {
+  return fetchJson<PreCheckVariantImportPathResult>("/api/meta/variant/import/precheck_path", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
