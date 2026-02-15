@@ -427,14 +427,13 @@ def create_rest_router(project: Project) -> APIRouter:
 
             target_definitions: dict[str, Any] = {}
             for definition_id, definition in source_meta.definitions.items():
-                if definition.type == "prefab":
-                    target_definitions[definition_id] = _build_prefab_variant_definition(
-                        definition=definition,
-                        base_by_name=base_by_name,
-                        target_variant=variant_name,
-                    )
-                else:
-                    target_definitions[definition_id] = _to_dump(definition)
+                if definition.type != "prefab":
+                    continue
+                target_definitions[definition_id] = _build_prefab_variant_definition(
+                    definition=definition,
+                    base_by_name=base_by_name,
+                    target_variant=variant_name,
+                )
 
             payload = {"version": 2, "definitions": target_definitions}
             target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
