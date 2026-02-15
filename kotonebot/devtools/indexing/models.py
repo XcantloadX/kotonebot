@@ -1,20 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any
 
-
-Severity = Literal["error", "warning", "info"]
-
-
-@dataclass(slots=True)
-class Diagnostic:
-    code: str
-    severity: Severity
-    message: str
-    meta_path: str
-    definition_id: str | None = None
-    field_path: str | None = None
+from ..meta.diagnostic import Diagnostic
 
 
 @dataclass(slots=True)

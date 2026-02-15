@@ -10,8 +10,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from pydantic.generics import GenericModel
 
-from kotonebot.devtools.indexing import IndexStore
-from kotonebot.devtools.meta import DefinitionV2Model, parse_meta_v2_file
+from kotonebot.devtools.indexing.index_store import IndexStore
+from kotonebot.devtools.meta import DefinitionV2Model, merge_prefab_definition, parse_meta_file
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.project.scanner import scan_prefabs
 
@@ -152,20 +152,7 @@ def create_rest_router(project: Project) -> APIRouter:
             raise ValueError(f"prefab '{name}' has no base definition")
 
         base_props = base.props or {}
-        if definition.variant is None:
-            full = definition
-        else:
-            merged_props = dict(base_props)
-            merged_props.update(definition.props or {})
-            full = DefinitionV2Model(
-                type="prefab",
-                name=name,
-                displayName=definition.display_name if definition.display_name is not None else base.display_name,
-                description=definition.description if definition.description is not None else base.description,
-                prefab_id=definition.prefab_id if definition.prefab_id is not None else base.prefab_id,
-                variant=definition.variant,
-                props=merged_props,
-            )
+        full = definition if definition.variant is None else merge_prefab_definition(base, definition)
 
         full_props = full.props or {}
         override_props: dict[str, Any] = {}
@@ -349,7 +336,7 @@ def create_rest_router(project: Project) -> APIRouter:
             if target_meta_path.exists() and not body.forceOverwrite:
                 return _err(f"Target meta already exists: {target_meta_path}")
 
-            source_meta = parse_meta_v2_file(source_meta_path)
+            source_meta = parse_meta_file(source_meta_path)
             base_by_name: dict[str, DefinitionV2Model] = {}
             for definition in source_meta.definitions.values():
                 if definition.type != "prefab":

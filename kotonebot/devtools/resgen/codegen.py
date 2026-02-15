@@ -205,8 +205,9 @@ class EntityGenerator(StandardGenerator):
 
             if data.variant_props is not None:
                 variant_display_names = node.metadata.get("variant_display_names") or {}
+                variant_keys = sorted(data.variant_props.keys())
                 dispatch_fields: set[str] = {"display_name", "template"}
-                for variant in sorted(data.variant_props.keys()):
+                for variant in variant_keys:
                     inner_class_name = self._variant_inner_class_name(variant)
                     props = data.variant_props[variant]
                     dispatch_fields.update(props.keys())
@@ -232,7 +233,7 @@ class EntityGenerator(StandardGenerator):
 
                 w.write("_variant_classes = {")
                 with w.indent():
-                    for variant in sorted(data.variant_props.keys()):
+                    for variant in variant_keys:
                         inner_class_name = self._variant_inner_class_name(variant)
                         w.write(f"'{variant}': {inner_class_name},")
                 w.write("}")

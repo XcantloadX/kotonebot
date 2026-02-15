@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 from .models import DefinitionV2Model
@@ -42,36 +40,29 @@ def merge_prefab_definition(base: DefinitionV2Model, override: DefinitionV2Model
     )
 
 
-def resolve_prefab_variants(
+def group_prefab_definitions_by_name(
     refs: list[DefinitionRef],
-    *,
-    resource_variants: list[str] | None = None,
-) -> dict[str, ResolvedPrefabVariants]:
+) -> dict[str, dict[str | None, DefinitionRef]]:
     groups: dict[str, dict[str | None, DefinitionRef]] = {}
     for ref in refs:
         definition = ref.definition
-        variant = definition.variant
-
-        if variant is not None and definition.type != "prefab":
-            raise ValueError(f"variant is only allowed for prefab: {ref.meta_path}::{ref.definition_id}")
-        if variant is not None and definition.name is None:
-            raise ValueError(f"variant definition requires name: {ref.meta_path}::{ref.definition_id}")
-        if variant is not None and resource_variants is not None and variant not in resource_variants:
-            raise ValueError(
-                f"variant '{variant}' is not declared in resource_variants: {ref.meta_path}::{ref.definition_id}"
-            )
         if definition.type != "prefab" or definition.name is None:
             continue
 
         key = definition.name
         group = groups.setdefault(key, {})
+        variant = definition.variant
         if variant in group:
-            other = group[variant]
-            raise ValueError(
-                f"duplicate prefab (name, variant): {key}, {variant}; {other.meta_path}::{other.definition_id}, {ref.meta_path}::{ref.definition_id}"
-            )
+            raise ValueError(f"duplicate prefab (name, variant) group entry: {key}, {variant}")
         group[variant] = ref
+    return groups
 
+
+def resolve_prefab_variant_groups(
+    groups: dict[str, dict[str | None, DefinitionRef]],
+    *,
+    resource_variants: list[str] | None = None,
+) -> dict[str, ResolvedPrefabVariants]:
     resolved: dict[str, ResolvedPrefabVariants] = {}
     for name, group in groups.items():
         variant_keys = [k for k in group.keys() if k is not None]

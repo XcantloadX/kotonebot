@@ -3,7 +3,11 @@ import json
 import uuid
 from pathlib import Path
 from typing import List, Dict, Any
-from kotonebot.devtools.meta import DefinitionRef, MetaV2Model, parse_meta_v2_file, resolve_prefab_variants
+from kotonebot.devtools.meta import (
+    MetaV2Model,
+    build_variant_projection_for_resgen,
+    parse_meta_file,
+)
 from .core import SchemaParser, ResourceNode, ImageAsset, BoxData, PointData, PrefabData
 from .utils import to_camel_case, ImageProcessor
 from .validation import MetaValidationError, detect_and_validate_meta_schema
@@ -24,34 +28,15 @@ def _meta_to_image_path(meta_path: str) -> str:
 
 
 def build_variant_context(meta_files: list[str], resource_variants: list[str]) -> dict[str, Any]:
-    refs: list[DefinitionRef] = []
-    for meta_path in meta_files:
-        abs_path = Path(meta_path).resolve()
-        if not abs_path.exists():
-            continue
-        data = parse_meta_v2_file(abs_path)
-        normalized = _normalize_meta_path(abs_path.as_posix())
-        for definition_id, definition in data.definitions.items():
-            refs.append(
-                DefinitionRef(
-                    meta_path=normalized,
-                    definition_id=definition_id,
-                    definition=definition,
-                )
-            )
-
-    groups = resolve_prefab_variants(refs, resource_variants=resource_variants)
-    by_base_key: dict[tuple[str, str], Any] = {}
-    skip_keys: set[tuple[str, str]] = set()
-    for group in groups.values():
-        by_base_key[(_normalize_meta_path(group.base.meta_path), group.base.definition_id)] = group
-        for ref in group.variants.values():
-            skip_keys.add((_normalize_meta_path(ref.meta_path), ref.definition_id))
+    projection = build_variant_projection_for_resgen(
+        meta_files=meta_files,
+        resource_variants=resource_variants,
+    )
 
     return {
         "resource_variants": resource_variants,
-        _CTX_VARIANT_GROUP_BY_BASE_KEY: by_base_key,
-        _CTX_VARIANT_SKIP_KEYS: skip_keys,
+        _CTX_VARIANT_GROUP_BY_BASE_KEY: projection.variant_group_by_base_key,
+        _CTX_VARIANT_SKIP_KEYS: projection.variant_skip_keys,
     }
 
 
@@ -80,7 +65,7 @@ class KotoneV1Parser(SchemaParser):
                 data = json.load(f)
             info = detect_and_validate_meta_schema(data)
             if info.format == "v2":
-                parse_meta_v2_file(Path(file_path))
+                parse_meta_file(Path(file_path))
             # 支持 simple 与 v2 两种格式
             return info.format in ("simple", "v2")
         except (json.JSONDecodeError, OSError, MetaValidationError):
@@ -106,7 +91,7 @@ class KotoneV1Parser(SchemaParser):
             return self._parse_simple_definition(definition, png_file, output_dir, context)
 
         if schema_info.format == "v2":
-            v2_data = parse_meta_v2_file(Path(file_path))
+            v2_data = parse_meta_file(Path(file_path))
             return self._parse_v2_schema(v2_data, file_path, png_file, output_dir, context)
 
         raise MetaValidationError(f"KotoneV1Parser cannot parse meta format: {schema_info.format}")
@@ -123,26 +108,12 @@ class KotoneV1Parser(SchemaParser):
         skipped_variant_keys = context.get(_CTX_VARIANT_SKIP_KEYS)
         if variant_group_by_base_key is None or skipped_variant_keys is None:
             if resource_variants is not None:
-                variant_groups = resolve_prefab_variants(
-                    [
-                        DefinitionRef(
-                            meta_path=normalized_meta_path,
-                            definition_id=def_id,
-                            definition=definition,
-                        )
-                        for def_id, definition in definitions.items()
-                    ],
+                projection = build_variant_projection_for_resgen(
+                    meta_files=[meta_path],
                     resource_variants=resource_variants,
                 )
-                variant_group_by_base_key = {
-                    (normalized_meta_path, group.base.definition_id): group
-                    for group in variant_groups.values()
-                }
-                skipped_variant_keys = {
-                    (normalized_meta_path, ref.definition_id)
-                    for group in variant_groups.values()
-                    for ref in group.variants.values()
-                }
+                variant_group_by_base_key = projection.variant_group_by_base_key
+                skipped_variant_keys = projection.variant_skip_keys
             else:
                 variant_group_by_base_key = {}
                 skipped_variant_keys = set()
