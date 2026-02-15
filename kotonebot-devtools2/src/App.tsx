@@ -1,9 +1,12 @@
 import { EditorApp } from './editor/EditorApp';
+import { MessageBoxProvider } from './ui/messageBox';
 
 function App() {
   return (
     <div className="">
-      <EditorApp />
+      <MessageBoxProvider>
+        <EditorApp />
+      </MessageBoxProvider>
     </div>
   )
 }
