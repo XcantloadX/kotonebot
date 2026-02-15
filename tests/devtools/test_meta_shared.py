@@ -34,7 +34,13 @@ def test_parse_meta_v2_file():
                         "x": {
                             "type": "template",
                             "props": {},
-                        }
+                        },
+                        "p": {
+                            "type": "prefab",
+                            "name": "ui.button",
+                            "variant": "en",
+                            "props": {},
+                        },
                     },
                 }
             ),
@@ -43,6 +49,7 @@ def test_parse_meta_v2_file():
         data = parse_meta_v2_file(path)
         assert data.version == 2
         assert "x" in data.definitions
+        assert data.definitions["p"].variant == "en"
 
 
 def test_parse_meta_v2_file_rejects_invalid():

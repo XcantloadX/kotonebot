@@ -11,7 +11,7 @@ from kotonebot.devtools.resgen.parsers import (
     BasicSpriteParser,
 )
 from kotonebot.devtools.resgen.validation import MetaValidationError, detect_and_validate_meta_schema
-from kotonebot.devtools.resgen.core import ResourceNode, ImageAsset
+from kotonebot.devtools.resgen.core import PrefabData, ResourceNode, ImageAsset
 
 
 class TestParserRegistry(unittest.TestCase):
@@ -689,6 +689,50 @@ class TestKotoneV2Parser(unittest.TestCase):
         self.assertTrue(isinstance(node.value, ImageAsset))
         assert isinstance(node.value, ImageAsset)
         self.assertEqual(os.path.basename(node.value.path), "def1_templateImage.png")
+
+    def test_v2_prefab_variant_merge(self):
+        data = {
+            "version": 2,
+            "definitions": {
+                "base": {
+                    "type": "prefab",
+                    "name": "ui.button",
+                    "prefab_id": "TemplateMatchPrefab",
+                    "displayName": "Base",
+                    "props": {
+                        "templateImage": {"kind": "image", "x1": 1, "y1": 2, "x2": 10, "y2": 20},
+                        "threshold": 0.8,
+                    },
+                },
+                "en": {
+                    "type": "prefab",
+                    "name": "ui.button",
+                    "variant": "en",
+                    "props": {
+                        "threshold": 0.9,
+                    },
+                },
+            },
+        }
+        json_path = self._create_meta_file(data)
+        context = {"output_img_dir": self.tmp.name, "root_scan_path": self.tmp.name, "resource_variants": ["en", "jp"]}
+
+        with patch('kotonebot.devtools.resgen.parsers.ImageProcessor') as mock_proc:
+            mock_proc.save_crop_to_path.return_value = os.path.join(self.tmp.name, "base_templateImage.png")
+            nodes = self.parser.parse(json_path, context)
+
+        prefabs = [n for n in nodes if n.type == "prefab"]
+        self.assertEqual(len(prefabs), 1)
+        prefab = prefabs[0]
+        self.assertIsInstance(prefab.value, PrefabData)
+        assert isinstance(prefab.value, PrefabData)
+        assert prefab.value.variant_props is not None
+        self.assertIn("", prefab.value.variant_props)
+        self.assertIn("en", prefab.value.variant_props)
+        self.assertIn("jp", prefab.value.variant_props)
+        self.assertEqual(prefab.value.variant_props[""]["threshold"], 0.8)
+        self.assertEqual(prefab.value.variant_props["en"]["threshold"], 0.9)
+        self.assertEqual(prefab.value.variant_props["jp"]["threshold"], 0.8)
 
 
 if __name__ == '__main__':

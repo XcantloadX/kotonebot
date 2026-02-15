@@ -11,6 +11,7 @@ from .parsers import (
     ParserRegistry,
     KotoneV1Parser,
     BasicSpriteParser,
+    build_variant_context,
 )
 from .utils import (
     to_camel_case,
@@ -33,6 +34,7 @@ __all__ = [
     "ParserRegistry",
     "KotoneV1Parser",
     "BasicSpriteParser",
+    "build_variant_context",
 
     # utils
     "to_camel_case",

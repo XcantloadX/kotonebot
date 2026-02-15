@@ -12,6 +12,7 @@ export interface SymbolLite {
   name: string;
   displayName: string | null;
   prefabId: string | null;
+  variant: string | null;
   metaPath: string;
   imagePath: string;
   primaryGeometry?: PrimaryGeometry | null;

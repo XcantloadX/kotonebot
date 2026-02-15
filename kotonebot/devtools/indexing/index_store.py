@@ -6,6 +6,8 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from kotonebot.devtools.meta import DefinitionRef, parse_meta_v2_file, resolve_prefab_variants
+
 from .diagnostics import make_error
 from .models import Diagnostic, IndexedFile, IndexedSymbol, IndexSnapshot
 from .parser import parse_meta_file
@@ -14,9 +16,16 @@ from .scanner import scan_meta_files
 
 
 class IndexStore:
-    def __init__(self, *, resource_root: Path, prefab_schema: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        *,
+        resource_root: Path,
+        prefab_schema: dict[str, Any] | None = None,
+        resource_variants: list[str] | None = None,
+    ):
         self._resource_root = resource_root.resolve()
         self._prefab_schema = prefab_schema or {}
+        self._resource_variants = resource_variants
         self._snapshot = IndexSnapshot(index_version=0, content_hash="")
         self._last_build_ms = 0
         self._ready = False
@@ -65,6 +74,8 @@ class IndexStore:
                         meta_path=entry.meta_path,
                     )
                 ]
+
+        self._append_variant_diagnostics(files=files, diagnostics=diagnostics)
 
         next_version = self._snapshot.index_version + 1
         self._snapshot = IndexSnapshot(
@@ -125,6 +136,8 @@ class IndexStore:
                     )
                 ]
                 diagnostics[normalized_meta_path] = file_diags
+
+        self._append_variant_diagnostics(files=files, diagnostics=diagnostics)
 
         next_version = self._snapshot.index_version + 1
         self._snapshot = IndexSnapshot(
@@ -201,3 +214,37 @@ class IndexStore:
         if not resolved.as_posix().endswith(".png.json"):
             raise ValueError("Meta path must end with .png.json")
         return resolved.as_posix()
+
+    def _append_variant_diagnostics(
+        self,
+        *,
+        files: dict[str, IndexedFile],
+        diagnostics: dict[str, list[Diagnostic]],
+    ) -> None:
+        refs: list[DefinitionRef] = []
+        for meta_path in files.keys():
+            try:
+                data = parse_meta_v2_file(Path(meta_path))
+            except Exception:
+                continue
+            for definition_id, definition in data.definitions.items():
+                refs.append(
+                    DefinitionRef(
+                        meta_path=meta_path,
+                        definition_id=definition_id,
+                        definition=definition,
+                    )
+                )
+
+        try:
+            resolve_prefab_variants(refs, resource_variants=self._resource_variants)
+        except ValueError as exc:
+            first_meta = refs[0].meta_path if refs else self._resource_root.as_posix()
+            diagnostics.setdefault(first_meta, []).append(
+                make_error(
+                    code="INDEX_VARIANT_INVALID",
+                    message=str(exc),
+                    meta_path=first_meta,
+                    field_path="definitions",
+                )
+            )

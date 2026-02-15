@@ -13,6 +13,7 @@ class DefinitionV2Model(BaseModel):
     display_name: str | None = Field(default=None, alias="displayName")
     description: str | None = None
     prefab_id: str | None = None
+    variant: str | None = None
     props: dict[str, Any] | None = None
 
 

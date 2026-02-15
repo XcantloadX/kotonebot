@@ -57,3 +57,56 @@ resource_path = "missing-resources"
             message = str(context.exception)
             self.assertIn(str(missing_path.absolute()), message)
             self.assertIn("[tool.kotonebot.editor.resource_path]", message)
+
+    def test_load_with_resource_variants(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            resource_dir = tmp_path / "resources"
+            resource_dir.mkdir()
+            conf_path = tmp_path / "pyproject.toml"
+            conf_path.write_text(
+                """
+[tool.kotonebot]
+resource_variants = ["en", "jp"]
+
+[tool.kotonebot.editor]
+resource_path = "resources"
+""".strip(),
+                encoding="utf-8",
+            )
+            cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(tmp_path)
+                project = Project(conf_path=str(conf_path))
+            finally:
+                os.chdir(cwd)
+
+            self.assertEqual(project.conf.resource_variants, ["en", "jp"])
+
+    def test_load_with_duplicate_resource_variants_raises(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            resource_dir = tmp_path / "resources"
+            resource_dir.mkdir()
+            conf_path = tmp_path / "pyproject.toml"
+            conf_path.write_text(
+                """
+[tool.kotonebot]
+resource_variants = ["en", "en"]
+
+[tool.kotonebot.editor]
+resource_path = "resources"
+""".strip(),
+                encoding="utf-8",
+            )
+            cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(tmp_path)
+                with self.assertRaises(ValueError):
+                    Project(conf_path=str(conf_path))
+            finally:
+                os.chdir(cwd)

@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 from pathlib import Path
 from typing import Any, TypeVar, Generic, Optional
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 from pydantic.generics import GenericModel
 
 from kotonebot.devtools.indexing import IndexStore
+from kotonebot.devtools.meta import DefinitionV2Model, parse_meta_v2_file
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.project.scanner import scan_prefabs
 
@@ -29,6 +31,13 @@ class WriteTextRequest(BaseModel):
 
 class UpdateIndexRequest(BaseModel):
     metaPath: str
+
+
+class CloneVariantToImageRequest(BaseModel):
+    sourceMetaPath: str
+    targetImagePath: str
+    variant: str
+    forceOverwrite: bool = False
 
 
 def create_rest_router(project: Project) -> APIRouter:
@@ -61,6 +70,7 @@ def create_rest_router(project: Project) -> APIRouter:
     index_store = IndexStore(
         resource_root=project_root,
         prefab_schema=prefab_schema_for_index,
+        resource_variants=project.conf.resource_variants,
     )
 
     thumbnail_cache_root = project.pyproject_root / ".kotonebot" / "cache" / "thumbnails"
@@ -125,6 +135,58 @@ def create_rest_router(project: Project) -> APIRouter:
     def _err(message: str) -> JSONResponse:
         return JSONResponse(ResponseModel[Any](success=False, message=message, data=None).model_dump())
 
+    def _to_dump(definition: DefinitionV2Model) -> dict[str, Any]:
+        return definition.model_dump(by_alias=True, exclude_none=True)
+
+    def _build_prefab_variant_definition(
+        *,
+        definition: DefinitionV2Model,
+        base_by_name: dict[str, DefinitionV2Model],
+        target_variant: str,
+    ) -> dict[str, Any]:
+        if definition.name is None:
+            raise ValueError("prefab definition requires name")
+        name = definition.name
+        base = base_by_name.get(name)
+        if base is None:
+            raise ValueError(f"prefab '{name}' has no base definition")
+
+        base_props = base.props or {}
+        if definition.variant is None:
+            full = definition
+        else:
+            merged_props = dict(base_props)
+            merged_props.update(definition.props or {})
+            full = DefinitionV2Model(
+                type="prefab",
+                name=name,
+                displayName=definition.display_name if definition.display_name is not None else base.display_name,
+                description=definition.description if definition.description is not None else base.description,
+                prefab_id=definition.prefab_id if definition.prefab_id is not None else base.prefab_id,
+                variant=definition.variant,
+                props=merged_props,
+            )
+
+        full_props = full.props or {}
+        override_props: dict[str, Any] = {}
+        for key, value in full_props.items():
+            if key not in base_props or base_props[key] != value:
+                override_props[key] = value
+
+        output: dict[str, Any] = {
+            "type": "prefab",
+            "name": name,
+            "variant": target_variant,
+            "props": override_props,
+        }
+        if full.display_name != base.display_name:
+            output["displayName"] = full.display_name
+        if full.description != base.description:
+            output["description"] = full.description
+        if full.prefab_id != base.prefab_id:
+            output["prefab_id"] = full.prefab_id
+        return output
+
 
     @router.get("/project/root")
     async def get_project_root():
@@ -134,6 +196,8 @@ def create_rest_router(project: Project) -> APIRouter:
             try:
                 if project.conf and project.conf.editor:
                     data["editor"] = project.conf.editor.model_dump()
+                if project.conf:
+                    data["resource_variants"] = project.conf.resource_variants or []
             except Exception:
                 logging.exception("Failed to include editor config in /project/root response")
 
@@ -263,6 +327,61 @@ def create_rest_router(project: Project) -> APIRouter:
             return _ok(index_store.get_health())
         except Exception as e:
             logging.exception("Error while handling /meta/index/health")
+            return _err(str(e))
+
+    @router.post("/meta/variant/clone_to_image")
+    async def clone_variant_to_image(body: CloneVariantToImageRequest = Body(...)):
+        try:
+            declared_variants = project.conf.resource_variants or []
+            if body.variant not in declared_variants:
+                return _err(f"variant '{body.variant}' is not declared in resource_variants")
+
+            source_meta_path = _get_safe_path(body.sourceMetaPath)
+            target_image_path = _get_safe_path(body.targetImagePath)
+            if not source_meta_path.exists():
+                return _err(f"Source meta not found: {source_meta_path}")
+            if not target_image_path.exists():
+                return _err(f"Target image not found: {target_image_path}")
+            if not _is_image_file(target_image_path):
+                return _err(f"Target path is not an image: {target_image_path}")
+
+            target_meta_path = Path(str(target_image_path) + ".json")
+            if target_meta_path.exists() and not body.forceOverwrite:
+                return _err(f"Target meta already exists: {target_meta_path}")
+
+            source_meta = parse_meta_v2_file(source_meta_path)
+            base_by_name: dict[str, DefinitionV2Model] = {}
+            for definition in source_meta.definitions.values():
+                if definition.type != "prefab":
+                    continue
+                if definition.name is None:
+                    raise ValueError("prefab definition requires name")
+                if definition.variant is None:
+                    if definition.name in base_by_name:
+                        raise ValueError(f"duplicate prefab base definition: {definition.name}")
+                    base_by_name[definition.name] = definition
+
+            target_definitions: dict[str, Any] = {}
+            for definition_id, definition in source_meta.definitions.items():
+                if definition.type == "prefab":
+                    target_definitions[definition_id] = _build_prefab_variant_definition(
+                        definition=definition,
+                        base_by_name=base_by_name,
+                        target_variant=body.variant,
+                    )
+                else:
+                    target_definitions[definition_id] = _to_dump(definition)
+
+            payload = {"version": 2, "definitions": target_definitions}
+            target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            return _ok(
+                {
+                    "targetMetaPath": target_meta_path.as_posix(),
+                    "definitionCount": len(target_definitions),
+                }
+            )
+        except Exception as e:
+            logging.exception("Error while handling /meta/variant/clone_to_image")
             return _err(str(e))
 
     @router.get("/health")

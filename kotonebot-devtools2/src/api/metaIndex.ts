@@ -12,3 +12,18 @@ export async function updateMetaIndex(metaPath: string): Promise<SymbolUpdateRes
     body: JSON.stringify({ metaPath }),
   });
 }
+
+export interface CloneVariantToImagePayload {
+  sourceMetaPath: string;
+  targetImagePath: string;
+  variant: string;
+  forceOverwrite: boolean;
+}
+
+export async function cloneVariantToImage(payload: CloneVariantToImagePayload): Promise<{ targetMetaPath: string; definitionCount: number }> {
+  return fetchJson<{ targetMetaPath: string; definitionCount: number }>("/api/meta/variant/clone_to_image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}

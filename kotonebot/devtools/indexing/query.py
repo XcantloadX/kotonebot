@@ -11,6 +11,7 @@ def symbol_to_lite(symbol: IndexedSymbol) -> dict:
         "name": symbol.name,
         "displayName": symbol.display_name,
         "prefabId": symbol.prefab_id,
+        "variant": symbol.variant,
         "metaPath": symbol.meta_path,
         "imagePath": symbol.image_path,
         "primaryGeometry": symbol.primary_geometry,

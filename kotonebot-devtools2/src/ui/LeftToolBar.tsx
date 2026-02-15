@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { toaster } from './toaster';
 import { useAppStore } from '../editor/state';
 import { FileOpenDialog } from './FileOpenDialog';
-import { readText } from '../api/fs';
+import { getProjectInfo, readText } from '../api/fs';
+import { cloneVariantToImage } from '../api/metaIndex';
 import { SideToolBar, Tool } from './SideToolBar';
 
 
@@ -20,14 +21,28 @@ export const LeftToolBar: React.FC = () => {
     redo,
     saveActiveDocument,
     prefabSchema,
-    setMode,
-    mode
+    setMode
   } = useAppStore();
   
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const activeMeta = activeDoc?.meta;
+  const activeMode = activeDoc?.mode;
 
   const [isImageOpen, setIsImageOpen] = useState(false);
+  const [isVariantImageOpen, setIsVariantImageOpen] = useState(false);
+  const [pendingVariant, setPendingVariant] = useState<string | null>(null);
+  const [projectVariants, setProjectVariants] = useState<string[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const info = await getProjectInfo();
+        setProjectVariants(info.resource_variants || []);
+      } catch {
+        setProjectVariants([]);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -72,7 +87,7 @@ export const LeftToolBar: React.FC = () => {
   }, [activeMeta, undo, redo, setActiveTool, prefabSchema]);
 
   const getSelectedToolId = () => {
-    if (mode && mode.kind === 'creating-prefab') return `prefab-${mode.prefab_id}`;
+    if (activeMode && activeMode.kind === 'creating-prefab') return `prefab-${activeMode.prefab_id}`;
     if (activeTool === 'select') return 'select';
     if (activeTool === 'rect') {
         if (activeResourceType === 'template') return 'new-template';
@@ -123,6 +138,78 @@ export const LeftToolBar: React.FC = () => {
     }
   };
 
+  const openImageWithMeta = async (path: string) => {
+    const img = new Image();
+    img.src = `/api/image?path=${encodeURIComponent(path)}`;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error(`Failed to load image: ${path}`));
+    });
+    openDocument(path, img.width, img.height);
+    const metaPath = path + ".json";
+    const content = await readText(metaPath);
+    const data = JSON.parse(content);
+    if (data.version !== 2) {
+      throw new Error(`Unsupported meta version: ${data.version}`);
+    }
+    setActiveMeta(path, data);
+  };
+
+  const handleCreateVariantDoc = () => {
+      if (!activeDoc?.meta) return;
+      if (projectVariants.length === 0) {
+          toaster.show({ message: "resource_variants 未配置", intent: "warning" });
+          return;
+      }
+      const input = window.prompt(`选择 variant:\n${projectVariants.join(", ")}`, projectVariants[0]);
+      if (!input) return;
+      const variant = input.trim();
+      if (!projectVariants.includes(variant)) {
+          toaster.show({ message: `非法 variant: ${variant}`, intent: "danger" });
+          return;
+      }
+      setPendingVariant(variant);
+      setIsVariantImageOpen(true);
+  };
+
+  const handleVariantImageSelect = async (paths: string[]) => {
+      if (!activeDoc?.meta || !pendingVariant) return;
+      if (paths.length !== 1) {
+          throw new Error("Variant image clone requires single target image");
+      }
+      const targetImagePath = paths[0];
+      try {
+          await cloneVariantToImage({
+              sourceMetaPath: activeDoc.meta.path,
+              targetImagePath,
+              variant: pendingVariant,
+              forceOverwrite: false,
+          });
+      } catch (e: any) {
+          const message = e?.message ?? String(e);
+          if (message.includes("Target meta already exists")) {
+              const confirmed = window.confirm("目标 meta 已存在，确认覆盖全部 definitions（不会保留原数据）？");
+              if (!confirmed) {
+                  setIsVariantImageOpen(false);
+                  setPendingVariant(null);
+                  return;
+              }
+              await cloneVariantToImage({
+                  sourceMetaPath: activeDoc.meta.path,
+                  targetImagePath,
+                  variant: pendingVariant,
+                  forceOverwrite: true,
+              });
+          } else {
+              throw e;
+          }
+      }
+      await openImageWithMeta(targetImagePath);
+      toaster.show({ message: `已创建 ${pendingVariant} variant 文档`, intent: "success" });
+      setIsVariantImageOpen(false);
+      setPendingVariant(null);
+  };
+
   const createPrefab = (prefabId: string) => {
       if (!activeMeta || !prefabSchema) return;
       
@@ -159,6 +246,15 @@ export const LeftToolBar: React.FC = () => {
           onClick: handleSave,
           selectable: false,
           disabled: !activeMeta
+      },
+      'separator',
+      {
+          id: 'clone-variant-doc',
+          icon: 'duplicate',
+          title: '新建 Variant 图片文档',
+          onClick: handleCreateVariantDoc,
+          selectable: false,
+          disabled: !activeDoc?.meta
       },
       'separator',
       {
@@ -248,6 +344,17 @@ export const LeftToolBar: React.FC = () => {
         onSelect={handleSelect}
         title="Open Image"
         filter={name => name.endsWith('.png')}
+      />
+      <FileOpenDialog
+        isOpen={isVariantImageOpen}
+        onClose={() => {
+          setIsVariantImageOpen(false);
+          setPendingVariant(null);
+        }}
+        onSelect={handleVariantImageSelect}
+        title={`选择 ${pendingVariant || ""} Variant 目标图片`}
+        filter={name => name.endsWith('.png')}
+        multiSelect={false}
       />
     </>
   );

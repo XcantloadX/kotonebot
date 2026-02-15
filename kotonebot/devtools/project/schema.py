@@ -97,3 +97,4 @@ class EditorData(BaseModel):
 
 class PyProjectData(BaseModel):
     editor: EditorData | None = None
+    resource_variants: list[str] | None = None

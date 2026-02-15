@@ -30,6 +30,6 @@ export function getImageUrl(path: string): string {
   return `/api/image?path=${encodeURIComponent(path)}`;
 }
 
-export async function getProjectInfo(): Promise<{ resource_root: string; editor?: { resource_path?: string; prefabs_module?: string } }> {
+export async function getProjectInfo(): Promise<{ resource_root: string; resource_variants?: string[]; editor?: { resource_path?: string; prefabs_module?: string } }> {
   return fetchJson(`/api/project/root`);
 }

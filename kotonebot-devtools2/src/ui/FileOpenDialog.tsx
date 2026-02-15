@@ -8,9 +8,10 @@ import { useSettingsStore } from "../editor/settings";
 interface FileOpenDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (paths: string[]) => void;
+  onSelect: (paths: string[]) => void | Promise<void>;
   title?: string;
   filter?: (name: string) => boolean;
+  multiSelect?: boolean;
 }
 
 interface ThumbnailGridProps {
@@ -114,7 +115,7 @@ const ThumbnailGrid: React.FC<ThumbnailGridProps> = ({
   );
 };
 
-export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose, onSelect, title = "Open File", filter }) => {
+export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose, onSelect, title = "Open File", filter, multiSelect = true }) => {
   const [currentPath, setCurrentPath] = useState<string>(".");
   const [backStack, setBackStack] = useState<string[]>([]);
   const [forwardStack, setForwardStack] = useState<string[]>([]);
@@ -274,6 +275,10 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
 
   const handleSelect = (path: string, ctrlKey = false, shiftKey = false, orderedFileIds?: string[]) => {
     setSelectedPaths(prev => {
+      if (!multiSelect) {
+        setLastSelected(path);
+        return new Set([path]);
+      }
       const next = new Set(prev);
 
       if (shiftKey && lastSelected && lastSelected !== path) {
@@ -425,8 +430,9 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
     tryChangePath(currentPath, false);
   }
 
-  const handleOpen = () => {
-    onSelect(Array.from(selectedPaths));
+  const handleOpen = async () => {
+    const selected = Array.from(selectedPaths);
+    await onSelect(multiSelect ? selected : selected.slice(0, 1));
     onClose();
   }
 
@@ -555,7 +561,7 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
             {selectedPaths.size} files selected
           </div>
           <Button onClick={onClose}>Cancel</Button>
-          <Button intent="primary" onClick={handleOpen} disabled={selectedPaths.size === 0}>Open</Button>
+          <Button intent="primary" onClick={() => void handleOpen()} disabled={selectedPaths.size === 0}>Open</Button>
         </div>
       </div>
     </Dialog>

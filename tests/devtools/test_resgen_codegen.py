@@ -4,7 +4,7 @@ import unittest
 
 from kotonebot.devtools.resgen.codegen import EntityGenerator, StandardGenerator
 from kotonebot.devtools.resgen.core import ClassNode, ResourceNode
-from kotonebot.devtools.resgen.core import BoxData, ImageAsset, PointData
+from kotonebot.devtools.resgen.core import BoxData, ImageAsset, PointData, PrefabData
 
 
 class TestStandardGenerator(unittest.TestCase):
@@ -401,6 +401,54 @@ class TestEntityGenerator(unittest.TestCase):
 
         out = gen.generate([node])
         self.assertIn("    Unknown = abc", out)
+
+    def test_variant_prefab_generates_dispatch(self):
+        gen = EntityGenerator(production=True)
+        node = ClassNode(
+            name="Root",
+            attributes=[
+                ResourceNode(
+                    name="StartButton",
+                    type="prefab",
+                    value=PrefabData(
+                        image=None,
+                        prefab_id="TemplateMatchPrefab",
+                        props={},
+                        variant_props={
+                            "": {
+                                "templateImage": ImageAsset(path="a/base.png", rect=None),
+                                "threshold": 0.7,
+                            },
+                            "en": {
+                                "templateImage": ImageAsset(path="a/en.png", rect=None),
+                                "threshold": 0.8,
+                            },
+                            "jp": {
+                                "templateImage": ImageAsset(path="a/jp.png", rect=None),
+                                "threshold": 0.9,
+                            },
+                        },
+                    ),
+                    metadata={
+                        "display_name": "Start",
+                        "variant_display_names": {"en": "Start EN", "jp": "Start JP"},
+                    },
+                )
+            ],
+        )
+
+        out = gen.generate([node])
+        self.assertIn("current_variant = ContextVar('current_variant', default='')", out)
+        self.assertIn("class classproperty:", out)
+        self.assertIn("class StartButton(TemplateMatchPrefab):", out)
+        self.assertIn("class Base:", out)
+        self.assertIn("class En:", out)
+        self.assertIn("class Jp:", out)
+        self.assertIn("_variant_classes = {", out)
+        self.assertIn("'': Base", out)
+        self.assertIn("raise ValueError(f'Unsupported resource variant: {variant}')", out)
+        self.assertIn("@classproperty", out)
+        self.assertIn("def template(cls):", out)
 
 
 if __name__ == '__main__':

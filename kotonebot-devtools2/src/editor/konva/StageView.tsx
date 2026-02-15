@@ -2,6 +2,10 @@ import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Stage, Layer, Image as KonvaImage, Rect, Circle, Line } from 'react-konva';
 import useImage from 'use-image';
 import { useAppStore } from '../state';
+import { useSymbolIndexStore } from '../symbolIndexStore';
+import { readText } from '../../api/fs';
+import { DefinitionV2 } from '../../model/metaV2';
+import { toaster } from '../../ui/toaster';
 import { KonvaEventObject } from 'konva/lib/Node';
 import { ToolContext } from '../tools/Tool';
 import { SelectTool } from '../tools/SelectTool';
@@ -25,6 +29,7 @@ export const StageView: React.FC = () => {
     prefabSchema,
     setViewState
   } = useAppStore();
+  const symbols = useSymbolIndexStore(s => s.symbols);
 
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const activeImage = activeDoc?.image;
@@ -56,8 +61,110 @@ export const StageView: React.FC = () => {
   const [panOrigin, setPanOrigin] = useState<{ viewX: number, viewY: number, pointerX: number, pointerY: number } | null>(null);
   // right mouse button state for panning
   const [isRightMouseDown, setIsRightMouseDown] = useState(false);
+  const [baseDefinitionsByName, setBaseDefinitionsByName] = useState<Record<string, DefinitionV2>>({});
+  const [baseDefsReady, setBaseDefsReady] = useState(true);
+  const missingBaseToastKeyRef = useRef<string>("");
 
   const stageRef = useRef<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadBaseDefinitions = async () => {
+      if (!activeMeta) {
+        setBaseDefinitionsByName({});
+        setBaseDefsReady(true);
+        return;
+      }
+      const variantDefs = Object.values(activeMeta.data.definitions).filter(
+        (def) => def.type === "prefab" && !!def.variant && !!def.name,
+      );
+      if (variantDefs.length === 0) {
+        setBaseDefinitionsByName({});
+        setBaseDefsReady(true);
+        return;
+      }
+
+      const byName: Record<string, DefinitionV2> = {};
+      const loadedMetaCache: Record<string, any> = {};
+      const missingNames: string[] = [];
+      for (const def of variantDefs) {
+        const name = def.name as string;
+        const baseSymbol = symbols.find((s) => s.type === "prefab" && s.name === name && s.variant === null);
+        if (!baseSymbol) {
+          missingNames.push(name);
+          continue;
+        }
+        if (!loadedMetaCache[baseSymbol.metaPath]) {
+          const text = await readText(baseSymbol.metaPath);
+          loadedMetaCache[baseSymbol.metaPath] = JSON.parse(text);
+        }
+        const baseMeta = loadedMetaCache[baseSymbol.metaPath];
+        if (!baseMeta || baseMeta.version !== 2 || !baseMeta.definitions) {
+          missingNames.push(name);
+          continue;
+        }
+        const baseDef = baseMeta.definitions[baseSymbol.definitionId];
+        if (!baseDef || baseDef.type !== "prefab") {
+          missingNames.push(name);
+          continue;
+        }
+        byName[name] = baseDef as DefinitionV2;
+      }
+      if (!cancelled) {
+        setBaseDefinitionsByName(byName);
+        setBaseDefsReady(true);
+        if (missingNames.length > 0) {
+          const key = missingNames.sort().join("|");
+          if (missingBaseToastKeyRef.current !== key) {
+            missingBaseToastKeyRef.current = key;
+            toaster.show({
+              message: `Missing base prefab definitions: ${missingNames.slice(0, 3).join(", ")}${missingNames.length > 3 ? " ..." : ""}`,
+              intent: "warning",
+            });
+          }
+        } else {
+          missingBaseToastKeyRef.current = "";
+        }
+      }
+    };
+    setBaseDefsReady(false);
+    void loadBaseDefinitions().catch((err) => {
+      if (cancelled) return;
+      setBaseDefinitionsByName({});
+      setBaseDefsReady(true);
+      toaster.show({ message: err instanceof Error ? err.message : String(err), intent: "danger" });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeMeta, symbols]);
+
+  const renderDefinitions = useMemo(() => {
+    if (!activeMeta) return null;
+    const out: Record<string, DefinitionV2> = {};
+    for (const [defId, def] of Object.entries(activeMeta.data.definitions)) {
+      if (def.type === "prefab" && def.variant && def.name) {
+        const baseDef = baseDefinitionsByName[def.name];
+        if (!baseDef) {
+          if (baseDefsReady) {
+            out[defId] = def;
+          }
+          continue;
+        }
+        out[defId] = {
+          ...baseDef,
+          ...def,
+          props: {
+            ...(baseDef.props || {}),
+            ...(def.props || {}),
+          },
+        };
+      } else {
+        out[defId] = def;
+      }
+    }
+    return out;
+  }, [activeMeta, baseDefinitionsByName, baseDefsReady]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -285,7 +392,7 @@ export const StageView: React.FC = () => {
           <Layer>
             {image && <KonvaImage image={image} name="bgImage" />}
 
-            {activeMeta && Object.entries(activeMeta.data.definitions).map(([id, def]) => (
+            {renderDefinitions && Object.entries(renderDefinitions).map(([id, def]) => (
               <React.Fragment key={id}>
                 {Object.entries(def.props).map(([key, val]: [string, any]) => {
                   if (!val) return null;
@@ -318,7 +425,7 @@ export const StageView: React.FC = () => {
                             if (!d) return;
                             if (!d.props) d.props = {} as any;
                             const p = d.props[propKey || ''];
-                            d.props[propKey || ''] = { ...(p as any || {}), ...(rect as any) };
+                            d.props[propKey || ''] = { kind: val.kind, ...(p as any || {}), ...(rect as any) };
                           });
                         }}
                       />

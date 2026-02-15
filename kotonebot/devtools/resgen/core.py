@@ -43,6 +43,7 @@ class PrefabData:
     image: Optional[ImageAsset]
     prefab_id: str
     props: Dict[str, Any] = field(default_factory=dict)
+    variant_props: Dict[str, Dict[str, Any]] | None = None
 
 
 @dataclass

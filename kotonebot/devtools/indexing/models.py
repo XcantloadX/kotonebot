@@ -35,6 +35,7 @@ class IndexedSymbol:
     display_name: str | None
     description: str | None
     prefab_id: str | None
+    variant: str | None
     meta_path: str
     image_path: str
     primary_prop_key: str | None

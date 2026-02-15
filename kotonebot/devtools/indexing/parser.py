@@ -132,6 +132,9 @@ def parse_meta_file(
             display_name = _validate_str_or_none(definition.display_name, "displayName")
             description = _validate_str_or_none(definition.description, "description")
             prefab_id = _validate_str_or_none(definition.prefab_id, "prefab_id")
+            variant = _validate_str_or_none(definition.variant, "variant")
+            if variant is not None and type_value != "prefab":
+                raise ValueError("variant is only allowed for prefab")
 
             primary_prop_key, primary_geometry = _pick_primary_geometry(
                 props=props,
@@ -169,6 +172,7 @@ def parse_meta_file(
                     display_name=display_name,
                     description=description,
                     prefab_id=prefab_id,
+                    variant=variant,
                     meta_path=meta_path,
                     image_path=image_path,
                     primary_prop_key=primary_prop_key,
