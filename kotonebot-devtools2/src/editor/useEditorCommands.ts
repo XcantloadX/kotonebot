@@ -4,6 +4,7 @@ import { cloneVariantToImage, importVariantImage as importVariantImageApi, previ
 import { useAppStore } from "./state";
 import { toaster } from "../ui/toaster";
 import { useMessageBox } from "../ui/messageBox";
+import { useSymbolIndexStore } from "./symbolIndexStore";
 
 export interface EditorCommandsResult {
   canSave: boolean;
@@ -196,6 +197,7 @@ export function useEditorCommands(): EditorCommandsResult {
           throw e;
         }
       }
+      await useSymbolIndexStore.getState().patchMetaPath(`${targetImagePath}.json`);
       await openImageWithMeta(targetImagePath);
       toaster.show({ message: `Variant document created: ${pendingVariant}`, intent: "success" });
       setVariantImageDialogOpen(false);
