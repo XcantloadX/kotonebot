@@ -1,7 +1,9 @@
 import os
 import json
 import uuid
+from pathlib import Path
 from typing import List, Dict, Any
+from kotonebot.devtools.meta import MetaV2Model, parse_meta_v2_file
 from .core import SchemaParser, ResourceNode, ImageAsset, BoxData, PointData, PrefabData
 from .utils import to_camel_case, ImageProcessor
 from .validation import MetaValidationError, detect_and_validate_meta_schema
@@ -30,9 +32,13 @@ class KotoneV1Parser(SchemaParser):
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             info = detect_and_validate_meta_schema(data)
+            if info.format == "v2":
+                parse_meta_v2_file(Path(file_path))
             # 支持 simple 与 v2 两种格式
             return info.format in ("simple", "v2")
         except (json.JSONDecodeError, OSError, MetaValidationError):
+            return False
+        except ValueError:
             return False
 
     def parse(self, file_path: str, context: Dict[str, Any]) -> List[ResourceNode]:
@@ -53,26 +59,27 @@ class KotoneV1Parser(SchemaParser):
             return self._parse_simple_definition(definition, png_file, output_dir, context)
 
         if schema_info.format == "v2":
-            return self._parse_v2_schema(data, png_file, output_dir, context)
+            v2_data = parse_meta_v2_file(Path(file_path))
+            return self._parse_v2_schema(v2_data, png_file, output_dir, context)
 
         raise MetaValidationError(f"KotoneV1Parser cannot parse meta format: {schema_info.format}")
 
-    def _parse_v2_schema(self, data: Dict[str, Any], png_file: str, output_dir: str, context: Dict[str, Any]) -> List[ResourceNode]:
+    def _parse_v2_schema(self, data: MetaV2Model, png_file: str, output_dir: str, context: Dict[str, Any]) -> List[ResourceNode]:
         resources: List[ResourceNode] = []
-        definitions = data.get('definitions', {})
+        definitions = data.definitions
         
         for def_id, definition in definitions.items():
-            def_type = definition['type']
-            name = definition.get('name')
+            def_type = definition.type
+            name = definition.name
             
-            if not name:
+            if not name or not def_type:
                 continue
                 
             name_parts = name.split('.')
             class_path = [to_camel_case(p) for p in name_parts[:-1]]
             attr_name = name_parts[-1]
-            display_name = definition.get('displayName', attr_name)
-            desc = definition.get('description', '')
+            display_name = definition.display_name or attr_name
+            desc = definition.description or ''
             
             metadata = {
                 'class_path': class_path,
@@ -81,7 +88,7 @@ class KotoneV1Parser(SchemaParser):
                 'description': desc
             }
             
-            props = definition.get('props', {})
+            props = definition.props or {}
             
             if def_type == 'template':
                 target_prop = None
@@ -115,7 +122,7 @@ class KotoneV1Parser(SchemaParser):
                     resources.append(node)
 
             elif def_type == 'prefab':
-                prefab_id = definition.get('prefab_id')
+                prefab_id = definition.prefab_id
 
                 prefab_props = {}
                 for k, v in props.items():

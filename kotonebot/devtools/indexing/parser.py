@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 from typing import Any
+
+from kotonebot.devtools.meta import DefinitionV2Model, parse_meta_v2_file
 
 from .diagnostics import make_error
 from .models import Diagnostic, IndexedFile, IndexedSymbol
@@ -88,18 +89,8 @@ def parse_meta_file(
     mtime_ns: int,
     prefab_schema: dict[str, Any],
 ) -> tuple[IndexedFile, list[IndexedSymbol], list[Diagnostic]]:
-    content = abs_meta_path.read_text(encoding="utf-8")
-    data = json.loads(content)
-    if not isinstance(data, dict):
-        raise ValueError("Meta file root must be an object")
-
-    version = data.get("version")
-    if version != 2:
-        raise ValueError("Meta file version must be exactly 2")
-
-    definitions = data.get("definitions")
-    if not isinstance(definitions, dict):
-        raise ValueError("Field 'definitions' must be an object")
+    data = parse_meta_v2_file(abs_meta_path)
+    definitions = data.definitions
 
     diagnostics: list[Diagnostic] = []
     symbols: list[IndexedSymbol] = []
@@ -117,7 +108,7 @@ def parse_meta_file(
                 )
             )
             continue
-        if not isinstance(definition, dict):
+        if not isinstance(definition, DefinitionV2Model):
             diagnostics.append(
                 make_error(
                     code="INDEX_DEF_INVALID",
@@ -130,17 +121,17 @@ def parse_meta_file(
             continue
 
         try:
-            type_value = definition.get("type")
+            type_value = definition.type
             if not isinstance(type_value, str):
                 raise ValueError("type must be string")
-            props = definition.get("props")
+            props = definition.props
             if not isinstance(props, dict):
                 raise ValueError("props must be an object")
 
-            name = _validate_str_or_none(definition.get("name"), "name") or definition_id
-            display_name = _validate_str_or_none(definition.get("displayName"), "displayName")
-            description = _validate_str_or_none(definition.get("description"), "description")
-            prefab_id = _validate_str_or_none(definition.get("prefab_id"), "prefab_id")
+            name = _validate_str_or_none(definition.name, "name") or definition_id
+            display_name = _validate_str_or_none(definition.display_name, "displayName")
+            description = _validate_str_or_none(definition.description, "description")
+            prefab_id = _validate_str_or_none(definition.prefab_id, "prefab_id")
 
             primary_prop_key, primary_geometry = _pick_primary_geometry(
                 props=props,
