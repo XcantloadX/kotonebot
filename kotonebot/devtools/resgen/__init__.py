@@ -11,7 +11,10 @@ from .parsers import (
     ParserRegistry,
     KotoneV1Parser,
     BasicSpriteParser,
-    build_variant_context,
+)
+from .runner import (
+    ResgenGenerateResult,
+    generate_resources,
 )
 from .utils import (
     to_camel_case,
@@ -34,7 +37,10 @@ __all__ = [
     "ParserRegistry",
     "KotoneV1Parser",
     "BasicSpriteParser",
-    "build_variant_context",
+
+    # runner
+    "ResgenGenerateResult",
+    "generate_resources",
 
     # utils
     "to_camel_case",

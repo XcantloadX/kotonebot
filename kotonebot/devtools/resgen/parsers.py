@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Dict, Any, cast
 from kotonebot.devtools.meta import (
@@ -16,6 +17,12 @@ from .validation import MetaValidationError, detect_and_validate_meta_schema
 _CTX_VARIANT_GROUP_BY_BASE_KEY = "_variant_group_by_base_key"
 _CTX_VARIANT_SKIP_KEYS = "_variant_skip_keys"
 _CTX_VARIANT_INCLUDE_BASE = "resgen_include_base_variant"
+
+
+@dataclass(slots=True)
+class ResgenProjectContext:
+    parser_context: dict[str, Any]
+    default_variant: str
 
 
 def _normalize_meta_path(path: str) -> str:
@@ -41,6 +48,101 @@ def build_variant_context(meta_files: list[str], resource_variants: list[str]) -
         _CTX_VARIANT_SKIP_KEYS: projection.variant_skip_keys,
         _CTX_VARIANT_INCLUDE_BASE: True,
     }
+
+
+def _load_project(conf_path: str):
+    from kotonebot.devtools.project.project import Project
+    return Project(conf_path=conf_path)
+
+
+def _require_resource_path(project: Any) -> str:
+    editor_conf = project.conf.editor
+    if editor_conf is None or editor_conf.resource_path is None:
+        raise ValueError("editor.resource_path must be configured in pyproject.toml")
+    return editor_conf.resource_path
+
+
+def _build_project_context(
+    *,
+    project: Any,
+    meta_files: list[str],
+    include_base_variant: bool,
+) -> ResgenProjectContext:
+    variant_conf = project.conf.variant
+    if variant_conf is None:
+        return ResgenProjectContext(parser_context={}, default_variant="")
+    if variant_conf.names is None:
+        raise ValueError("variant.names must be configured in pyproject.toml")
+
+    parser_context = build_variant_context(meta_files, variant_conf.names)
+    parser_context[_CTX_VARIANT_INCLUDE_BASE] = include_base_variant
+
+    default_variant = ""
+    if variant_conf.base is not None:
+        default_variant = variant_conf.base
+
+    return ResgenProjectContext(
+        parser_context=parser_context,
+        default_variant=default_variant,
+    )
+
+
+def load_resgen_project_context(
+    *,
+    meta_files: list[str] | None = None,
+    conf_path: str = "./pyproject.toml",
+    include_base_variant: bool = True,
+) -> ResgenProjectContext:
+    project = _load_project(conf_path)
+    resolved_meta_files = meta_files
+    if resolved_meta_files is None:
+        if project.conf.variant is not None:
+            from kotonebot.devtools.meta import scan_meta_files
+            resource_path = _require_resource_path(project)
+            resolved_meta_files = [entry.meta_path for entry in scan_meta_files(Path(resource_path))]
+        else:
+            resolved_meta_files = []
+    return _build_project_context(
+        project=project,
+        meta_files=resolved_meta_files,
+        include_base_variant=include_base_variant,
+    )
+
+
+def load_resgen_runtime_context(
+    *,
+    conf_path: str = "./pyproject.toml",
+    include_base_variant: bool = True,
+    output_img_dir: str | None = None,
+    root_scan_path: str | None = None,
+    meta_files: list[str] | None = None,
+) -> ResgenProjectContext:
+    project = _load_project(conf_path)
+    resolved_root_scan_path = root_scan_path or _require_resource_path(project)
+    resolved_output_img_dir = output_img_dir or "tmp"
+
+    resolved_meta_files = meta_files
+    if resolved_meta_files is None:
+        if project.conf.variant is not None:
+            from kotonebot.devtools.meta import scan_meta_files
+            resolved_meta_files = [entry.meta_path for entry in scan_meta_files(Path(resolved_root_scan_path))]
+        else:
+            resolved_meta_files = []
+
+    project_context = _build_project_context(
+        project=project,
+        meta_files=resolved_meta_files,
+        include_base_variant=include_base_variant,
+    )
+    runtime_context = {
+        "output_img_dir": resolved_output_img_dir,
+        "root_scan_path": resolved_root_scan_path,
+        **project_context.parser_context,
+    }
+    return ResgenProjectContext(
+        parser_context=runtime_context,
+        default_variant=project_context.default_variant,
+    )
 
 
 class ParserRegistry:
@@ -215,6 +317,8 @@ class KotoneV1Parser(SchemaParser):
 
             elif def_type == 'prefab':
                 prefab_id = definition.prefab_id
+                if prefab_id is None:
+                    raise ValueError(f"PrefabData missing prefab_id for node {name}")
 
                 variant_group = variant_group_by_base_key.get((normalized_meta_path, def_id))
                 variant_props: dict[str, dict[str, Any]] | None = None
