@@ -2,9 +2,10 @@ import os
 import json
 import uuid
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, cast
 from kotonebot.devtools.meta import (
     MetaV2Model,
+    ResolvedPrefabVariants,
     build_variant_projection_for_resgen,
     parse_meta_file,
 )
@@ -14,6 +15,7 @@ from .validation import MetaValidationError, detect_and_validate_meta_schema
 
 _CTX_VARIANT_GROUP_BY_BASE_KEY = "_variant_group_by_base_key"
 _CTX_VARIANT_SKIP_KEYS = "_variant_skip_keys"
+_CTX_VARIANT_INCLUDE_BASE = "resgen_include_base_variant"
 
 
 def _normalize_meta_path(path: str) -> str:
@@ -37,6 +39,7 @@ def build_variant_context(meta_files: list[str], resource_variants: list[str]) -
         "resource_variants": resource_variants,
         _CTX_VARIANT_GROUP_BY_BASE_KEY: projection.variant_group_by_base_key,
         _CTX_VARIANT_SKIP_KEYS: projection.variant_skip_keys,
+        _CTX_VARIANT_INCLUDE_BASE: True,
     }
 
 
@@ -103,10 +106,15 @@ class KotoneV1Parser(SchemaParser):
         resource_variants = context.get("resource_variants")
         if resource_variants is not None and not isinstance(resource_variants, list):
             raise ValueError("resource_variants must be a list[str]")
+        include_base_variant = context.get(_CTX_VARIANT_INCLUDE_BASE, True)
+        if not isinstance(include_base_variant, bool):
+            raise ValueError(f"{_CTX_VARIANT_INCLUDE_BASE} must be bool")
 
-        variant_group_by_base_key = context.get(_CTX_VARIANT_GROUP_BY_BASE_KEY)
-        skipped_variant_keys = context.get(_CTX_VARIANT_SKIP_KEYS)
-        if variant_group_by_base_key is None or skipped_variant_keys is None:
+        raw_variant_group_by_base_key = context.get(_CTX_VARIANT_GROUP_BY_BASE_KEY)
+        raw_skipped_variant_keys = context.get(_CTX_VARIANT_SKIP_KEYS)
+        variant_group_by_base_key: dict[tuple[str, str], ResolvedPrefabVariants]
+        skipped_variant_keys: set[tuple[str, str]]
+        if raw_variant_group_by_base_key is None or raw_skipped_variant_keys is None:
             if resource_variants is not None:
                 projection = build_variant_projection_for_resgen(
                     meta_files=[meta_path],
@@ -117,6 +125,16 @@ class KotoneV1Parser(SchemaParser):
             else:
                 variant_group_by_base_key = {}
                 skipped_variant_keys = set()
+        else:
+            if not isinstance(raw_variant_group_by_base_key, dict):
+                raise ValueError(f"{_CTX_VARIANT_GROUP_BY_BASE_KEY} must be dict")
+            if not isinstance(raw_skipped_variant_keys, set):
+                raise ValueError(f"{_CTX_VARIANT_SKIP_KEYS} must be set")
+            variant_group_by_base_key = cast(
+                dict[tuple[str, str], ResolvedPrefabVariants],
+                raw_variant_group_by_base_key,
+            )
+            skipped_variant_keys = cast(set[tuple[str, str]], raw_skipped_variant_keys)
 
         def build_prefab_props(
             definition_id: str,
@@ -206,7 +224,13 @@ class KotoneV1Parser(SchemaParser):
                         raise ValueError("resource_variants is required when variant prefab exists")
                     variant_props = {}
                     variant_display_names = {}
-                    for variant, merged_definition in variant_group.merged.items():
+                    variant_keys = list(resource_variants)
+                    if include_base_variant:
+                        variant_keys = ["", *variant_keys]
+                    for variant in variant_keys:
+                        if variant not in variant_group.merged:
+                            raise ValueError(f"missing merged variant '{variant}' for prefab '{name}'")
+                        merged_definition = variant_group.merged[variant]
                         variant_ref = variant_group.variants.get(variant)
                         source_meta_for_variant = variant_ref.meta_path if variant_ref is not None else variant_group.base.meta_path
                         source_png_for_variant = _meta_to_image_path(source_meta_for_variant)

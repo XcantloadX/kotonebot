@@ -141,6 +141,18 @@ class EntityGenerator(StandardGenerator):
     2. HintBox/Point -> 生成类的静态属性实例。
     """
 
+    def __init__(
+        self,
+        production: bool = False,
+        ide_type: str | None = None,
+        path_transformer: Callable[[str], str] | None = None,
+        default_variant: str = "",
+    ):
+        super().__init__(production=production, ide_type=ide_type, path_transformer=path_transformer)
+        if not isinstance(default_variant, str):
+            raise ValueError("default_variant must be str")
+        self.default_variant = default_variant
+
     def render_header(self):
         w = self.writer
         w.write("#######           实体资源文件         #######")
@@ -152,7 +164,7 @@ class EntityGenerator(StandardGenerator):
         w.write("from kotonebot.primitives import Image, ImageSlice, Rect")
         w.write("from kotonebot.backend.core import HintBox, HintPoint")
         w.write_empty_line()
-        w.write("current_variant = ContextVar('current_variant', default='')")
+        w.write(f"current_variant = ContextVar('current_variant', default={self.default_variant!r})")
         w.write_empty_line()
         w.write("class classproperty:")
         with w.indent():
