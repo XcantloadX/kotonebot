@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type FileDialogViewMode = "list" | "thumb";
+export type FileDialogViewMode = "list" | "thumb" | "tree";
 
 interface SettingsState {
   fileDialogViewMode: FileDialogViewMode;
