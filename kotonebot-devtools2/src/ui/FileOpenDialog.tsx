@@ -21,6 +21,11 @@ interface ThumbnailGridProps {
   onToggleSelect: (path: string, ctrlKey: boolean, shiftKey: boolean) => void;
 }
 
+interface DialogTreeNodeData extends FileItem {
+  path: string;
+  loaded?: boolean;
+}
+
 const ThumbnailGrid: React.FC<ThumbnailGridProps> = ({
   items,
   selectedPaths,
@@ -125,6 +130,7 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
   const persistedThumbSize = useSettingsStore(s => s.fileDialogThumbSize);
   const setPersistedThumbSize = useSettingsStore(s => s.setFileDialogThumbSize);
   const [thumbSize, setThumbSize] = useState<number>(persistedThumbSize);
+  const [treeViewNodes, setTreeViewNodes] = useState<TreeNodeInfo<DialogTreeNodeData>[]>([]);
 
   const visibleItems = items.filter(item => {
     if (item.isDirectory) return true;
@@ -133,18 +139,71 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
     return item.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
-  // listview 用的数据
-  const treeNodes: TreeNodeInfo[] = visibleItems.map((item) => {
+  const createTreeNode = (item: FileItem): TreeNodeInfo<DialogTreeNodeData> => {
     const fullPath = item.path.replace(/\\/g, '/');
     return {
       id: fullPath,
       label: item.name,
       icon: item.isDirectory ? "folder-close" : "document",
       nodeData: { ...item, path: fullPath },
-      hasCaret: false,
+      hasCaret: item.isDirectory,
       isSelected: !item.isDirectory ? selectedPaths.has(fullPath) : false
-    } as TreeNodeInfo;
-  });
+    };
+  };
+
+  const listNodes: TreeNodeInfo<DialogTreeNodeData>[] = visibleItems.map((item) => ({
+    ...createTreeNode(item),
+    hasCaret: false,
+  }));
+
+  const buildTreeRoots = (source: FileItem[]) => source.map((item) => createTreeNode(item));
+
+  const updateNodeById = (
+    nodes: TreeNodeInfo<DialogTreeNodeData>[],
+    nodeId: string,
+    updater: (node: TreeNodeInfo<DialogTreeNodeData>) => TreeNodeInfo<DialogTreeNodeData>,
+  ): TreeNodeInfo<DialogTreeNodeData>[] => {
+    return nodes.map((node) => {
+      if (node.id === nodeId) return updater(node);
+      if (!node.childNodes || node.childNodes.length === 0) return node;
+      return {
+        ...node,
+        childNodes: updateNodeById(node.childNodes as TreeNodeInfo<DialogTreeNodeData>[], nodeId, updater),
+      };
+    });
+  };
+
+  const applySelectionToTree = (
+    nodes: TreeNodeInfo<DialogTreeNodeData>[],
+    selected: Set<string>,
+  ): TreeNodeInfo<DialogTreeNodeData>[] => {
+    return nodes.map((node) => {
+      const nodePath = String(node.id);
+      const children = node.childNodes
+        ? applySelectionToTree(node.childNodes as TreeNodeInfo<DialogTreeNodeData>[], selected)
+        : undefined;
+      const data = node.nodeData as DialogTreeNodeData;
+      return {
+        ...node,
+        isSelected: data.isDirectory ? false : selected.has(nodePath),
+        childNodes: children,
+      };
+    });
+  };
+
+  const collectExpandedFileIds = (nodes: TreeNodeInfo<DialogTreeNodeData>[]): string[] => {
+    const result: string[] = [];
+    for (const node of nodes) {
+      const data = node.nodeData as DialogTreeNodeData;
+      if (!data.isDirectory) {
+        result.push(String(node.id));
+      }
+      if (data.isDirectory && node.isExpanded && node.childNodes && node.childNodes.length > 0) {
+        result.push(...collectExpandedFileIds(node.childNodes as TreeNodeInfo<DialogTreeNodeData>[]));
+      }
+    }
+    return result;
+  };
 
   useEffect(() => {
     setThumbSize(persistedThumbSize);
@@ -160,6 +219,14 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
     }, 200);
     return () => clearTimeout(handle);
   }, [thumbSize, setPersistedThumbSize]);
+
+  useEffect(() => {
+    setTreeViewNodes(buildTreeRoots(visibleItems));
+  }, [currentPath, items, searchTerm, filter]);
+
+  useEffect(() => {
+    setTreeViewNodes((prev) => applySelectionToTree(prev, selectedPaths));
+  }, [selectedPaths]);
 
   useEffect(() => {
     if (isOpen) {
@@ -205,17 +272,17 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
     }
   };
 
-  const handleSelect = (path: string, ctrlKey = false, shiftKey = false) => {
+  const handleSelect = (path: string, ctrlKey = false, shiftKey = false, orderedFileIds?: string[]) => {
     setSelectedPaths(prev => {
       const next = new Set(prev);
 
       if (shiftKey && lastSelected && lastSelected !== path) {
-        const fileIds = treeNodes
-          .filter(n => {
-            const d: any = n.nodeData;
-            return d && !d.isDirectory;
+        const fileIds = orderedFileIds ?? listNodes
+          .filter((n) => {
+            const d = n.nodeData as DialogTreeNodeData;
+            return !d.isDirectory;
           })
-          .map(n => n.id as string);
+          .map(n => String(n.id));
 
         const a = fileIds.indexOf(lastSelected);
         const b = fileIds.indexOf(path);
@@ -252,8 +319,84 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
     if (item.isDirectory) {
       tryChangePath(item.path);
     } else {
-      handleSelect(item.path, ctrlKey, shiftKey);
+      handleSelect(item.path, ctrlKey, shiftKey, listNodes.filter((n) => {
+        const data = n.nodeData as DialogTreeNodeData;
+        return !data.isDirectory;
+      }).map((n) => String(n.id)));
     }
+  };
+
+  const handleTreeNodeClick = (node: TreeNodeInfo, _nodePath?: number[], e?: React.MouseEvent<HTMLElement>) => {
+    const shiftKey = !!(e && e.shiftKey);
+    const ctrlKey = !!(e && (e.ctrlKey || e.metaKey));
+    const item = node.nodeData as DialogTreeNodeData;
+    if (item.isDirectory) {
+      if (node.isExpanded) {
+        handleTreeNodeCollapse(node);
+      } else {
+        handleTreeNodeExpand(node);
+      }
+      return;
+    }
+    handleSelect(item.path, ctrlKey, shiftKey, collectExpandedFileIds(treeViewNodes));
+  };
+
+  const handleTreeNodeExpand = async (node: TreeNodeInfo) => {
+    const item = node.nodeData as DialogTreeNodeData;
+    if (!item.isDirectory) return;
+
+    if (item.loaded) {
+      setTreeViewNodes((prev) => updateNodeById(prev, String(node.id), (current) => ({
+        ...current,
+        isExpanded: true,
+      })));
+      return;
+    }
+
+    setTreeViewNodes((prev) => updateNodeById(prev, String(node.id), (current) => ({
+      ...current,
+      isExpanded: true,
+      icon: "folder-open",
+      disabled: true,
+    })));
+
+    try {
+      const children = await listDir(item.path);
+      const childNodes = children
+        .filter((child) => {
+          if (child.isDirectory) return true;
+          if (filter && !filter(child.name)) return false;
+          if (!searchTerm.trim()) return true;
+          return child.name.toLowerCase().includes(searchTerm.toLowerCase());
+        })
+        .map((child) => createTreeNode(child));
+      setTreeViewNodes((prev) => updateNodeById(prev, String(node.id), (current) => ({
+        ...current,
+        icon: "folder-open",
+        childNodes,
+        disabled: false,
+        nodeData: {
+          ...(current.nodeData as DialogTreeNodeData),
+          loaded: true,
+        },
+      })));
+    } catch (err: any) {
+      const msg = err && err.message ? err.message : 'Failed to open path';
+      toaster.show({ message: `Cannot open path: ${msg}`, intent: 'danger' });
+      setTreeViewNodes((prev) => updateNodeById(prev, String(node.id), (current) => ({
+        ...current,
+        icon: "folder-close",
+        disabled: false,
+      })));
+    }
+  };
+
+  const handleTreeNodeCollapse = (node: TreeNodeInfo) => {
+    setTreeViewNodes((prev) => updateNodeById(prev, String(node.id), (current) => ({
+      ...current,
+      isExpanded: false,
+      icon: "folder-close",
+    })));
   };
 
   const handleGoUp = () => {
@@ -335,6 +478,11 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
               active={viewMode === "list"}
               onClick={() => setViewMode("list")}
             />
+            <Button
+              icon="tree"
+              active={viewMode === "tree"}
+              onClick={() => setViewMode("tree")}
+            />
             <Popover
                 interactionKind={PopoverInteractionKind.HOVER}
               position={Position.BOTTOM}
@@ -376,7 +524,19 @@ export const FileOpenDialog: React.FC<FileOpenDialogProps> = ({ isOpen, onClose,
             </div>
           )}
           {viewMode === "list" && (
-            <Tree contents={treeNodes} onNodeClick={(node, nodePath, e) => handleNodeClick(node, nodePath, e)} />
+            <Tree contents={listNodes} onNodeClick={(node, nodePath, e) => handleNodeClick(node, nodePath, e)} />
+          )}
+          {viewMode === "tree" && (
+            <Tree
+              contents={treeViewNodes}
+              onNodeClick={(node, nodePath, e) => handleTreeNodeClick(node, nodePath, e)}
+              onNodeExpand={(node) => {
+                handleTreeNodeExpand(node);
+              }}
+              onNodeCollapse={(node) => {
+                handleTreeNodeCollapse(node);
+              }}
+            />
           )}
           {viewMode === "thumb" && (
             <ThumbnailGrid

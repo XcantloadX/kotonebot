@@ -6,6 +6,7 @@ Framework:
 Devtools：
 1. [feat] **BREAKING** 现在强制要求在 `pyproject.toml` 中填写 `resource_path` 字段。
 2. [feat] Devtools 中打开文件对话框的默认路径现在变为 `resource_path` 字段的值。
+3. [feat] 现在支持 Ctrl + Shift + P 打开 Command Pattle，输入 `#` 来搜索项目内所有资源文件的名称与展示名称，类似于 VSCode。
 
 ## v0.8.0
 Library:

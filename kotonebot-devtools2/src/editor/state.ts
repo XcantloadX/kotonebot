@@ -5,6 +5,7 @@ import { MetaV2, ResourceType } from '../model/metaV2';
 import { PrefabSchema } from '../model/prefabSchema';
 import { writeText } from '../api/fs';
 import { toaster } from '../ui/toaster';
+import { useSymbolIndexStore } from './symbolIndexStore';
 
 export type ToolType = "select" | "rect" | "point";
 
@@ -187,6 +188,7 @@ export const useAppStore = create<AppState>()(
       if (!doc.meta) return;
       try {
         await writeText(doc.meta.path, JSON.stringify(doc.meta.data, null, 2));
+        await useSymbolIndexStore.getState().patchMetaPath(doc.meta.path);
         // mark as saved in the store
         set((state) => {
           if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
