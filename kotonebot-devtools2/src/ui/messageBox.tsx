@@ -228,7 +228,7 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             {options.content ? <div>{options.content}</div> : null}
             <HTMLSelect
               fill
-              value={value}
+              defaultValue={value}
               options={options.options}
               onChange={(e) => {
                 value = (e.target as HTMLSelectElement).value;
@@ -278,6 +278,7 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       <Dialog
         isOpen={!!current}
         title={current?.options.title}
+        portalClassName="kb-message-box-portal"
         onClose={() => {
           if (current?.options.dismissValue) {
             settleCurrent(current.options.dismissValue);

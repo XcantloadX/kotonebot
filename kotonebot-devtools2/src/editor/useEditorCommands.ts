@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getProjectInfo, readText } from "../api/fs";
-import { cloneVariantToImage } from "../api/metaIndex";
+import { cloneVariantToImage, importVariantImage as importVariantImageApi, previewVariantImportPath } from "../api/metaIndex";
 import { useAppStore } from "./state";
 import { toaster } from "../ui/toaster";
 import { useMessageBox } from "../ui/messageBox";
@@ -18,6 +18,7 @@ export interface EditorCommandsResult {
   createVariantDocument: () => void;
   closeVariantDialog: () => void;
   selectVariantImage: (paths: string[]) => Promise<void>;
+  importVariantImage: (files: File[]) => Promise<boolean>;
 }
 
 export function useEditorCommands(): EditorCommandsResult {
@@ -35,7 +36,9 @@ export function useEditorCommands(): EditorCommandsResult {
     (async () => {
       try {
         const info = await getProjectInfo();
-        setProjectVariants(info.resource_variants || []);
+        const variantNames = info.variant?.names ?? [];
+        const baseVariant = info.variant?.base ?? null;
+        setProjectVariants(variantNames.filter((name) => name !== baseVariant));
       } catch {
         setProjectVariants([]);
       }
@@ -124,7 +127,7 @@ export function useEditorCommands(): EditorCommandsResult {
       throw new Error("No active meta document");
     }
     if (projectVariants.length === 0) {
-      toaster.show({ message: "resource_variants is not configured", intent: "warning" });
+      toaster.show({ message: "No selectable variants configured", intent: "warning" });
       return;
     }
     const variant = await messageBox.select({
@@ -201,6 +204,78 @@ export function useEditorCommands(): EditorCommandsResult {
     [activeDoc, messageBox, openImageWithMeta, pendingVariant]
   );
 
+  const importVariantImage = useCallback(
+    async (files: File[]) => {
+      if (!activeDoc?.meta) {
+        throw new Error("No active source meta document");
+      }
+      if (!pendingVariant) {
+        throw new Error("No pending variant selected");
+      }
+      if (files.length === 0) {
+        throw new Error("No import file selected");
+      }
+      if (files.length > 1) {
+        toaster.show({ message: "Only one file can be imported at a time", intent: "danger" });
+        return false;
+      }
+
+      try {
+        const targetPreview = await previewVariantImportPath({
+          baseImagePath: activeDoc.image.path,
+          variant: pendingVariant,
+        });
+        const confirmed = await messageBox.confirm_cancel({
+          title: "Confirm Import Target",
+          content: `Import variant image to:\n${targetPreview.targetImagePath}`,
+          confirmText: "Import",
+          cancelText: "Cancel",
+          confirmIntent: "primary",
+          cancelIntent: "none",
+        });
+        if (!confirmed) {
+          return false;
+        }
+
+        const importImage = (deleteExistingTarget: boolean) =>
+          importVariantImageApi({
+            baseImagePath: activeDoc.image.path,
+            variant: pendingVariant,
+            image: files[0],
+            deleteExistingTarget,
+          });
+
+        let imported: Awaited<ReturnType<typeof importVariantImageApi>>;
+        try {
+          imported = await importImage(false);
+        } catch (e: any) {
+          const message = e?.message ?? String(e);
+          if (!message.includes("Target image already exists")) {
+            throw e;
+          }
+          const deleteConfirmed = await messageBox.confirm_cancel({
+            title: "Target Image Already Exists",
+            content: `Target image already exists:\n${targetPreview.targetImagePath}\n\nDelete target image and target image document before import?`,
+            confirmText: "Delete and Import",
+            cancelText: "Cancel",
+            confirmIntent: "danger",
+            cancelIntent: "none",
+          });
+          if (!deleteConfirmed) {
+            return false;
+          }
+          imported = await importImage(true);
+        }
+        await selectVariantImage([imported.targetImagePath]);
+        return true;
+      } catch (e: any) {
+        toaster.show({ message: e?.message ?? String(e), intent: "danger" });
+        return false;
+      }
+    },
+    [activeDoc, messageBox, pendingVariant, selectVariantImage]
+  );
+
   return {
     canSave: !!activeMeta,
     canCreateVariantDocument: !!activeDoc?.meta,
@@ -214,5 +289,6 @@ export function useEditorCommands(): EditorCommandsResult {
     createVariantDocument,
     closeVariantDialog,
     selectVariantImage,
+    importVariantImage,
   };
 }

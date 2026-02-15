@@ -27,3 +27,35 @@ export async function cloneVariantToImage(payload: CloneVariantToImagePayload): 
     body: JSON.stringify(payload),
   });
 }
+
+export interface PreviewVariantImportPathPayload {
+  baseImagePath: string;
+  variant: string;
+}
+
+export async function previewVariantImportPath(payload: PreviewVariantImportPathPayload): Promise<{ targetImagePath: string }> {
+  return fetchJson<{ targetImagePath: string }>("/api/meta/variant/import/preview_path", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface ImportVariantImagePayload {
+  baseImagePath: string;
+  variant: string;
+  image: File;
+  deleteExistingTarget?: boolean;
+}
+
+export async function importVariantImage(payload: ImportVariantImagePayload): Promise<{ targetImagePath: string; size: number }> {
+  const formData = new FormData();
+  formData.set("baseImagePath", payload.baseImagePath);
+  formData.set("variant", payload.variant);
+  formData.set("image", payload.image);
+  formData.set("deleteExistingTarget", payload.deleteExistingTarget ? "true" : "false");
+  return fetchJson<{ targetImagePath: string; size: number }>("/api/meta/variant/import_image", {
+    method: "POST",
+    body: formData,
+  });
+}

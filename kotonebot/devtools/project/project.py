@@ -43,20 +43,47 @@ class Project:
                 )
             self.conf.editor.resource_path = str(resource_path)
 
-        if self.conf.resource_variants is not None:
-            seen: set[str] = set()
-            deduped: list[str] = []
-            for item in self.conf.resource_variants:
-                if not isinstance(item, str):
-                    raise ValueError("resource_variants must contain only strings")
-                value = item.strip()
-                if value == "":
-                    raise ValueError("resource_variants cannot contain empty string")
-                if value in seen:
-                    raise ValueError(f"resource_variants contains duplicated value: {value}")
-                seen.add(value)
-                deduped.append(value)
-            self.conf.resource_variants = deduped
+        if self.conf.variant is not None:
+            names: list[str] | None = None
+            if self.conf.variant.names is not None:
+                seen: set[str] = set()
+                deduped: list[str] = []
+                for item in self.conf.variant.names:
+                    if not isinstance(item, str):
+                        raise ValueError("variant.names must contain only strings")
+                    value = item.strip()
+                    if value == "":
+                        raise ValueError("variant.names cannot contain empty string")
+                    if value in seen:
+                        raise ValueError(f"variant.names contains duplicated value: {value}")
+                    seen.add(value)
+                    deduped.append(value)
+                names = deduped
+                self.conf.variant.names = names
+
+            if self.conf.variant.base is not None:
+                base = self.conf.variant.base.strip()
+                if base == "":
+                    raise ValueError("variant.base cannot be empty")
+                self.conf.variant.base = base
+                if names is None:
+                    raise ValueError("variant.base requires variant.names")
+                if base not in names:
+                    raise ValueError(f"variant.base '{base}' is not declared in variant.names")
+
+            if self.conf.variant.path_pattern is not None:
+                raw_path_pattern = self.conf.variant.path_pattern.strip()
+                if raw_path_pattern == "":
+                    raise ValueError("variant.path_pattern cannot be empty")
+                if raw_path_pattern == "nest" or raw_path_pattern == "flat":
+                    self.conf.variant.path_pattern = raw_path_pattern
+                elif raw_path_pattern.startswith("pattern:"):
+                    template = raw_path_pattern[len("pattern:"):].strip()
+                    if template == "":
+                        raise ValueError("variant.path_pattern 'pattern:' template cannot be empty")
+                    self.conf.variant.path_pattern = f"pattern: {template}"
+                else:
+                    raise ValueError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
 
 
 if __name__ == '__main__':

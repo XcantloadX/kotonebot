@@ -1,11 +1,12 @@
 import os
 import json
 import logging
+import string
 from pathlib import Path
 from typing import Any, TypeVar, Generic, Optional
 
 import cv2
-from fastapi import APIRouter, HTTPException, Query, Body
+from fastapi import APIRouter, HTTPException, Query, Body, UploadFile, File, Form
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from pydantic.generics import GenericModel
@@ -40,6 +41,11 @@ class CloneVariantToImageRequest(BaseModel):
     forceOverwrite: bool = False
 
 
+class PreviewVariantImportPathRequest(BaseModel):
+    baseImagePath: str
+    variant: str
+
+
 def create_rest_router(project: Project) -> APIRouter:
     router = APIRouter(prefix="/api")
     _prefabs_cache = None
@@ -70,7 +76,7 @@ def create_rest_router(project: Project) -> APIRouter:
     index_store = IndexStore(
         resource_root=project_root,
         prefab_schema=prefab_schema_for_index,
-        resource_variants=project.conf.resource_variants,
+        resource_variants=project.conf.variant.names if project.conf.variant and project.conf.variant.names is not None else None,
     )
 
     thumbnail_cache_root = project.pyproject_root / ".kotonebot" / "cache" / "thumbnails"
@@ -138,6 +144,79 @@ def create_rest_router(project: Project) -> APIRouter:
     def _to_dump(definition: DefinitionV2Model) -> dict[str, Any]:
         return definition.model_dump(by_alias=True, exclude_none=True)
 
+    variant_path_placeholders = {
+        "variant_name",
+        "file_name",
+        "file_name_ext",
+        "file_ext",
+        "file_dir",
+    }
+
+    def _assert_variant_declared(variant: str) -> str:
+        variant_name = variant.strip()
+        if variant_name == "":
+            raise ValueError("variant cannot be empty")
+        declared_variants = project.conf.variant.names if project.conf.variant and project.conf.variant.names is not None else []
+        if variant_name not in declared_variants:
+            raise ValueError(f"variant '{variant_name}' is not declared in variant.names")
+        return variant_name
+
+    def _resolve_variant_import_target_path(*, base_image_path: Path, variant_name: str) -> Path:
+        if project.conf.variant is None:
+            raise ValueError("Missing [tool.kotonebot.variant] in pyproject.toml")
+        variant_path_pattern = project.conf.variant.path_pattern
+        if variant_path_pattern is None:
+            raise ValueError("Missing [tool.kotonebot.variant.path_pattern] in pyproject.toml")
+        rel_base_image_path = base_image_path.resolve().relative_to(project_root)
+        declared_variants = project.conf.variant.names if project.conf.variant.names is not None else []
+        base_variant = project.conf.variant.base
+        base_parent_parts = list(rel_base_image_path.parent.parts)
+        if base_variant is not None and len(base_parent_parts) > 0:
+            head = base_parent_parts[0]
+            if head == base_variant:
+                base_parent_parts = base_parent_parts[1:]
+            elif head in declared_variants:
+                raise ValueError(f"base image path must use variant.base prefix '{base_variant}' when variant prefix exists")
+        file_ext = base_image_path.suffix[1:]
+        if file_ext == "":
+            raise ValueError(f"base image path has no extension: {base_image_path}")
+        file_dir = Path(*base_parent_parts).as_posix() if len(base_parent_parts) > 0 else ""
+
+        rendered: str
+        if variant_path_pattern == "nest":
+            rendered = f"{variant_name}/{file_dir}/{base_image_path.name}" if file_dir else f"{variant_name}/{base_image_path.name}"
+        elif variant_path_pattern == "flat":
+            file_name_with_variant = f"{base_image_path.stem}_{variant_name}.{file_ext}"
+            rendered = f"{file_dir}/{file_name_with_variant}" if file_dir else file_name_with_variant
+        elif variant_path_pattern.startswith("pattern:"):
+            template = variant_path_pattern[len("pattern:"):].strip()
+            if template == "":
+                raise ValueError("variant.path_pattern 'pattern:' template cannot be empty")
+            formatter = string.Formatter()
+            for _, field_name, _, _ in formatter.parse(template):
+                if field_name is None:
+                    continue
+                if field_name == "":
+                    raise ValueError("variant.path_pattern contains empty placeholder")
+                if field_name not in variant_path_placeholders:
+                    raise ValueError(f"variant.path_pattern contains unsupported placeholder: {field_name}")
+            rendered = template.format(
+                variant_name=variant_name,
+                file_name=base_image_path.stem,
+                file_name_ext=base_image_path.name,
+                file_ext=file_ext,
+                file_dir=file_dir,
+            ).strip()
+        else:
+            raise ValueError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
+
+        if rendered == "":
+            raise ValueError("variant.path_pattern resolved to empty path")
+        target_image_path = _get_safe_path(rendered)
+        if target_image_path.suffix.lower() not in image_suffixes:
+            raise ValueError(f"target image extension is not supported: {target_image_path.suffix}")
+        return target_image_path
+
     def _build_prefab_variant_definition(
         *,
         definition: DefinitionV2Model,
@@ -183,8 +262,8 @@ def create_rest_router(project: Project) -> APIRouter:
             try:
                 if project.conf and project.conf.editor:
                     data["editor"] = project.conf.editor.model_dump()
-                if project.conf:
-                    data["resource_variants"] = project.conf.resource_variants or []
+                if project.conf and project.conf.variant:
+                    data["variant"] = project.conf.variant.model_dump()
             except Exception:
                 logging.exception("Failed to include editor config in /project/root response")
 
@@ -319,9 +398,7 @@ def create_rest_router(project: Project) -> APIRouter:
     @router.post("/meta/variant/clone_to_image")
     async def clone_variant_to_image(body: CloneVariantToImageRequest = Body(...)):
         try:
-            declared_variants = project.conf.resource_variants or []
-            if body.variant not in declared_variants:
-                return _err(f"variant '{body.variant}' is not declared in resource_variants")
+            variant_name = _assert_variant_declared(body.variant)
 
             source_meta_path = _get_safe_path(body.sourceMetaPath)
             target_image_path = _get_safe_path(body.targetImagePath)
@@ -354,7 +431,7 @@ def create_rest_router(project: Project) -> APIRouter:
                     target_definitions[definition_id] = _build_prefab_variant_definition(
                         definition=definition,
                         base_by_name=base_by_name,
-                        target_variant=body.variant,
+                        target_variant=variant_name,
                     )
                 else:
                     target_definitions[definition_id] = _to_dump(definition)
@@ -369,6 +446,66 @@ def create_rest_router(project: Project) -> APIRouter:
             )
         except Exception as e:
             logging.exception("Error while handling /meta/variant/clone_to_image")
+            return _err(str(e))
+
+    @router.post("/meta/variant/import/preview_path")
+    async def preview_variant_import_path(body: PreviewVariantImportPathRequest = Body(...)):
+        try:
+            variant_name = _assert_variant_declared(body.variant)
+            base_image_path = _get_safe_path(body.baseImagePath)
+            if not base_image_path.exists():
+                return _err(f"Base image not found: {base_image_path}")
+            if not _is_image_file(base_image_path):
+                return _err(f"Base path is not an image: {base_image_path}")
+            target_image_path = _resolve_variant_import_target_path(
+                base_image_path=base_image_path,
+                variant_name=variant_name,
+            )
+            return _ok({"targetImagePath": target_image_path.as_posix()})
+        except Exception as e:
+            logging.exception("Error while handling /meta/variant/import/preview_path")
+            return _err(str(e))
+
+    @router.post("/meta/variant/import_image")
+    async def import_variant_image(
+        baseImagePath: str = Form(...),
+        variant: str = Form(...),
+        image: UploadFile = File(...),
+        deleteExistingTarget: bool = Form(False),
+    ):
+        try:
+            variant_name = _assert_variant_declared(variant)
+            base_image_path = _get_safe_path(baseImagePath)
+            if not base_image_path.exists():
+                return _err(f"Base image not found: {base_image_path}")
+            if not _is_image_file(base_image_path):
+                return _err(f"Base path is not an image: {base_image_path}")
+            target_image_path = _resolve_variant_import_target_path(
+                base_image_path=base_image_path,
+                variant_name=variant_name,
+            )
+            if target_image_path.exists():
+                if not deleteExistingTarget:
+                    return _err(f"Target image already exists: {target_image_path}")
+                target_image_path.unlink()
+                target_meta_path = Path(str(target_image_path) + ".json")
+                if target_meta_path.exists():
+                    target_meta_path.unlink()
+            image_data = await image.read()
+            if len(image_data) == 0:
+                return _err("Import image is empty")
+            target_image_path.parent.mkdir(parents=True, exist_ok=True)
+            temp_path = target_image_path.with_suffix(target_image_path.suffix + ".tmp")
+            temp_path.write_bytes(image_data)
+            os.replace(temp_path, target_image_path)
+            return _ok(
+                {
+                    "targetImagePath": target_image_path.as_posix(),
+                    "size": len(image_data),
+                }
+            )
+        except Exception as e:
+            logging.exception("Error while handling /meta/variant/import_image")
             return _err(str(e))
 
     @router.get("/health")

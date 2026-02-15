@@ -7,3 +7,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.kb-message-box-portal .bp5-overlay,
+.kb-message-box-portal .bp5-overlay-content,
+.kb-message-box-portal .bp5-overlay-backdrop {
+  z-index: 2600 !important;
+}

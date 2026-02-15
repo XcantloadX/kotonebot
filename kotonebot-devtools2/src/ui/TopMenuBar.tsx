@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { IconName, InputGroup, Menu, MenuItem } from "@blueprintjs/core";
 import { useEditorCommands } from "../editor/useEditorCommands";
 import { useAppStore } from "../editor/state";
-import { FileOpenDialog } from "./FileOpenDialog";
+import { FileOpenDialog } from "./components/FileOpenDialog/FileOpenDialog";
+import { FileOpenOrImportDialog } from "./components/FileOpenDialog/FileOpenOrImportDialog";
 
 interface TopMenuBarProps {
   onOpenCommandPalette: () => void;
@@ -35,6 +36,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     createVariantDocument,
     closeVariantDialog,
     selectVariantImage,
+    importVariantImage,
   } = useEditorCommands();
   const { undo, redo } = useAppStore();
   const fileButtonRef = useRef<HTMLButtonElement>(null);
@@ -107,6 +109,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
         {
           icon: "duplicate",
           text: "New Variant Image Document...",
+          label: "Ctrl+Alt+N",
           disabled: !canCreateVariantDocument,
           onClick: () => {
             setOpenMenu(null);
@@ -234,11 +237,17 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
         }
         e.preventDefault();
         void saveDocument();
+      } else if (e.ctrlKey && e.altKey && key === "n") {
+        if (!canCreateVariantDocument) {
+          return;
+        }
+        e.preventDefault();
+        createVariantDocument();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canSave, openImageDialog, saveDocument]);
+  }, [canCreateVariantDocument, canSave, createVariantDocument, openImageDialog, saveDocument]);
 
   const renderMenu = () => {
     if (!openMenu) {
@@ -344,10 +353,11 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
         title="Open Image"
         filter={(name) => name.endsWith(".png")}
       />
-      <FileOpenDialog
+      <FileOpenOrImportDialog
         isOpen={isVariantImageDialogOpen}
         onClose={closeVariantDialog}
         onSelect={selectVariantImage}
+        onImportDrop={importVariantImage}
         title={variantDialogTitle}
         filter={(name) => name.endsWith(".png")}
         multiSelect={false}
