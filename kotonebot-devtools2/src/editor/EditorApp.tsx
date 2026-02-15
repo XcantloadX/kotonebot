@@ -1,17 +1,31 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppStore } from './state';
 import { getPrefabSchema } from '../api/prefabs';
 import { StageView } from './konva/StageView';
 import { LeftToolBar } from '../ui/LeftToolBar';
 import { RightProperties } from '../ui/RightProperties';
 import { TabBar } from '../ui/TabBar';
+import { useSymbolIndexStore } from './symbolIndexStore';
+import { useCommandPaletteShortcut } from '../hooks/useCommandPaletteShortcut';
+import { CommandPalette } from '../ui/CommandPalette';
 
 export const EditorApp: React.FC = () => {
-  const { setPrefabSchema, activeDocumentId } = useAppStore();
+  const {
+    setPrefabSchema,
+    activeDocumentId,
+  } = useAppStore();
+  const { initialize } = useSymbolIndexStore();
+  const [isPaletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
     getPrefabSchema().then(setPrefabSchema).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    initialize().catch(console.error);
+  }, [initialize]);
+
+  useCommandPaletteShortcut(() => setPaletteOpen(true));
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#f5f8fa' }}>
@@ -36,6 +50,10 @@ export const EditorApp: React.FC = () => {
         <h3 style={{ color: '#182026', margin: '0 0 10px 0' }}>Properties</h3>
         <RightProperties />
       </div>
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setPaletteOpen(false)}
+      />
     </div>
   );
 };

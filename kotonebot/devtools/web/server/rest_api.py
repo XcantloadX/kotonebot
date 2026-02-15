@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from pydantic.generics import GenericModel
 
+from kotonebot.devtools.indexing import IndexStore
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.project.scanner import scan_prefabs
 
@@ -25,6 +26,11 @@ class ResponseModel(GenericModel, Generic[T]):
 class WriteTextRequest(BaseModel):
     content: str
 
+
+class UpdateIndexRequest(BaseModel):
+    metaPath: str
+
+
 def create_rest_router(project: Project) -> APIRouter:
     router = APIRouter(prefix="/api")
     _prefabs_cache = None
@@ -32,6 +38,31 @@ def create_rest_router(project: Project) -> APIRouter:
     if project.conf is None or project.conf.editor is None or project.conf.editor.resource_path is None:
         raise ValueError("Missing [tool.kotonebot.editor.resource_path] in pyproject.toml")
     project_root = Path(project.conf.editor.resource_path).resolve()
+    
+    def _get_prefabs_cache() -> dict[str, Any]:
+        nonlocal _prefabs_cache
+        if _prefabs_cache is not None:
+            return _prefabs_cache
+        if not project.conf or not project.conf.editor or not project.conf.editor.prefabs_module:
+            _prefabs_cache = {"version": 1, "prefabs": {}}
+            return _prefabs_cache
+        _prefabs_cache = scan_prefabs(project.conf.editor.prefabs_module)
+        if not isinstance(_prefabs_cache, dict):
+            raise ValueError("Invalid prefab schema response")
+        _prefabs_cache.setdefault("prefabs", {})
+        return _prefabs_cache
+
+    try:
+        prefab_schema_for_index = _get_prefabs_cache().get("prefabs", {})
+    except Exception:
+        logging.exception("Failed to preload prefab schema for index store")
+        prefab_schema_for_index = {}
+
+    index_store = IndexStore(
+        resource_root=project_root,
+        prefab_schema=prefab_schema_for_index,
+    )
+
     thumbnail_cache_root = project.pyproject_root / ".kotonebot" / "cache" / "thumbnails"
     image_suffixes = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 
@@ -88,11 +119,11 @@ def create_rest_router(project: Project) -> APIRouter:
         return p
 
     def _ok(data: Any = None, message: Optional[str] = None) -> JSONResponse:
-        return JSONResponse(ResponseModel[Any](success=True, message=message, data=data).dict())
+        return JSONResponse(ResponseModel[Any](success=True, message=message, data=data).model_dump())
 
 
     def _err(message: str) -> JSONResponse:
-        return JSONResponse(ResponseModel[Any](success=False, message=message, data=None).dict())
+        return JSONResponse(ResponseModel[Any](success=False, message=message, data=None).model_dump())
 
 
     @router.get("/project/root")
@@ -197,20 +228,42 @@ def create_rest_router(project: Project) -> APIRouter:
 
     @router.get("/prefabs/schema")
     async def get_prefabs_schema():
-        nonlocal _prefabs_cache
         try:
-            if _prefabs_cache is not None:
-                return _ok(_prefabs_cache)
-
-            if not project.conf or not project.conf.editor or not project.conf.editor.prefabs_module:
-                return _ok({"version": 1, "prefabs": {}})
-
-            schema = scan_prefabs(project.conf.editor.prefabs_module)
-            _prefabs_cache = schema
-            return _ok(schema)
+            return _ok(_get_prefabs_cache())
         except Exception as e:
             return _err(str(e))
 
+    @router.get("/meta/index")
+    async def get_meta_index():
+        try:
+            return _ok(index_store.get_snapshot_lite())
+        except Exception as e:
+            logging.exception("Error while handling /meta/index")
+            return _err(str(e))
+
+    @router.post("/meta/index/update")
+    async def update_meta_index(body: UpdateIndexRequest = Body(...)):
+        try:
+            return _ok(index_store.update_file(meta_path=body.metaPath))
+        except Exception as e:
+            logging.exception("Error while handling /meta/index/update")
+            return _err(str(e))
+
+    @router.get("/meta/diagnostics")
+    async def get_meta_diagnostics():
+        try:
+            return _ok(index_store.get_diagnostics())
+        except Exception as e:
+            logging.exception("Error while handling /meta/diagnostics")
+            return _err(str(e))
+
+    @router.get("/meta/index/health")
+    async def get_meta_index_health():
+        try:
+            return _ok(index_store.get_health())
+        except Exception as e:
+            logging.exception("Error while handling /meta/index/health")
+            return _err(str(e))
 
     @router.get("/health")
     async def health_check():
