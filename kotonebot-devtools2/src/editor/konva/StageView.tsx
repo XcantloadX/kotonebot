@@ -180,6 +180,22 @@ export const StageView: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
+  const deleteSelectedDefinition = (e: KeyboardEvent) => {
+    if (!selection || !activeMeta) return;
+    const target = e.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (target?.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      return;
+    }
+    e.preventDefault();
+    const defId = selection.definitionId;
+    updateMeta((draft) => {
+      delete draft.definitions[defId];
+    });
+    setSelection(null);
+    setMode({ kind: 'idle' });
+  };
+
   useShortcuts({
     'Space': {
       onKeyDown: (e) => {
@@ -200,6 +216,12 @@ export const StageView: React.FC = () => {
           setPreview(null);
         }
       }
+    },
+    'Delete': {
+      onKeyDown: deleteSelectedDefinition
+    },
+    'Backspace': {
+      onKeyDown: deleteSelectedDefinition
     }
   });
 
