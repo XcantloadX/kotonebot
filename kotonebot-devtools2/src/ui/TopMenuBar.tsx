@@ -26,15 +26,9 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   const {
     canSave,
     canCreateVariantDocument,
-    isImageDialogOpen,
-    isVariantImageDialogOpen,
-    variantDialogTitle,
-    openImageDialog,
-    closeImageDialog,
     selectImages,
     saveDocument,
     createVariantDocument,
-    closeVariantDialog,
     selectVariantImage,
     importVariantImage,
     closeActiveDocumentWithChecks,
@@ -47,6 +41,70 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const [openMenu, setOpenMenu] = useState<MenuKey>(null);
   const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
+  const [isImageDialogOpen, setImageDialogOpen] = useState(false);
+  const [variantDialogState, setVariantDialogState] = useState<{ isOpen: boolean; variant: string | null }>({
+    isOpen: false,
+    variant: null,
+  });
+  const variantDialogTitle = variantDialogState.variant
+    ? `Select target image for variant ${variantDialogState.variant}`
+    : "Select target image for variant";
+
+  const openImageDialog = useCallback(() => {
+    setImageDialogOpen(true);
+  }, []);
+
+  const closeImageDialog = useCallback(() => {
+    setImageDialogOpen(false);
+  }, []);
+
+  const closeVariantDialog = useCallback(() => {
+    setVariantDialogState({ isOpen: false, variant: null });
+  }, []);
+
+  const openVariantDialog = useCallback(async () => {
+    const variant = await createVariantDocument();
+    if (variant === null) {
+      return;
+    }
+    setVariantDialogState({ isOpen: true, variant });
+  }, [createVariantDocument]);
+
+  const handleSelectImages = useCallback(
+    async (paths: string[]) => {
+      await selectImages(paths);
+      setImageDialogOpen(false);
+    },
+    [selectImages]
+  );
+
+  const handleSelectVariantImage = useCallback(
+    async (paths: string[]) => {
+      const variant = variantDialogState.variant;
+      if (!variant) {
+        throw new Error("No variant selected for target image");
+      }
+      await selectVariantImage(paths, variant);
+      setVariantDialogState({ isOpen: false, variant: null });
+    },
+    [selectVariantImage, variantDialogState.variant]
+  );
+
+  const handleImportVariantImage = useCallback(
+    async (files: File[]) => {
+      const variant = variantDialogState.variant;
+      if (!variant) {
+        throw new Error("No variant selected for import");
+      }
+      const shouldClose = await importVariantImage(files, variant);
+      if (shouldClose) {
+        setVariantDialogState({ isOpen: false, variant: null });
+      }
+      return shouldClose;
+    },
+    [importVariantImage, variantDialogState.variant]
+  );
+
   const triggerStyle = useMemo<React.CSSProperties>(
     () => ({
       height: 24,
@@ -138,7 +196,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canCreateVariantDocument,
           onClick: () => {
             setOpenMenu(null);
-            createVariantDocument();
+            void openVariantDialog();
           },
         },
       ],
@@ -149,9 +207,9 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       canSave,
       closeActiveDocumentWithChecks,
       closeAllDocumentsWithChecks,
-      createVariantDocument,
       documents,
       openImageDialog,
+      openVariantDialog,
       redo,
       saveDocument,
       undo,
@@ -291,7 +349,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           return;
         }
         e.preventDefault();
-        createVariantDocument();
+        void openVariantDialog();
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -302,8 +360,8 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     canSave,
     closeActiveDocumentWithChecks,
     closeAllDocumentsWithChecks,
-    createVariantDocument,
     openImageDialog,
+    openVariantDialog,
     saveDocument,
   ]);
 
@@ -407,15 +465,15 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       <FileOpenDialog
         isOpen={isImageDialogOpen}
         onClose={closeImageDialog}
-        onSelect={selectImages}
+        onSelect={handleSelectImages}
         title="Open Image"
         filter={(name) => name.endsWith(".png")}
       />
       <FileOpenOrImportDialog
-        isOpen={isVariantImageDialogOpen}
+        isOpen={variantDialogState.isOpen}
         onClose={closeVariantDialog}
-        onSelect={selectVariantImage}
-        onImportDrop={importVariantImage}
+        onSelect={handleSelectVariantImage}
+        onImportDrop={handleImportVariantImage}
         title={variantDialogTitle}
         filter={(name) => name.endsWith(".png")}
         multiSelect={false}
