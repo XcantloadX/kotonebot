@@ -3,7 +3,6 @@ import { Stage, Layer, Image as KonvaImage, Rect, Circle, Line } from 'react-kon
 import useImage from 'use-image';
 import { useAppStore } from '../state';
 import { useSymbolIndexStore } from '../symbolIndexStore';
-import { readText } from '../../api/fs';
 import { DefinitionV2 } from '../../model/metaV2';
 import { toaster } from '../../ui/toaster';
 import { KonvaEventObject } from 'konva/lib/Node';
@@ -16,6 +15,7 @@ import { CreatingPrefabTool } from '../tools/CreatingPrefabTool';
 import { DefinitionRect } from './shapes/DefinitionRect';
 import { DefinitionPoint } from './shapes/DefinitionPoint';
 import { useShortcuts } from '../../hooks/useShortcut';
+import { resolveBasePrefabsByName } from '../prefabResolver';
 
 export const StageView: React.FC = () => {
   const {
@@ -86,32 +86,12 @@ export const StageView: React.FC = () => {
         return;
       }
 
-      const byName: Record<string, DefinitionV2> = {};
-      const loadedMetaCache: Record<string, any> = {};
-      const missingNames: string[] = [];
-      for (const def of variantDefs) {
-        const name = def.name as string;
-        const baseSymbol = symbols.find((s) => s.type === "prefab" && s.name === name && s.variant === null);
-        if (!baseSymbol) {
-          missingNames.push(name);
-          continue;
-        }
-        if (!loadedMetaCache[baseSymbol.metaPath]) {
-          const text = await readText(baseSymbol.metaPath);
-          loadedMetaCache[baseSymbol.metaPath] = JSON.parse(text);
-        }
-        const baseMeta = loadedMetaCache[baseSymbol.metaPath];
-        if (!baseMeta || baseMeta.version !== 2 || !baseMeta.definitions) {
-          missingNames.push(name);
-          continue;
-        }
-        const baseDef = baseMeta.definitions[baseSymbol.definitionId];
-        if (!baseDef || baseDef.type !== "prefab") {
-          missingNames.push(name);
-          continue;
-        }
-        byName[name] = baseDef as DefinitionV2;
-      }
+      const names = variantDefs.map((def) => def.name as string);
+      const { byName, missingNames } = await resolveBasePrefabsByName({
+        names,
+        documents,
+        symbols,
+      });
       if (!cancelled) {
         setBaseDefinitionsByName(byName);
         setBaseDefsReady(true);
@@ -139,7 +119,7 @@ export const StageView: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeMeta, symbols]);
+  }, [activeMeta, symbols, documents]);
 
   const renderDefinitions = useMemo(() => {
     if (!activeMeta) return null;

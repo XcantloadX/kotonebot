@@ -4,12 +4,16 @@ import { useAppStore } from '../editor/state';
 import { PropValue } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
 import { jumpToSymbol } from '../editor/actions/navigation';
+import { promptAndRenameVariantsForDefinition } from '../editor/actions/variantRename';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
+import { useMessageBox } from './messageBox';
 import { getEditorForType } from './properties/PropertyEditorRegistry';
 
 export const RightProperties: React.FC = () => {
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
   const symbols = useSymbolIndexStore(s => s.symbols);
+  const messageBox = useMessageBox();
+  const nameValueOnFocusRef = React.useRef<string>('');
 
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const activeMeta = activeDoc?.meta;
@@ -64,6 +68,22 @@ export const RightProperties: React.FC = () => {
       });
   };
 
+  const handleNameFocus = () => {
+    nameValueOnFocusRef.current = definition.name || '';
+  };
+
+  const handleNameBlur = () => {
+    if (isVariantPrefab) {
+      return;
+    }
+    const valueOnFocus = nameValueOnFocusRef.current;
+    const currentValue = definition.name || '';
+    if (valueOnFocus === currentValue) {
+      return;
+    }
+    void promptAndRenameVariantsForDefinition(messageBox, defId);
+  };
+
     const renderPropEditor = (key: string, value: PropValue | undefined, schema?: EditorPropSchema) => {
       const kind = schema?.kind || (typeof value === 'object' ? (value as any).kind : typeof value);
       const Editor = getEditorForType(kind);
@@ -93,6 +113,8 @@ export const RightProperties: React.FC = () => {
           <InputGroup
             value={definition.name || ''}
             readOnly={isVariantPrefab}
+            onFocus={handleNameFocus}
+            onBlur={handleNameBlur}
             onChange={e => handleChange('name', e.target.value)}
           />
       </FormGroup>
