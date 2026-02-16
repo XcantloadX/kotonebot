@@ -13,3 +13,14 @@ body {
 .kb-message-box-portal .bp5-overlay-backdrop {
   z-index: 2600 !important;
 }
+
+.kb-overridable-tooltip .bp5-popover-content {
+  background: #f5f8fa;
+  color: #1f2933;
+  border: 1px solid #d8e1e8;
+  box-shadow: 0 2px 10px rgba(16, 22, 26, 0.12);
+}
+
+.kb-overridable-tooltip .bp5-popover-arrow-fill {
+  fill: #f5f8fa;
+}

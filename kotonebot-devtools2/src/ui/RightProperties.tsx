@@ -8,6 +8,7 @@ import { promptAndRenameVariantsForDefinition } from '../editor/actions/variantR
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import { useMessageBox } from './messageBox';
 import { getEditorForType } from './properties/PropertyEditorRegistry';
+import { OverridableField } from './components/OverridableField';
 
 export const RightProperties: React.FC = () => {
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
@@ -132,7 +133,21 @@ export const RightProperties: React.FC = () => {
           Object.entries(schema.props).forEach(([key, propSchema]) => {
               const hasKey = Object.prototype.hasOwnProperty.call(definition.props, key);
               const storedVal = hasKey ? definition.props[key] : undefined;
-              editors.push(renderPropEditor(key, storedVal, propSchema));
+              editors.push(
+                <OverridableField
+                  key={`override:${key}`}
+                  isSet={hasKey}
+                  onSet={() => {
+                    if (propSchema.default_value === undefined) {
+                      throw new Error(`Property "${key}" has no default_value in schema.`);
+                    }
+                    handleChange(key, propSchema.default_value);
+                  }}
+                  onUnset={() => handleChange(key, undefined)}
+                >
+                  {renderPropEditor(key, storedVal, propSchema)}
+                </OverridableField>
+              );
               renderedProps.add(key);
           });
       }
@@ -141,7 +156,18 @@ export const RightProperties: React.FC = () => {
   // Remaining props
   Object.entries(definition.props).forEach(([key, val]) => {
       if (!renderedProps.has(key)) {
-          editors.push(renderPropEditor(key, val));
+          editors.push(
+            <OverridableField
+              key={`override:remaining:${key}`}
+              isSet={true}
+              onSet={() => {
+                throw new Error(`Cannot set unknown property "${key}" without schema.`);
+              }}
+              onUnset={() => handleChange(key, undefined)}
+            >
+              {renderPropEditor(key, val)}
+            </OverridableField>
+          );
       }
   });
 
