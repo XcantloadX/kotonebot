@@ -39,6 +39,17 @@ export interface DiagnosticItem {
   field_path: string | null;
 }
 
+export interface MetaDiagnosticsSnapshot {
+  indexVersion: number;
+  diagnosticsByFile: Record<string, DiagnosticItem[]>;
+  stats: {
+    total: number;
+    error: number;
+    warning: number;
+    info: number;
+  };
+}
+
 export interface SymbolUpdateResult {
   indexVersion: number;
   contentHash: string;

@@ -12,6 +12,7 @@ class DefinitionV2Model(BaseModel):
     description: str | None = None
     prefab_id: str | None = None
     variant: str | None = None
+    variant_inherit: bool | None = None
     props: dict[str, Any] | None = None
 
 

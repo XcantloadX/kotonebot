@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from .diagnostic import Diagnostic
+from ..diagnostics.models import Diagnostic
 from .graph import ResolvedDocsGraph
 
 

@@ -20,9 +20,11 @@ def build_variant_projection_for_resgen(
     state = build_meta_state(
         meta_paths=meta_files,
         resource_variants=resource_variants,
+        variant_configured=True,
     )
-    if state.diagnostics:
-        raise ValueError(state.diagnostics[0].message)
+    first_error = next((diag for diag in state.diagnostics if diag.severity == "error"), None)
+    if first_error is not None:
+        raise ValueError(first_error.message)
 
     by_base_key: dict[tuple[str, str], ResolvedPrefabVariants] = {}
     skip_keys: set[tuple[str, str]] = set()

@@ -1,5 +1,5 @@
 from .corpus import MetaCorpus, ParsedMetaDoc, build_corpus_from_meta_paths
-from .diagnostic import Diagnostic, Severity
+from ..diagnostics.models import Diagnostic, Severity
 from .graph import DefinitionKey, ResolvedDefinition, ResolvedDocsGraph, build_docs_graph
 from .models import DefinitionV2Model, MetaV2Model
 from .parser import parse_meta_file

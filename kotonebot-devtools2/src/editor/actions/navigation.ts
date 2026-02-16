@@ -1,13 +1,10 @@
 import { readText } from "../../api/fs";
-import { SymbolLite } from "../../model/symbolIndex";
+import { DiagnosticItem, SymbolLite } from "../../model/symbolIndex";
 import { useAppStore } from "../state";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 
-export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
-  const { documents, openDocument, setActiveDocument, setActiveMeta, setSelection, setViewState } = useAppStore.getState();
-
-  const imagePath = symbol.imagePath;
-  const metaPath = symbol.metaPath;
+async function ensureDocumentWithMeta(imagePath: string, metaPath: string): Promise<void> {
+  const { documents, openDocument, setActiveDocument, setActiveMeta } = useAppStore.getState();
 
   let activeDoc = documents[imagePath];
   if (!activeDoc) {
@@ -31,6 +28,18 @@ export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
     }
     setActiveMeta(imagePath, data);
   }
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, "/").toLowerCase();
+}
+
+export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
+  const { setSelection, setViewState } = useAppStore.getState();
+  const imagePath = symbol.imagePath;
+  const metaPath = symbol.metaPath;
+
+  await ensureDocumentWithMeta(imagePath, metaPath);
 
   setSelection(symbol.definitionId);
 
@@ -49,4 +58,28 @@ export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
   }
 
   useSymbolIndexStore.getState().markUsed(symbol.symbolKey);
+}
+
+export async function jumpToDiagnostic(diag: DiagnosticItem): Promise<void> {
+  const { symbols } = useSymbolIndexStore.getState();
+  const hit = symbols.find((symbol) => {
+    if (normalizePath(symbol.metaPath) !== normalizePath(diag.meta_path)) {
+      return false;
+    }
+    if (diag.definition_id === null) {
+      return false;
+    }
+    return symbol.definitionId === diag.definition_id;
+  });
+  if (hit) {
+    await jumpToSymbol(hit);
+    return;
+  }
+
+  const imagePath = diag.meta_path.endsWith(".json")
+    ? diag.meta_path.slice(0, -".json".length)
+    : diag.meta_path;
+  await ensureDocumentWithMeta(imagePath, diag.meta_path);
+  const { setSelection } = useAppStore.getState();
+  setSelection(diag.definition_id);
 }

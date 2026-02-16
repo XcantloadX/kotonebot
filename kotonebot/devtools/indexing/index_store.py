@@ -19,10 +19,12 @@ class IndexStore:
         resource_root: Path,
         prefab_schema: dict[str, Any] | None = None,
         resource_variants: list[str] | None = None,
+        variant_configured: bool = False,
     ):
         self._resource_root = resource_root.resolve()
         self._prefab_schema = prefab_schema or {}
         self._resource_variants = resource_variants
+        self._variant_configured = variant_configured
         self._snapshot = IndexSnapshot(index_version=0, content_hash="")
         self._last_build_ms = 0
         self._ready = False
@@ -50,6 +52,7 @@ class IndexStore:
             meta_refs=refs,
             prefab_schema=self._prefab_schema,
             resource_variants=self._resource_variants,
+            variant_configured=self._variant_configured,
         )
 
         next_version = self._snapshot.index_version + 1
@@ -76,6 +79,7 @@ class IndexStore:
             meta_refs=refs,
             prefab_schema=self._prefab_schema,
             resource_variants=self._resource_variants,
+            variant_configured=self._variant_configured,
         )
         upserted_symbols = [s for s in projection.symbols.values() if s.meta_path == normalized_meta_path]
         file_diags = projection.diagnostics.get(normalized_meta_path, [])
@@ -117,11 +121,32 @@ class IndexStore:
 
     def get_diagnostics(self) -> dict[str, Any]:
         self.ensure_ready()
+        total = 0
+        error = 0
+        warning = 0
+        info = 0
+        for entries in self._snapshot.diagnostics.values():
+            for diag in entries:
+                total += 1
+                if diag.severity == "error":
+                    error += 1
+                elif diag.severity == "warning":
+                    warning += 1
+                elif diag.severity == "info":
+                    info += 1
+                else:
+                    raise ValueError(f"Unsupported diagnostic severity: {diag.severity}")
         return {
             "indexVersion": self._snapshot.index_version,
             "diagnosticsByFile": {
                 meta_path: [asdict(diag) for diag in entries]
                 for meta_path, entries in self._snapshot.diagnostics.items()
+            },
+            "stats": {
+                "total": total,
+                "error": error,
+                "warning": warning,
+                "info": info,
             },
         }
 

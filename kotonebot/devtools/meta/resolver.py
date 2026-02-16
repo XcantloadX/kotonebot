@@ -36,6 +36,7 @@ def merge_prefab_definition(base: DefinitionV2Model, override: DefinitionV2Model
         description=override.description if override.description is not None else base.description,
         prefab_id=override.prefab_id if override.prefab_id is not None else base.prefab_id,
         variant=override.variant,
+        variant_inherit=override.variant_inherit if override.variant_inherit is not None else base.variant_inherit,
         props=merged_props,
     )
 

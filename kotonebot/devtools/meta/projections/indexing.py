@@ -6,8 +6,20 @@ from pathlib import Path
 from typing import Any
 
 from ...indexing.models import IndexedFile, IndexedSymbol
+from ...diagnostics.codes import (
+    INDEX_DEF_ID_INVALID,
+    INDEX_DEF_PARSE_ERROR,
+    INDEX_FILE_PARSE_ERROR,
+    INDEX_VARIANT_INHERIT_DISABLED,
+    INDEX_VARIANT_INHERIT_MISSING_VARIANTS,
+    INDEX_VARIANT_INHERIT_UNUSED,
+    INDEX_VARIANT_INVALID,
+    META_VARIANT_INHERIT_DISABLED,
+    META_VARIANT_INHERIT_MISSING_VARIANTS,
+    META_VARIANT_INHERIT_UNUSED,
+)
+from ...diagnostics.models import Diagnostic
 from ..corpus import ParsedMetaDoc, build_corpus_from_meta_paths
-from ..diagnostic import Diagnostic
 from ..scanner import MetaFileRef
 from ..validator import validate_meta_corpus
 
@@ -96,7 +108,7 @@ def _project_symbols_for_doc(
         if not isinstance(definition_id, str) or definition_id == "":
             diagnostics.append(
                 Diagnostic(
-                    code="INDEX_DEF_ID_INVALID",
+                    code=INDEX_DEF_ID_INVALID.code,
                     severity="error",
                     message="Definition id must be a non-empty string",
                     meta_path=doc.meta_path,
@@ -167,7 +179,7 @@ def _project_symbols_for_doc(
         except ValueError as exc:
             diagnostics.append(
                 Diagnostic(
-                    code="INDEX_DEF_PARSE_ERROR",
+                    code=INDEX_DEF_PARSE_ERROR.code,
                     severity="error",
                     message=str(exc),
                     meta_path=doc.meta_path,
@@ -191,6 +203,7 @@ def build_indexing_projection(
     meta_refs: list[MetaFileRef],
     prefab_schema: dict[str, Any],
     resource_variants: list[str] | None,
+    variant_configured: bool = False,
 ) -> IndexingProjection:
     ref_by_path = {ref.meta_path: ref for ref in meta_refs}
     corpus, parse_diagnostics = build_corpus_from_meta_paths(list(ref_by_path.keys()))
@@ -202,7 +215,7 @@ def build_indexing_projection(
     for diag in parse_diagnostics:
         diagnostics.setdefault(diag.meta_path, []).append(
             Diagnostic(
-                code="INDEX_FILE_PARSE_ERROR",
+                code=INDEX_FILE_PARSE_ERROR.code,
                 severity="error",
                 message=diag.message,
                 meta_path=diag.meta_path,
@@ -227,16 +240,24 @@ def build_indexing_projection(
     variant_diagnostics = validate_meta_corpus(
         corpus,
         resource_variants=resource_variants,
+        variant_configured=variant_configured,
     )
     for diag in variant_diagnostics:
+        code = INDEX_VARIANT_INVALID.code
+        if diag.code == META_VARIANT_INHERIT_DISABLED.code:
+            code = INDEX_VARIANT_INHERIT_DISABLED.code
+        elif diag.code == META_VARIANT_INHERIT_UNUSED.code:
+            code = INDEX_VARIANT_INHERIT_UNUSED.code
+        elif diag.code == META_VARIANT_INHERIT_MISSING_VARIANTS.code:
+            code = INDEX_VARIANT_INHERIT_MISSING_VARIANTS.code
         diagnostics.setdefault(diag.meta_path, []).append(
             Diagnostic(
-                code="INDEX_VARIANT_INVALID",
-                severity="error",
+                code=code,
+                severity=diag.severity,
                 message=diag.message,
                 meta_path=diag.meta_path,
                 definition_id=diag.definition_id,
-                field_path="definitions",
+                field_path=diag.field_path or "definitions",
             )
         )
 

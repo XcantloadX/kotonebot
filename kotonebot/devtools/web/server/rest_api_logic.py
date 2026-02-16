@@ -33,6 +33,7 @@ class RestApiLogic:
             resource_root=self.project_root,
             prefab_schema=prefab_schema_for_index,
             resource_variants=project.conf.variant.names if project.conf.variant and project.conf.variant.names is not None else None,
+            variant_configured=project.conf.variant is not None,
         )
         self.thumbnail_cache_root = project.pyproject_root / ".kotonebot" / "cache" / "thumbnails"
         self.image_suffixes = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}

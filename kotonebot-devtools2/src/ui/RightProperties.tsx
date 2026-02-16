@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormGroup, InputGroup, Button, H5, Card } from '@blueprintjs/core';
+import { FormGroup, InputGroup, Button, H5, Card, Switch } from '@blueprintjs/core';
 import { useAppStore } from '../editor/state';
 import { PropValue } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
@@ -44,7 +44,7 @@ export const RightProperties: React.FC = () => {
 
   const handleChange = (key: string, value: any) => {
       updateMeta(draft => {
-          if (key === 'name' || key === 'displayName' || key === 'description') {
+          if (key === 'name' || key === 'displayName' || key === 'description' || key === 'variant_inherit') {
               (draft.definitions[defId] as any)[key] = value;
           } else {
               if (value === undefined) {
@@ -151,9 +151,20 @@ export const RightProperties: React.FC = () => {
           <H5>{definition.type} {definition.prefab_id ? `(${definition.prefab_id})` : ''}</H5>
           <div style={{ fontSize: 12, color: '#8a9ba8', wordBreak: 'break-all' }}>ID: {defId}</div>
           {definition.type === "prefab" ? (
-            <div style={{ marginTop: 4, fontSize: 12, color: '#5c7080' }}>
-              当前 Variant: {definition.variant || "base"}
-            </div>
+            <>
+              <div style={{ marginTop: 4, fontSize: 12, color: '#5c7080' }}>
+                当前 Variant: {definition.variant || "base"}
+              </div>
+              {!definition.variant ? (
+                <div style={{ marginTop: 6 }}>
+                  <Switch
+                    checked={definition.variant_inherit === true}
+                    label="Variant Inherit"
+                    onChange={(e) => handleChange('variant_inherit', (e.target as HTMLInputElement).checked)}
+                  />
+                </div>
+              ) : null}
+            </>
           ) : null}
           {sameNamePrefabSymbols.length > 0 ? (
             <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>

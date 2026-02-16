@@ -1,15 +1,25 @@
 import { create } from "zustand";
-import { getMetaIndex, updateMetaIndex } from "../api/metaIndex";
-import { SymbolLite } from "../model/symbolIndex";
+import { getMetaDiagnostics, getMetaIndex, updateMetaIndex } from "../api/metaIndex";
+import { DiagnosticItem, SymbolLite } from "../model/symbolIndex";
+
+interface DiagnosticStats {
+  total: number;
+  error: number;
+  warning: number;
+  info: number;
+}
 
 interface SymbolIndexState {
   indexVersion: number;
   contentHash: string;
   symbols: SymbolLite[];
+  diagnosticsByFile: Record<string, DiagnosticItem[]>;
+  diagnosticStats: DiagnosticStats;
   recentSymbolKeys: string[];
   initialized: boolean;
   initialize: () => Promise<void>;
   refetch: () => Promise<void>;
+  refetchDiagnostics: () => Promise<void>;
   patchMetaPath: (metaPath: string) => Promise<void>;
   markUsed: (symbolKey: string) => void;
 }
@@ -20,6 +30,8 @@ export const useSymbolIndexStore = create<SymbolIndexState>((set, get) => ({
   indexVersion: 0,
   contentHash: "",
   symbols: [],
+  diagnosticsByFile: {},
+  diagnosticStats: { total: 0, error: 0, warning: 0, info: 0 },
   recentSymbolKeys: [],
   initialized: false,
 
@@ -27,22 +39,40 @@ export const useSymbolIndexStore = create<SymbolIndexState>((set, get) => ({
     if (get().initialized) {
       return;
     }
-    const data = await getMetaIndex();
+    const [indexData, diagnosticsData] = await Promise.all([
+      getMetaIndex(),
+      getMetaDiagnostics(),
+    ]);
     set({
-      indexVersion: data.indexVersion,
-      contentHash: data.contentHash,
-      symbols: data.symbols,
+      indexVersion: indexData.indexVersion,
+      contentHash: indexData.contentHash,
+      symbols: indexData.symbols,
+      diagnosticsByFile: diagnosticsData.diagnosticsByFile,
+      diagnosticStats: diagnosticsData.stats,
       initialized: true,
     });
   },
 
   refetch: async () => {
-    const data = await getMetaIndex();
+    const [indexData, diagnosticsData] = await Promise.all([
+      getMetaIndex(),
+      getMetaDiagnostics(),
+    ]);
     set({
-      indexVersion: data.indexVersion,
-      contentHash: data.contentHash,
-      symbols: data.symbols,
+      indexVersion: indexData.indexVersion,
+      contentHash: indexData.contentHash,
+      symbols: indexData.symbols,
+      diagnosticsByFile: diagnosticsData.diagnosticsByFile,
+      diagnosticStats: diagnosticsData.stats,
       initialized: true,
+    });
+  },
+
+  refetchDiagnostics: async () => {
+    const diagnosticsData = await getMetaDiagnostics();
+    set({
+      diagnosticsByFile: diagnosticsData.diagnosticsByFile,
+      diagnosticStats: diagnosticsData.stats,
     });
   },
 
@@ -68,6 +98,7 @@ export const useSymbolIndexStore = create<SymbolIndexState>((set, get) => ({
       symbols: [...kept, ...update.upsertedSymbols],
       initialized: true,
     });
+    await get().refetchDiagnostics();
   },
 
   markUsed: (symbolKey: string) =>

@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .diagnostic import Diagnostic
+from ..diagnostics.codes import META_FILE_PARSE_ERROR
+from ..diagnostics.models import Diagnostic
 from .models import DefinitionV2Model, MetaV2Model
 from .parser import parse_meta_file
 
@@ -43,7 +44,7 @@ def build_corpus_from_meta_paths(meta_paths: list[str]) -> tuple[MetaCorpus, lis
         except Exception as exc:
             diagnostics.append(
                 Diagnostic(
-                    code="META_FILE_PARSE_ERROR",
+                    code=META_FILE_PARSE_ERROR.code,
                     meta_path=path.as_posix(),
                     message=str(exc),
                 )
