@@ -35,6 +35,13 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     closeAllDocumentsWithChecks,
   } = useEditorCommands();
   const { undo, redo, activeDocumentId, documents } = useAppStore();
+  const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
+  const canUndo = !!activeDoc && activeDoc.history.cursor > 0;
+  const canRedo = !!activeDoc && activeDoc.history.cursor < activeDoc.history.entries.length;
+  const undoLabel = canUndo ? activeDoc.history.entries[activeDoc.history.cursor - 1].label : "";
+  const redoLabel = canRedo ? activeDoc.history.entries[activeDoc.history.cursor].label : "";
+  const undoMenuText = canUndo ? `Undo: ${undoLabel}` : "Undo";
+  const redoMenuText = canRedo ? `Redo: ${redoLabel}` : "Redo";
   const fileButtonRef = useRef<HTMLButtonElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const variantButtonRef = useRef<HTMLButtonElement>(null);
@@ -171,8 +178,9 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       edit: [
         {
           icon: "undo",
-          text: "Undo",
+          text: undoMenuText,
           label: "Ctrl+Z",
+          disabled: !canUndo,
           onClick: () => {
             setOpenMenu(null);
             undo();
@@ -180,8 +188,9 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
         },
         {
           icon: "redo",
-          text: "Redo",
+          text: redoMenuText,
           label: "Ctrl+Shift+Z",
+          disabled: !canRedo,
           onClick: () => {
             setOpenMenu(null);
             redo();
@@ -204,14 +213,18 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     [
       activeDocumentId,
       canCreateVariantDocument,
+      canRedo,
       canSave,
+      canUndo,
       closeActiveDocumentWithChecks,
       closeAllDocumentsWithChecks,
       documents,
       openImageDialog,
       openVariantDialog,
+      redoMenuText,
       redo,
       saveDocument,
+      undoMenuText,
       undo,
     ]
   );

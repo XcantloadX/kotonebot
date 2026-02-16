@@ -14,14 +14,24 @@ interface DefinitionRectProps {
   scale: number;
   onClick: (id: string, e: KonvaEventObject<MouseEvent>) => void;
   propKey?: string;
+  onResizeStart?: (id: string, propKey: string | undefined) => void;
   onResize?: (id: string, propKey: string | undefined, rect: { x1: number; y1: number; x2: number; y2: number }) => void;
+  onResizeEnd?: (id: string, propKey: string | undefined) => void;
 }
 
 export const DefinitionRect: React.FC<DefinitionRectProps> = React.memo(({
-  id, x1, y1, x2, y2, kind, label, isSelected, scale, onClick, propKey, onResize
+  id, x1, y1, x2, y2, kind, label, isSelected, scale, onClick, propKey, onResizeStart, onResize, onResizeEnd
 }) => {
   const [hovered, setHovered] = React.useState(false);
   const handleSize = 8 / Math.max(1, scale);
+
+  const handleDragStart = () => {
+    onResizeStart?.(id, propKey);
+  };
+
+  const handleDragEndCommon = () => {
+    onResizeEnd?.(id, propKey);
+  };
 
   const handleDragEnd = (corner: 'tl'|'tr'|'bl'|'br') => (e: KonvaEventObject<any>) => {
     const pos = e.target.position();
@@ -37,6 +47,7 @@ export const DefinitionRect: React.FC<DefinitionRectProps> = React.memo(({
     const newY2 = Math.max(ny1, ny2);
 
     onResize?.(id, propKey, { x1: newX1, y1: newY1, x2: newX2, y2: newY2 });
+    handleDragEndCommon();
   };
   const handleDragMove = (corner: 'tl'|'tr'|'bl'|'br') => (e: KonvaEventObject<any>) => {
     const pos = e.target.position();
@@ -103,7 +114,9 @@ export const DefinitionRect: React.FC<DefinitionRectProps> = React.memo(({
           strokeWidth={2 / scale}
           fill={isSelected ? ORANGE_FILL : BLUE_FILL}
           draggable={isSelected}
+          onDragStart={isSelected ? handleDragStart : undefined}
           onDragMove={isSelected ? handleRectDragMove : undefined}
+          onDragEnd={isSelected ? handleDragEndCommon : undefined}
       />
         {hovered && (
           <Text
@@ -123,16 +136,16 @@ export const DefinitionRect: React.FC<DefinitionRectProps> = React.memo(({
       {isSelected && (
           <>
             {/* corner handles */}
-            <Circle x={x1} y={y1} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragEnd={handleDragEnd('tl')} onDragMove={handleDragMove('tl')} onMouseEnter={e => setCursor(e, 'nwse-resize')} onMouseLeave={e => setCursor(e, '')} />
-            <Circle x={x2} y={y1} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragEnd={handleDragEnd('tr')} onDragMove={handleDragMove('tr')} onMouseEnter={e => setCursor(e, 'nesw-resize')} onMouseLeave={e => setCursor(e, '')} />
-            <Circle x={x1} y={y2} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragEnd={handleDragEnd('bl')} onDragMove={handleDragMove('bl')} onMouseEnter={e => setCursor(e, 'nesw-resize')} onMouseLeave={e => setCursor(e, '')} />
-            <Circle x={x2} y={y2} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragEnd={handleDragEnd('br')} onDragMove={handleDragMove('br')} onMouseEnter={e => setCursor(e, 'nwse-resize')} onMouseLeave={e => setCursor(e, '')} />
+            <Circle x={x1} y={y1} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragStart={handleDragStart} onDragEnd={handleDragEnd('tl')} onDragMove={handleDragMove('tl')} onMouseEnter={e => setCursor(e, 'nwse-resize')} onMouseLeave={e => setCursor(e, '')} />
+            <Circle x={x2} y={y1} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragStart={handleDragStart} onDragEnd={handleDragEnd('tr')} onDragMove={handleDragMove('tr')} onMouseEnter={e => setCursor(e, 'nesw-resize')} onMouseLeave={e => setCursor(e, '')} />
+            <Circle x={x1} y={y2} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragStart={handleDragStart} onDragEnd={handleDragEnd('bl')} onDragMove={handleDragMove('bl')} onMouseEnter={e => setCursor(e, 'nesw-resize')} onMouseLeave={e => setCursor(e, '')} />
+            <Circle x={x2} y={y2} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragStart={handleDragStart} onDragEnd={handleDragEnd('br')} onDragMove={handleDragMove('br')} onMouseEnter={e => setCursor(e, 'nwse-resize')} onMouseLeave={e => setCursor(e, '')} />
 
             {/* edge handles */}
-            <Circle x={(x1 + x2) / 2} y={y1} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragMove={handleEdgeDragMove('top')} onMouseEnter={e => setCursor(e, 'ns-resize')} onMouseLeave={e => setCursor(e, '')} />
-            <Circle x={(x1 + x2) / 2} y={y2} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragMove={handleEdgeDragMove('bottom')} onMouseEnter={e => setCursor(e, 'ns-resize')} onMouseLeave={e => setCursor(e, '')} />
-            <Circle x={x1} y={(y1 + y2) / 2} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragMove={handleEdgeDragMove('left')} onMouseEnter={e => setCursor(e, 'ew-resize')} onMouseLeave={e => setCursor(e, '')} />
-            <Circle x={x2} y={(y1 + y2) / 2} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragMove={handleEdgeDragMove('right')} onMouseEnter={e => setCursor(e, 'ew-resize')} onMouseLeave={e => setCursor(e, '')} />
+            <Circle x={(x1 + x2) / 2} y={y1} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragStart={handleDragStart} onDragMove={handleEdgeDragMove('top')} onDragEnd={handleDragEndCommon} onMouseEnter={e => setCursor(e, 'ns-resize')} onMouseLeave={e => setCursor(e, '')} />
+            <Circle x={(x1 + x2) / 2} y={y2} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragStart={handleDragStart} onDragMove={handleEdgeDragMove('bottom')} onDragEnd={handleDragEndCommon} onMouseEnter={e => setCursor(e, 'ns-resize')} onMouseLeave={e => setCursor(e, '')} />
+            <Circle x={x1} y={(y1 + y2) / 2} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragStart={handleDragStart} onDragMove={handleEdgeDragMove('left')} onDragEnd={handleDragEndCommon} onMouseEnter={e => setCursor(e, 'ew-resize')} onMouseLeave={e => setCursor(e, '')} />
+            <Circle x={x2} y={(y1 + y2) / 2} radius={handleSize} fill="#fff" stroke={ORANGE} strokeWidth={1/scale} draggable onDragStart={handleDragStart} onDragMove={handleEdgeDragMove('right')} onDragEnd={handleDragEndCommon} onMouseEnter={e => setCursor(e, 'ew-resize')} onMouseLeave={e => setCursor(e, '')} />
           </>
       )}
     </Group>

@@ -7,7 +7,10 @@ export interface ToolContext {
   activeMeta: { path: string; data: MetaV2 } | null;
   prefabSchema: PrefabSchema | null;
   activeResourceType: ResourceType;
-  updateMeta: (updater: (draft: MetaV2) => void) => void;
+  updateMeta: (
+    updater: (draft: MetaV2) => void,
+    options?: { label?: string; mergeKey?: string; forceNewEntry?: boolean }
+  ) => void;
   setSelection: (id: string | null) => void;
   setMode: (mode: any) => void;
   getRelativePointerPosition: () => Vector2d;

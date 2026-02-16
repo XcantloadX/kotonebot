@@ -20,6 +20,8 @@ export const LeftToolBar: React.FC = () => {
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const activeMeta = activeDoc?.meta;
   const activeMode = activeDoc?.mode;
+  const canUndo = !!activeDoc && activeDoc.history.cursor > 0;
+  const canRedo = !!activeDoc && activeDoc.history.cursor < activeDoc.history.entries.length;
 
   const createPrefab = useCallback((prefabId: string) => {
     if (!activeMeta || !prefabSchema) {
@@ -50,9 +52,15 @@ export const LeftToolBar: React.FC = () => {
       }
 
       if (e.ctrlKey && e.shiftKey && (e.key === "z" || e.key === "Z")) {
+        if (!canRedo) {
+          return;
+        }
         e.preventDefault();
         redo();
       } else if (e.ctrlKey && e.key === "z") {
+        if (!canUndo) {
+          return;
+        }
         e.preventDefault();
         undo();
       } else if (e.key === "v") {
@@ -79,7 +87,7 @@ export const LeftToolBar: React.FC = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [createPrefab, prefabSchema, redo, setActiveTool, undo]);
+  }, [canRedo, canUndo, createPrefab, prefabSchema, redo, setActiveTool, undo]);
 
   const getSelectedToolId = () => {
     if (activeMode && activeMode.kind === "creating-prefab") {

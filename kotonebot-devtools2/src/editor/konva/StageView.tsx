@@ -25,6 +25,8 @@ export const StageView: React.FC = () => {
     activeResourceType,
     setSelection,
     updateMeta,
+    beginMetaTransaction,
+    commitMetaTransaction,
     setMode,
     prefabSchema,
     setViewState
@@ -191,7 +193,7 @@ export const StageView: React.FC = () => {
     const defId = selection.definitionId;
     updateMeta((draft) => {
       delete draft.definitions[defId];
-    });
+    }, { label: "Delete definition", mergeKey: `delete:${defId}`, forceNewEntry: true });
     setSelection(null);
     setMode({ kind: 'idle' });
   };
@@ -448,7 +450,19 @@ export const StageView: React.FC = () => {
                             if (!d.props) d.props = {} as any;
                             const p = d.props[propKey || ''];
                             d.props[propKey || ''] = { kind: val.kind, ...(p as any || {}), ...(rect as any) };
+                          }, {
+                            label: "Resize geometry",
+                            mergeKey: `resize:${defId}:${propKey || ""}`,
                           });
+                        }}
+                        onResizeStart={(defId, propKey) => {
+                          beginMetaTransaction({
+                            label: "Resize geometry",
+                            mergeKey: `resize:${defId}:${propKey || ""}`,
+                          });
+                        }}
+                        onResizeEnd={() => {
+                          commitMetaTransaction();
                         }}
                       />
                     );

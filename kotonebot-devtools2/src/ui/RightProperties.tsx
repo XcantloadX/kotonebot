@@ -49,6 +49,9 @@ export const RightProperties: React.FC = () => {
                   draft.definitions[defId].props[key] = value;
               }
           }
+      }, {
+          label: key === 'name' || key === 'displayName' || key === 'description' ? `Edit ${key}` : `Edit prop ${key}`,
+          mergeKey: `prop:${defId}:${key}`,
       });
   };
 
@@ -153,7 +156,7 @@ export const RightProperties: React.FC = () => {
             onClick={() => {
                 updateMeta(draft => {
                     delete draft.definitions[defId];
-                });
+                }, { label: "Delete definition", mergeKey: `delete:${defId}`, forceNewEntry: true });
                 setMode({ kind: 'idle' });
             }}
           />
