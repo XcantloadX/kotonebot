@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormGroup, InputGroup, Button, H5, Card, Switch } from '@blueprintjs/core';
+import { FormGroup, InputGroup, Button, H5, Card } from '@blueprintjs/core';
 import { useAppStore } from '../editor/state';
 import { PropValue } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
@@ -9,6 +9,15 @@ import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import { useMessageBox } from './messageBox';
 import { getEditorForType } from './properties/PropertyEditorRegistry';
 import { OverridableField } from './components/OverridableField';
+import { SegmentedControl, SegmentedOption } from './components/SegmentedControl';
+
+type VariantInheritValue = boolean | null;
+
+const VARIANT_INHERIT_OPTIONS: readonly SegmentedOption<VariantInheritValue>[] = [
+  { label: 'None', value: null },
+  { label: 'False', value: false },
+  { label: 'True', value: true },
+];
 
 export const RightProperties: React.FC = () => {
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
@@ -32,6 +41,11 @@ export const RightProperties: React.FC = () => {
   }
 
   const isVariantPrefab = definition.type === "prefab" && !!definition.variant;
+  const variantInheritValue: VariantInheritValue = definition.variant_inherit === true
+    ? true
+    : definition.variant_inherit === false
+      ? false
+      : null;
   const sameNamePrefabSymbols = definition.type === "prefab" && definition.name
     ? symbols
       .filter(s => s.type === "prefab" && s.name === definition.name)
@@ -183,11 +197,17 @@ export const RightProperties: React.FC = () => {
               </div>
               {!definition.variant ? (
                 <div style={{ marginTop: 6 }}>
-                  <Switch
-                    checked={definition.variant_inherit === true}
-                    label="Variant Inherit"
-                    onChange={(e) => handleChange('variant_inherit', (e.target as HTMLInputElement).checked)}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{  color: '#5c7080', whiteSpace: 'nowrap' }}>
+                      Variant Inherit
+                    </div>
+                    <SegmentedControl
+                      options={VARIANT_INHERIT_OPTIONS}
+                      value={variantInheritValue}
+                      onChange={(value) => handleChange('variant_inherit', value)}
+                      small
+                    />
+                  </div>
                 </div>
               ) : null}
             </>
