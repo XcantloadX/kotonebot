@@ -60,9 +60,19 @@ interface HistoryTransaction {
   inversePatches: Patch[];
 }
 
+export interface FocusSpotlightState {
+  id: string;
+  centerScreen: { x: number; y: number };
+  radius: number;
+  enterMs: number;
+  holdMs: number;
+  exitMs: number;
+}
+
 interface AppState {
   documents: Record<string, DocumentState>;
   activeDocumentId: string | null;
+  focusSpotlight: FocusSpotlightState | null;
   
   prefabSchema: PrefabSchema | null;
   activeTool: ToolType;
@@ -90,12 +100,15 @@ interface AppState {
   undo: () => void;
   redo: () => void;
   saveActiveDocument: () => Promise<void>;
+  showFocusSpotlight: (spotlight: FocusSpotlightState) => void;
+  clearFocusSpotlight: () => void;
 }
 
 export const useAppStore = create<AppState>()(
   immer((set) => ({
     documents: {},
     activeDocumentId: null,
+    focusSpotlight: null,
     prefabSchema: null,
     activeTool: "select",
     activeResourceType: "hint-box",
@@ -153,6 +166,10 @@ export const useAppStore = create<AppState>()(
     }),
     
     setActiveResourceType: (type) => set({ activeResourceType: type }),
+
+    showFocusSpotlight: (spotlight) => set({ focusSpotlight: spotlight }),
+
+    clearFocusSpotlight: () => set({ focusSpotlight: null }),
 
     setSelection: (selection) => set((state) => {
       if (state.activeDocumentId && state.documents[state.activeDocumentId]) {

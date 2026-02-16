@@ -11,6 +11,7 @@ import { CommandPalette } from '../ui/CommandPalette';
 import { TopMenuBar } from '../ui/TopMenuBar';
 import { ProblemsPanel } from '../ui/ProblemsPanel';
 import { useSettingsStore } from './settings';
+import { FocusSpotlightOverlay } from './FocusSpotlightOverlay';
 
 export const EditorApp: React.FC = () => {
   const { setPrefabSchema, activeDocumentId } = useAppStore();
@@ -89,6 +90,7 @@ export const EditorApp: React.FC = () => {
         isOpen={isPaletteOpen}
         onClose={() => setPaletteOpen(false)}
       />
+      <FocusSpotlightOverlay />
     </div>
   );
 };

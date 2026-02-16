@@ -376,7 +376,7 @@ export const StageView: React.FC = () => {
   const cursor = isPanning ? 'grabbing' : (isSpacePressed || isRightMouseDown) ? 'grab' : tool.getCursor();
 
   return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', background: '#e1e8ed' }}>
+    <div id="kb-editor-stage-container" ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', background: '#e1e8ed' }}>
       {size.width > 0 && size.height > 0 && (
         <Stage
           width={size.width}

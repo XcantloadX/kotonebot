@@ -35,7 +35,7 @@ function normalizePath(path: string): string {
 }
 
 export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
-  const { setSelection, setViewState } = useAppStore.getState();
+  const { setSelection, setViewState, showFocusSpotlight } = useAppStore.getState();
   const imagePath = symbol.imagePath;
   const metaPath = symbol.metaPath;
 
@@ -50,10 +50,45 @@ export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
       ? { x: geo.x, y: geo.y }
       : { x: (geo.x1 + geo.x2) / 2, y: (geo.y1 + geo.y2) / 2 };
     const scale = nextDoc.view?.scale || 1;
-    setViewState(imagePath, {
+    const nextView = {
       x: -center.x * scale + nextDoc.image.width / 2,
       y: -center.y * scale + nextDoc.image.height / 2,
       scale,
+    };
+
+    // 展示 spotlight 动画，提示用户新视角的位置
+    setViewState(imagePath, {
+      x: nextView.x,
+      y: nextView.y,
+      scale: nextView.scale,
+    });
+
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+
+    const stageContainer = document.getElementById("kb-editor-stage-container");
+    if (!stageContainer) {
+      throw new Error("Stage container not found");
+    }
+    const rect = stageContainer.getBoundingClientRect();
+    const centerScreen = {
+      x: rect.left + center.x * nextView.scale + nextView.x,
+      y: rect.top + center.y * nextView.scale + nextView.y,
+    };
+    const radius = geo.kind === "point"
+      ? 110
+      : Math.max(
+        110,
+        Math.hypot((geo.x2 - geo.x1) * nextView.scale, (geo.y2 - geo.y1) * nextView.scale) / 2 + 40,
+      );
+    showFocusSpotlight({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      centerScreen,
+      radius,
+      enterMs: 250,
+      holdMs: 300,
+      exitMs: 200,
     });
   }
 
