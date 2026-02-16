@@ -6,12 +6,12 @@ import { LeftToolBar } from '../ui/LeftToolBar';
 import { RightProperties } from '../ui/RightProperties';
 import { TabBar } from '../ui/TabBar';
 import { useSymbolIndexStore } from './symbolIndexStore';
-import { useCommandPaletteShortcut } from '../hooks/useCommandPaletteShortcut';
 import { CommandPalette } from '../ui/CommandPalette';
 import { TopMenuBar } from '../ui/TopMenuBar';
 import { ProblemsPanel } from '../ui/ProblemsPanel';
 import { useSettingsStore } from './settings';
 import { FocusSpotlightOverlay } from './FocusSpotlightOverlay';
+import { useShortcut, useShortcutScope } from '../shortcuts/shortcutManager';
 
 export const EditorApp: React.FC = () => {
   const { setPrefabSchema, activeDocumentId } = useAppStore();
@@ -30,26 +30,21 @@ export const EditorApp: React.FC = () => {
     initialize().catch(console.error);
   }, [initialize]);
 
-  useCommandPaletteShortcut(() => setPaletteOpen(true));
+  useShortcutScope("editor", true);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isTyping =
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target?.isContentEditable;
-      if (isTyping) {
-        return;
-      }
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "m") {
-        e.preventDefault();
-        setProblemsVisible(!useSettingsStore.getState().problemsVisible);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [setProblemsVisible]);
+  useShortcut({
+    id: "editor.open-command-palette",
+    scope: "editor",
+    combo: "mod+shift+p",
+    onKeyDown: () => setPaletteOpen(true),
+  });
+
+  useShortcut({
+    id: "editor.toggle-problems-panel",
+    scope: "editor",
+    combo: "mod+shift+m",
+    onKeyDown: () => setProblemsVisible(!useSettingsStore.getState().problemsVisible),
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#f5f8fa' }}>

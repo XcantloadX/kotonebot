@@ -4,6 +4,7 @@ import { useEditorCommands } from "../editor/useEditorCommands";
 import { useAppStore } from "../editor/state";
 import { FileOpenDialog } from "./components/FileOpenDialog/FileOpenDialog";
 import { FileOpenOrImportDialog } from "./components/FileOpenDialog/FileOpenOrImportDialog";
+import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
 
 interface TopMenuBarProps {
   onOpenCommandPalette: () => void;
@@ -56,6 +57,11 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   const variantDialogTitle = variantDialogState.variant
     ? `Select target image for variant ${variantDialogState.variant}`
     : "Select target image for variant";
+  const hasAnyDocument = Object.keys(documents).length > 0;
+  const modalOpen = isImageDialogOpen || variantDialogState.isOpen;
+
+  useShortcutScope("menu", openMenu !== null);
+  useShortcutScope("modal", modalOpen);
 
   const openImageDialog = useCallback(() => {
     setImageDialogOpen(true);
@@ -311,72 +317,65 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
         setOpenMenu(null);
       }
     };
-    const closeByEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpenMenu(null);
-      }
-    };
     window.addEventListener("mousedown", closeIfOutside);
-    window.addEventListener("keydown", closeByEscape);
     return () => {
       window.removeEventListener("mousedown", closeIfOutside);
-      window.removeEventListener("keydown", closeByEscape);
     };
   }, [openMenu]);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isTyping =
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target?.isContentEditable;
-      if (isTyping) {
-        return;
-      }
+  useShortcut({
+    id: "menu.close-by-escape",
+    scope: "menu",
+    combo: "escape",
+    onKeyDown: () => setOpenMenu(null),
+  });
 
-      const key = e.key.toLowerCase();
-      if (e.ctrlKey && key === "o") {
-        e.preventDefault();
-        openImageDialog();
-      } else if (e.ctrlKey && key === "s") {
-        if (!canSave) {
-          return;
-        }
-        e.preventDefault();
-        void saveDocument();
-      } else if (e.ctrlKey && key === "2") {
-        if (!activeDocumentId) {
-          return;
-        }
-        e.preventDefault();
-        void closeActiveDocumentWithChecks();
-      } else if (e.ctrlKey && e.shiftKey && key === "2") {
-        if (Object.keys(documents).length === 0) {
-          return;
-        }
-        e.preventDefault();
-        void closeAllDocumentsWithChecks();
-      } else if (e.ctrlKey && e.altKey && key === "n") {
-        if (!canCreateVariantDocument) {
-          return;
-        }
-        e.preventDefault();
-        void openVariantDialog();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
-    activeDocumentId,
-    canCreateVariantDocument,
-    canSave,
-    closeActiveDocumentWithChecks,
-    closeAllDocumentsWithChecks,
-    openImageDialog,
-    openVariantDialog,
-    saveDocument,
-  ]);
+  useShortcut({
+    id: "editor.open-image",
+    scope: "editor",
+    combo: "mod+o",
+    onKeyDown: () => openImageDialog(),
+  });
+
+  useShortcut({
+    id: "editor.save-document",
+    scope: "editor",
+    combo: "mod+s",
+    when: () => canSave,
+    onKeyDown: () => {
+      void saveDocument();
+    },
+  });
+
+  useShortcut({
+    id: "editor.close-active-document",
+    scope: "editor",
+    combo: "mod+2",
+    when: () => !!activeDocumentId,
+    onKeyDown: () => {
+      void closeActiveDocumentWithChecks();
+    },
+  });
+
+  useShortcut({
+    id: "editor.close-all-document",
+    scope: "editor",
+    combo: "mod+shift+2",
+    when: () => hasAnyDocument,
+    onKeyDown: () => {
+      void closeAllDocumentsWithChecks();
+    },
+  });
+
+  useShortcut({
+    id: "editor.open-variant-dialog",
+    scope: "editor",
+    combo: "mod+alt+n",
+    when: () => canCreateVariantDocument,
+    onKeyDown: () => {
+      void openVariantDialog();
+    },
+  });
 
   const renderMenu = () => {
     if (!openMenu) {

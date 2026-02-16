@@ -14,8 +14,8 @@ import { PickingTool } from '../tools/PickingTool';
 import { CreatingPrefabTool } from '../tools/CreatingPrefabTool';
 import { DefinitionRect } from './shapes/DefinitionRect';
 import { DefinitionPoint } from './shapes/DefinitionPoint';
-import { useShortcuts } from '../../hooks/useShortcut';
 import { resolveBasePrefabsByName } from '../prefabResolver';
+import { useShortcuts } from '../../shortcuts/shortcutManager';
 
 export const StageView: React.FC = () => {
   const {
@@ -178,8 +178,12 @@ export const StageView: React.FC = () => {
     setMode({ kind: 'idle' });
   };
 
-  useShortcuts({
-    'Space': {
+  useShortcuts([
+    {
+      id: "stage.hold-space-for-pan",
+      scope: "editor",
+      combo: "space",
+      allowRepeat: true,
       onKeyDown: (e) => {
         if (!e.repeat) {
           setIsSpacePressed(true);
@@ -189,23 +193,32 @@ export const StageView: React.FC = () => {
         setIsSpacePressed(false);
         setIsPanning(false);
         setPanOrigin(null);
-      }
+      },
     },
-    'Escape': {
+    {
+      id: "stage.escape-cancel-mode",
+      scope: "editor",
+      combo: "escape",
       onKeyDown: () => {
         if (mode.kind === 'picking' || mode.kind === 'creating-prefab') {
           setMode({ kind: 'idle' });
           setPreview(null);
         }
-      }
+      },
     },
-    'Delete': {
-      onKeyDown: deleteSelectedDefinition
+    {
+      id: "stage.delete-definition-delete-key",
+      scope: "editor",
+      combo: "delete",
+      onKeyDown: deleteSelectedDefinition,
     },
-    'Backspace': {
-      onKeyDown: deleteSelectedDefinition
-    }
-  });
+    {
+      id: "stage.delete-definition-backspace",
+      scope: "editor",
+      combo: "backspace",
+      onKeyDown: deleteSelectedDefinition,
+    },
+  ]);
 
   useEffect(() => {
     if (!view && image && size.width > 0 && size.height > 0 && activeDocumentId) {

@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useAppStore } from "../editor/state";
 import { SideToolBar, Tool } from "./SideToolBar";
 import { toaster } from "./toaster";
+import { useShortcuts } from "../shortcuts/shortcutManager";
 
 export const LeftToolBar: React.FC = () => {
   const {
@@ -45,49 +46,44 @@ export const LeftToolBar: React.FC = () => {
     toaster.show({ message: `No primary prop defined for prefab '${schema.name}'`, intent: "danger" });
   }, [activeMeta, prefabSchema, setMode]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
+  const prefabShortcutBindings = useMemo(() => {
+    if (!prefabSchema) {
+      return [];
+    }
+    return Object.values(prefabSchema.prefabs)
+      .filter((prefab) => !!prefab.shortcut)
+      .map((prefab) => ({
+        id: `editor.prefab.${prefab.id}`,
+        scope: "editor",
+        combo: prefab.shortcut!.replace(/^ctrl\+/i, "mod+"),
+        when: () => !!prefabSchema,
+        onKeyDown: () => createPrefab(prefab.id),
+      }));
+  }, [createPrefab, prefabSchema]);
 
-      if (e.ctrlKey && e.shiftKey && (e.key === "z" || e.key === "Z")) {
-        if (!canRedo) {
-          return;
-        }
-        e.preventDefault();
-        redo();
-      } else if (e.ctrlKey && e.key === "z") {
-        if (!canUndo) {
-          return;
-        }
-        e.preventDefault();
-        undo();
-      } else if (e.key === "v") {
-        setActiveTool("select");
-      } else if (prefabSchema) {
-        const key = e.key.toLowerCase();
-        const isCtrl = e.ctrlKey;
-        const target = Object.values(prefabSchema.prefabs).find((p) => {
-          if (!p.shortcut) {
-            return false;
-          }
-          const shortcut = p.shortcut.toLowerCase();
-          if (shortcut.startsWith("ctrl+")) {
-            return isCtrl && shortcut.slice(5) === key;
-          }
-          return !isCtrl && shortcut === key;
-        });
-        if (target) {
-          e.preventDefault();
-          createPrefab(target.id);
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canRedo, canUndo, createPrefab, prefabSchema, redo, setActiveTool, undo]);
+  useShortcuts([
+    {
+      id: "editor.redo",
+      scope: "editor",
+      combo: "mod+shift+z",
+      when: () => canRedo,
+      onKeyDown: () => redo(),
+    },
+    {
+      id: "editor.undo",
+      scope: "editor",
+      combo: "mod+z",
+      when: () => canUndo,
+      onKeyDown: () => undo(),
+    },
+    {
+      id: "editor.select-tool",
+      scope: "editor",
+      combo: "v",
+      onKeyDown: () => setActiveTool("select"),
+    },
+    ...prefabShortcutBindings,
+  ]);
 
   const getSelectedToolId = () => {
     if (activeMode && activeMode.kind === "creating-prefab") {
