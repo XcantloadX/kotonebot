@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ...diagnostics.models import Diagnostic
 from ..pipeline import build_meta_state
 from ..resolver import ResolvedPrefabVariants
 
@@ -10,6 +11,7 @@ from ..resolver import ResolvedPrefabVariants
 class ResgenVariantProjection:
     variant_group_by_base_key: dict[tuple[str, str], ResolvedPrefabVariants]
     variant_skip_keys: set[tuple[str, str]]
+    diagnostics: list[Diagnostic]
 
 
 def build_variant_projection_for_resgen(
@@ -22,10 +24,6 @@ def build_variant_projection_for_resgen(
         resource_variants=resource_variants,
         variant_configured=True,
     )
-    first_error = next((diag for diag in state.diagnostics if diag.severity == "error"), None)
-    if first_error is not None:
-        raise ValueError(first_error.message)
-
     by_base_key: dict[tuple[str, str], ResolvedPrefabVariants] = {}
     skip_keys: set[tuple[str, str]] = set()
     for group in state.docs_graph.prefab_groups.values():
@@ -36,4 +34,5 @@ def build_variant_projection_for_resgen(
     return ResgenVariantProjection(
         variant_group_by_base_key=by_base_key,
         variant_skip_keys=skip_keys,
+        diagnostics=state.diagnostics,
     )

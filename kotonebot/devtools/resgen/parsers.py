@@ -1,10 +1,11 @@
 import os
 import json
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Any, cast
 from kotonebot.devtools.meta import (
+    Diagnostic,
     MetaV2Model,
     ResolvedPrefabVariants,
     build_variant_projection_for_resgen,
@@ -23,6 +24,7 @@ _CTX_VARIANT_INCLUDE_BASE = "resgen_include_base_variant"
 class ResgenProjectContext:
     parser_context: dict[str, Any]
     default_variant: str
+    diagnostics: list[Diagnostic] = field(default_factory=list)
 
 
 def _normalize_meta_path(path: str) -> str:
@@ -36,18 +38,24 @@ def _meta_to_image_path(meta_path: str) -> str:
     return meta_path.replace(".json", "")
 
 
-def build_variant_context(meta_files: list[str], resource_variants: list[str]) -> dict[str, Any]:
+def build_variant_context(
+    meta_files: list[str],
+    resource_variants: list[str],
+) -> tuple[dict[str, Any], list[Diagnostic]]:
     projection = build_variant_projection_for_resgen(
         meta_files=meta_files,
         resource_variants=resource_variants,
     )
 
-    return {
-        "resource_variants": resource_variants,
-        _CTX_VARIANT_GROUP_BY_BASE_KEY: projection.variant_group_by_base_key,
-        _CTX_VARIANT_SKIP_KEYS: projection.variant_skip_keys,
-        _CTX_VARIANT_INCLUDE_BASE: True,
-    }
+    return (
+        {
+            "resource_variants": resource_variants,
+            _CTX_VARIANT_GROUP_BY_BASE_KEY: projection.variant_group_by_base_key,
+            _CTX_VARIANT_SKIP_KEYS: projection.variant_skip_keys,
+            _CTX_VARIANT_INCLUDE_BASE: True,
+        },
+        projection.diagnostics,
+    )
 
 
 def _load_project(conf_path: str):
@@ -70,11 +78,11 @@ def _build_project_context(
 ) -> ResgenProjectContext:
     variant_conf = project.conf.variant
     if variant_conf is None:
-        return ResgenProjectContext(parser_context={}, default_variant="")
+        return ResgenProjectContext(parser_context={}, default_variant="", diagnostics=[])
     if variant_conf.names is None:
         raise ValueError("variant.names must be configured in pyproject.toml")
 
-    parser_context = build_variant_context(meta_files, variant_conf.names)
+    parser_context, diagnostics = build_variant_context(meta_files, variant_conf.names)
     parser_context[_CTX_VARIANT_INCLUDE_BASE] = include_base_variant
 
     default_variant = ""
@@ -84,6 +92,7 @@ def _build_project_context(
     return ResgenProjectContext(
         parser_context=parser_context,
         default_variant=default_variant,
+        diagnostics=diagnostics,
     )
 
 
@@ -142,6 +151,7 @@ def load_resgen_runtime_context(
     return ResgenProjectContext(
         parser_context=runtime_context,
         default_variant=project_context.default_variant,
+        diagnostics=project_context.diagnostics,
     )
 
 
@@ -222,6 +232,13 @@ class KotoneV1Parser(SchemaParser):
                     meta_files=[meta_path],
                     resource_variants=resource_variants,
                 )
+                error_messages = [
+                    diag.message
+                    for diag in projection.diagnostics
+                    if diag.severity == "error"
+                ]
+                if error_messages:
+                    raise ValueError("; ".join(error_messages))
                 variant_group_by_base_key = projection.variant_group_by_base_key
                 skipped_variant_keys = projection.variant_skip_keys
             else:

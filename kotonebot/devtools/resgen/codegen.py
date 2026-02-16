@@ -183,7 +183,6 @@ class EntityGenerator(StandardGenerator):
         """
         data = attr.value
 
-        print(f'Writing: {attr.name} of type {type(data)}')
         if isinstance(data, ImageAsset):
             self._render_prefab_class(attr, data)
         elif isinstance(data, PrefabData):

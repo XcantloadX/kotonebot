@@ -13,6 +13,7 @@ from rich.progress import (
 )
 
 from .codegen import StandardGenerator
+from .diagnostics import print_diagnostics_report
 from .parsers import (
     BasicSpriteParser,
     KotoneV1Parser,
@@ -48,6 +49,7 @@ def generate_resources(
     include_base_variant: bool = True,
     clean_output_img_dir: bool = True,
     show_progress: bool = True,
+    show_diagnostics: bool = True,
 ) -> ResgenGenerateResult:
     if clean_output_img_dir and os.path.exists(output_img_dir):
         shutil.rmtree(output_img_dir)
@@ -58,6 +60,16 @@ def generate_resources(
         include_base_variant=include_base_variant,
         output_img_dir=output_img_dir,
     )
+    diagnostics = runtime_context.diagnostics
+    if show_diagnostics:
+        print_diagnostics_report(
+            diagnostics,
+            cwd=os.getcwd(),
+        )
+    error_count = sum(1 for diag in diagnostics if diag.severity == "error")
+    if error_count > 0:
+        raise ValueError(f"resgen aborted due to {error_count} error(s)")
+
     context = runtime_context.parser_context
     root_scan_path = context["root_scan_path"]
 
