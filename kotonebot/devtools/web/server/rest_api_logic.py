@@ -32,7 +32,8 @@ class RestApiLogic:
         self.index_store = IndexStore(
             resource_root=self.project_root,
             prefab_schema=prefab_schema_for_index,
-            resource_variants=project.conf.variant.names if project.conf.variant and project.conf.variant.names is not None else None,
+            resource_variants=project.conf.variant.variants if project.conf.variant and project.conf.variant.variants is not None else None,
+            base_variant=project.conf.variant.base if project.conf.variant is not None else None,
             variant_configured=project.conf.variant is not None,
         )
         self.thumbnail_cache_root = project.pyproject_root / ".kotonebot" / "cache" / "thumbnails"
@@ -112,9 +113,9 @@ class RestApiLogic:
         variant_name = variant.strip()
         if variant_name == "":
             raise ValueError("variant cannot be empty")
-        declared_variants = self.project.conf.variant.names if self.project.conf.variant and self.project.conf.variant.names is not None else []
+        declared_variants = self.project.conf.variant.variants if self.project.conf.variant and self.project.conf.variant.variants is not None else []
         if variant_name not in declared_variants:
-            raise ValueError(f"variant '{variant_name}' is not declared in variant.names")
+            raise ValueError(f"variant '{variant_name}' is not declared in variant.variants")
         return variant_name
 
     def _resolve_variant_import_target_path(self, *, base_image_path: Path, variant_name: str) -> Path:
@@ -124,7 +125,7 @@ class RestApiLogic:
         if variant_path_pattern is None:
             raise ValueError("Missing [tool.kotonebot.variant.path_pattern] in pyproject.toml")
         rel_base_image_path = base_image_path.resolve().relative_to(self.project_root)
-        declared_variants = self.project.conf.variant.names if self.project.conf.variant.names is not None else []
+        declared_variants = self.project.conf.variant.variants if self.project.conf.variant.variants is not None else []
         base_variant = self.project.conf.variant.base
         base_parent_parts = list(rel_base_image_path.parent.parts)
         if base_variant is not None and len(base_parent_parts) > 0:

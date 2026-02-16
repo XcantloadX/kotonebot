@@ -16,6 +16,7 @@ def build_meta_state(
     *,
     meta_paths: list[str],
     resource_variants: list[str] | None = None,
+    base_variant: str | None = None,
     variant_configured: bool = False,
 ) -> MetaState:
     corpus, parse_diagnostics = build_corpus_from_meta_paths(meta_paths)
@@ -24,6 +25,7 @@ def build_meta_state(
         validate_meta_corpus(
             corpus,
             resource_variants=resource_variants,
+            base_variant=base_variant,
             variant_configured=variant_configured,
         )
     )

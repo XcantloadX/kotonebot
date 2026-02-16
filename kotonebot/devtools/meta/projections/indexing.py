@@ -203,6 +203,7 @@ def build_indexing_projection(
     meta_refs: list[MetaFileRef],
     prefab_schema: dict[str, Any],
     resource_variants: list[str] | None,
+    base_variant: str | None,
     variant_configured: bool = False,
 ) -> IndexingProjection:
     ref_by_path = {ref.meta_path: ref for ref in meta_refs}
@@ -240,6 +241,7 @@ def build_indexing_projection(
     variant_diagnostics = validate_meta_corpus(
         corpus,
         resource_variants=resource_variants,
+        base_variant=base_variant,
         variant_configured=variant_configured,
     )
     for diag in variant_diagnostics:

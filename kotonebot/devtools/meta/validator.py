@@ -13,6 +13,7 @@ def validate_meta_corpus(
     corpus: MetaCorpus,
     *,
     resource_variants: list[str] | None = None,
+    base_variant: str | None = None,
     variant_configured: bool = False,
 ) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
@@ -106,6 +107,17 @@ def validate_meta_corpus(
                         definition_id=definition_id,
                     )
                 )
+                continue
+            # 规则：variant 值不能等于项目配置的 base variant。
+            if base_variant is not None and variant == base_variant:
+                diagnostics.append(
+                    Diagnostic(
+                        code=META_VARIANT_INVALID.code,
+                        message=f"variant '{variant}' must not be equal to base variant: {doc.meta_path}::{definition_id}",
+                        meta_path=doc.meta_path,
+                        definition_id=definition_id,
+                    )
+                )
 
     # 第二阶段：按 prefab name 分组，做跨 definition 校验。
     grouped: dict[str, dict[str | None, DefinitionRef]] = {}
@@ -143,7 +155,11 @@ def validate_meta_corpus(
             and base_ref.definition.type == "prefab"
             and base_ref.definition.variant_inherit is False
         ):
-            missing_variants = [variant for variant in resource_variants if variant not in group]
+            missing_variants = [
+                variant
+                for variant in resource_variants
+                if (base_variant is None or variant != base_variant) and variant not in group
+            ]
             if missing_variants:
                 diagnostics.append(
                     Diagnostic(

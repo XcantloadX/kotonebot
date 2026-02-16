@@ -44,32 +44,33 @@ class Project:
             self.conf.editor.resource_path = str(resource_path)
 
         if self.conf.variant is not None:
-            names: list[str] | None = None
-            if self.conf.variant.names is not None:
-                seen: set[str] = set()
-                deduped: list[str] = []
-                for item in self.conf.variant.names:
-                    if not isinstance(item, str):
-                        raise ValueError("variant.names must contain only strings")
-                    value = item.strip()
-                    if value == "":
-                        raise ValueError("variant.names cannot contain empty string")
-                    if value in seen:
-                        raise ValueError(f"variant.names contains duplicated value: {value}")
-                    seen.add(value)
-                    deduped.append(value)
-                names = deduped
-                self.conf.variant.names = names
+            variants = self.conf.variant.variants
+            if variants is None:
+                raise ValueError("variant.variants must be configured in pyproject.toml")
+            seen: set[str] = set()
+            deduped: list[str] = []
+            for item in variants:
+                if not isinstance(item, str):
+                    raise ValueError("variant.variants must contain only strings")
+                value = item.strip()
+                if value == "":
+                    raise ValueError("variant.variants cannot contain empty string")
+                if value in seen:
+                    raise ValueError(f"variant.variants contains duplicated value: {value}")
+                seen.add(value)
+                deduped.append(value)
+            if len(deduped) == 0:
+                raise ValueError("variant.variants cannot be empty")
+            self.conf.variant.variants = deduped
 
-            if self.conf.variant.base is not None:
-                base = self.conf.variant.base.strip()
-                if base == "":
-                    raise ValueError("variant.base cannot be empty")
-                self.conf.variant.base = base
-                if names is None:
-                    raise ValueError("variant.base requires variant.names")
-                if base not in names:
-                    raise ValueError(f"variant.base '{base}' is not declared in variant.names")
+            if self.conf.variant.base is None:
+                raise ValueError("variant.base must be configured in pyproject.toml")
+            base = self.conf.variant.base.strip()
+            if base == "":
+                raise ValueError("variant.base cannot be empty")
+            if base in deduped:
+                raise ValueError("variant.base must not be included in variant.variants")
+            self.conf.variant.base = base
 
             if self.conf.variant.path_pattern is not None:
                 raw_path_pattern = self.conf.variant.path_pattern.strip()

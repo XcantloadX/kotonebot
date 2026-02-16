@@ -18,10 +18,12 @@ def build_variant_projection_for_resgen(
     *,
     meta_files: list[str],
     resource_variants: list[str],
+    base_variant: str | None,
 ) -> ResgenVariantProjection:
     state = build_meta_state(
         meta_paths=meta_files,
         resource_variants=resource_variants,
+        base_variant=base_variant,
         variant_configured=True,
     )
     by_base_key: dict[tuple[str, str], ResolvedPrefabVariants] = {}

@@ -96,7 +96,7 @@ class EditorData(BaseModel):
 
 
 class VariantData(BaseModel):
-    names: list[str] | None = None
+    variants: list[str] | None = None
     base: str | None = None
     path_pattern: str | None = None
 

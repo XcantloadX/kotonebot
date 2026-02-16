@@ -18,6 +18,7 @@ from .validation import MetaValidationError, detect_and_validate_meta_schema
 _CTX_VARIANT_GROUP_BY_BASE_KEY = "_variant_group_by_base_key"
 _CTX_VARIANT_SKIP_KEYS = "_variant_skip_keys"
 _CTX_VARIANT_INCLUDE_BASE = "resgen_include_base_variant"
+_CTX_VARIANT_BASE = "_variant_base"
 
 
 @dataclass(slots=True)
@@ -41,10 +42,12 @@ def _meta_to_image_path(meta_path: str) -> str:
 def build_variant_context(
     meta_files: list[str],
     resource_variants: list[str],
+    base_variant: str,
 ) -> tuple[dict[str, Any], list[Diagnostic]]:
     projection = build_variant_projection_for_resgen(
         meta_files=meta_files,
         resource_variants=resource_variants,
+        base_variant=base_variant,
     )
 
     return (
@@ -53,6 +56,7 @@ def build_variant_context(
             _CTX_VARIANT_GROUP_BY_BASE_KEY: projection.variant_group_by_base_key,
             _CTX_VARIANT_SKIP_KEYS: projection.variant_skip_keys,
             _CTX_VARIANT_INCLUDE_BASE: True,
+            _CTX_VARIANT_BASE: base_variant,
         },
         projection.diagnostics,
     )
@@ -79,15 +83,15 @@ def _build_project_context(
     variant_conf = project.conf.variant
     if variant_conf is None:
         return ResgenProjectContext(parser_context={}, default_variant="", diagnostics=[])
-    if variant_conf.names is None:
-        raise ValueError("variant.names must be configured in pyproject.toml")
+    if variant_conf.variants is None:
+        raise ValueError("variant.variants must be configured in pyproject.toml")
+    if variant_conf.base is None:
+        raise ValueError("variant.base must be configured in pyproject.toml")
 
-    parser_context, diagnostics = build_variant_context(meta_files, variant_conf.names)
+    parser_context, diagnostics = build_variant_context(meta_files, variant_conf.variants, variant_conf.base)
     parser_context[_CTX_VARIANT_INCLUDE_BASE] = include_base_variant
 
-    default_variant = ""
-    if variant_conf.base is not None:
-        default_variant = variant_conf.base
+    default_variant = variant_conf.base
 
     return ResgenProjectContext(
         parser_context=parser_context,
@@ -224,13 +228,17 @@ class KotoneV1Parser(SchemaParser):
 
         raw_variant_group_by_base_key = context.get(_CTX_VARIANT_GROUP_BY_BASE_KEY)
         raw_skipped_variant_keys = context.get(_CTX_VARIANT_SKIP_KEYS)
+        raw_base_variant = context.get(_CTX_VARIANT_BASE)
         variant_group_by_base_key: dict[tuple[str, str], ResolvedPrefabVariants]
         skipped_variant_keys: set[tuple[str, str]]
         if raw_variant_group_by_base_key is None or raw_skipped_variant_keys is None:
             if resource_variants is not None:
+                if not isinstance(raw_base_variant, str):
+                    raise ValueError(f"{_CTX_VARIANT_BASE} must be str")
                 projection = build_variant_projection_for_resgen(
                     meta_files=[meta_path],
                     resource_variants=resource_variants,
+                    base_variant=raw_base_variant,
                 )
                 error_messages = [
                     diag.message

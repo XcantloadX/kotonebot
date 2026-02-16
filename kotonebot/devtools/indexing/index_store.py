@@ -19,11 +19,13 @@ class IndexStore:
         resource_root: Path,
         prefab_schema: dict[str, Any] | None = None,
         resource_variants: list[str] | None = None,
+        base_variant: str | None = None,
         variant_configured: bool = False,
     ):
         self._resource_root = resource_root.resolve()
         self._prefab_schema = prefab_schema or {}
         self._resource_variants = resource_variants
+        self._base_variant = base_variant
         self._variant_configured = variant_configured
         self._snapshot = IndexSnapshot(index_version=0, content_hash="")
         self._last_build_ms = 0
@@ -52,6 +54,7 @@ class IndexStore:
             meta_refs=refs,
             prefab_schema=self._prefab_schema,
             resource_variants=self._resource_variants,
+            base_variant=self._base_variant,
             variant_configured=self._variant_configured,
         )
 
@@ -79,6 +82,7 @@ class IndexStore:
             meta_refs=refs,
             prefab_schema=self._prefab_schema,
             resource_variants=self._resource_variants,
+            base_variant=self._base_variant,
             variant_configured=self._variant_configured,
         )
         upserted_symbols = [s for s in projection.symbols.values() if s.meta_path == normalized_meta_path]

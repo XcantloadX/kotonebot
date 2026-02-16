@@ -8,9 +8,8 @@ import { openImageWithMeta } from "./image";
 
 export async function loadProjectVariants(): Promise<string[]> {
   const info = await getProjectInfo();
-  const variantNames = info.variant?.names ?? [];
-  const baseVariant = info.variant?.base ?? null;
-  return variantNames.filter((name) => name !== baseVariant);
+  const variants = info.variant?.variants ?? [];
+  return variants;
 }
 
 export async function pickVariantForActiveDocument(
