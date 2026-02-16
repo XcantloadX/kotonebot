@@ -231,19 +231,75 @@ export function useEditorCommands(): EditorCommandsResult {
           sourceMetaPath: activeDoc.meta.path,
           baseImagePath: activeDoc.image.path,
           variant: pendingVariant,
+          image: files[0],
         });
-        const copiedDefinitionNames = precheck.copiedDefinitions.map((definition) => definition.name).join("\n");
+        const copiedDefinitions = precheck.copiedDefinitions.map((definition) => definition.name);
         const confirmed = await messageBox.confirm_cancel({
           title: "Confirm Import Target",
           content: (
-            <div>
-              <div>Import variant image to:</div>
-              <div>{precheck.targetImagePath}</div>
-              <div style={{ marginTop: 8 }}>Will copy definitions ({precheck.copiedDefinitions.length}):</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{copiedDefinitionNames}</div>
-              <div style={{ marginTop: 8 }}>Skipped definitions ({precheck.skippedDefinitions.length}):</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>
-                {precheck.skippedDefinitions.map((definition) => `${definition.name}: ${definition.reason}`).join("\n")}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 760 }}>
+              <div style={{ fontWeight: 600 }}>Import variant image to</div>
+              <div
+                style={{
+                  fontFamily: "Consolas, 'Courier New', monospace",
+                  fontSize: 12,
+                  background: "#f6f7f9",
+                  border: "1px solid #d8e1e8",
+                  borderRadius: 4,
+                  padding: "8px 10px",
+                  wordBreak: "break-all",
+                }}
+              >
+                {precheck.targetImagePath}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>Will Copy ({copiedDefinitions.length})</div>
+                <div
+                  style={{
+                    maxHeight: 150,
+                    overflowY: "auto",
+                    border: "1px solid #d8e1e8",
+                    borderRadius: 4,
+                    padding: "8px 10px",
+                    background: "#f8fbff",
+                    fontSize: 12,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {copiedDefinitions.length > 0
+                    ? copiedDefinitions.map((name) => (
+                      <div key={name} style={{ color: "#2d72d2" }}>
+                        {name}
+                      </div>
+                    ))
+                    : "None"}
+                </div>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>Skipped ({precheck.skippedDefinitions.length})</div>
+                <div
+                  style={{
+                    maxHeight: 220,
+                    overflowY: "auto",
+                    border: "1px solid #d8e1e8",
+                    borderRadius: 4,
+                    padding: "8px 10px",
+                    background: "#fff8f8",
+                    fontSize: 12,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {precheck.skippedDefinitions.length > 0
+                    ? precheck.skippedDefinitions.map((definition, index) => (
+                      <div key={`${definition.definitionId}-${index}`}>
+                        <span style={{ color: "#c23030" }}>{definition.name}</span>
+                        <span style={{ color: "#5c7080" }}>{" : "}{definition.reason}</span>
+                      </div>
+                    ))
+                    : "None"}
+                </div>
               </div>
             </div>
           ),
@@ -254,6 +310,19 @@ export function useEditorCommands(): EditorCommandsResult {
         });
         if (!confirmed) {
           return false;
+        }
+        if (copiedDefinitions.length === 0) {
+          const continueWithNoCopy = await messageBox.confirm_cancel({
+            title: "No Definitions To Copy",
+            content: "No definitions will be copied. Continue import anyway?",
+            confirmText: "Continue",
+            cancelText: "Cancel",
+            confirmIntent: "warning",
+            cancelIntent: "none",
+          });
+          if (!continueWithNoCopy) {
+            return false;
+          }
         }
 
         const targetExists = precheck.targetImageExists || precheck.targetMetaExists;

@@ -32,6 +32,7 @@ export interface PreCheckVariantImportPathPayload {
   sourceMetaPath: string;
   baseImagePath: string;
   variant: string;
+  image: File;
 }
 
 export interface PreCheckVariantImportPathResult {
@@ -44,10 +45,14 @@ export interface PreCheckVariantImportPathResult {
 }
 
 export async function preCheckVariantImportPath(payload: PreCheckVariantImportPathPayload): Promise<PreCheckVariantImportPathResult> {
+  const formData = new FormData();
+  formData.set("sourceMetaPath", payload.sourceMetaPath);
+  formData.set("baseImagePath", payload.baseImagePath);
+  formData.set("variant", payload.variant);
+  formData.set("image", payload.image);
   return fetchJson<PreCheckVariantImportPathResult>("/api/meta/variant/import/precheck_path", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: formData,
   });
 }
 

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, TypeVar, Generic, Optional
 
 import cv2
+import numpy as np
 from fastapi import APIRouter, HTTPException, Query, Body, UploadFile, File, Form
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -39,12 +40,6 @@ class CloneVariantToImageRequest(BaseModel):
     targetImagePath: str
     variant: str
     forceOverwrite: bool = False
-
-
-class PreCheckVariantImportPathRequest(BaseModel):
-    sourceMetaPath: str
-    baseImagePath: str
-    variant: str
 
 
 def create_rest_router(project: Project) -> APIRouter:
@@ -254,12 +249,84 @@ def create_rest_router(project: Project) -> APIRouter:
             output["prefab_id"] = full.prefab_id
         return output
 
+    def _read_image(path: Path) -> Any:
+        image = cv2.imread(str(path))
+        if image is None:
+            raise ValueError(f"Could not read image: {path}")
+        return image
+
+    def _decode_uploaded_image(image_data: bytes) -> Any:
+        if len(image_data) == 0:
+            raise ValueError("Import image is empty")
+        decoded = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
+        if decoded is None:
+            raise ValueError("Import image decode failed")
+        return decoded
+
+    def _validate_template_prop(template_prop: Any, *, definition_id: str) -> tuple[int, int, int, int]:
+        if not isinstance(template_prop, dict):
+            raise ValueError(f"definition '{definition_id}' props.template must be an object")
+        if template_prop.get("kind") != "image":
+            raise ValueError(f"definition '{definition_id}' props.template.kind must be 'image'")
+        x1 = template_prop.get("x1")
+        y1 = template_prop.get("y1")
+        x2 = template_prop.get("x2")
+        y2 = template_prop.get("y2")
+        if not isinstance(x1, (int, float)):
+            raise ValueError(f"definition '{definition_id}' props.template.x1 must be number")
+        if not isinstance(y1, (int, float)):
+            raise ValueError(f"definition '{definition_id}' props.template.y1 must be number")
+        if not isinstance(x2, (int, float)):
+            raise ValueError(f"definition '{definition_id}' props.template.x2 must be number")
+        if not isinstance(y2, (int, float)):
+            raise ValueError(f"definition '{definition_id}' props.template.y2 must be number")
+        ix1 = int(x1)
+        iy1 = int(y1)
+        ix2 = int(x2)
+        iy2 = int(y2)
+        if ix2 <= ix1 or iy2 <= iy1:
+            raise ValueError(f"definition '{definition_id}' props.template has invalid rect")
+        return ix1, iy1, ix2, iy2
+
+    def _extract_region(image: Any, rect: tuple[int, int, int, int], *, definition_id: str, image_label: str) -> Any:
+        height, width = image.shape[:2]
+        x1, y1, x2, y2 = rect
+        if x1 < 0 or y1 < 0 or x2 > width or y2 > height:
+            raise ValueError(
+                f"definition '{definition_id}' props.template rect is out of bounds for {image_label}: "
+                f"rect=({x1},{y1},{x2},{y2}), image=({width},{height})"
+            )
+        return image[y1:y2, x1:x2]
+
+    def _template_similarity_score(
+        *,
+        definition_id: str,
+        template_prop: Any,
+        source_image: Any,
+        target_image: Any,
+    ) -> float:
+        rect = _validate_template_prop(template_prop, definition_id=definition_id)
+        source_region = _extract_region(source_image, rect, definition_id=definition_id, image_label="source image")
+        target_region = _extract_region(target_image, rect, definition_id=definition_id, image_label="target image")
+        if source_region.shape != target_region.shape:
+            raise ValueError(f"definition '{definition_id}' source and target template region shape mismatch")
+        match = cv2.matchTemplate(target_region, source_region, cv2.TM_CCOEFF_NORMED)
+        score = float(match[0][0])
+        return score
+
     def _plan_variant_clone_definitions(
         *,
         source_meta_path: Path,
         target_variant: str,
+        source_image_path: Path,
+        target_image_path: Path | None,
+        target_image_override: Any | None = None,
     ) -> dict[str, Any]:
         source_meta = parse_meta_file(source_meta_path)
+        source_image = _read_image(source_image_path)
+        target_image = target_image_override
+        if target_image is None and target_image_path is not None and target_image_path.exists():
+            target_image = _read_image(target_image_path)
         base_by_name: dict[str, DefinitionV2Model] = {}
         for definition in source_meta.definitions.values():
             if definition.type != "prefab":
@@ -288,6 +355,28 @@ def create_rest_router(project: Project) -> APIRouter:
                     }
                 )
                 continue
+            base_definition = base_by_name.get(definition_name)
+            if base_definition is None:
+                raise ValueError(f"prefab '{definition_name}' has no base definition")
+            full_definition = definition if definition.variant is None else merge_prefab_definition(base_definition, definition)
+            full_props = full_definition.props or {}
+            template_prop = full_props.get("template")
+            if target_image is not None and isinstance(template_prop, dict) and template_prop.get("kind") == "image":
+                similarity_score = _template_similarity_score(
+                    definition_id=definition_id,
+                    template_prop=template_prop,
+                    source_image=source_image,
+                    target_image=target_image,
+                )
+                if similarity_score >= 0.95:
+                    skipped_definitions.append(
+                        {
+                            "definitionId": definition_id,
+                            "name": definition_name,
+                            "reason": f"same content (score={similarity_score:.4f} >= 0.95)",
+                        }
+                    )
+                    continue
             definition_dump = _build_prefab_variant_definition(
                 definition=definition,
                 base_by_name=base_by_name,
@@ -469,6 +558,8 @@ def create_rest_router(project: Project) -> APIRouter:
             plan = _plan_variant_clone_definitions(
                 source_meta_path=source_meta_path,
                 target_variant=variant_name,
+                source_image_path=Path(str(source_meta_path.with_suffix(""))),
+                target_image_path=target_image_path,
             )
             target_definitions = plan["targetDefinitions"]
 
@@ -485,24 +576,34 @@ def create_rest_router(project: Project) -> APIRouter:
             return _err(str(e))
 
     @router.post("/meta/variant/import/precheck_path")
-    async def precheck_variant_import_path(body: PreCheckVariantImportPathRequest = Body(...)):
+    async def precheck_variant_import_path(
+        sourceMetaPath: str = Form(...),
+        baseImagePath: str = Form(...),
+        variant: str = Form(...),
+        image: UploadFile = File(...),
+    ):
         try:
-            variant_name = _assert_variant_declared(body.variant)
-            source_meta_path = _get_safe_path(body.sourceMetaPath)
-            base_image_path = _get_safe_path(body.baseImagePath)
+            variant_name = _assert_variant_declared(variant)
+            source_meta_path = _get_safe_path(sourceMetaPath)
+            base_image_path = _get_safe_path(baseImagePath)
             if not source_meta_path.exists():
                 return _err(f"Source meta not found: {source_meta_path}")
             if not base_image_path.exists():
                 return _err(f"Base image not found: {base_image_path}")
             if not _is_image_file(base_image_path):
                 return _err(f"Base path is not an image: {base_image_path}")
-            plan = _plan_variant_clone_definitions(
-                source_meta_path=source_meta_path,
-                target_variant=variant_name,
-            )
+            uploaded_image_data = await image.read()
+            uploaded_target_image = _decode_uploaded_image(uploaded_image_data)
             target_image_path = _resolve_variant_import_target_path(
                 base_image_path=base_image_path,
                 variant_name=variant_name,
+            )
+            plan = _plan_variant_clone_definitions(
+                source_meta_path=source_meta_path,
+                target_variant=variant_name,
+                source_image_path=Path(str(source_meta_path.with_suffix(""))),
+                target_image_path=target_image_path,
+                target_image_override=uploaded_target_image,
             )
             target_meta_path = Path(str(target_image_path) + ".json")
             return _ok(
