@@ -417,7 +417,7 @@ class TestEntityGenerator(unittest.TestCase):
                         prefab_id="TemplateMatchPrefab",
                         props={},
                         variant_props={
-                            "": {
+                            "base": {
                                 "templateImage": ImageAsset(path="a/base.png", rect=None),
                                 "threshold": 0.7,
                             },
@@ -447,10 +447,38 @@ class TestEntityGenerator(unittest.TestCase):
         self.assertIn("class En:", out)
         self.assertIn("class Jp:", out)
         self.assertIn("_variant_classes = {", out)
-        self.assertIn("'': Base", out)
+        self.assertIn("'base': Base", out)
         self.assertIn("raise ValueError(f'Unsupported resource variant: {variant}')", out)
         self.assertIn("@classproperty", out)
         self.assertIn("def template(cls):", out)
+
+    def test_variant_prefab_uses_custom_default_variant(self):
+        gen = EntityGenerator(production=True, default_variant="jp")
+        node = ClassNode(
+            name="Root",
+            attributes=[
+                ResourceNode(
+                    name="StartButton",
+                    type="prefab",
+                    value=PrefabData(
+                        image=None,
+                        prefab_id="TemplateMatchPrefab",
+                        props={},
+                        variant_props={
+                            "jp": {
+                                "templateImage": ImageAsset(path="a/jp.png", rect=None),
+                            },
+                            "tw": {
+                                "templateImage": ImageAsset(path="a/tw.png", rect=None),
+                            },
+                        },
+                    ),
+                )
+            ],
+        )
+
+        out = gen.generate([node])
+        self.assertIn("current_variant = ContextVar('current_variant', default='jp')", out)
 
 
 if __name__ == '__main__':

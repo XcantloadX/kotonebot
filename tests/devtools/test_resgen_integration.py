@@ -1,9 +1,9 @@
 """Integration tests for kotonebot.devtools.resgen module"""
 
-import os
-import json
 import tempfile
 import unittest
+from pathlib import Path
+import os
 from kotonebot.devtools.resgen import (
     ResourceNode,
     StandardGenerator,
@@ -13,6 +13,7 @@ from kotonebot.devtools.resgen import (
     unify_path,
     build_class_tree,
 )
+from tests.devtools._testkit import make_resgen_context, write_json, write_min_png
 
 
 class TestIntegrationFullWorkflow(unittest.TestCase):
@@ -21,25 +22,14 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
     def test_basic_sprite_parsing_and_generation(self):
         """Test complete workflow: parse sprite -> generate code"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create test PNG file with subdirectory to get proper class path
-            ui_dir = os.path.join(tmpdir, "ui")
-            os.makedirs(ui_dir, exist_ok=True)
-            png_file = os.path.join(ui_dir, "button.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
+            tmp_path = Path(tmpdir)
+            png_file = write_min_png(tmp_path / "ui" / "button.png")
             
-            # Parse
             parser = BasicSpriteParser()
-            context = {
-                "output_img_dir": tmpdir,
-                "root_scan_path": tmpdir
-            }
-            resources = parser.parse(png_file, context)
+            resources = parser.parse(png_file.as_posix(), make_resgen_context(tmp_path))
             
-            # Build tree
             tree = build_class_tree(resources)
             
-            # Generate code
             gen = StandardGenerator(production=True)
             code = gen.generate(tree)
             
@@ -51,31 +41,22 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
     def test_parse_registry_integration(self):
         """Test ParserRegistry with multiple parsers"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create test files
-            png_file = os.path.join(tmpdir, "sprite.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
+            tmp_path = Path(tmpdir)
+            png_file = write_min_png(tmp_path / "sprite.png")
             
-            json_file = os.path.join(tmpdir, "data.png.json")
+            json_file = tmp_path / "data.png.json"
             schema = {"definitions": {}, "annotations": []}
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
+            write_json(json_file, schema)
             
-            # Create registry and register parsers
             registry = ParserRegistry()
             registry.register(KotoneV1Parser())
             registry.register(BasicSpriteParser())
             
-            context = {
-                "output_img_dir": tmpdir,
-                "root_scan_path": tmpdir
-            }
+            context = make_resgen_context(tmp_path)
             
-            # Parse with registry
-            result1 = registry.parse_file(json_file, context)
-            result2 = registry.parse_file(png_file, context)
+            result1 = registry.parse_file(json_file.as_posix(), context)
+            result2 = registry.parse_file(png_file.as_posix(), context)
             
-            # Both should parse successfully
             self.assertTrue(isinstance(result1, list))
             self.assertTrue(isinstance(result2, list))
 
@@ -210,16 +191,11 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
     def test_metadata_preservation_through_pipeline(self):
         """Test that metadata is preserved through parsing and generation"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "test.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
+            tmp_path = Path(tmpdir)
+            png_file = write_min_png(tmp_path / "test.png")
             
             parser = BasicSpriteParser()
-            context = {
-                "output_img_dir": tmpdir,
-                "root_scan_path": tmpdir
-            }
-            resources = parser.parse(png_file, context)
+            resources = parser.parse(png_file.as_posix(), make_resgen_context(tmp_path))
             
             # Verify metadata is present
             self.assertTrue(len(resources) > 0)
@@ -265,27 +241,19 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
 
     def test_ide_specific_image_tag_generation(self):
         """Test IDE-specific image tag generation"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "test.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
-            
-            img_path = "/path/to/image.png"
-            
-            # VSCode
-            gen_vscode = StandardGenerator(ide_type="vscode")
-            tag_vscode = gen_vscode._make_img_tag(img_path, "Test")
-            self.assertIn("vscode-file://vscode-app/", tag_vscode)
-            
-            # PyCharm
-            gen_pycharm = StandardGenerator(ide_type="pycharm")
-            tag_pycharm = gen_pycharm._make_img_tag(img_path, "Test")
-            self.assertIn("http://localhost:6532/image", tag_pycharm)
-            
-            # Default
-            gen_default = StandardGenerator(ide_type=None)
-            tag_default = gen_default._make_img_tag(img_path, "Test")
-            self.assertIn("file:///", tag_default)
+        img_path = "/path/to/image.png"
+
+        gen_vscode = StandardGenerator(ide_type="vscode")
+        tag_vscode = gen_vscode._make_img_tag(img_path, "Test")
+        self.assertIn("vscode-file://vscode-app/", tag_vscode)
+
+        gen_pycharm = StandardGenerator(ide_type="pycharm")
+        tag_pycharm = gen_pycharm._make_img_tag(img_path, "Test")
+        self.assertIn("http://localhost:6532/image", tag_pycharm)
+
+        gen_default = StandardGenerator(ide_type=None)
+        tag_default = gen_default._make_img_tag(img_path, "Test")
+        self.assertIn("file:///", tag_default)
 
     def test_empty_class_tree_handling(self):
         """Test generation with empty class tree"""

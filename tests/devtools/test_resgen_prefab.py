@@ -1,35 +1,29 @@
-"""Tests for resgen prefab support"""
-
-import json
-import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from kotonebot.devtools.resgen.codegen import EntityGenerator
 from kotonebot.devtools.resgen.core import ImageAsset, PrefabData, ResourceNode
 from kotonebot.devtools.resgen.parsers import KotoneV1Parser
 from kotonebot.devtools.resgen.validation import MetaValidationError
+from tests.devtools._testkit import make_resgen_context, write_png_with_meta
 
 
 class TestPrefabParser(unittest.TestCase):
     def setUp(self):
         self.parser = KotoneV1Parser()
         self.tmp_dir = tempfile.TemporaryDirectory()
-        self.output_dir = os.path.join(self.tmp_dir.name, "output")
-        os.makedirs(self.output_dir, exist_ok=True)
+        self.tmp_path = Path(self.tmp_dir.name)
+        self.output_dir = self.tmp_path / "output"
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def tearDown(self):
         self.tmp_dir.cleanup()
 
     def create_test_files(self, json_content):
-        json_path = os.path.join(self.tmp_dir.name, "test.png.json")
-        png_path = os.path.join(self.tmp_dir.name, "test.png")
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(json_content, f)
-        with open(png_path, "wb") as f:
-            f.write(b"\x89PNG\r\n\x1a\n")
-        return json_path
+        _, meta_path = write_png_with_meta(self.tmp_path, "test.png", json_content)
+        return meta_path.as_posix()
 
     def test_parse_valid_prefab_v2(self):
         data = {
@@ -47,9 +41,9 @@ class TestPrefabParser(unittest.TestCase):
         }
 
         json_path = self.create_test_files(data)
-        context = {"output_img_dir": self.output_dir}
+        context = make_resgen_context(self.tmp_path, output_img_dir=self.output_dir.as_posix())
         with patch("kotonebot.devtools.resgen.parsers.ImageProcessor") as mock_proc:
-            mock_proc.save_crop_to_path.return_value = os.path.join(self.output_dir, "def1_templateImage.png")
+            mock_proc.save_crop_to_path.return_value = (self.output_dir / "def1_templateImage.png").as_posix()
             nodes = self.parser.parse(json_path, context)
 
         self.assertEqual(len(nodes), 1)
@@ -70,7 +64,7 @@ class TestPrefabParser(unittest.TestCase):
             },
         }
         json_path = self.create_test_files(data)
-        context = {"output_img_dir": self.output_dir, "root_scan_path": self.tmp_dir.name}
+        context = make_resgen_context(self.tmp_path, output_img_dir=self.output_dir.as_posix())
         with self.assertRaises(MetaValidationError) as cm:
             self.parser.parse(json_path, context)
         self.assertIn("missing prefab_id", str(cm.exception))
@@ -85,7 +79,7 @@ class TestPrefabParser(unittest.TestCase):
             },
         }
         json_path = self.create_test_files(data)
-        context = {"output_img_dir": self.output_dir, "root_scan_path": self.tmp_dir.name}
+        context = make_resgen_context(self.tmp_path, output_img_dir=self.output_dir.as_posix())
 
         nodes = self.parser.parse(json_path, context)
         self.assertEqual(len(nodes), 1)
