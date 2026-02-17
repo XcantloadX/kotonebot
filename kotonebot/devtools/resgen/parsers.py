@@ -351,19 +351,22 @@ class KotoneV1Parser(SchemaParser):
                 if variant_group is not None:
                     if resource_variants is None:
                         raise ValueError("resource_variants is required when variant prefab exists")
+                    if not isinstance(raw_base_variant, str):
+                        raise ValueError(f"{_CTX_VARIANT_BASE} must be str")
                     variant_props = {}
                     variant_display_names = {}
                     variant_keys = list(resource_variants)
                     if include_base_variant:
-                        variant_keys = ["", *variant_keys]
+                        variant_keys = [raw_base_variant, *variant_keys]
                     for variant in variant_keys:
-                        if variant not in variant_group.merged:
+                        merged_key = "" if variant == raw_base_variant else variant
+                        if merged_key not in variant_group.merged:
                             raise ValueError(f"missing merged variant '{variant}' for prefab '{name}'")
-                        merged_definition = variant_group.merged[variant]
-                        variant_ref = variant_group.variants.get(variant)
+                        merged_definition = variant_group.merged[merged_key]
+                        variant_ref = variant_group.variants.get(merged_key)
                         source_meta_for_variant = variant_ref.meta_path if variant_ref is not None else variant_group.base.meta_path
                         source_png_for_variant = _meta_to_image_path(source_meta_for_variant)
-                        variant_file_tag = variant if variant != "" else "base"
+                        variant_file_tag = variant
                         variant_props[variant] = build_prefab_props(
                             def_id,
                             merged_definition.props or {},
