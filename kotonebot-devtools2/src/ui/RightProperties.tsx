@@ -6,7 +6,6 @@ import { EditorPropSchema } from '../model/prefabSchema';
 import { jumpToSymbol } from '../editor/actions/navigation';
 import { promptAndRenameVariantsForDefinition } from '../editor/actions/variantRename';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
-import { useMessageBox } from './messageBox';
 import { getEditorForType } from './properties/PropertyEditorRegistry';
 import { OverridableField } from './components/OverridableField';
 import { SegmentedControl, SegmentedOption } from './components/SegmentedControl';
@@ -22,7 +21,6 @@ const VARIANT_INHERIT_OPTIONS: readonly SegmentedOption<VariantInheritValue>[] =
 export const RightProperties: React.FC = () => {
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
   const symbols = useSymbolIndexStore(s => s.symbols);
-  const messageBox = useMessageBox();
   const nameValueOnFocusRef = React.useRef<string>('');
 
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
@@ -96,7 +94,7 @@ export const RightProperties: React.FC = () => {
     if (valueOnFocus === currentValue) {
       return;
     }
-    void promptAndRenameVariantsForDefinition(messageBox, defId);
+    void promptAndRenameVariantsForDefinition(defId);
   };
 
     const renderPropEditor = (key: string, value: PropValue | undefined, schema?: EditorPropSchema) => {

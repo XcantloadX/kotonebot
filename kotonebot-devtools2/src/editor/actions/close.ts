@@ -1,7 +1,7 @@
-import { MessageBoxApi } from "../../ui/messageBox";
+import { messageBox } from "../../ui/messageBox";
 import { useAppStore } from "../state";
 
-export async function closeDocumentWithChecks(messageBox: MessageBoxApi, id: string): Promise<boolean> {
+export async function closeDocumentWithChecks(id: string): Promise<boolean> {
   const current = useAppStore.getState();
   const doc = current.documents[id];
   if (!doc) {
@@ -40,9 +40,9 @@ export async function closeDocumentWithChecks(messageBox: MessageBoxApi, id: str
   return true;
 }
 
-export async function closeDocumentsWithChecks(messageBox: MessageBoxApi, ids: string[]): Promise<boolean> {
+export async function closeDocumentsWithChecks(ids: string[]): Promise<boolean> {
   for (const id of ids) {
-    const ok = await closeDocumentWithChecks(messageBox, id);
+    const ok = await closeDocumentWithChecks(id);
     if (!ok) {
       return false;
     }
@@ -50,16 +50,16 @@ export async function closeDocumentsWithChecks(messageBox: MessageBoxApi, ids: s
   return true;
 }
 
-export async function closeActiveDocumentWithChecks(messageBox: MessageBoxApi): Promise<boolean> {
+export async function closeActiveDocumentWithChecks(): Promise<boolean> {
   const current = useAppStore.getState();
   const activeId = current.activeDocumentId;
   if (!activeId) {
     throw new Error("No active document");
   }
-  return closeDocumentWithChecks(messageBox, activeId);
+  return closeDocumentWithChecks(activeId);
 }
 
-export async function closeAllDocumentsWithChecks(messageBox: MessageBoxApi): Promise<boolean> {
+export async function closeAllDocumentsWithChecks(): Promise<boolean> {
   const ids = Object.keys(useAppStore.getState().documents);
-  return closeDocumentsWithChecks(messageBox, ids);
+  return closeDocumentsWithChecks(ids);
 }

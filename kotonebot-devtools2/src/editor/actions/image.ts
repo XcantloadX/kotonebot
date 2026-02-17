@@ -1,5 +1,5 @@
 import { readText } from "../../api/fs";
-import { MessageBoxApi } from "../../ui/messageBox";
+import { messageBox } from "../../ui/messageBox";
 import { useAppStore } from "../state";
 
 async function loadImage(path: string): Promise<{ width: number; height: number }> {
@@ -26,7 +26,7 @@ export async function openImageWithMeta(path: string): Promise<void> {
   setActiveMeta(path, data);
 }
 
-export async function openImagesWithChecks(paths: string[], messageBox: MessageBoxApi): Promise<void> {
+export async function openImagesWithChecks(paths: string[]): Promise<void> {
   const { openDocument, setActiveMeta } = useAppStore.getState();
   for (const path of paths) {
     const image = await loadImage(path);

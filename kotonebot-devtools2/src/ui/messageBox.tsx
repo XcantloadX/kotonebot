@@ -79,6 +79,32 @@ export interface MessageBoxApi {
 }
 
 const MessageBoxContext = createContext<MessageBoxApi | null>(null);
+let globalMessageBoxApi: MessageBoxApi | null = null;
+
+export function setGlobalMessageBox(api: MessageBoxApi | null): void {
+  globalMessageBoxApi = api;
+}
+
+export function getGlobalMessageBox(): MessageBoxApi | null {
+  return globalMessageBoxApi;
+}
+
+export function getGlobalMessageBoxOrThrow(): MessageBoxApi {
+  const api = getGlobalMessageBox();
+  if (!api) {
+    throw new Error("MessageBox API is not initialized");
+  }
+  return api;
+}
+
+export const messageBox: MessageBoxApi = {
+  show: (options) => getGlobalMessageBoxOrThrow().show(options),
+  yes_no: (options) => getGlobalMessageBoxOrThrow().yes_no(options),
+  confirm_cancel: (options) => getGlobalMessageBoxOrThrow().confirm_cancel(options),
+  ok: (options) => getGlobalMessageBoxOrThrow().ok(options),
+  prompt: (options) => getGlobalMessageBoxOrThrow().prompt(options),
+  select: (options) => getGlobalMessageBoxOrThrow().select(options),
+};
 
 export const useMessageBox = (): MessageBoxApi => {
   const value = useContext(MessageBoxContext);
@@ -271,6 +297,13 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }),
     [confirm_cancel, ok, prompt, select, show, yes_no]
   );
+
+  React.useEffect(() => {
+    setGlobalMessageBox(api);
+    return () => {
+      setGlobalMessageBox(null);
+    };
+  }, [api]);
 
   return (
     <MessageBoxContext.Provider value={api}>

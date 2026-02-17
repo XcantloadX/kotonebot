@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useMessageBox } from "../ui/messageBox";
 import {
   closeActiveDocumentWithChecks as closeActiveDocumentWithChecksAction,
   closeAllDocumentsWithChecks as closeAllDocumentsWithChecksAction,
@@ -33,7 +32,6 @@ export interface EditorCommandsResult {
 
 export function useEditorCommands(): EditorCommandsResult {
   const { activeDocumentId, documents } = useAppStore();
-  const messageBox = useMessageBox();
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const activeMeta = activeDoc?.meta;
   const [projectVariants, setProjectVariants] = useState<string[]>([]);
@@ -50,9 +48,9 @@ export function useEditorCommands(): EditorCommandsResult {
 
   const selectImages = useCallback(
     async (paths: string[]) => {
-      await openImagesWithChecks(paths, messageBox);
+      await openImagesWithChecks(paths);
     },
-    [messageBox]
+    []
   );
 
   const saveDocument = useCallback(async () => {
@@ -60,51 +58,51 @@ export function useEditorCommands(): EditorCommandsResult {
   }, []);
 
   const createVariantDocument = useCallback(async (): Promise<string | null> => {
-    return pickVariantForActiveDocument(messageBox, projectVariants);
-  }, [messageBox, projectVariants]);
+    return pickVariantForActiveDocument(projectVariants);
+  }, [projectVariants]);
 
   const selectVariantImage = useCallback(
     async (paths: string[], variant: string): Promise<void> => {
-      await selectVariantImageForActiveDocument(messageBox, paths, variant);
+      await selectVariantImageForActiveDocument(paths, variant);
     },
-    [messageBox]
+    []
   );
 
   const importVariantImage = useCallback(
     async (files: File[], variant: string): Promise<boolean> => {
-      return importVariantImageForActiveDocument(messageBox, files, variant);
+      return importVariantImageForActiveDocument(files, variant);
     },
-    [messageBox]
+    []
   );
 
   const copySelectedPrefabToVariant = useCallback(
     async (variant: string): Promise<void> => {
-      await copySelectedPrefabToVariantForActiveDocument(messageBox, variant);
+      await copySelectedPrefabToVariantForActiveDocument(variant);
     },
-    [messageBox]
+    []
   );
 
   const closeDocumentWithChecks = useCallback(
     async (id: string): Promise<boolean> => {
-      return closeDocumentWithChecksAction(messageBox, id);
+      return closeDocumentWithChecksAction(id);
     },
-    [messageBox]
+    []
   );
 
   const closeDocumentsWithChecks = useCallback(
     async (ids: string[]): Promise<boolean> => {
-      return closeDocumentsWithChecksAction(messageBox, ids);
+      return closeDocumentsWithChecksAction(ids);
     },
-    [messageBox]
+    []
   );
 
   const closeActiveDocumentWithChecks = useCallback(async (): Promise<boolean> => {
-    return closeActiveDocumentWithChecksAction(messageBox);
-  }, [messageBox]);
+    return closeActiveDocumentWithChecksAction();
+  }, []);
 
   const closeAllDocumentsWithChecks = useCallback(async (): Promise<boolean> => {
-    return closeAllDocumentsWithChecksAction(messageBox);
-  }, [messageBox]);
+    return closeAllDocumentsWithChecksAction();
+  }, []);
 
   return {
     canSave: !!activeMeta,

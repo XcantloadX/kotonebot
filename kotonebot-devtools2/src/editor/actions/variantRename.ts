@@ -1,4 +1,4 @@
-import { MessageBoxApi } from "../../ui/messageBox";
+import { messageBox } from "../../ui/messageBox";
 import { useAppStore } from "../state";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { openImageWithMeta } from "./image";
@@ -54,7 +54,7 @@ async function applyVariantRenames(variantSymbols: VariantSymbolRef[], newName: 
   setActiveDocument(previousActiveDocumentId);
 }
 
-export async function promptAndRenameVariantsForDefinition(messageBox: MessageBoxApi, definitionId: string): Promise<void> {
+export async function promptAndRenameVariantsForDefinition(definitionId: string): Promise<void> {
   const { activeDocumentId, documents } = useAppStore.getState();
   if (!activeDocumentId) {
     throw new Error("No active document");

@@ -6,7 +6,7 @@ import {
   preCheckCopySelectedPrefabToVariant,
   preCheckVariantImportPath,
 } from "../../api/metaIndex";
-import { MessageBoxApi } from "../../ui/messageBox";
+import { messageBox } from "../../ui/messageBox";
 import { toaster } from "../../ui/toaster";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { useAppStore } from "../state";
@@ -19,7 +19,6 @@ export async function loadProjectVariants(): Promise<string[]> {
 }
 
 export async function pickVariantForActiveDocument(
-  messageBox: MessageBoxApi,
   projectVariants: string[]
 ): Promise<string | null> {
   const activeId = useAppStore.getState().activeDocumentId;
@@ -43,7 +42,6 @@ export async function pickVariantForActiveDocument(
 }
 
 export async function selectVariantImageForActiveDocument(
-  messageBox: MessageBoxApi,
   paths: string[],
   variant: string
 ): Promise<void> {
@@ -92,7 +90,6 @@ export async function selectVariantImageForActiveDocument(
 }
 
 export async function importVariantImageForActiveDocument(
-  messageBox: MessageBoxApi,
   files: File[],
   variant: string
 ): Promise<boolean> {
@@ -237,7 +234,7 @@ export async function importVariantImageForActiveDocument(
       image: files[0],
       deleteExistingTarget,
     });
-    await selectVariantImageForActiveDocument(messageBox, [imported.targetImagePath], variant);
+    await selectVariantImageForActiveDocument([imported.targetImagePath], variant);
     return true;
   } catch (e: any) {
     toaster.show({ message: e?.message ?? String(e), intent: "danger" });
@@ -246,7 +243,6 @@ export async function importVariantImageForActiveDocument(
 }
 
 export async function copySelectedPrefabToVariantForActiveDocument(
-  messageBox: MessageBoxApi,
   variant: string
 ): Promise<void> {
   const activeId = useAppStore.getState().activeDocumentId;
