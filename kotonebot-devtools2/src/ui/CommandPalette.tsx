@@ -4,6 +4,7 @@ import { SymbolLite } from "../model/symbolIndex";
 import { useSymbolIndexStore } from "../editor/symbolIndexStore";
 import { useAppStore } from "../editor/state";
 import { jumpToSymbol } from "../editor/actions/navigation";
+import { useShortcutScope } from "../shortcuts/shortcutManager";
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -107,6 +108,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   isOpen,
   onClose,
 }) => {
+  useShortcutScope("palette", isOpen);
   const { activeDocumentId } = useAppStore();
   const { symbols, recentSymbolKeys } = useSymbolIndexStore();
   const [query, setQuery] = useState("#");

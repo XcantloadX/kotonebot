@@ -49,7 +49,7 @@ export class RectTool extends Tool {
             type: ctx.activeResourceType,
             props
         };
-    });
+    }, { label: "Create rectangle definition", forceNewEntry: true });
     ctx.setSelection(id);
     
     this.startPos = null;

@@ -2,6 +2,9 @@ import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Stage, Layer, Image as KonvaImage, Rect, Circle, Line } from 'react-konva';
 import useImage from 'use-image';
 import { useAppStore } from '../state';
+import { useSymbolIndexStore } from '../symbolIndexStore';
+import { DefinitionV2 } from '../../model/metaV2';
+import { toaster } from '../../ui/toaster';
 import { KonvaEventObject } from 'konva/lib/Node';
 import { ToolContext } from '../tools/Tool';
 import { SelectTool } from '../tools/SelectTool';
@@ -11,7 +14,8 @@ import { PickingTool } from '../tools/PickingTool';
 import { CreatingPrefabTool } from '../tools/CreatingPrefabTool';
 import { DefinitionRect } from './shapes/DefinitionRect';
 import { DefinitionPoint } from './shapes/DefinitionPoint';
-import { useShortcuts } from '../../hooks/useShortcut';
+import { resolveBasePrefabsByName } from '../prefabResolver';
+import { useShortcuts } from '../../shortcuts/shortcutManager';
 
 export const StageView: React.FC = () => {
   const {
@@ -21,10 +25,13 @@ export const StageView: React.FC = () => {
     activeResourceType,
     setSelection,
     updateMeta,
+    beginMetaTransaction,
+    commitMetaTransaction,
     setMode,
     prefabSchema,
     setViewState
   } = useAppStore();
+  const symbols = useSymbolIndexStore(s => s.symbols);
 
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const activeImage = activeDoc?.image;
@@ -56,8 +63,90 @@ export const StageView: React.FC = () => {
   const [panOrigin, setPanOrigin] = useState<{ viewX: number, viewY: number, pointerX: number, pointerY: number } | null>(null);
   // right mouse button state for panning
   const [isRightMouseDown, setIsRightMouseDown] = useState(false);
+  const [baseDefinitionsByName, setBaseDefinitionsByName] = useState<Record<string, DefinitionV2>>({});
+  const [baseDefsReady, setBaseDefsReady] = useState(true);
+  const missingBaseToastKeyRef = useRef<string>("");
 
   const stageRef = useRef<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadBaseDefinitions = async () => {
+      if (!activeMeta) {
+        setBaseDefinitionsByName({});
+        setBaseDefsReady(true);
+        return;
+      }
+      const variantDefs = Object.values(activeMeta.data.definitions).filter(
+        (def) => def.type === "prefab" && !!def.variant && !!def.name,
+      );
+      if (variantDefs.length === 0) {
+        setBaseDefinitionsByName({});
+        setBaseDefsReady(true);
+        return;
+      }
+
+      const names = variantDefs.map((def) => def.name as string);
+      const { byName, missingNames } = await resolveBasePrefabsByName({
+        names,
+        documents,
+        symbols,
+      });
+      if (!cancelled) {
+        setBaseDefinitionsByName(byName);
+        setBaseDefsReady(true);
+        if (missingNames.length > 0) {
+          const key = missingNames.sort().join("|");
+          if (missingBaseToastKeyRef.current !== key) {
+            missingBaseToastKeyRef.current = key;
+            toaster.show({
+              message: `Missing base prefab definitions: ${missingNames.slice(0, 3).join(", ")}${missingNames.length > 3 ? " ..." : ""}`,
+              intent: "warning",
+            });
+          }
+        } else {
+          missingBaseToastKeyRef.current = "";
+        }
+      }
+    };
+    setBaseDefsReady(false);
+    void loadBaseDefinitions().catch((err) => {
+      if (cancelled) return;
+      setBaseDefinitionsByName({});
+      setBaseDefsReady(true);
+      toaster.show({ message: err instanceof Error ? err.message : String(err), intent: "danger" });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeMeta, symbols, documents]);
+
+  const renderDefinitions = useMemo(() => {
+    if (!activeMeta) return null;
+    const out: Record<string, DefinitionV2> = {};
+    for (const [defId, def] of Object.entries(activeMeta.data.definitions)) {
+      if (def.type === "prefab" && def.variant && def.name) {
+        const baseDef = baseDefinitionsByName[def.name];
+        if (!baseDef) {
+          if (baseDefsReady) {
+            out[defId] = def;
+          }
+          continue;
+        }
+        out[defId] = {
+          ...baseDef,
+          ...def,
+          props: {
+            ...(baseDef.props || {}),
+            ...(def.props || {}),
+          },
+        };
+      } else {
+        out[defId] = def;
+      }
+    }
+    return out;
+  }, [activeMeta, baseDefinitionsByName, baseDefsReady]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -73,8 +162,28 @@ export const StageView: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
-  useShortcuts({
-    'Space': {
+  const deleteSelectedDefinition = (e: KeyboardEvent) => {
+    if (!selection || !activeMeta) return;
+    const target = e.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (target?.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      return;
+    }
+    e.preventDefault();
+    const defId = selection.definitionId;
+    updateMeta((draft) => {
+      delete draft.definitions[defId];
+    }, { label: "Delete definition", mergeKey: `delete:${defId}`, forceNewEntry: true });
+    setSelection(null);
+    setMode({ kind: 'idle' });
+  };
+
+  useShortcuts([
+    {
+      id: "stage.hold-space-for-pan",
+      scope: "editor",
+      combo: "space",
+      allowRepeat: true,
       onKeyDown: (e) => {
         if (!e.repeat) {
           setIsSpacePressed(true);
@@ -84,17 +193,32 @@ export const StageView: React.FC = () => {
         setIsSpacePressed(false);
         setIsPanning(false);
         setPanOrigin(null);
-      }
+      },
     },
-    'Escape': {
+    {
+      id: "stage.escape-cancel-mode",
+      scope: "editor",
+      combo: "escape",
       onKeyDown: () => {
         if (mode.kind === 'picking' || mode.kind === 'creating-prefab') {
           setMode({ kind: 'idle' });
           setPreview(null);
         }
-      }
-    }
-  });
+      },
+    },
+    {
+      id: "stage.delete-definition-delete-key",
+      scope: "editor",
+      combo: "delete",
+      onKeyDown: deleteSelectedDefinition,
+    },
+    {
+      id: "stage.delete-definition-backspace",
+      scope: "editor",
+      combo: "backspace",
+      onKeyDown: deleteSelectedDefinition,
+    },
+  ]);
 
   useEffect(() => {
     if (!view && image && size.width > 0 && size.height > 0 && activeDocumentId) {
@@ -265,7 +389,7 @@ export const StageView: React.FC = () => {
   const cursor = isPanning ? 'grabbing' : (isSpacePressed || isRightMouseDown) ? 'grab' : tool.getCursor();
 
   return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', background: '#e1e8ed' }}>
+    <div id="kb-editor-stage-container" ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', background: '#e1e8ed' }}>
       {size.width > 0 && size.height > 0 && (
         <Stage
           width={size.width}
@@ -285,7 +409,7 @@ export const StageView: React.FC = () => {
           <Layer>
             {image && <KonvaImage image={image} name="bgImage" />}
 
-            {activeMeta && Object.entries(activeMeta.data.definitions).map(([id, def]) => (
+            {renderDefinitions && Object.entries(renderDefinitions).map(([id, def]) => (
               <React.Fragment key={id}>
                 {Object.entries(def.props).map(([key, val]: [string, any]) => {
                   if (!val) return null;
@@ -318,8 +442,20 @@ export const StageView: React.FC = () => {
                             if (!d) return;
                             if (!d.props) d.props = {} as any;
                             const p = d.props[propKey || ''];
-                            d.props[propKey || ''] = { ...(p as any || {}), ...(rect as any) };
+                            d.props[propKey || ''] = { kind: val.kind, ...(p as any || {}), ...(rect as any) };
+                          }, {
+                            label: "Resize geometry",
+                            mergeKey: `resize:${defId}:${propKey || ""}`,
                           });
+                        }}
+                        onResizeStart={(defId, propKey) => {
+                          beginMetaTransaction({
+                            label: "Resize geometry",
+                            mergeKey: `resize:${defId}:${propKey || ""}`,
+                          });
+                        }}
+                        onResizeEnd={() => {
+                          commitMetaTransaction();
                         }}
                       />
                     );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormGroup, InputGroup, NumericInput, Switch, Button, Tooltip, Icon, Checkbox } from '@blueprintjs/core';
+import { FormGroup, InputGroup, NumericInput, Switch, Button, Tooltip, Icon } from '@blueprintjs/core';
 import { PropValue } from '../../model/metaV2';
 import { EditorPropSchema } from '../../model/prefabSchema';
 
@@ -11,25 +11,9 @@ export interface PropertyEditorProps {
     onEditGeometry?: (kind: "rect" | "point" | "image") => void;
 }
 
-const LabelWithCheckbox: React.FC<{ schema?: EditorPropSchema; propKey?: string; value: any; onChange: (v: any) => void }> = ({ schema, propKey, value, onChange }) => {
+const PropertyLabel: React.FC<{ schema?: EditorPropSchema; propKey?: string }> = ({ schema, propKey }) => {
     const text = schema?.label || propKey || '';
-    const hasValue = value !== undefined;
-
-    const handleToggle = (e: React.FormEvent<HTMLInputElement>) => {
-        const checked = (e.currentTarget as HTMLInputElement).checked;
-        if (checked) {
-            // unchecked -> checked: 设置为 prop 默认值
-            if (schema?.default_value === undefined) {
-                console.warn(`Property "${propKey}" has no default value in schema.`);
-            }
-            onChange(schema?.default_value);
-        } else {
-            // checked -> unchecked: set to undefined
-            onChange(undefined);
-        }
-    };
-
-    const labelContent = (
+    return (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <span>{text}</span>
             {schema?.description && (
@@ -41,30 +25,10 @@ const LabelWithCheckbox: React.FC<{ schema?: EditorPropSchema; propKey?: string;
             )}
         </span>
     );
-
-    const checkbox = (
-        <Checkbox
-            checked={hasValue}
-            onChange={handleToggle}
-            labelElement={labelContent}
-        />
-    );
-
-    return (
-        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
-            {schema && hasValue ? (
-                <Tooltip content={"关闭将会设置此属性为空，具体值将取决于运行时默认值"} position="right">
-                    {checkbox}
-                </Tooltip>
-            ) : (
-                checkbox
-            )}
-        </div>
-    );
 };
 
 export const BoolEditor: React.FC<PropertyEditorProps> = ({ propKey, value, schema, onChange }) => (
-    <FormGroup label={<LabelWithCheckbox schema={schema} propKey={propKey} value={value} onChange={onChange} />}>
+    <FormGroup label={<PropertyLabel schema={schema} propKey={propKey} />}>
         {value !== undefined ? (
             <Switch
                 checked={value as boolean}
@@ -75,7 +39,7 @@ export const BoolEditor: React.FC<PropertyEditorProps> = ({ propKey, value, sche
 );
 
 export const NumberEditor: React.FC<PropertyEditorProps> = ({ propKey, value, schema, onChange }) => (
-    <FormGroup label={<LabelWithCheckbox schema={schema} propKey={propKey} value={value} onChange={onChange} />}>
+    <FormGroup label={<PropertyLabel schema={schema} propKey={propKey} />}>
         {value !== undefined ? (
             <NumericInput 
                 value={value as number} 
@@ -89,7 +53,7 @@ export const NumberEditor: React.FC<PropertyEditorProps> = ({ propKey, value, sc
 );
 
 export const StringEditor: React.FC<PropertyEditorProps> = ({ propKey, value, schema, onChange }) => (
-    <FormGroup label={<LabelWithCheckbox schema={schema} propKey={propKey} value={value} onChange={onChange} />}>
+    <FormGroup label={<PropertyLabel schema={schema} propKey={propKey} />}>
         {value !== undefined ? (
             <InputGroup 
                 value={value as string} 
@@ -102,7 +66,6 @@ export const StringEditor: React.FC<PropertyEditorProps> = ({ propKey, value, sc
 export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, schema, onEditGeometry, onChange }) => {
     const rectVal = value as any;
     const kind = schema?.kind || (value as any)?.kind;
-    const label = schema?.label || propKey;
     
     const toNumber = (v: string) => {
         const n = parseFloat(v);
@@ -110,10 +73,9 @@ export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, 
     };
 
     return (
-        <FormGroup label={<LabelWithCheckbox schema={schema} propKey={propKey} value={value} onChange={onChange} />}>
+        <FormGroup label={<PropertyLabel schema={schema} propKey={propKey} />}>
             {value !== undefined ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {/* when no value, show Not set + pick button; when value exists, hide textual preview and show inputs with button to the right */}
                     {!rectVal && (
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <div style={{ flex: 1, fontSize: 12, color: '#a7b6c2' }}>Not set</div>

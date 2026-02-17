@@ -12,6 +12,7 @@ export interface SymbolLite {
   name: string;
   displayName: string | null;
   prefabId: string | null;
+  variant: string | null;
   metaPath: string;
   imagePath: string;
   primaryGeometry?: PrimaryGeometry | null;
@@ -36,6 +37,17 @@ export interface DiagnosticItem {
   meta_path: string;
   definition_id: string | null;
   field_path: string | null;
+}
+
+export interface MetaDiagnosticsSnapshot {
+  indexVersion: number;
+  diagnosticsByFile: Record<string, DiagnosticItem[]>;
+  stats: {
+    total: number;
+    error: number;
+    warning: number;
+    info: number;
+  };
 }
 
 export interface SymbolUpdateResult {

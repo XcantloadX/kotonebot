@@ -32,7 +32,7 @@ export class PointTool extends Tool {
                 point: { kind: 'point', x: this.currentPos!.x, y: this.currentPos!.y }
             }
         };
-    });
+    }, { label: "Create point definition", forceNewEntry: true });
     ctx.setSelection(id);
     
     this.startPos = null;

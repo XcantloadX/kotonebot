@@ -4,7 +4,7 @@ import unittest
 
 from kotonebot.devtools.resgen.codegen import EntityGenerator, StandardGenerator
 from kotonebot.devtools.resgen.core import ClassNode, ResourceNode
-from kotonebot.devtools.resgen.core import BoxData, ImageAsset, PointData
+from kotonebot.devtools.resgen.core import BoxData, ImageAsset, PointData, PrefabData
 
 
 class TestStandardGenerator(unittest.TestCase):
@@ -290,7 +290,7 @@ class TestEntityGenerator(unittest.TestCase):
         out = gen.generate([ClassNode(name="Root")])
 
         self.assertIn("from kotonebot.core import TemplateMatchPrefab", out)
-        self.assertIn("from kotonebot.primitives import Image, Rect", out)
+        self.assertIn("from kotonebot.primitives import Image, ImageSlice, Rect", out)
         self.assertIn("from kotonebot.backend.core import HintBox, HintPoint", out)
 
     def test_image_asset_generates_prefab_nested_class(self):
@@ -313,9 +313,11 @@ class TestEntityGenerator(unittest.TestCase):
 
         self.assertIn("class Root:", out)
         self.assertIn("    class StartButton(TemplateMatchPrefab):", out)
-        self.assertIn('        template = Image(file_path="assets/start.png")', out)
+        self.assertIn(
+            '        template = ImageSlice(file_path="assets/start.png", name="Start", slice_rect=Rect(x=10, y=20, w=20, h=40))',
+            out,
+        )
         self.assertIn('        display_name = "Start"', out)
-        self.assertIn("        _orig_rect = Rect(x=10, y=20, w=20, h=40)", out)
 
     def test_image_asset_without_rect_sets_none(self):
         gen = EntityGenerator(production=False)
@@ -335,7 +337,7 @@ class TestEntityGenerator(unittest.TestCase):
 
         out = gen.generate([node])
         self.assertIn("    class NoRect(TemplateMatchPrefab):", out)
-        self.assertIn("        _orig_rect = None", out)
+        self.assertIn('        template = ImageSlice(file_path="a/b.png", name="NoRect", slice_rect=None)', out)
 
     def test_box_and_point_generate_assignments(self):
         gen = EntityGenerator(production=False)
@@ -372,7 +374,7 @@ class TestEntityGenerator(unittest.TestCase):
                 ResourceNode(
                     name="WithPreview",
                     type="template",
-                    value=ImageAsset(path="rel.png"),
+                    value=ImageAsset(path="rel.png", rect=None),
                     docstring="Doc line",
                     metadata={"origin_file": r"C:\tmp\origin.png"},
                 )
@@ -401,6 +403,82 @@ class TestEntityGenerator(unittest.TestCase):
 
         out = gen.generate([node])
         self.assertIn("    Unknown = abc", out)
+
+    def test_variant_prefab_generates_dispatch(self):
+        gen = EntityGenerator(production=True)
+        node = ClassNode(
+            name="Root",
+            attributes=[
+                ResourceNode(
+                    name="StartButton",
+                    type="prefab",
+                    value=PrefabData(
+                        image=None,
+                        prefab_id="TemplateMatchPrefab",
+                        props={},
+                        variant_props={
+                            "base": {
+                                "templateImage": ImageAsset(path="a/base.png", rect=None),
+                                "threshold": 0.7,
+                            },
+                            "en": {
+                                "templateImage": ImageAsset(path="a/en.png", rect=None),
+                                "threshold": 0.8,
+                            },
+                            "jp": {
+                                "templateImage": ImageAsset(path="a/jp.png", rect=None),
+                                "threshold": 0.9,
+                            },
+                        },
+                    ),
+                    metadata={
+                        "display_name": "Start",
+                        "variant_display_names": {"en": "Start EN", "jp": "Start JP"},
+                    },
+                )
+            ],
+        )
+
+        out = gen.generate([node])
+        self.assertIn("current_variant = ContextVar('current_variant', default='')", out)
+        self.assertIn("class classproperty:", out)
+        self.assertIn("class StartButton(TemplateMatchPrefab):", out)
+        self.assertIn("class Base:", out)
+        self.assertIn("class En:", out)
+        self.assertIn("class Jp:", out)
+        self.assertIn("_variant_classes = {", out)
+        self.assertIn("'base': Base", out)
+        self.assertIn("raise ValueError(f'Unsupported resource variant: {variant}')", out)
+        self.assertIn("@classproperty", out)
+        self.assertIn("def template(cls):", out)
+
+    def test_variant_prefab_uses_custom_default_variant(self):
+        gen = EntityGenerator(production=True, default_variant="jp")
+        node = ClassNode(
+            name="Root",
+            attributes=[
+                ResourceNode(
+                    name="StartButton",
+                    type="prefab",
+                    value=PrefabData(
+                        image=None,
+                        prefab_id="TemplateMatchPrefab",
+                        props={},
+                        variant_props={
+                            "jp": {
+                                "templateImage": ImageAsset(path="a/jp.png", rect=None),
+                            },
+                            "tw": {
+                                "templateImage": ImageAsset(path="a/tw.png", rect=None),
+                            },
+                        },
+                    ),
+                )
+            ],
+        )
+
+        out = gen.generate([node])
+        self.assertIn("current_variant = ContextVar('current_variant', default='jp')", out)
 
 
 if __name__ == '__main__':

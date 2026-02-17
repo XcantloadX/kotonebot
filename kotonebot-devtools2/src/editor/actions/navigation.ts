@@ -1,13 +1,10 @@
 import { readText } from "../../api/fs";
-import { SymbolLite } from "../../model/symbolIndex";
+import { DiagnosticItem, SymbolLite } from "../../model/symbolIndex";
 import { useAppStore } from "../state";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 
-export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
-  const { documents, openDocument, setActiveDocument, setActiveMeta, setSelection, setViewState } = useAppStore.getState();
-
-  const imagePath = symbol.imagePath;
-  const metaPath = symbol.metaPath;
+async function ensureDocumentWithMeta(imagePath: string, metaPath: string): Promise<void> {
+  const { documents, openDocument, setActiveDocument, setActiveMeta } = useAppStore.getState();
 
   let activeDoc = documents[imagePath];
   if (!activeDoc) {
@@ -31,6 +28,18 @@ export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
     }
     setActiveMeta(imagePath, data);
   }
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, "/").toLowerCase();
+}
+
+export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
+  const { setSelection, setViewState, showFocusSpotlight } = useAppStore.getState();
+  const imagePath = symbol.imagePath;
+  const metaPath = symbol.metaPath;
+
+  await ensureDocumentWithMeta(imagePath, metaPath);
 
   setSelection(symbol.definitionId);
 
@@ -41,12 +50,71 @@ export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
       ? { x: geo.x, y: geo.y }
       : { x: (geo.x1 + geo.x2) / 2, y: (geo.y1 + geo.y2) / 2 };
     const scale = nextDoc.view?.scale || 1;
-    setViewState(imagePath, {
+    const nextView = {
       x: -center.x * scale + nextDoc.image.width / 2,
       y: -center.y * scale + nextDoc.image.height / 2,
       scale,
+    };
+
+    // 展示 spotlight 动画，提示用户新视角的位置
+    setViewState(imagePath, {
+      x: nextView.x,
+      y: nextView.y,
+      scale: nextView.scale,
+    });
+
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+
+    const stageContainer = document.getElementById("kb-editor-stage-container");
+    if (!stageContainer) {
+      throw new Error("Stage container not found");
+    }
+    const rect = stageContainer.getBoundingClientRect();
+    const centerScreen = {
+      x: rect.left + center.x * nextView.scale + nextView.x,
+      y: rect.top + center.y * nextView.scale + nextView.y,
+    };
+    const radius = geo.kind === "point"
+      ? 110
+      : Math.max(
+        110,
+        Math.hypot((geo.x2 - geo.x1) * nextView.scale, (geo.y2 - geo.y1) * nextView.scale) / 2 + 40,
+      );
+    showFocusSpotlight({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      centerScreen,
+      radius,
+      enterMs: 250,
+      holdMs: 300,
+      exitMs: 200,
     });
   }
 
   useSymbolIndexStore.getState().markUsed(symbol.symbolKey);
+}
+
+export async function jumpToDiagnostic(diag: DiagnosticItem): Promise<void> {
+  const { symbols } = useSymbolIndexStore.getState();
+  const hit = symbols.find((symbol) => {
+    if (normalizePath(symbol.metaPath) !== normalizePath(diag.meta_path)) {
+      return false;
+    }
+    if (diag.definition_id === null) {
+      return false;
+    }
+    return symbol.definitionId === diag.definition_id;
+  });
+  if (hit) {
+    await jumpToSymbol(hit);
+    return;
+  }
+
+  const imagePath = diag.meta_path.endsWith(".json")
+    ? diag.meta_path.slice(0, -".json".length)
+    : diag.meta_path;
+  await ensureDocumentWithMeta(imagePath, diag.meta_path);
+  const { setSelection } = useAppStore.getState();
+  setSelection(diag.definition_id);
 }

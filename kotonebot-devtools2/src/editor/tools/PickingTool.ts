@@ -50,6 +50,10 @@ export class PickingTool extends Tool {
                 y: this.currentPos!.y
             };
         }
+    }, {
+        label: `Pick ${this.toolType} for ${this.propKey}`,
+        mergeKey: `pick:${this.definitionId}:${this.propKey}`,
+        forceNewEntry: true,
     });
     ctx.setMode({ kind: 'idle' });
     

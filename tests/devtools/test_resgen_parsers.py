@@ -4,14 +4,25 @@ import os
 import json
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
+
 from kotonebot.devtools.resgen.parsers import (
     ParserRegistry,
     KotoneV1Parser,
     BasicSpriteParser,
+    load_resgen_project_context,
+    load_resgen_runtime_context,
 )
-from kotonebot.devtools.resgen.validation import MetaValidationError, detect_and_validate_meta_schema
-from kotonebot.devtools.resgen.core import ResourceNode, ImageAsset
+from kotonebot.devtools.resgen.core import PrefabData, ResourceNode, ImageAsset
+from tests.devtools._testkit import make_resgen_context, write_json, write_min_png, write_png_with_meta, write_pyproject
+
+
+def _resgen_context(tmpdir: str, **overrides):
+    context = make_resgen_context(Path(tmpdir), **overrides)
+    if "resource_variants" in context and "_variant_base" not in context:
+        context["_variant_base"] = "base"
+    return context
 
 
 class TestParserRegistry(unittest.TestCase):
@@ -45,19 +56,13 @@ class TestParserRegistry(unittest.TestCase):
     def test_parse_file_with_matching_parser(self):
         """Test parse_file with a matching parser"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a test PNG file
-            test_png = os.path.join(tmpdir, "test.png")
-            with open(test_png, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')  # PNG header
-            
+            test_png = write_min_png(Path(tmpdir) / "test.png")
             registry = ParserRegistry()
             parser = BasicSpriteParser()
             registry.register(parser)
             
-            context = {"output_img_dir": tmpdir, "root_scan_path": tmpdir}
-            result = registry.parse_file(test_png, context)
+            result = registry.parse_file(test_png.as_posix(), _resgen_context(tmpdir))
             
-            # BasicSpriteParser should handle .png files without .json
             self.assertTrue(isinstance(result, list))
 
     def test_parse_file_no_matching_parser(self):
@@ -130,31 +135,16 @@ class TestKotoneV1Parser(unittest.TestCase):
     def test_can_parse_with_missing_schema_keys(self):
         """Test can_parse with JSON missing required schema keys"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            json_file = os.path.join(tmpdir, "test.png.json")
-            with open(json_file, 'w') as f:
-                json.dump({"some_key": "value"}, f)
+            json_file = Path(tmpdir) / "test.png.json"
+            write_json(json_file, {"some_key": "value"})
             
             parser = KotoneV1Parser()
-            self.assertFalse(parser.can_parse(json_file))
-
-    def test_can_parse_with_valid_schema(self):
-        """Test can_parse with valid V1 schema"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            json_file = os.path.join(tmpdir, "test.png.json")
-            schema = {
-                "definitions": {},
-                "annotations": []
-            }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
-            
-            parser = KotoneV1Parser()
-            self.assertTrue(parser.can_parse(json_file))
+            self.assertFalse(parser.can_parse(json_file.as_posix()))
 
     def test_can_parse_with_simple_meta_schema(self):
         """Test can_parse with new simple meta schema (isSimple + definition)."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            json_file = os.path.join(tmpdir, "test.png.json")
+            json_file = Path(tmpdir) / "test.png.json"
             schema = {
                 "isSimple": True,
                 "definition": {
@@ -164,91 +154,14 @@ class TestKotoneV1Parser(unittest.TestCase):
                     "description": "测试按钮",
                 },
             }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
+            write_json(json_file, schema)
 
             parser = KotoneV1Parser()
-            self.assertTrue(parser.can_parse(json_file))
-
-    def test_parse_empty_schema(self):
-        """Test parsing empty V1 schema"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a dummy PNG file
-            png_file = os.path.join(tmpdir, "test.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
-            
-            json_file = png_file + ".json"
-            schema = {
-                "definitions": {},
-                "annotations": []
-            }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
-            
-            parser = KotoneV1Parser()
-            context = {"output_img_dir": tmpdir}
-            result = parser.parse(json_file, context)
-            
-            self.assertEqual(result, [])
-
-    def test_parse_template_definition(self):
-        """Test parsing template definition from V1 schema"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a dummy PNG file using cv2 if available
-            try:
-                import cv2
-                import numpy as np
-                png_file = os.path.join(tmpdir, "test.png")
-                img = np.zeros((100, 100, 3), dtype=np.uint8)
-                cv2.imwrite(png_file, img)
-            except ImportError:
-                self.skipTest("cv2 not available")
-            
-            json_file = png_file + ".json"
-            annotation_id = "annot-1"
-            schema = {
-                "definitions": {
-                    "def-1": {
-                        "name": "ui.button",
-                        "type": "template",
-                        "displayName": "Button",
-                        "description": "Main button",
-                        "annotationId": annotation_id
-                    }
-                },
-                "annotations": [{
-                    "id": annotation_id,
-                    "type": "rect",
-                    "data": {
-                        "x1": 10,
-                        "y1": 20,
-                        "x2": 100,
-                        "y2": 200
-                    }
-                }]
-            }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
-            
-            parser = KotoneV1Parser()
-            context = {"output_img_dir": tmpdir}
-            result = parser.parse(json_file, context)
-            
-            self.assertTrue(len(result) > 0)
-            self.assertEqual(result[0].type, "template")
-            self.assertEqual(result[0].name, "button")
+            self.assertTrue(parser.can_parse(json_file.as_posix()))
 
     def test_parse_simple_template_definition(self):
         """Test parsing simple meta with single template definition (isSimple true)."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a dummy PNG file
-            png_file = os.path.join(tmpdir, "ui", "button.png")
-            os.makedirs(os.path.dirname(png_file), exist_ok=True)
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
-
-            json_file = png_file + ".json"
             schema = {
                 "isSimple": True,
                 "definition": {
@@ -258,12 +171,10 @@ class TestKotoneV1Parser(unittest.TestCase):
                     "description": "Main button",
                 },
             }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
+            _, json_file = write_png_with_meta(Path(tmpdir), "ui/button.png", schema)
 
             parser = KotoneV1Parser()
-            context = {"output_img_dir": tmpdir, "root_scan_path": tmpdir}
-            result = parser.parse(json_file, context)
+            result = parser.parse(json_file.as_posix(), _resgen_context(tmpdir))
 
             self.assertEqual(len(result), 1)
             node = result[0]
@@ -275,12 +186,6 @@ class TestKotoneV1Parser(unittest.TestCase):
     def test_parse_simple_template_definition_with_empty_name_and_display(self):
         """Simple meta: empty name/displayName should fall back to file-based defaults."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "ui", "button.png")
-            os.makedirs(os.path.dirname(png_file), exist_ok=True)
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
-
-            json_file = png_file + ".json"
             schema = {
                 "isSimple": True,
                 "definition": {
@@ -290,12 +195,10 @@ class TestKotoneV1Parser(unittest.TestCase):
                     "description": "Main button",
                 },
             }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
+            _, json_file = write_png_with_meta(Path(tmpdir), "ui/button.png", schema)
 
             parser = KotoneV1Parser()
-            context = {"output_img_dir": tmpdir, "root_scan_path": tmpdir}
-            result = parser.parse(json_file, context)
+            result = parser.parse(json_file.as_posix(), _resgen_context(tmpdir))
 
             self.assertEqual(len(result), 1)
             node = result[0]
@@ -305,147 +208,6 @@ class TestKotoneV1Parser(unittest.TestCase):
             self.assertEqual(node.metadata.get("class_path"), ["Ui"])
             # display_name should fall back to original file name
             self.assertEqual(node.metadata.get("display_name"), "button.png")
-
-
-class TestMetaValidation(unittest.TestCase):
-    """Tests for meta schema validation logic."""
-
-    def test_detect_complex_meta_without_is_simple(self):
-        data = {"definitions": {}, "annotations": []}
-        info = detect_and_validate_meta_schema(data)
-        self.assertEqual(info.format, "complex")
-        self.assertFalse(info.is_simple_flag)
-
-    def test_detect_complex_meta_with_is_simple_false(self):
-        data = {"isSimple": False, "definitions": {}, "annotations": []}
-        info = detect_and_validate_meta_schema(data)
-        self.assertEqual(info.format, "complex")
-        self.assertFalse(info.is_simple_flag)
-
-    def test_reject_complex_meta_missing_keys(self):
-        with self.assertRaises(MetaValidationError):
-            detect_and_validate_meta_schema({"definitions": {}})
-
-    def test_detect_simple_meta(self):
-        data = {
-            "isSimple": True,
-            "definition": {"name": "Ui.Button", "type": "template"},
-        }
-        info = detect_and_validate_meta_schema(data)
-        self.assertEqual(info.format, "simple")
-        self.assertTrue(info.is_simple_flag)
-
-    def test_simple_meta_forbids_definitions_and_annotations(self):
-        data = {
-            "isSimple": True,
-            "definition": {"name": "Ui.Button", "type": "template"},
-            "definitions": {},
-        }
-        with self.assertRaises(MetaValidationError):
-            detect_and_validate_meta_schema(data)
-
-    def test_complex_meta_forbids_single_definition_field(self):
-        data = {
-            "definition": {"name": "Ui.Button", "type": "template"},
-            "definitions": {},
-            "annotations": [],
-        }
-        with self.assertRaises(MetaValidationError):
-            detect_and_validate_meta_schema(data)
-
-    def test_detect_meta_v2_basic(self):
-        data = {"version": 2, "definitions": {}}
-        info = detect_and_validate_meta_schema(data)
-        self.assertEqual(info.format, "v2")
-        self.assertIsNone(info.is_simple_flag)
-
-    def test_meta_v2_forbids_annotations(self):
-        data = {"version": 2, "definitions": {}, "annotations": []}
-        with self.assertRaises(MetaValidationError):
-            detect_and_validate_meta_schema(data)
-
-    def test_parse_hint_box_definition(self):
-        """Test parsing hint-box definition from V1 schema"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            try:
-                import cv2
-                import numpy as np
-                png_file = os.path.join(tmpdir, "test.png")
-                img = np.zeros((1280, 720, 3), dtype=np.uint8)
-                cv2.imwrite(png_file, img)
-            except ImportError:
-                self.skipTest("cv2 not available")
-            
-            json_file = png_file + ".json"
-            annotation_id = "annot-1"
-            schema = {
-                "definitions": {
-                    "def-1": {
-                        "name": "dialogs.hint_box",
-                        "type": "hint-box",
-                        "displayName": "Dialog",
-                        "description": "Dialog box",
-                        "annotationId": annotation_id
-                    }
-                },
-                "annotations": [{
-                    "id": annotation_id,
-                    "type": "rect",
-                    "data": {
-                        "x1": 0,
-                        "y1": 0,
-                        "x2": 720,
-                        "y2": 1280
-                    }
-                }]
-            }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
-            
-            parser = KotoneV1Parser()
-            context = {"output_img_dir": tmpdir}
-            result = parser.parse(json_file, context)
-            
-            self.assertTrue(len(result) > 0)
-            self.assertEqual(result[0].type, "hint-box")
-
-    def test_parse_hint_point_definition(self):
-        """Test parsing hint-point definition from V1 schema"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "test.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
-            
-            json_file = png_file + ".json"
-            annotation_id = "annot-1"
-            schema = {
-                "definitions": {
-                    "def-1": {
-                        "name": "touches.point",
-                        "type": "hint-point",
-                        "displayName": "Touch Point",
-                        "description": "Touch location",
-                        "annotationId": annotation_id
-                    }
-                },
-                "annotations": [{
-                    "id": annotation_id,
-                    "type": "point",
-                    "data": {
-                        "x": 360,
-                        "y": 640
-                    }
-                }]
-            }
-            with open(json_file, 'w') as f:
-                json.dump(schema, f)
-            
-            parser = KotoneV1Parser()
-            context = {"output_img_dir": tmpdir}
-            result = parser.parse(json_file, context)
-            
-            self.assertTrue(len(result) > 0)
-            self.assertEqual(result[0].type, "hint-point")
 
 
 class TestBasicSpriteParser(unittest.TestCase):
@@ -459,12 +221,10 @@ class TestBasicSpriteParser(unittest.TestCase):
     def test_can_parse_png_file(self):
         """Test can_parse with PNG file without JSON"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "test.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
+            png_file = write_min_png(Path(tmpdir) / "test.png")
             
             parser = BasicSpriteParser()
-            self.assertTrue(parser.can_parse(png_file))
+            self.assertTrue(parser.can_parse(png_file.as_posix()))
 
     def test_can_parse_rejects_non_png(self):
         """Test can_parse rejects non-PNG files"""
@@ -477,30 +237,20 @@ class TestBasicSpriteParser(unittest.TestCase):
     def test_can_parse_rejects_png_with_json(self):
         """Test can_parse rejects PNG with corresponding JSON"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "test.png")
-            json_file = png_file + ".json"
-            
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
-            with open(json_file, 'w') as f:
-                json.dump({}, f)
+            png_file = write_min_png(Path(tmpdir) / "test.png")
+            json_file = Path(png_file.as_posix() + ".json")
+            write_json(json_file, {})
             
             parser = BasicSpriteParser()
-            self.assertFalse(parser.can_parse(png_file))
+            self.assertFalse(parser.can_parse(png_file.as_posix()))
 
     def test_parse_single_sprite(self):
         """Test parsing a single sprite"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "button.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
+            png_file = write_min_png(Path(tmpdir) / "button.png")
             
             parser = BasicSpriteParser()
-            context = {
-                "output_img_dir": tmpdir,
-                "root_scan_path": tmpdir
-            }
-            result = parser.parse(png_file, context)
+            result = parser.parse(png_file.as_posix(), _resgen_context(tmpdir))
             
             self.assertEqual(len(result), 1)
             self.assertEqual(result[0].type, "template")
@@ -510,19 +260,10 @@ class TestBasicSpriteParser(unittest.TestCase):
     def test_parse_sprite_with_path(self):
         """Test parsing sprite with directory path"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            ui_dir = os.path.join(tmpdir, "ui", "buttons")
-            os.makedirs(ui_dir, exist_ok=True)
-            
-            png_file = os.path.join(ui_dir, "submit_button.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
+            png_file = write_min_png(Path(tmpdir) / "ui" / "buttons" / "submit_button.png")
             
             parser = BasicSpriteParser()
-            context = {
-                "output_img_dir": tmpdir,
-                "root_scan_path": tmpdir
-            }
-            result = parser.parse(png_file, context)
+            result = parser.parse(png_file.as_posix(), _resgen_context(tmpdir))
             
             self.assertEqual(len(result), 1)
             # class_path should contain Ui and Buttons
@@ -534,16 +275,10 @@ class TestBasicSpriteParser(unittest.TestCase):
     def test_parse_returns_resource_node(self):
         """Test that parse returns proper ResourceNode"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "test.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
+            png_file = write_min_png(Path(tmpdir) / "test.png")
             
             parser = BasicSpriteParser()
-            context = {
-                "output_img_dir": tmpdir,
-                "root_scan_path": tmpdir
-            }
-            result = parser.parse(png_file, context)
+            result = parser.parse(png_file.as_posix(), _resgen_context(tmpdir))
             
             self.assertEqual(len(result), 1)
             node = result[0]
@@ -556,16 +291,10 @@ class TestBasicSpriteParser(unittest.TestCase):
     def test_parse_metadata_content(self):
         """Test that metadata is properly populated"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "sprite.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
+            png_file = write_min_png(Path(tmpdir) / "sprite.png")
             
             parser = BasicSpriteParser()
-            context = {
-                "output_img_dir": tmpdir,
-                "root_scan_path": tmpdir
-            }
-            result = parser.parse(png_file, context)
+            result = parser.parse(png_file.as_posix(), _resgen_context(tmpdir))
             
             metadata = result[0].metadata
             self.assertIn("class_path", metadata)
@@ -578,16 +307,10 @@ class TestBasicSpriteParser(unittest.TestCase):
     def test_parse_docstring_format(self):
         """Test that docstring has correct format"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            png_file = os.path.join(tmpdir, "test.png")
-            with open(png_file, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
+            png_file = write_min_png(Path(tmpdir) / "test.png")
             
             parser = BasicSpriteParser()
-            context = {
-                "output_img_dir": tmpdir,
-                "root_scan_path": tmpdir
-            }
-            result = parser.parse(png_file, context)
+            result = parser.parse(png_file.as_posix(), _resgen_context(tmpdir))
             
             docstring = result[0].docstring
             self.assertIn("名称：", docstring)
@@ -597,23 +320,16 @@ class TestBasicSpriteParser(unittest.TestCase):
         """Test parsing multiple sprite files"""
         with tempfile.TemporaryDirectory() as tmpdir:
             parser = BasicSpriteParser()
-            context = {
-                "output_img_dir": tmpdir,
-                "root_scan_path": tmpdir
-            }
+            context = _resgen_context(tmpdir)
             
-            # Create multiple PNG files
             files = ["sprite1.png", "sprite2.png", "sprite3.png"]
             for filename in files:
-                png_file = os.path.join(tmpdir, filename)
-                with open(png_file, 'wb') as f:
-                    f.write(b'\x89PNG\r\n\x1a\n')
+                write_min_png(Path(tmpdir) / filename)
             
-            # Parse each file
             results = []
             for filename in files:
-                png_file = os.path.join(tmpdir, filename)
-                result = parser.parse(png_file, context)
+                png_file = Path(tmpdir) / filename
+                result = parser.parse(png_file.as_posix(), context)
                 results.extend(result)
             
             # Each file should produce one ResourceNode
@@ -634,18 +350,8 @@ class TestKotoneV2Parser(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
 
     def _create_meta_file(self, content: dict) -> str:
-        json_path = os.path.join(self.tmp.name, "test.png.json")
-        png_path = os.path.join(self.tmp.name, "test.png")
-
-        with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(content, f)
-
-        # 为了避免依赖 cv2，这里只创建一个最小 PNG 头部；
-        # 在测试中会 patch ImageProcessor 以绕过真实裁剪。
-        with open(png_path, 'wb') as f:
-            f.write(b"\x89PNG\r\n\x1a\n")
-
-        return json_path
+        _, json_path = write_png_with_meta(Path(self.tmp.name), "test.png", content)
+        return json_path.as_posix()
 
     def test_v2_template_image_slice_naming(self):
         """ImageProp 应导出 <definitionId>_<propKey>.png 命名的切片。"""
@@ -672,7 +378,7 @@ class TestKotoneV2Parser(unittest.TestCase):
         }
 
         json_path = self._create_meta_file(data)
-        context = {"output_img_dir": self.tmp.name, "root_scan_path": self.tmp.name}
+        context = _resgen_context(self.tmp.name)
 
         expected_name = os.path.join(self.tmp.name, "def1_templateImage.png")
 
@@ -689,6 +395,171 @@ class TestKotoneV2Parser(unittest.TestCase):
         self.assertTrue(isinstance(node.value, ImageAsset))
         assert isinstance(node.value, ImageAsset)
         self.assertEqual(os.path.basename(node.value.path), "def1_templateImage.png")
+
+    def test_v2_prefab_variant_merge(self):
+        data = {
+            "version": 2,
+            "definitions": {
+                "base": {
+                    "type": "prefab",
+                    "name": "ui.button",
+                    "prefab_id": "TemplateMatchPrefab",
+                    "displayName": "Base",
+                    "props": {
+                        "templateImage": {"kind": "image", "x1": 1, "y1": 2, "x2": 10, "y2": 20},
+                        "threshold": 0.8,
+                    },
+                },
+                "en": {
+                    "type": "prefab",
+                    "name": "ui.button",
+                    "variant": "en",
+                    "props": {
+                        "threshold": 0.9,
+                    },
+                },
+            },
+        }
+        json_path = self._create_meta_file(data)
+        context = _resgen_context(self.tmp.name, resource_variants=["en", "jp"])
+
+        with patch('kotonebot.devtools.resgen.parsers.ImageProcessor') as mock_proc:
+            mock_proc.save_crop_to_path.return_value = os.path.join(self.tmp.name, "base_templateImage.png")
+            nodes = self.parser.parse(json_path, context)
+
+        prefabs = [n for n in nodes if n.type == "prefab"]
+        self.assertEqual(len(prefabs), 1)
+        prefab = prefabs[0]
+        self.assertIsInstance(prefab.value, PrefabData)
+        assert isinstance(prefab.value, PrefabData)
+        assert prefab.value.variant_props is not None
+        self.assertIn("base", prefab.value.variant_props)
+        self.assertIn("en", prefab.value.variant_props)
+        self.assertIn("jp", prefab.value.variant_props)
+        self.assertEqual(prefab.value.variant_props["base"]["threshold"], 0.8)
+        self.assertEqual(prefab.value.variant_props["en"]["threshold"], 0.9)
+        self.assertEqual(prefab.value.variant_props["jp"]["threshold"], 0.8)
+
+    def test_v2_prefab_variant_merge_without_base_variant_key(self):
+        data = {
+            "version": 2,
+            "definitions": {
+                "base": {
+                    "type": "prefab",
+                    "name": "ui.button",
+                    "prefab_id": "TemplateMatchPrefab",
+                    "displayName": "Base",
+                    "props": {
+                        "templateImage": {"kind": "image", "x1": 1, "y1": 2, "x2": 10, "y2": 20},
+                        "threshold": 0.8,
+                    },
+                },
+                "en": {
+                    "type": "prefab",
+                    "name": "ui.button",
+                    "variant": "en",
+                    "props": {
+                        "threshold": 0.9,
+                    },
+                },
+            },
+        }
+        json_path = self._create_meta_file(data)
+        context = _resgen_context(
+            self.tmp.name,
+            resource_variants=["en", "jp"],
+            resgen_include_base_variant=False,
+        )
+
+        with patch('kotonebot.devtools.resgen.parsers.ImageProcessor') as mock_proc:
+            mock_proc.save_crop_to_path.return_value = os.path.join(self.tmp.name, "base_templateImage.png")
+            nodes = self.parser.parse(json_path, context)
+
+        prefabs = [n for n in nodes if n.type == "prefab"]
+        self.assertEqual(len(prefabs), 1)
+        prefab = prefabs[0]
+        self.assertIsInstance(prefab.value, PrefabData)
+        assert isinstance(prefab.value, PrefabData)
+        assert prefab.value.variant_props is not None
+        self.assertNotIn("base", prefab.value.variant_props)
+        self.assertIn("en", prefab.value.variant_props)
+        self.assertIn("jp", prefab.value.variant_props)
+        self.assertEqual(prefab.value.variant_props["en"]["threshold"], 0.9)
+        self.assertEqual(prefab.value.variant_props["jp"]["threshold"], 0.8)
+
+
+class TestResgenProjectContext(unittest.TestCase):
+    def test_load_resgen_project_context_with_variant(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            resources = tmp_path / "resources"
+            resources.mkdir()
+            pyproject = write_pyproject(
+                tmp_path / "pyproject.toml",
+                resource_path=resources.as_posix(),
+                variant_variants=["jp", "tw"],
+                variant_base="base",
+                variant_path_pattern="nest",
+            )
+
+            ctx = load_resgen_project_context(
+                meta_files=[],
+                conf_path=pyproject.as_posix(),
+                include_base_variant=False,
+            )
+
+            self.assertEqual(ctx.default_variant, "base")
+            self.assertEqual(ctx.parser_context["resource_variants"], ["jp", "tw"])
+            self.assertEqual(ctx.parser_context["resgen_include_base_variant"], False)
+
+    def test_load_resgen_project_context_without_variant(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            resources = tmp_path / "resources"
+            resources.mkdir()
+            pyproject = write_pyproject(
+                tmp_path / "pyproject.toml",
+                resource_path=resources.as_posix(),
+            )
+
+            ctx = load_resgen_project_context(
+                meta_files=[],
+                conf_path=pyproject.as_posix(),
+            )
+
+            self.assertEqual(ctx.default_variant, "")
+            self.assertEqual(ctx.parser_context, {})
+
+    def test_load_resgen_runtime_context(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            resources = tmp_path / "resources"
+            resources.mkdir()
+            pyproject = write_pyproject(
+                tmp_path / "pyproject.toml",
+                resource_path=resources.as_posix(),
+                variant_variants=["jp", "tw"],
+                variant_base="base",
+                variant_path_pattern="nest",
+            )
+
+            ctx = load_resgen_runtime_context(
+                output_img_dir="out-dir",
+                conf_path=pyproject.as_posix(),
+                include_base_variant=False,
+            )
+
+            self.assertEqual(ctx.default_variant, "base")
+            self.assertEqual(ctx.parser_context["output_img_dir"], "out-dir")
+            self.assertEqual(Path(ctx.parser_context["root_scan_path"]).as_posix(), resources.as_posix())
+            self.assertEqual(ctx.parser_context["resource_variants"], ["jp", "tw"])
+            self.assertEqual(ctx.parser_context["resgen_include_base_variant"], False)
+
+            default_ctx = load_resgen_runtime_context(
+                conf_path=pyproject.as_posix(),
+                include_base_variant=False,
+            )
+            self.assertEqual(default_ctx.parser_context["output_img_dir"], "tmp")
 
 
 if __name__ == '__main__':

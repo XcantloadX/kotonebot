@@ -1,20 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any
 
-
-Severity = Literal["error", "warning", "info"]
-
-
-@dataclass(slots=True)
-class Diagnostic:
-    code: str
-    severity: Severity
-    message: str
-    meta_path: str
-    definition_id: str | None = None
-    field_path: str | None = None
+from ..diagnostics.models import Diagnostic
 
 
 @dataclass(slots=True)
@@ -35,6 +24,7 @@ class IndexedSymbol:
     display_name: str | None
     description: str | None
     prefab_id: str | None
+    variant: str | None
     meta_path: str
     image_path: str
     primary_prop_key: str | None

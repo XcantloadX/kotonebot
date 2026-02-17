@@ -74,7 +74,7 @@ export class CreatingPrefabTool extends Tool {
 
     ctx.updateMeta(draft => {
         draft.definitions[id] = newDef;
-    });
+    }, { label: `Create prefab ${this.prefab_id}`, forceNewEntry: true });
     ctx.setSelection(id);
     ctx.setMode({ kind: 'idle' });
     

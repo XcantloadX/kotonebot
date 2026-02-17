@@ -95,5 +95,12 @@ class EditorData(BaseModel):
     resource_path: str | None = None
 
 
+class VariantData(BaseModel):
+    variants: list[str] | None = None
+    base: str | None = None
+    path_pattern: str | None = None
+
+
 class PyProjectData(BaseModel):
     editor: EditorData | None = None
+    variant: VariantData | None = None

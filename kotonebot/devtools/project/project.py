@@ -43,6 +43,49 @@ class Project:
                 )
             self.conf.editor.resource_path = str(resource_path)
 
+        if self.conf.variant is not None:
+            variants = self.conf.variant.variants
+            if variants is None:
+                raise ValueError("variant.variants must be configured in pyproject.toml")
+            seen: set[str] = set()
+            deduped: list[str] = []
+            for item in variants:
+                if not isinstance(item, str):
+                    raise ValueError("variant.variants must contain only strings")
+                value = item.strip()
+                if value == "":
+                    raise ValueError("variant.variants cannot contain empty string")
+                if value in seen:
+                    raise ValueError(f"variant.variants contains duplicated value: {value}")
+                seen.add(value)
+                deduped.append(value)
+            if len(deduped) == 0:
+                raise ValueError("variant.variants cannot be empty")
+            self.conf.variant.variants = deduped
+
+            if self.conf.variant.base is None:
+                raise ValueError("variant.base must be configured in pyproject.toml")
+            base = self.conf.variant.base.strip()
+            if base == "":
+                raise ValueError("variant.base cannot be empty")
+            if base in deduped:
+                raise ValueError("variant.base must not be included in variant.variants")
+            self.conf.variant.base = base
+
+            if self.conf.variant.path_pattern is not None:
+                raw_path_pattern = self.conf.variant.path_pattern.strip()
+                if raw_path_pattern == "":
+                    raise ValueError("variant.path_pattern cannot be empty")
+                if raw_path_pattern == "nest" or raw_path_pattern == "flat":
+                    self.conf.variant.path_pattern = raw_path_pattern
+                elif raw_path_pattern.startswith("pattern:"):
+                    template = raw_path_pattern[len("pattern:"):].strip()
+                    if template == "":
+                        raise ValueError("variant.path_pattern 'pattern:' template cannot be empty")
+                    self.conf.variant.path_pattern = f"pattern: {template}"
+                else:
+                    raise ValueError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
+
 
 if __name__ == '__main__':
     project = Project()

@@ -1,11 +1,16 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { current } from 'immer';
+import { Patch, applyPatches, current, enablePatches, produceWithPatches } from 'immer';
 import { MetaV2, ResourceType } from '../model/metaV2';
 import { PrefabSchema } from '../model/prefabSchema';
 import { writeText } from '../api/fs';
 import { toaster } from '../ui/toaster';
 import { useSymbolIndexStore } from './symbolIndexStore';
+
+enablePatches();
+
+const HISTORY_LIMIT = 200;
+const HISTORY_MERGE_WINDOW_MS = 400;
 
 export type ToolType = "select" | "rect" | "point";
 
@@ -24,16 +29,50 @@ export interface DocumentState {
   dirty: boolean;
   
   history: {
-    past: MetaV2[];
-    future: MetaV2[];
+    entries: HistoryEntry[];
+    cursor: number;
+    saveCursor: number | null;
+    transaction: HistoryTransaction | null;
   };
   
   view?: { x: number; y: number; scale: number };
 }
 
+export interface UpdateMetaOptions {
+  label?: string;
+  mergeKey?: string;
+  forceNewEntry?: boolean;
+}
+
+interface HistoryEntry {
+  label: string;
+  mergeKey?: string;
+  timestamp: number;
+  patches: Patch[];
+  inversePatches: Patch[];
+}
+
+interface HistoryTransaction {
+  label: string;
+  mergeKey?: string;
+  startedAt: number;
+  patches: Patch[];
+  inversePatches: Patch[];
+}
+
+export interface FocusSpotlightState {
+  id: string;
+  centerScreen: { x: number; y: number };
+  radius: number;
+  enterMs: number;
+  holdMs: number;
+  exitMs: number;
+}
+
 interface AppState {
   documents: Record<string, DocumentState>;
   activeDocumentId: string | null;
+  focusSpotlight: FocusSpotlightState | null;
   
   prefabSchema: PrefabSchema | null;
   activeTool: ToolType;
@@ -53,17 +92,23 @@ interface AppState {
   setSelection: (definitionId: string | null) => void;
   setMode: (mode: InteractionMode) => void;
   setActiveMeta: (docId: string, data: MetaV2) => void;
-  updateMeta: (updater: (draft: MetaV2) => void) => void;
+  updateMeta: (updater: (draft: MetaV2) => void, options?: UpdateMetaOptions) => void;
+  beginMetaTransaction: (options: { label: string; mergeKey?: string }) => void;
+  commitMetaTransaction: () => void;
+  cancelMetaTransaction: () => void;
   
   undo: () => void;
   redo: () => void;
   saveActiveDocument: () => Promise<void>;
+  showFocusSpotlight: (spotlight: FocusSpotlightState) => void;
+  clearFocusSpotlight: () => void;
 }
 
 export const useAppStore = create<AppState>()(
   immer((set) => ({
     documents: {},
     activeDocumentId: null,
+    focusSpotlight: null,
     prefabSchema: null,
     activeTool: "select",
     activeResourceType: "hint-box",
@@ -81,7 +126,12 @@ export const useAppStore = create<AppState>()(
         selection: null,
         mode: { kind: "idle" },
         dirty: false,
-        history: { past: [], future: [] }
+        history: {
+          entries: [],
+          cursor: 0,
+          saveCursor: 0,
+          transaction: null,
+        }
       };
       state.activeDocumentId = path;
     }),
@@ -117,6 +167,10 @@ export const useAppStore = create<AppState>()(
     
     setActiveResourceType: (type) => set({ activeResourceType: type }),
 
+    showFocusSpotlight: (spotlight) => set({ focusSpotlight: spotlight }),
+
+    clearFocusSpotlight: () => set({ focusSpotlight: null }),
+
     setSelection: (selection) => set((state) => {
       if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
         state.documents[state.activeDocumentId].selection = selection ? { definitionId: selection } : null;
@@ -134,35 +188,200 @@ export const useAppStore = create<AppState>()(
            const doc = state.documents[docId];
            doc.meta = { path: docId + ".json", data };
            doc.dirty = false;
-           doc.history = { past: [], future: [] };
+           doc.history = {
+             entries: [],
+             cursor: 0,
+             saveCursor: 0,
+             transaction: null,
+           };
        }
     }),
 
-    updateMeta: (updater) => set((state) => {
+    updateMeta: (updater, options) => set((state) => {
       if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
         const doc = state.documents[state.activeDocumentId];
         if (doc.meta) {
-            // Push current state to past
-            doc.history.past.push(current(doc.meta.data));
-            doc.history.future = [];
-            
-            // Apply updates
-            updater(doc.meta.data);
-            doc.dirty = true;
+            const base = current(doc.meta.data);
+            const [next, patches, inversePatches] = produceWithPatches(base, updater);
+            if (patches.length === 0) {
+              return;
+            }
+
+            doc.meta.data = next;
+
+            const transaction = doc.history.transaction;
+            if (transaction) {
+              transaction.patches.push(...patches);
+              transaction.inversePatches.unshift(...inversePatches);
+              doc.dirty = doc.history.saveCursor !== doc.history.cursor;
+              return;
+            }
+
+            if (doc.history.cursor < doc.history.entries.length) {
+              doc.history.entries.splice(doc.history.cursor);
+              if (doc.history.saveCursor !== null && doc.history.saveCursor > doc.history.cursor) {
+                doc.history.saveCursor = null;
+              }
+            }
+
+            const now = Date.now();
+            const shouldTryMerge = !!options?.mergeKey && !options?.forceNewEntry;
+            if (shouldTryMerge && doc.history.cursor > 0) {
+              const previous = doc.history.entries[doc.history.cursor - 1];
+              if (
+                previous &&
+                previous.mergeKey === options?.mergeKey &&
+                now - previous.timestamp <= HISTORY_MERGE_WINDOW_MS
+              ) {
+                previous.patches.push(...patches);
+                previous.inversePatches.unshift(...inversePatches);
+                previous.timestamp = now;
+                doc.dirty = doc.history.saveCursor !== doc.history.cursor;
+                return;
+              }
+            }
+
+            doc.history.entries.push({
+              label: options?.label ?? "Edit",
+              mergeKey: options?.mergeKey,
+              timestamp: now,
+              patches,
+              inversePatches,
+            });
+            doc.history.cursor += 1;
+
+            if (doc.history.entries.length > HISTORY_LIMIT) {
+              const overflow = doc.history.entries.length - HISTORY_LIMIT;
+              doc.history.entries.splice(0, overflow);
+              doc.history.cursor = Math.max(0, doc.history.cursor - overflow);
+              if (doc.history.saveCursor !== null) {
+                if (doc.history.saveCursor < overflow) {
+                  doc.history.saveCursor = null;
+                } else {
+                  doc.history.saveCursor -= overflow;
+                }
+              }
+            }
+
+            doc.dirty = doc.history.saveCursor !== doc.history.cursor;
         }
+      }
+    }),
+
+    beginMetaTransaction: ({ label, mergeKey }) => set((state) => {
+      if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
+        const doc = state.documents[state.activeDocumentId];
+        if (!doc.meta) {
+          throw new Error("Cannot begin transaction: active document has no meta");
+        }
+        if (doc.history.transaction) {
+          throw new Error("History transaction already active");
+        }
+        doc.history.transaction = {
+          label,
+          mergeKey,
+          startedAt: Date.now(),
+          patches: [],
+          inversePatches: [],
+        };
+      }
+    }),
+
+    commitMetaTransaction: () => set((state) => {
+      if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
+        const doc = state.documents[state.activeDocumentId];
+        const transaction = doc.history.transaction;
+        if (!transaction) {
+          throw new Error("Cannot commit transaction: no active transaction");
+        }
+        doc.history.transaction = null;
+
+        if (transaction.patches.length === 0) {
+          return;
+        }
+
+        if (doc.history.cursor < doc.history.entries.length) {
+          doc.history.entries.splice(doc.history.cursor);
+          if (doc.history.saveCursor !== null && doc.history.saveCursor > doc.history.cursor) {
+            doc.history.saveCursor = null;
+          }
+        }
+
+        const now = Date.now();
+        const shouldTryMerge = !!transaction.mergeKey;
+        if (shouldTryMerge && doc.history.cursor > 0) {
+          const previous = doc.history.entries[doc.history.cursor - 1];
+          if (
+            previous &&
+            previous.mergeKey === transaction.mergeKey &&
+            now - previous.timestamp <= HISTORY_MERGE_WINDOW_MS
+          ) {
+            previous.patches.push(...transaction.patches);
+            previous.inversePatches.unshift(...transaction.inversePatches);
+            previous.timestamp = now;
+            doc.dirty = doc.history.saveCursor !== doc.history.cursor;
+            return;
+          }
+        }
+
+        doc.history.entries.push({
+          label: transaction.label,
+          mergeKey: transaction.mergeKey,
+          timestamp: now,
+          patches: transaction.patches,
+          inversePatches: transaction.inversePatches,
+        });
+        doc.history.cursor += 1;
+
+        if (doc.history.entries.length > HISTORY_LIMIT) {
+          const overflow = doc.history.entries.length - HISTORY_LIMIT;
+          doc.history.entries.splice(0, overflow);
+          doc.history.cursor = Math.max(0, doc.history.cursor - overflow);
+          if (doc.history.saveCursor !== null) {
+            if (doc.history.saveCursor < overflow) {
+              doc.history.saveCursor = null;
+            } else {
+              doc.history.saveCursor -= overflow;
+            }
+          }
+        }
+
+        doc.dirty = doc.history.saveCursor !== doc.history.cursor;
+      }
+    }),
+
+    cancelMetaTransaction: () => set((state) => {
+      if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
+        const doc = state.documents[state.activeDocumentId];
+        const transaction = doc.history.transaction;
+        if (!transaction) {
+          throw new Error("Cannot cancel transaction: no active transaction");
+        }
+        doc.history.transaction = null;
+        if (!doc.meta) {
+          throw new Error("Cannot cancel transaction: active document has no meta");
+        }
+        if (transaction.inversePatches.length > 0) {
+          doc.meta.data = applyPatches(current(doc.meta.data), transaction.inversePatches) as MetaV2;
+        }
+        doc.dirty = doc.history.saveCursor !== doc.history.cursor;
       }
     }),
     
     undo: () => set((state) => {
         if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
             const doc = state.documents[state.activeDocumentId];
-            if (doc.history.past.length > 0) {
-                const previous = doc.history.past.pop();
-                if (doc.meta && previous) {
-                    doc.history.future.push(current(doc.meta.data));
-                    doc.meta.data = previous;
-                    doc.dirty = true; 
-                }
+            if (!doc.meta) {
+              return;
+            }
+            if (doc.history.transaction) {
+              throw new Error("Cannot undo while a history transaction is active");
+            }
+            if (doc.history.cursor > 0) {
+                const entry = doc.history.entries[doc.history.cursor - 1];
+                doc.meta.data = applyPatches(current(doc.meta.data), entry.inversePatches) as MetaV2;
+                doc.history.cursor -= 1;
+                doc.dirty = doc.history.saveCursor !== doc.history.cursor;
             }
         }
     }),
@@ -170,13 +389,17 @@ export const useAppStore = create<AppState>()(
     redo: () => set((state) => {
         if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
             const doc = state.documents[state.activeDocumentId];
-            if (doc.history.future.length > 0) {
-                const next = doc.history.future.pop();
-                if (doc.meta && next) {
-                    doc.history.past.push(current(doc.meta.data));
-                    doc.meta.data = next;
-                    doc.dirty = true;
-                }
+            if (!doc.meta) {
+              return;
+            }
+            if (doc.history.transaction) {
+              throw new Error("Cannot redo while a history transaction is active");
+            }
+            if (doc.history.cursor < doc.history.entries.length) {
+                const entry = doc.history.entries[doc.history.cursor];
+                doc.meta.data = applyPatches(current(doc.meta.data), entry.patches) as MetaV2;
+                doc.history.cursor += 1;
+                doc.dirty = doc.history.saveCursor !== doc.history.cursor;
             }
         }
     }),
@@ -192,7 +415,9 @@ export const useAppStore = create<AppState>()(
         // mark as saved in the store
         set((state) => {
           if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-            state.documents[state.activeDocumentId].dirty = false;
+            const doc = state.documents[state.activeDocumentId];
+            doc.history.saveCursor = doc.history.cursor;
+            doc.dirty = false;
           }
         });
       } catch (e: any) {

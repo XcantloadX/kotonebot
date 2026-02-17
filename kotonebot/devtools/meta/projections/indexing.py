@@ -1,18 +1,39 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from kotonebot.devtools.meta import DefinitionV2Model, parse_meta_v2_file
-
-from .diagnostics import make_error
-from .models import Diagnostic, IndexedFile, IndexedSymbol
+from ...indexing.models import IndexedFile, IndexedSymbol
+from ...diagnostics.codes import (
+    INDEX_DEF_ID_INVALID,
+    INDEX_DEF_PARSE_ERROR,
+    INDEX_FILE_PARSE_ERROR,
+    INDEX_VARIANT_INHERIT_DISABLED,
+    INDEX_VARIANT_INHERIT_MISSING_VARIANTS,
+    INDEX_VARIANT_INHERIT_UNUSED,
+    INDEX_VARIANT_INVALID,
+    META_VARIANT_INHERIT_DISABLED,
+    META_VARIANT_INHERIT_MISSING_VARIANTS,
+    META_VARIANT_INHERIT_UNUSED,
+)
+from ...diagnostics.models import Diagnostic
+from ..corpus import ParsedMetaDoc, build_corpus_from_meta_paths
+from ..scanner import MetaFileRef
+from ..validator import validate_meta_corpus
 
 
 _TOKEN_SPLIT_RE = re.compile(r"[\s._\-]+")
 _CAMEL_CASE_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _GEOMETRY_KINDS = ("image", "rect", "point")
+
+
+@dataclass(slots=True)
+class IndexingProjection:
+    files: dict[str, IndexedFile]
+    symbols: dict[str, IndexedSymbol]
+    diagnostics: dict[str, list[Diagnostic]]
 
 
 def _split_tokens(text: str) -> list[str]:
@@ -23,14 +44,6 @@ def _split_tokens(text: str) -> list[str]:
         if part:
             tokens.append(part)
     return tokens
-
-
-def _validate_str_or_none(value: Any, field_path: str) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    raise ValueError(f"{field_path} must be string or null")
 
 
 def _validate_geometry(prop_key: str, value: Any) -> dict[str, Any] | None:
@@ -81,41 +94,26 @@ def _pick_primary_geometry(
     return None, None
 
 
-def parse_meta_file(
+def _project_symbols_for_doc(
     *,
-    abs_meta_path: Path,
-    meta_path: str,
-    image_path: str,
+    doc: ParsedMetaDoc,
     mtime_ns: int,
     prefab_schema: dict[str, Any],
 ) -> tuple[IndexedFile, list[IndexedSymbol], list[Diagnostic]]:
-    data = parse_meta_v2_file(abs_meta_path)
-    definitions = data.definitions
-
     diagnostics: list[Diagnostic] = []
     symbols: list[IndexedSymbol] = []
 
-    for definition_id in sorted(definitions.keys(), key=lambda x: str(x)):
-        definition = definitions[definition_id]
+    for definition_id in sorted(doc.data.definitions.keys(), key=lambda x: str(x)):
+        definition = doc.data.definitions[definition_id]
         if not isinstance(definition_id, str) or definition_id == "":
             diagnostics.append(
-                make_error(
-                    code="INDEX_DEF_ID_INVALID",
+                Diagnostic(
+                    code=INDEX_DEF_ID_INVALID.code,
+                    severity="error",
                     message="Definition id must be a non-empty string",
-                    meta_path=meta_path,
+                    meta_path=doc.meta_path,
                     definition_id=str(definition_id),
                     field_path="definitions",
-                )
-            )
-            continue
-        if not isinstance(definition, DefinitionV2Model):
-            diagnostics.append(
-                make_error(
-                    code="INDEX_DEF_INVALID",
-                    message="Definition must be an object",
-                    meta_path=meta_path,
-                    definition_id=definition_id,
-                    field_path=f"definitions.{definition_id}",
                 )
             )
             continue
@@ -128,10 +126,11 @@ def parse_meta_file(
             if not isinstance(props, dict):
                 raise ValueError("props must be an object")
 
-            name = _validate_str_or_none(definition.name, "name") or definition_id
-            display_name = _validate_str_or_none(definition.display_name, "displayName")
-            description = _validate_str_or_none(definition.description, "description")
-            prefab_id = _validate_str_or_none(definition.prefab_id, "prefab_id")
+            name = definition.name or definition_id
+            display_name = definition.display_name
+            description = definition.description
+            prefab_id = definition.prefab_id
+            variant = definition.variant
 
             primary_prop_key, primary_geometry = _pick_primary_geometry(
                 props=props,
@@ -145,8 +144,8 @@ def parse_meta_file(
                 name,
                 definition_id,
                 prefab_id,
-                Path(meta_path).name,
-                Path(image_path).name,
+                Path(doc.meta_path).name,
+                Path(doc.image_path).name,
             ):
                 if source is None:
                     continue
@@ -159,7 +158,7 @@ def parse_meta_file(
                     seen.add(token)
                     dedup_tokens.append(token)
 
-            symbol_key = f"{meta_path}::{definition_id}"
+            symbol_key = f"{doc.meta_path}::{definition_id}"
             symbols.append(
                 IndexedSymbol(
                     symbol_key=symbol_key,
@@ -169,8 +168,9 @@ def parse_meta_file(
                     display_name=display_name,
                     description=description,
                     prefab_id=prefab_id,
-                    meta_path=meta_path,
-                    image_path=image_path,
+                    variant=variant,
+                    meta_path=doc.meta_path,
+                    image_path=doc.image_path,
                     primary_prop_key=primary_prop_key,
                     primary_geometry=primary_geometry,
                     search_tokens=dedup_tokens,
@@ -178,20 +178,93 @@ def parse_meta_file(
             )
         except ValueError as exc:
             diagnostics.append(
-                make_error(
-                    code="INDEX_DEF_PARSE_ERROR",
+                Diagnostic(
+                    code=INDEX_DEF_PARSE_ERROR.code,
+                    severity="error",
                     message=str(exc),
-                    meta_path=meta_path,
+                    meta_path=doc.meta_path,
                     definition_id=definition_id,
                     field_path=f"definitions.{definition_id}",
                 )
             )
 
     indexed_file = IndexedFile(
-        image_path=image_path,
-        meta_path=meta_path,
+        image_path=doc.image_path,
+        meta_path=doc.meta_path,
         mtime_ns=mtime_ns,
         meta_version=2,
         definition_ids=sorted([symbol.definition_id for symbol in symbols]),
     )
     return indexed_file, symbols, diagnostics
+
+
+def build_indexing_projection(
+    *,
+    meta_refs: list[MetaFileRef],
+    prefab_schema: dict[str, Any],
+    resource_variants: list[str] | None,
+    base_variant: str | None,
+    variant_configured: bool = False,
+) -> IndexingProjection:
+    ref_by_path = {ref.meta_path: ref for ref in meta_refs}
+    corpus, parse_diagnostics = build_corpus_from_meta_paths(list(ref_by_path.keys()))
+
+    files: dict[str, IndexedFile] = {}
+    symbols: dict[str, IndexedSymbol] = {}
+    diagnostics: dict[str, list[Diagnostic]] = {}
+
+    for diag in parse_diagnostics:
+        diagnostics.setdefault(diag.meta_path, []).append(
+            Diagnostic(
+                code=INDEX_FILE_PARSE_ERROR.code,
+                severity="error",
+                message=diag.message,
+                meta_path=diag.meta_path,
+            )
+        )
+
+    for doc in corpus.docs:
+        ref = ref_by_path.get(doc.meta_path)
+        if ref is None:
+            raise ValueError(f"Missing file ref for parsed doc: {doc.meta_path}")
+        indexed_file, file_symbols, file_diags = _project_symbols_for_doc(
+            doc=doc,
+            mtime_ns=ref.mtime_ns,
+            prefab_schema=prefab_schema,
+        )
+        files[indexed_file.meta_path] = indexed_file
+        if file_diags:
+            diagnostics.setdefault(indexed_file.meta_path, []).extend(file_diags)
+        for symbol in file_symbols:
+            symbols[symbol.symbol_key] = symbol
+
+    variant_diagnostics = validate_meta_corpus(
+        corpus,
+        resource_variants=resource_variants,
+        base_variant=base_variant,
+        variant_configured=variant_configured,
+    )
+    for diag in variant_diagnostics:
+        code = INDEX_VARIANT_INVALID.code
+        if diag.code == META_VARIANT_INHERIT_DISABLED.code:
+            code = INDEX_VARIANT_INHERIT_DISABLED.code
+        elif diag.code == META_VARIANT_INHERIT_UNUSED.code:
+            code = INDEX_VARIANT_INHERIT_UNUSED.code
+        elif diag.code == META_VARIANT_INHERIT_MISSING_VARIANTS.code:
+            code = INDEX_VARIANT_INHERIT_MISSING_VARIANTS.code
+        diagnostics.setdefault(diag.meta_path, []).append(
+            Diagnostic(
+                code=code,
+                severity=diag.severity,
+                message=diag.message,
+                meta_path=diag.meta_path,
+                definition_id=diag.definition_id,
+                field_path=diag.field_path or "definitions",
+            )
+        )
+
+    return IndexingProjection(
+        files=files,
+        symbols=symbols,
+        diagnostics=diagnostics,
+    )

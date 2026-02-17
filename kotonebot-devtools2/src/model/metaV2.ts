@@ -12,6 +12,8 @@ export type PropValue = RectValue | PointValue | ImageValue | BoolValue | Number
 export interface DefinitionV2 {
   type: ResourceType;
   name?: string;
+  variant?: string;
+  variant_inherit?: boolean | null;
   displayName?: string;
   description?: string;
   prefab_id?: string;

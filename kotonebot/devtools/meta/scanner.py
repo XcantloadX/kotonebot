@@ -1,23 +1,27 @@
-from __future__ import annotations
-
-import json
 from dataclasses import dataclass
 from pathlib import Path
-
-from pydantic import ValidationError
-
-from .models import MetaV2Model
 
 @dataclass(slots=True)
 class MetaFileRef:
     meta_path: str
+    """JSON 元数据文件的相对路径，使用 POSIX 风格路径表示。"""
     image_path: str
+    """对应的图片文件的相对路径，使用 POSIX 风格路径表示。"""
     abs_meta_path: Path
+    """JSON 元数据文件的绝对路径。"""
     mtime_ns: int
+    """JSON 元数据文件的修改时间，单位为纳秒。"""
     size: int
+    """JSON 元数据文件的大小，单位为字节。"""
 
 
-def scan_meta_v2_files(resource_root: Path) -> list[MetaFileRef]:
+def scan_meta_files(resource_root: Path) -> list[MetaFileRef]:
+    """递归扫描指定文件夹下的所有元数据文件。
+
+    :param resource_root: 资源文件根目录。
+    :raises ValueError: 资源文件根目录不存在时。
+    :return: 元数据文件基本信息。不包含文件内容。
+    """
     if not resource_root.exists() or not resource_root.is_dir():
         raise ValueError(f"Resource root does not exist or is not a directory: {resource_root}")
 
@@ -34,11 +38,3 @@ def scan_meta_v2_files(resource_root: Path) -> list[MetaFileRef]:
             )
         )
     return entries
-
-
-def parse_meta_v2_file(abs_meta_path: Path) -> MetaV2Model:
-    data = json.loads(abs_meta_path.read_text(encoding="utf-8"))
-    try:
-        return MetaV2Model.model_validate(data)
-    except ValidationError as exc:
-        raise ValueError(str(exc)) from exc

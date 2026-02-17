@@ -6,17 +6,27 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from .diagnostics import make_error
-from .models import Diagnostic, IndexedFile, IndexedSymbol, IndexSnapshot
-from .parser import parse_meta_file
+from kotonebot.devtools.meta import build_indexing_projection, scan_meta_files
+
+from .models import IndexedFile, IndexSnapshot
 from .query import symbol_to_lite
-from .scanner import scan_meta_files
 
 
 class IndexStore:
-    def __init__(self, *, resource_root: Path, prefab_schema: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        *,
+        resource_root: Path,
+        prefab_schema: dict[str, Any] | None = None,
+        resource_variants: list[str] | None = None,
+        base_variant: str | None = None,
+        variant_configured: bool = False,
+    ):
         self._resource_root = resource_root.resolve()
         self._prefab_schema = prefab_schema or {}
+        self._resource_variants = resource_variants
+        self._base_variant = base_variant
+        self._variant_configured = variant_configured
         self._snapshot = IndexSnapshot(index_version=0, content_hash="")
         self._last_build_ms = 0
         self._ready = False
@@ -39,40 +49,22 @@ class IndexStore:
 
     def build_full(self) -> None:
         start = time.perf_counter()
-        files: dict[str, IndexedFile] = {}
-        symbols: dict[str, IndexedSymbol] = {}
-        diagnostics: dict[str, list[Diagnostic]] = {}
-
-        for entry in scan_meta_files(self._resource_root):
-            try:
-                indexed_file, file_symbols, file_diags = parse_meta_file(
-                    abs_meta_path=entry.abs_meta_path,
-                    meta_path=entry.meta_path,
-                    image_path=entry.image_path,
-                    mtime_ns=entry.mtime_ns,
-                    prefab_schema=self._prefab_schema,
-                )
-                files[indexed_file.meta_path] = indexed_file
-                if file_diags:
-                    diagnostics[indexed_file.meta_path] = file_diags
-                for symbol in file_symbols:
-                    symbols[symbol.symbol_key] = symbol
-            except Exception as exc:
-                diagnostics[entry.meta_path] = [
-                    make_error(
-                        code="INDEX_FILE_PARSE_ERROR",
-                        message=str(exc),
-                        meta_path=entry.meta_path,
-                    )
-                ]
+        refs = scan_meta_files(self._resource_root)
+        projection = build_indexing_projection(
+            meta_refs=refs,
+            prefab_schema=self._prefab_schema,
+            resource_variants=self._resource_variants,
+            base_variant=self._base_variant,
+            variant_configured=self._variant_configured,
+        )
 
         next_version = self._snapshot.index_version + 1
         self._snapshot = IndexSnapshot(
             index_version=next_version,
-            content_hash=self._compute_content_hash(files),
-            files=files,
-            symbols=symbols,
-            diagnostics=diagnostics,
+            content_hash=self._compute_content_hash(projection.files),
+            files=projection.files,
+            symbols=projection.symbols,
+            diagnostics=projection.diagnostics,
             reverse_refs={},
         )
         self._last_build_ms = int((time.perf_counter() - start) * 1000)
@@ -82,57 +74,27 @@ class IndexStore:
         self.ensure_ready()
         start = time.perf_counter()
         normalized_meta_path = self._normalize_meta_path(meta_path)
+        previous_snapshot = self._snapshot
+        removed_symbol_keys = [k for k, v in previous_snapshot.symbols.items() if v.meta_path == normalized_meta_path]
 
-        files = dict(self._snapshot.files)
-        symbols = dict(self._snapshot.symbols)
-        diagnostics = dict(self._snapshot.diagnostics)
-
-        removed_symbol_keys = [k for k, v in symbols.items() if v.meta_path == normalized_meta_path]
-        for key in removed_symbol_keys:
-            del symbols[key]
-
-        if normalized_meta_path in files:
-            del files[normalized_meta_path]
-        if normalized_meta_path in diagnostics:
-            del diagnostics[normalized_meta_path]
-
-        upserted_symbols: list[IndexedSymbol] = []
-        file_diags: list[Diagnostic] = []
-
-        abs_meta_path = Path(normalized_meta_path)
-        if abs_meta_path.exists():
-            stat = abs_meta_path.stat()
-            try:
-                indexed_file, file_symbols, file_diags = parse_meta_file(
-                    abs_meta_path=abs_meta_path,
-                    meta_path=normalized_meta_path,
-                    image_path=abs_meta_path.with_suffix("").as_posix(),
-                    mtime_ns=stat.st_mtime_ns,
-                    prefab_schema=self._prefab_schema,
-                )
-                files[normalized_meta_path] = indexed_file
-                upserted_symbols = file_symbols
-                for symbol in file_symbols:
-                    symbols[symbol.symbol_key] = symbol
-                if file_diags:
-                    diagnostics[normalized_meta_path] = file_diags
-            except Exception as exc:
-                file_diags = [
-                    make_error(
-                        code="INDEX_FILE_PARSE_ERROR",
-                        message=str(exc),
-                        meta_path=normalized_meta_path,
-                    )
-                ]
-                diagnostics[normalized_meta_path] = file_diags
+        refs = scan_meta_files(self._resource_root)
+        projection = build_indexing_projection(
+            meta_refs=refs,
+            prefab_schema=self._prefab_schema,
+            resource_variants=self._resource_variants,
+            base_variant=self._base_variant,
+            variant_configured=self._variant_configured,
+        )
+        upserted_symbols = [s for s in projection.symbols.values() if s.meta_path == normalized_meta_path]
+        file_diags = projection.diagnostics.get(normalized_meta_path, [])
 
         next_version = self._snapshot.index_version + 1
         self._snapshot = IndexSnapshot(
             index_version=next_version,
-            content_hash=self._compute_content_hash(files),
-            files=files,
-            symbols=symbols,
-            diagnostics=diagnostics,
+            content_hash=self._compute_content_hash(projection.files),
+            files=projection.files,
+            symbols=projection.symbols,
+            diagnostics=projection.diagnostics,
             reverse_refs={},
         )
         self._last_build_ms = int((time.perf_counter() - start) * 1000)
@@ -163,11 +125,32 @@ class IndexStore:
 
     def get_diagnostics(self) -> dict[str, Any]:
         self.ensure_ready()
+        total = 0
+        error = 0
+        warning = 0
+        info = 0
+        for entries in self._snapshot.diagnostics.values():
+            for diag in entries:
+                total += 1
+                if diag.severity == "error":
+                    error += 1
+                elif diag.severity == "warning":
+                    warning += 1
+                elif diag.severity == "info":
+                    info += 1
+                else:
+                    raise ValueError(f"Unsupported diagnostic severity: {diag.severity}")
         return {
             "indexVersion": self._snapshot.index_version,
             "diagnosticsByFile": {
                 meta_path: [asdict(diag) for diag in entries]
                 for meta_path, entries in self._snapshot.diagnostics.items()
+            },
+            "stats": {
+                "total": total,
+                "error": error,
+                "warning": warning,
+                "info": info,
             },
         }
 

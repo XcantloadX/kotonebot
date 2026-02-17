@@ -2,7 +2,7 @@ import os
 from typing import Any, List, Callable
 
 from .core import CodeWriter, ClassNode, ResourceNode, ImageAsset, BoxData, PointData, PrefabData
-from .utils import unify_path
+from .utils import to_camel_case, unify_path
 
 class StandardGenerator:
     """标准 Python 生成器基类"""
@@ -141,15 +141,39 @@ class EntityGenerator(StandardGenerator):
     2. HintBox/Point -> 生成类的静态属性实例。
     """
 
+    def __init__(
+        self,
+        production: bool = False,
+        ide_type: str | None = None,
+        path_transformer: Callable[[str], str] | None = None,
+        default_variant: str = "",
+    ):
+        super().__init__(production=production, ide_type=ide_type, path_transformer=path_transformer)
+        if not isinstance(default_variant, str):
+            raise ValueError("default_variant must be str")
+        self.default_variant = default_variant
+
     def render_header(self):
         w = self.writer
         w.write("#######           实体资源文件         #######")
         w.write("#######    此文件为自动生成，请勿编辑     #######")
         w.write("####### AUTO GENERATED. DO NOT EDIT. #######")
         w.write_empty_line()
+        w.write("from contextvars import ContextVar")
         w.write("from kotonebot.core import TemplateMatchPrefab")
         w.write("from kotonebot.primitives import Image, ImageSlice, Rect")
         w.write("from kotonebot.backend.core import HintBox, HintPoint")
+        w.write_empty_line()
+        w.write(f"current_variant = ContextVar('current_variant', default={self.default_variant!r})")
+        w.write_empty_line()
+        w.write("class classproperty:")
+        with w.indent():
+            w.write("def __init__(self, func):")
+            with w.indent():
+                w.write("self._func = func")
+            w.write("def __get__(self, _, owner):")
+            with w.indent():
+                w.write("return self._func(owner)")
         w.write_empty_line()
 
     def render_attribute(self, attr: ResourceNode):
@@ -159,7 +183,6 @@ class EntityGenerator(StandardGenerator):
         """
         data = attr.value
 
-        print(f'Writing: {attr.name} of type {type(data)}')
         if isinstance(data, ImageAsset):
             self._render_prefab_class(attr, data)
         elif isinstance(data, PrefabData):
@@ -191,6 +214,61 @@ class EntityGenerator(StandardGenerator):
             # display_name 属性（用于 Image.name 参数）
             display_name = node.metadata.get('display_name', node.name)
 
+            if data.variant_props is not None:
+                variant_display_names = node.metadata.get("variant_display_names") or {}
+                variant_keys = sorted(data.variant_props.keys())
+                dispatch_fields: set[str] = {"display_name", "template"}
+                for variant in variant_keys:
+                    inner_class_name = self._variant_inner_class_name(variant)
+                    props = data.variant_props[variant]
+                    dispatch_fields.update(props.keys())
+                    w.write(f"class {inner_class_name}:")
+                    with w.indent():
+                        variant_display_name = variant_display_names.get(variant, display_name)
+                        self._render_prefab_prop_assignments(
+                            props=props,
+                            display_name=variant_display_name,
+                        )
+                        w.write(f'display_name = "{variant_display_name}"')
+                        if "template" not in props:
+                            primary_image = props.get("templateImage") or props.get("image")
+                            if not isinstance(primary_image, ImageAsset):
+                                for value in props.values():
+                                    if isinstance(value, ImageAsset):
+                                        primary_image = value
+                                        break
+                            if isinstance(primary_image, ImageAsset):
+                                template_expr = self._image_asset_expr(primary_image, variant_display_name)
+                                w.write(f"template = {template_expr}")
+                    w.write_empty_line()
+
+                w.write("_variant_classes = {")
+                with w.indent():
+                    for variant in variant_keys:
+                        inner_class_name = self._variant_inner_class_name(variant)
+                        w.write(f"'{variant}': {inner_class_name},")
+                w.write("}")
+                w.write_empty_line()
+                w.write("@classmethod")
+                w.write("def _get_variant_class(cls):")
+                with w.indent():
+                    w.write("variant = current_variant.get()")
+                    w.write("target = cls._variant_classes.get(variant)")
+                    w.write("if target is None:")
+                    with w.indent():
+                        w.write("raise ValueError(f'Unsupported resource variant: {variant}')")
+                    w.write("return target")
+                w.write_empty_line()
+
+                for field in sorted(dispatch_fields):
+                    w.write("@classproperty")
+                    w.write(f"def {field}(cls):")
+                    with w.indent():
+                        w.write("target = cls._get_variant_class()")
+                        w.write(f"return target.{field}")
+                    w.write_empty_line()
+                return
+
             # 3. If PrefabData has an image, expose it as `template` for convenience
             #    so simple prefab definitions that only provide an image still
             #    produce a usable `template` attribute on the generated class.
@@ -217,25 +295,44 @@ class EntityGenerator(StandardGenerator):
             # 4. V2 Props
             for key, value in data.props.items():
                 if isinstance(value, ImageAsset):
-                    rect_expr: str
-                    if value.rect is not None:
-                        x1, y1, x2, y2 = value.rect
-                        ix1, iy1, ix2, iy2 = map(int, (x1, y1, x2, y2))
-                        rect_width = ix2 - ix1
-                        rect_height = iy2 - iy1
-                        rect_expr = f"Rect(x={ix1}, y={iy1}, w={rect_width}, h={rect_height})"
-                    else:
-                        rect_expr = "None"
-                    clean_path = unify_path(value.path)
-                    default = f'"{clean_path}"'
-                    path_expr = self._transform_path(clean_path, default)
-                    w.write(f'{key} = ImageSlice(file_path={path_expr}, name="{display_name}", slice_rect={rect_expr})')
+                    w.write(f"{key} = {self._image_asset_expr(value, display_name)}")
                 elif isinstance(value, (int, float, str, bool)):
-                    w.write(f'{key} = {repr(value)}')
+                    w.write(f"{key} = {repr(value)}")
             
             # 5. display_name 属性
             display_name = node.metadata.get('display_name', node.name)
             w.write(f'display_name = "{display_name}"')
+
+    def _image_asset_expr(self, value: ImageAsset, display_name: str) -> str:
+        rect_expr: str
+        if value.rect is not None:
+            x1, y1, x2, y2 = value.rect
+            ix1, iy1, ix2, iy2 = map(int, (x1, y1, x2, y2))
+            rect_width = ix2 - ix1
+            rect_height = iy2 - iy1
+            rect_expr = f"Rect(x={ix1}, y={iy1}, w={rect_width}, h={rect_height})"
+        else:
+            rect_expr = "None"
+        clean_path = unify_path(value.path)
+        default = f'"{clean_path}"'
+        path_expr = self._transform_path(clean_path, default)
+        return f'ImageSlice(file_path={path_expr}, name="{display_name}", slice_rect={rect_expr})'
+
+    def _render_prefab_prop_assignments(self, *, props: dict[str, Any], display_name: str) -> None:
+        for key, value in props.items():
+            if isinstance(value, ImageAsset):
+                self.writer.write(f"{key} = {self._image_asset_expr(value, display_name)}")
+                continue
+            if isinstance(value, (int, float, str, bool)):
+                self.writer.write(f"{key} = {repr(value)}")
+                continue
+            if isinstance(value, dict):
+                self.writer.write(f"{key} = {repr(value)}")
+
+    def _variant_inner_class_name(self, variant: str) -> str:
+        if variant == "":
+            return "Base"
+        return to_camel_case(variant)
 
     def _render_prefab_class(self, node: ResourceNode, data: ImageAsset):
         """

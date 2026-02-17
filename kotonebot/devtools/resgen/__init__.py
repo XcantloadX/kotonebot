@@ -12,6 +12,10 @@ from .parsers import (
     KotoneV1Parser,
     BasicSpriteParser,
 )
+from .runner import (
+    ResgenGenerateResult,
+    generate_resources,
+)
 from .utils import (
     to_camel_case,
     unify_path,
@@ -33,6 +37,10 @@ __all__ = [
     "ParserRegistry",
     "KotoneV1Parser",
     "BasicSpriteParser",
+
+    # runner
+    "ResgenGenerateResult",
+    "generate_resources",
 
     # utils
     "to_camel_case",
