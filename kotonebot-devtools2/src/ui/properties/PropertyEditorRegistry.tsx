@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormGroup, InputGroup, NumericInput, Switch, Button, Tooltip, Icon } from '@blueprintjs/core';
+import { FormGroup, InputGroup, Switch, Button, Tooltip, Icon } from '@blueprintjs/core';
 import { PropValue } from '../../model/metaV2';
 import { EditorPropSchema } from '../../model/prefabSchema';
 
@@ -38,19 +38,68 @@ export const BoolEditor: React.FC<PropertyEditorProps> = ({ propKey, value, sche
     </FormGroup>
 );
 
-export const NumberEditor: React.FC<PropertyEditorProps> = ({ propKey, value, schema, onChange }) => (
-    <FormGroup label={<PropertyLabel schema={schema} propKey={propKey} />}>
-        {value !== undefined ? (
-            <NumericInput 
-                value={value as number} 
-                onValueChange={v => onChange(v)} 
-                min={schema?.min}
-                max={schema?.max}
-                fill
-            />
-        ) : null}
-    </FormGroup>
-);
+export const NumberEditor: React.FC<PropertyEditorProps> = ({ propKey, value, schema, onChange }) => {
+    const currentValue = typeof value === 'number' ? value : 0;
+    const isInt = schema?.kind === 'int';
+    const [draft, setDraft] = React.useState<string>(currentValue.toString());
+    const [isFocused, setIsFocused] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!isFocused) {
+            setDraft(currentValue.toString());
+        }
+    }, [currentValue, isFocused]);
+
+    const parseDraft = (raw: string): number | null => {
+        const text = raw.trim();
+        if (text === '' || text === '-' || text === '.' || text === '-.') {
+            return null;
+        }
+        const parsed = Number(text);
+        if (!Number.isFinite(parsed)) {
+            return null;
+        }
+        return isInt ? Math.trunc(parsed) : parsed;
+    };
+
+    const commit = (raw: string) => {
+        const parsed = parseDraft(raw);
+        if (parsed === null) {
+            return;
+        }
+        onChange(parsed);
+    };
+
+    return (
+        <FormGroup label={<PropertyLabel schema={schema} propKey={propKey} />}>
+            {value !== undefined ? (
+                <InputGroup
+                    type="number"
+                    value={draft}
+                    min={schema?.min}
+                    max={schema?.max}
+                    step={isInt ? 1 : 'any'}
+                    onFocus={() => setIsFocused(true)}
+                    onChange={e => {
+                        const next = e.target.value;
+                        setDraft(next);
+                        commit(next);
+                    }}
+                    onBlur={() => {
+                        setIsFocused(false);
+                        const parsed = parseDraft(draft);
+                        if (parsed === null) {
+                            setDraft(currentValue.toString());
+                            return;
+                        }
+                        onChange(parsed);
+                        setDraft(parsed.toString());
+                    }}
+                />
+            ) : null}
+        </FormGroup>
+    );
+};
 
 export const StringEditor: React.FC<PropertyEditorProps> = ({ propKey, value, schema, onChange }) => (
     <FormGroup label={<PropertyLabel schema={schema} propKey={propKey} />}>
