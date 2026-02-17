@@ -5,6 +5,7 @@ import {
   closeAllDocumentsWithChecks as closeAllDocumentsWithChecksAction,
   closeDocumentWithChecks as closeDocumentWithChecksAction,
   closeDocumentsWithChecks as closeDocumentsWithChecksAction,
+  copySelectedPrefabToVariantForActiveDocument,
   importVariantImageForActiveDocument,
   loadProjectVariants,
   openImagesWithChecks,
@@ -17,9 +18,11 @@ import { useAppStore } from "./state";
 export interface EditorCommandsResult {
   canSave: boolean;
   canCreateVariantDocument: boolean;
+  canCopySelectedPrefabToVariant: boolean;
   selectImages: (paths: string[]) => Promise<void>;
   saveDocument: () => Promise<void>;
   createVariantDocument: () => Promise<string | null>;
+  copySelectedPrefabToVariant: (variant: string) => Promise<void>;
   selectVariantImage: (paths: string[], variant: string) => Promise<void>;
   importVariantImage: (files: File[], variant: string) => Promise<boolean>;
   closeDocumentWithChecks: (id: string) => Promise<boolean>;
@@ -74,6 +77,13 @@ export function useEditorCommands(): EditorCommandsResult {
     [messageBox]
   );
 
+  const copySelectedPrefabToVariant = useCallback(
+    async (variant: string): Promise<void> => {
+      await copySelectedPrefabToVariantForActiveDocument(messageBox, variant);
+    },
+    [messageBox]
+  );
+
   const closeDocumentWithChecks = useCallback(
     async (id: string): Promise<boolean> => {
       return closeDocumentWithChecksAction(messageBox, id);
@@ -99,9 +109,13 @@ export function useEditorCommands(): EditorCommandsResult {
   return {
     canSave: !!activeMeta,
     canCreateVariantDocument: !!activeDoc?.meta,
+    canCopySelectedPrefabToVariant: !!activeDoc?.meta
+      && !!activeDoc.selection
+      && activeDoc.meta.data.definitions[activeDoc.selection.definitionId]?.type === "prefab",
     selectImages,
     saveDocument,
     createVariantDocument,
+    copySelectedPrefabToVariant,
     selectVariantImage,
     importVariantImage,
     closeDocumentWithChecks,

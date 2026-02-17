@@ -78,3 +78,59 @@ export async function importVariantImage(payload: ImportVariantImagePayload): Pr
     body: formData,
   });
 }
+
+export interface PreCheckCopySelectedPrefabToVariantPayload {
+  sourceMetaPath: string;
+  sourceDefinitionId: string;
+  baseImagePath: string;
+  variant: string;
+}
+
+export interface PreCheckCopySelectedPrefabToVariantResult {
+  targetImagePath: string;
+  targetImageExists: boolean;
+  targetMetaPath: string;
+  targetMetaExists: boolean;
+  targetDefinitionExists: boolean;
+  sourceDefinitionId: string;
+  sourceDefinitionName: string;
+  targetDefinition: Record<string, unknown>;
+}
+
+export async function preCheckCopySelectedPrefabToVariant(
+  payload: PreCheckCopySelectedPrefabToVariantPayload
+): Promise<PreCheckCopySelectedPrefabToVariantResult> {
+  return fetchJson<PreCheckCopySelectedPrefabToVariantResult>("/api/meta/variant/copy_selected_prefab/precheck", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface CopySelectedPrefabToVariantPayload {
+  sourceMetaPath: string;
+  sourceDefinitionId: string;
+  baseImagePath: string;
+  variant: string;
+  forceOverwrite?: boolean;
+}
+
+export async function copySelectedPrefabToVariant(payload: CopySelectedPrefabToVariantPayload): Promise<{
+  targetImagePath: string;
+  targetMetaPath: string;
+  definitionId: string;
+  definitionName: string;
+  targetDefinitionOverwritten: boolean;
+}> {
+  return fetchJson<{
+    targetImagePath: string;
+    targetMetaPath: string;
+    definitionId: string;
+    definitionName: string;
+    targetDefinitionOverwritten: boolean;
+  }>("/api/meta/variant/copy_selected_prefab", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}

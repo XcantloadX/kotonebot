@@ -35,6 +35,21 @@ class CloneVariantToImageRequest(BaseModel):
     forceOverwrite: bool = False
 
 
+class PrecheckCopySelectedPrefabToVariantRequest(BaseModel):
+    sourceMetaPath: str
+    sourceDefinitionId: str
+    baseImagePath: str
+    variant: str
+
+
+class CopySelectedPrefabToVariantRequest(BaseModel):
+    sourceMetaPath: str
+    sourceDefinitionId: str
+    baseImagePath: str
+    variant: str
+    forceOverwrite: bool = False
+
+
 def create_rest_router(project: Project) -> APIRouter:
     router = APIRouter(prefix="/api")
     logic = RestApiLogic(project)
@@ -187,6 +202,35 @@ def create_rest_router(project: Project) -> APIRouter:
             return _ok(result)
         except Exception as e:
             logging.exception("Error while handling /meta/variant/import_image")
+            return _err(str(e))
+
+    @router.post("/meta/variant/copy_selected_prefab/precheck")
+    async def precheck_copy_selected_prefab_to_variant(body: PrecheckCopySelectedPrefabToVariantRequest = Body(...)):
+        try:
+            result = logic.precheck_copy_selected_prefab_to_variant(
+                source_meta_path=body.sourceMetaPath,
+                source_definition_id=body.sourceDefinitionId,
+                base_image_path=body.baseImagePath,
+                variant=body.variant,
+            )
+            return _ok(result)
+        except Exception as e:
+            logging.exception("Error while handling /meta/variant/copy_selected_prefab/precheck")
+            return _err(str(e))
+
+    @router.post("/meta/variant/copy_selected_prefab")
+    async def copy_selected_prefab_to_variant(body: CopySelectedPrefabToVariantRequest = Body(...)):
+        try:
+            result = logic.copy_selected_prefab_to_variant(
+                source_meta_path=body.sourceMetaPath,
+                source_definition_id=body.sourceDefinitionId,
+                base_image_path=body.baseImagePath,
+                variant=body.variant,
+                force_overwrite=body.forceOverwrite,
+            )
+            return _ok(result)
+        except Exception as e:
+            logging.exception("Error while handling /meta/variant/copy_selected_prefab")
             return _err(str(e))
 
     @router.get("/health")

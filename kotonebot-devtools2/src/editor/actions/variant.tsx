@@ -1,5 +1,11 @@
 import { getProjectInfo } from "../../api/fs";
-import { cloneVariantToImage, importVariantImage as importVariantImageApi, preCheckVariantImportPath } from "../../api/metaIndex";
+import {
+  cloneVariantToImage,
+  copySelectedPrefabToVariant as copySelectedPrefabToVariantApi,
+  importVariantImage as importVariantImageApi,
+  preCheckCopySelectedPrefabToVariant,
+  preCheckVariantImportPath,
+} from "../../api/metaIndex";
 import { MessageBoxApi } from "../../ui/messageBox";
 import { toaster } from "../../ui/toaster";
 import { useSymbolIndexStore } from "../symbolIndexStore";
@@ -237,4 +243,97 @@ export async function importVariantImageForActiveDocument(
     toaster.show({ message: e?.message ?? String(e), intent: "danger" });
     return false;
   }
+}
+
+export async function copySelectedPrefabToVariantForActiveDocument(
+  messageBox: MessageBoxApi,
+  variant: string
+): Promise<void> {
+  const activeId = useAppStore.getState().activeDocumentId;
+  const activeDoc = activeId ? useAppStore.getState().documents[activeId] : null;
+  if (!activeDoc?.meta) {
+    throw new Error("No active source meta document");
+  }
+  const selection = activeDoc.selection;
+  if (!selection) {
+    throw new Error("No selected definition");
+  }
+  const definition = activeDoc.meta.data.definitions[selection.definitionId];
+  if (!definition) {
+    throw new Error(`Selected definition not found: ${selection.definitionId}`);
+  }
+  if (definition.type !== "prefab") {
+    throw new Error("Selected definition is not a prefab");
+  }
+
+  const precheck = await preCheckCopySelectedPrefabToVariant({
+    sourceMetaPath: activeDoc.meta.path,
+    sourceDefinitionId: selection.definitionId,
+    baseImagePath: activeDoc.image.path,
+    variant,
+  });
+
+  const confirmed = await messageBox.confirm_cancel({
+    title: "Confirm Copy Target",
+    content: (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 760 }}>
+        <div style={{ fontWeight: 600 }}>
+          Copy prefab <span style={{ color: "#106ba3" }}>{precheck.sourceDefinitionName}</span> to variant{" "}
+          <span style={{ color: "#106ba3" }}>{variant}</span>
+        </div>
+        <div
+          style={{
+            fontFamily: "Consolas, 'Courier New', monospace",
+            fontSize: 12,
+            background: "#f6f7f9",
+            border: "1px solid #d8e1e8",
+            borderRadius: 4,
+            padding: "8px 10px",
+            wordBreak: "break-all",
+          }}
+        >
+          <div>{precheck.targetImagePath}</div>
+          <div>{precheck.targetMetaPath}</div>
+        </div>
+      </div>
+    ),
+    confirmText: "Copy",
+    cancelText: "Cancel",
+    confirmIntent: "primary",
+    cancelIntent: "none",
+  });
+  if (!confirmed) {
+    return;
+  }
+
+  let forceOverwrite = false;
+  if (precheck.targetDefinitionExists) {
+    const overwriteConfirmed = await messageBox.confirm_cancel({
+      title: "Overwrite Existing Prefab?",
+      content: `Target variant document already has definition '${precheck.sourceDefinitionId}'. Overwrite it?`,
+      confirmText: "Overwrite",
+      cancelText: "Cancel",
+      confirmIntent: "danger",
+      cancelIntent: "none",
+    });
+    if (!overwriteConfirmed) {
+      return;
+    }
+    forceOverwrite = true;
+  }
+
+  const result = await copySelectedPrefabToVariantApi({
+    sourceMetaPath: activeDoc.meta.path,
+    sourceDefinitionId: selection.definitionId,
+    baseImagePath: activeDoc.image.path,
+    variant,
+    forceOverwrite,
+  });
+
+  await useSymbolIndexStore.getState().patchMetaPath(result.targetMetaPath);
+  await openImageWithMeta(result.targetImagePath);
+  toaster.show({
+    message: `Copied prefab '${result.definitionName}' to variant '${variant}'`,
+    intent: "success",
+  });
 }

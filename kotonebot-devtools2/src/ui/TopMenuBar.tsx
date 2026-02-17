@@ -27,9 +27,11 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   const {
     canSave,
     canCreateVariantDocument,
+    canCopySelectedPrefabToVariant,
     selectImages,
     saveDocument,
     createVariantDocument,
+    copySelectedPrefabToVariant,
     selectVariantImage,
     importVariantImage,
     closeActiveDocumentWithChecks,
@@ -82,6 +84,14 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     }
     setVariantDialogState({ isOpen: true, variant });
   }, [createVariantDocument]);
+
+  const handleCopySelectedPrefabToVariant = useCallback(async () => {
+    const variant = await createVariantDocument();
+    if (variant === null) {
+      return;
+    }
+    await copySelectedPrefabToVariant(variant);
+  }, [copySelectedPrefabToVariant, createVariantDocument]);
 
   const handleSelectImages = useCallback(
     async (paths: string[]) => {
@@ -214,10 +224,20 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
             void openVariantDialog();
           },
         },
+        {
+          icon: "duplicate",
+          text: "Copy Selected Prefab to Variant",
+          disabled: !canCopySelectedPrefabToVariant,
+          onClick: () => {
+            setOpenMenu(null);
+            void handleCopySelectedPrefabToVariant();
+          },
+        },
       ],
     }),
     [
       activeDocumentId,
+      canCopySelectedPrefabToVariant,
       canCreateVariantDocument,
       canRedo,
       canSave,
@@ -225,6 +245,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       closeActiveDocumentWithChecks,
       closeAllDocumentsWithChecks,
       documents,
+      handleCopySelectedPrefabToVariant,
       openImageDialog,
       openVariantDialog,
       redoMenuText,

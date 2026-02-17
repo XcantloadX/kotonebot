@@ -562,5 +562,110 @@ class RestApiLogic:
             "size": len(image_data),
         }
 
+    def precheck_copy_selected_prefab_to_variant(
+        self,
+        *,
+        source_meta_path: str,
+        source_definition_id: str,
+        base_image_path: str,
+        variant: str,
+    ) -> dict[str, Any]:
+        variant_name = self._assert_variant_declared(variant)
+        source_meta = self._get_safe_path(source_meta_path)
+        base_image = self._get_safe_path(base_image_path)
+        if not source_meta.exists():
+            raise ValueError(f"Source meta not found: {source_meta}")
+        if not base_image.exists():
+            raise ValueError(f"Base image not found: {base_image}")
+        if not self._is_image_file(base_image):
+            raise ValueError(f"Base path is not an image: {base_image}")
+
+        source_meta_data = parse_meta_file(source_meta)
+        source_definition = source_meta_data.definitions.get(source_definition_id)
+        if source_definition is None:
+            raise ValueError(f"Source definition not found: {source_definition_id}")
+        if source_definition.type != "prefab":
+            raise ValueError(f"Source definition is not prefab: {source_definition_id}")
+        if source_definition.name is None:
+            raise ValueError(f"Source definition requires name: {source_definition_id}")
+
+        base_by_name: dict[str, DefinitionV2Model] = {}
+        for definition in source_meta_data.definitions.values():
+            if definition.type != "prefab" or definition.variant is not None:
+                continue
+            if definition.name is None:
+                raise ValueError("prefab definition requires name")
+            if definition.name in base_by_name:
+                raise ValueError(f"duplicate prefab base definition: {definition.name}")
+            base_by_name[definition.name] = definition
+
+        target_image_path = self._resolve_variant_import_target_path(
+            base_image_path=base_image,
+            variant_name=variant_name,
+        )
+        target_meta_path = Path(str(target_image_path) + ".json")
+        target_definition_exists = False
+        if target_meta_path.exists():
+            target_meta_data = parse_meta_file(target_meta_path)
+            target_definition_exists = source_definition_id in target_meta_data.definitions
+
+        return {
+            "targetImagePath": target_image_path.as_posix(),
+            "targetImageExists": target_image_path.exists(),
+            "targetMetaPath": target_meta_path.as_posix(),
+            "targetMetaExists": target_meta_path.exists(),
+            "targetDefinitionExists": target_definition_exists,
+            "sourceDefinitionId": source_definition_id,
+            "sourceDefinitionName": source_definition.name,
+            "targetDefinition": self._build_prefab_variant_definition(
+                definition=source_definition,
+                base_by_name=base_by_name,
+                target_variant=variant_name,
+            ),
+        }
+
+    def copy_selected_prefab_to_variant(
+        self,
+        *,
+        source_meta_path: str,
+        source_definition_id: str,
+        base_image_path: str,
+        variant: str,
+        force_overwrite: bool,
+    ) -> dict[str, Any]:
+        precheck = self.precheck_copy_selected_prefab_to_variant(
+            source_meta_path=source_meta_path,
+            source_definition_id=source_definition_id,
+            base_image_path=base_image_path,
+            variant=variant,
+        )
+        target_meta_path = self._get_safe_path(precheck["targetMetaPath"])
+        target_definition = precheck["targetDefinition"]
+        if not precheck["targetImageExists"]:
+            raise ValueError(f"Target image not found: {precheck['targetImagePath']}")
+
+        if precheck["targetMetaExists"]:
+            target_meta_data = parse_meta_file(target_meta_path)
+            target_definitions = {
+                definition_id: definition.model_dump(by_alias=True, exclude_none=True)
+                for definition_id, definition in target_meta_data.definitions.items()
+            }
+        else:
+            target_definitions = {}
+
+        if source_definition_id in target_definitions and not force_overwrite:
+            raise ValueError(f"Target definition already exists: {source_definition_id}")
+        target_definitions[source_definition_id] = target_definition
+        payload = {"version": 2, "definitions": target_definitions}
+        target_meta_path.parent.mkdir(parents=True, exist_ok=True)
+        target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {
+            "targetImagePath": precheck["targetImagePath"],
+            "targetMetaPath": precheck["targetMetaPath"],
+            "definitionId": source_definition_id,
+            "definitionName": precheck["sourceDefinitionName"],
+            "targetDefinitionOverwritten": precheck["targetDefinitionExists"],
+        }
+
     def get_health(self) -> dict[str, str]:
         return {"status": "ok", "service": "kotonebot-devtools"}
