@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kotonebot.devtools.resgen.codegen import EntityGenerator
-from kotonebot.devtools.resgen.core import ImageAsset, PrefabData, ResourceNode
+from kotonebot.devtools.resgen.core import ImageAsset, PrefabData, RectData, ResourceNode
 from kotonebot.devtools.resgen.parsers import KotoneV1Parser
 from kotonebot.devtools.resgen.validation import MetaValidationError
 from tests.devtools._testkit import make_resgen_context, write_png_with_meta
@@ -34,7 +34,8 @@ class TestPrefabParser(unittest.TestCase):
                     "type": "prefab",
                     "prefab_id": "MyBaseClass",
                     "props": {
-                        "templateImage": {"kind": "image", "x1": 0, "y1": 0, "x2": 10, "y2": 10}
+                        "templateImage": {"kind": "image", "x1": 0, "y1": 0, "x2": 10, "y2": 10},
+                        "region": {"kind": "rect", "x1": 1, "y1": 2, "x2": 30, "y2": 40},
                     },
                 }
             },
@@ -54,6 +55,7 @@ class TestPrefabParser(unittest.TestCase):
         assert isinstance(node.value, PrefabData)
         self.assertEqual(node.value.prefab_id, "MyBaseClass")
         self.assertIsInstance(node.value.image, ImageAsset)
+        self.assertIsInstance(node.value.props["region"], RectData)
 
     def test_parse_simple_prefab_missing_prefab_id(self):
         data = {
@@ -101,6 +103,7 @@ class TestPrefabCodegen(unittest.TestCase):
             prefab_id="CustomBaseClass",
             props={
                 "templateImage": ImageAsset(path="path/to/image.png", rect=(0, 0, 10, 10)),
+                "region": RectData(x1=10, y1=20, x2=110, y2=220),
             },
         )
         node = ResourceNode(
@@ -118,6 +121,7 @@ class TestPrefabCodegen(unittest.TestCase):
             'templateImage = ImageSlice(file_path="path/to/image.png", name="My Display Name", slice_rect=Rect(x=0, y=0, w=10, h=10))',
             content,
         )
+        self.assertIn("region = Rect(x=10, y=20, w=100, h=200)", content)
         self.assertIn('display_name = "My Display Name"', content)
 
     def test_render_custom_prefab_class_no_rect(self):

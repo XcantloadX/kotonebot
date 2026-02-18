@@ -1,7 +1,7 @@
 import os
 from typing import Any, List, Callable
 
-from .core import CodeWriter, ClassNode, ResourceNode, ImageAsset, BoxData, PointData, PrefabData
+from .core import CodeWriter, ClassNode, ResourceNode, ImageAsset, BoxData, RectData, PointData, PrefabData
 from .utils import to_camel_case, unify_path
 
 class StandardGenerator:
@@ -161,7 +161,7 @@ class EntityGenerator(StandardGenerator):
         w.write_empty_line()
         w.write("from contextvars import ContextVar")
         w.write("from kotonebot.core import TemplateMatchPrefab")
-        w.write("from kotonebot.primitives import Image, ImageSlice, Rect")
+        w.write("from kotonebot.primitives import Image, ImageSlice, Point, Rect")
         w.write("from kotonebot.backend.core import HintBox, HintPoint")
         w.write_empty_line()
         w.write(f"current_variant = ContextVar('current_variant', default={self.default_variant!r})")
@@ -221,6 +221,12 @@ class EntityGenerator(StandardGenerator):
                 for variant in variant_keys:
                     inner_class_name = self._variant_inner_class_name(variant)
                     props = data.variant_props[variant]
+                    self._validate_prefab_props(
+                        prefab_id=data.prefab_id,
+                        props=props,
+                        node_name=node.name,
+                        variant_name=variant,
+                    )
                     dispatch_fields.update(props.keys())
                     w.write(f"class {inner_class_name}:")
                     with w.indent():
@@ -292,12 +298,18 @@ class EntityGenerator(StandardGenerator):
                 w.write(f'template = ImageSlice(file_path={path_expr}, name="{display_name}", slice_rect={rect_expr})')
                 w.write_empty_line()
             
+            self._validate_prefab_props(
+                prefab_id=data.prefab_id,
+                props=data.props,
+                node_name=node.name,
+                variant_name=None,
+            )
+
             # 4. V2 Props
-            for key, value in data.props.items():
-                if isinstance(value, ImageAsset):
-                    w.write(f"{key} = {self._image_asset_expr(value, display_name)}")
-                elif isinstance(value, (int, float, str, bool)):
-                    w.write(f"{key} = {repr(value)}")
+            self._render_prefab_prop_assignments(
+                props=data.props,
+                display_name=display_name,
+            )
             
             # 5. display_name 属性
             display_name = node.metadata.get('display_name', node.name)
@@ -323,11 +335,71 @@ class EntityGenerator(StandardGenerator):
             if isinstance(value, ImageAsset):
                 self.writer.write(f"{key} = {self._image_asset_expr(value, display_name)}")
                 continue
+            if isinstance(value, RectData):
+                width = int(value.x2) - int(value.x1)
+                height = int(value.y2) - int(value.y1)
+                self.writer.write(
+                    f"{key} = Rect(x={int(value.x1)}, y={int(value.y1)}, w={width}, h={height})"
+                )
+                continue
+            if isinstance(value, PointData):
+                self.writer.write(
+                    f"{key} = Point(x={value.x}, y={value.y})"
+                )
+                continue
             if isinstance(value, (int, float, str, bool)):
                 self.writer.write(f"{key} = {repr(value)}")
                 continue
+            if value is None:
+                self.writer.write(f"{key} = None")
+                continue
             if isinstance(value, dict):
                 self.writer.write(f"{key} = {repr(value)}")
+                continue
+            if isinstance(value, list):
+                self.writer.write(f"{key} = {repr(value)}")
+                continue
+            raise ValueError(f"Unsupported prefab prop value type for '{key}': {type(value).__name__}")
+
+    def _validate_prefab_props(
+        self,
+        *,
+        prefab_id: str,
+        props: dict[str, Any],
+        node_name: str,
+        variant_name: str | None,
+    ) -> None:
+        if prefab_id != "TemplateMatchPrefab":
+            return
+        allowed_fields = {
+            "template",
+            "templateImage",
+            "image",
+            "region",
+            "threshold",
+            "colored",
+            "fixed",
+        }
+        context = f"{node_name}[{variant_name}]" if variant_name is not None else node_name
+        for key, value in props.items():
+            if key not in allowed_fields:
+                raise ValueError(f"Unsupported field '{key}' for TemplateMatchPrefab in '{context}'")
+            if key in {"template", "templateImage", "image"} and not isinstance(value, ImageAsset):
+                raise ValueError(
+                    f"Field '{key}' for TemplateMatchPrefab must be ImageAsset in '{context}'"
+                )
+            if key == "region" and value is not None and not isinstance(value, RectData):
+                raise ValueError(
+                    f"Field 'region' for TemplateMatchPrefab must be RectData or None in '{context}'"
+                )
+            if key == "threshold" and not isinstance(value, (int, float)):
+                raise ValueError(
+                    f"Field 'threshold' for TemplateMatchPrefab must be int|float in '{context}'"
+                )
+            if key in {"colored", "fixed"} and not isinstance(value, bool):
+                raise ValueError(
+                    f"Field '{key}' for TemplateMatchPrefab must be bool in '{context}'"
+                )
 
     def _variant_inner_class_name(self, variant: str) -> str:
         if variant == "":

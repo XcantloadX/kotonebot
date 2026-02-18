@@ -11,7 +11,7 @@ from kotonebot.devtools.meta import (
     build_variant_projection_for_resgen,
     parse_meta_file,
 )
-from .core import SchemaParser, ResourceNode, ImageAsset, BoxData, PointData, PrefabData
+from .core import SchemaParser, ResourceNode, ImageAsset, BoxData, RectData, PointData, PrefabData
 from .utils import to_camel_case, ImageProcessor
 from .validation import MetaValidationError, detect_and_validate_meta_schema
 
@@ -274,13 +274,24 @@ class KotoneV1Parser(SchemaParser):
             crop_source = source_png_file or png_file
             for k, v in props.items():
                 if isinstance(v, dict) and v.get('kind') == 'image':
-                    rect = (v['x1'], v['y1'], v['x2'], v['y2'])
+                    rect = (int(v['x1']), int(v['y1']), int(v['x2']), int(v['y2']))
                     image_name_prefix = file_prefix or definition_id
                     final_name = f'{image_name_prefix}_{k}.png'
                     path = ImageProcessor.save_crop_to_path(crop_source, rect, output_dir, final_name)
                     prefab_props[k] = ImageAsset(path=path, rect=rect)
                 elif isinstance(v, dict) and v.get('kind') in ('rect', 'point'):
-                    prefab_props[k] = v
+                    if v['kind'] == 'rect':
+                        prefab_props[k] = RectData(
+                            x1=int(v['x1']),
+                            y1=int(v['y1']),
+                            x2=int(v['x2']),
+                            y2=int(v['y2']),
+                        )
+                    else:
+                        prefab_props[k] = PointData(
+                            x=int(v['x']),
+                            y=int(v['y']),
+                        )
                 else:
                     prefab_props[k] = v
             return prefab_props
@@ -327,7 +338,7 @@ class KotoneV1Parser(SchemaParser):
                             break
 
                 if target_prop:
-                    rect = (target_prop['x1'], target_prop['y1'], target_prop['x2'], target_prop['y2'])
+                    rect = (int(target_prop['x1']), int(target_prop['y1']), int(target_prop['x2']), int(target_prop['y2']))
                     final_name = f'{def_id}_{target_key}.png'
                     metadata['abs_path'] = ImageProcessor.save_crop_to_path(png_file, rect, output_dir, final_name)
 
@@ -410,7 +421,7 @@ class KotoneV1Parser(SchemaParser):
                         break
 
                 if target_prop:
-                    rect = (target_prop['x1'], target_prop['y1'], target_prop['x2'], target_prop['y2'])
+                    rect = (int(target_prop['x1']), int(target_prop['y1']), int(target_prop['x2']), int(target_prop['y2']))
                     node = ResourceNode(
                         name=attr_name,
                         type='hint-box',
@@ -429,7 +440,7 @@ class KotoneV1Parser(SchemaParser):
                         break
 
                 if target_prop:
-                    pt = (target_prop['x'], target_prop['y'])
+                    pt = (int(target_prop['x']), int(target_prop['y']))
                     node = ResourceNode(
                         name=attr_name,
                         type='hint-point',

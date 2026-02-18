@@ -4,7 +4,7 @@ import unittest
 
 from kotonebot.devtools.resgen.codegen import EntityGenerator, StandardGenerator
 from kotonebot.devtools.resgen.core import ClassNode, ResourceNode
-from kotonebot.devtools.resgen.core import BoxData, ImageAsset, PointData, PrefabData
+from kotonebot.devtools.resgen.core import BoxData, ImageAsset, PointData, PrefabData, RectData
 
 
 class TestStandardGenerator(unittest.TestCase):
@@ -290,7 +290,7 @@ class TestEntityGenerator(unittest.TestCase):
         out = gen.generate([ClassNode(name="Root")])
 
         self.assertIn("from kotonebot.core import TemplateMatchPrefab", out)
-        self.assertIn("from kotonebot.primitives import Image, ImageSlice, Rect", out)
+        self.assertIn("from kotonebot.primitives import Image, ImageSlice, Point, Rect", out)
         self.assertIn("from kotonebot.backend.core import HintBox, HintPoint", out)
 
     def test_image_asset_generates_prefab_nested_class(self):
@@ -479,6 +479,29 @@ class TestEntityGenerator(unittest.TestCase):
 
         out = gen.generate([node])
         self.assertIn("current_variant = ContextVar('current_variant', default='jp')", out)
+
+    def test_non_variant_prefab_renders_region_rect(self):
+        gen = EntityGenerator(production=True)
+        node = ClassNode(
+            name="Root",
+            attributes=[
+                ResourceNode(
+                    name="MapButton",
+                    type="prefab",
+                    value=PrefabData(
+                        image=None,
+                        prefab_id="TemplateMatchPrefab",
+                        props={
+                            "template": ImageAsset(path="a/map.png", rect=(1, 2, 5, 8)),
+                            "region": RectData(x1=10, y1=20, x2=200, y2=300),
+                        },
+                    ),
+                )
+            ],
+        )
+        out = gen.generate([node])
+        self.assertIn("class MapButton(TemplateMatchPrefab):", out)
+        self.assertIn("region = Rect(x=10, y=20, w=190, h=280)", out)
 
 
 if __name__ == '__main__':

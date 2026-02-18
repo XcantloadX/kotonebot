@@ -14,7 +14,7 @@ from kotonebot.devtools.resgen.parsers import (
     load_resgen_project_context,
     load_resgen_runtime_context,
 )
-from kotonebot.devtools.resgen.core import PrefabData, ResourceNode, ImageAsset
+from kotonebot.devtools.resgen.core import PrefabData, PointData, RectData, ResourceNode, ImageAsset
 from tests.devtools._testkit import make_resgen_context, write_json, write_min_png, write_png_with_meta, write_pyproject
 
 
@@ -407,6 +407,8 @@ class TestKotoneV2Parser(unittest.TestCase):
                     "displayName": "Base",
                     "props": {
                         "templateImage": {"kind": "image", "x1": 1, "y1": 2, "x2": 10, "y2": 20},
+                        "region": {"kind": "rect", "x1": 5, "y1": 6, "x2": 70, "y2": 80},
+                        "tapPoint": {"kind": "point", "x": 9, "y": 10},
                         "threshold": 0.8,
                     },
                 },
@@ -439,6 +441,8 @@ class TestKotoneV2Parser(unittest.TestCase):
         self.assertEqual(prefab.value.variant_props["base"]["threshold"], 0.8)
         self.assertEqual(prefab.value.variant_props["en"]["threshold"], 0.9)
         self.assertEqual(prefab.value.variant_props["jp"]["threshold"], 0.8)
+        self.assertIsInstance(prefab.value.variant_props["base"]["region"], RectData)
+        self.assertIsInstance(prefab.value.variant_props["base"]["tapPoint"], PointData)
 
     def test_v2_prefab_variant_merge_without_base_variant_key(self):
         data = {

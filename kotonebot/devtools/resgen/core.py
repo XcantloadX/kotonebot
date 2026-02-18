@@ -57,6 +57,15 @@ class BoxData:
 
 
 @dataclass
+class RectData:
+    """代表矩形区域属性（用于 prefab 字段）。"""
+    x1: int
+    y1: int
+    x2: int
+    y2: int
+
+
+@dataclass
 class PointData:
     """代表点的结构化数据"""
     x: int
