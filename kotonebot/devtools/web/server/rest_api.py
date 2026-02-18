@@ -24,6 +24,27 @@ class WriteTextRequest(BaseModel):
     content: str
 
 
+class RenamePathRequest(BaseModel):
+    """单文件重命名请求。"""
+
+    sourcePath: str
+    targetPath: str
+
+
+class PrecheckRenameDocumentRequest(BaseModel):
+    """文档重命名预检请求。"""
+
+    sourceImagePath: str
+    targetImagePath: str
+
+
+class ExecuteRenameDocumentRequest(BaseModel):
+    """文档重命名执行请求。"""
+
+    sourceImagePath: str
+    targetImagePath: str
+
+
 class UpdateIndexRequest(BaseModel):
     metaPath: str
 
@@ -88,6 +109,37 @@ def create_rest_router(project: Project) -> APIRouter:
     async def write_text(path: str = Query(...), body: WriteTextRequest = Body(...)):
         try:
             return _ok(logic.write_text(path, body.content))
+        except Exception as e:
+            return _err(str(e))
+
+    @router.post("/fs/rename")
+    async def rename_path(body: RenamePathRequest = Body(...)):
+        try:
+            return _ok(logic.rename_path(body.sourcePath, body.targetPath))
+        except Exception as e:
+            return _err(str(e))
+
+    @router.post("/fs/rename_document/precheck")
+    async def precheck_rename_document(body: PrecheckRenameDocumentRequest = Body(...)):
+        try:
+            return _ok(
+                logic.precheck_rename_document(
+                    source_image_path=body.sourceImagePath,
+                    target_image_path=body.targetImagePath,
+                )
+            )
+        except Exception as e:
+            return _err(str(e))
+
+    @router.post("/fs/rename_document/execute")
+    async def execute_rename_document(body: ExecuteRenameDocumentRequest = Body(...)):
+        try:
+            return _ok(
+                logic.execute_rename_document(
+                    source_image_path=body.sourceImagePath,
+                    target_image_path=body.targetImagePath,
+                )
+            )
         except Exception as e:
             return _err(str(e))
 

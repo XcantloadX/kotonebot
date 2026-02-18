@@ -26,10 +26,12 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
 }) => {
   const {
     canSave,
+    canRenameDocument,
     canCreateVariantDocument,
     canCopySelectedPrefabToVariant,
     selectImages,
     saveDocument,
+    renameDocument,
     createVariantDocument,
     copySelectedPrefabToVariant,
     selectVariantImage,
@@ -168,6 +170,15 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           },
         },
         {
+          icon: "edit",
+          text: "Rename...",
+          disabled: !canRenameDocument,
+          onClick: () => {
+            setOpenMenu(null);
+            void renameDocument();
+          },
+        },
+        {
           icon: "cross",
           text: "Close Document",
           label: "Ctrl+2",
@@ -240,6 +251,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       canCopySelectedPrefabToVariant,
       canCreateVariantDocument,
       canRedo,
+      canRenameDocument,
       canSave,
       canUndo,
       closeActiveDocumentWithChecks,
@@ -248,6 +260,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       handleCopySelectedPrefabToVariant,
       openImageDialog,
       openVariantDialog,
+      renameDocument,
       redoMenuText,
       redo,
       saveDocument,

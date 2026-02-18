@@ -2,13 +2,20 @@ import json
 import logging
 import os
 import string
+import uuid
 from pathlib import Path
 from typing import Any, Optional
 
 import cv2
 import numpy as np
 
-from kotonebot.devtools.indexing.index_store import IndexStore
+from kotonebot.devtools.indexing.symbol_index_view import SymbolIndexView
+from kotonebot.devtools.indexing.document_index_view import (
+    DocumentIndexView,
+    RenameDocumentExecuteResultModel,
+    RenameDocumentPrecheckResultModel,
+)
+from kotonebot.devtools.indexing.resource_index_store import ResourceIndexStore
 from kotonebot.devtools.meta import DefinitionV2Model, merge_prefab_definition, parse_meta_file
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.project.scanner import scan_prefabs
@@ -29,12 +36,20 @@ class RestApiLogic:
             logging.exception("Failed to preload prefab schema for index store")
             prefab_schema_for_index = {}
 
-        self.index_store = IndexStore(
+        self.resource_index_store = ResourceIndexStore(resource_root=self.project_root)
+        self.symbol_index_view = SymbolIndexView(
             resource_root=self.project_root,
+            resource_index_store=self.resource_index_store,
             prefab_schema=prefab_schema_for_index,
             resource_variants=project.conf.variant.variants if project.conf.variant and project.conf.variant.variants is not None else None,
             base_variant=project.conf.variant.base if project.conf.variant is not None else None,
             variant_configured=project.conf.variant is not None,
+        )
+        self.document_index_view = DocumentIndexView(
+            project=project,
+            resource_root=self.project_root,
+            image_suffixes={".png", ".jpg", ".jpeg", ".bmp", ".webp"},
+            resource_index_store=self.resource_index_store,
         )
         self.thumbnail_cache_root = project.pyproject_root / ".kotonebot" / "cache" / "thumbnails"
         self.image_suffixes = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
@@ -419,6 +434,72 @@ class RestApiLogic:
         os.replace(temp_path, safe_path)
         return {"status": "ok"}
 
+    def rename_path(self, source_path: str, target_path: str) -> dict[str, Any]:
+        """重命名单个文件路径。"""
+        safe_source = self._get_safe_path(source_path)
+        safe_target = self._get_safe_path(target_path)
+        if not safe_source.exists():
+            raise ValueError(f"Source path not found: {safe_source}")
+        if not safe_source.is_file():
+            raise ValueError(f"Source path is not a file: {safe_source}")
+        if safe_target.exists():
+            raise ValueError(f"Target path already exists: {safe_target}")
+        if not safe_target.parent.exists():
+            raise ValueError(f"Target parent directory does not exist: {safe_target.parent}")
+        os.replace(safe_source, safe_target)
+        return {"sourcePath": safe_source.as_posix(), "targetPath": safe_target.as_posix()}
+
+    def precheck_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentPrecheckResultModel:
+        """预检文档重命名计划。
+
+        仅返回计划与冲突，不执行实际文件操作。
+        """
+        return self.document_index_view.precheck_rename_document(
+            source_image_path=source_image_path,
+            target_image_path=target_image_path,
+        )
+
+    def _execute_file_rename_batch(self, renames: list[tuple[Path, Path]]) -> None:
+        """执行批量重命名并在异常时回滚。"""
+        staged: list[tuple[Path, Path, Path]] = []
+        completed: list[tuple[Path, Path, Path]] = []
+        for source, target in renames:
+            temp = source.with_name(f"{source.name}.rename_tmp_{uuid.uuid4().hex}")
+            if temp.exists():
+                raise ValueError(f"Temporary file path already exists: {temp.as_posix()}")
+            os.replace(source, temp)
+            staged.append((source, temp, target))
+        try:
+            for source, temp, target in staged:
+                os.replace(temp, target)
+                completed.append((source, temp, target))
+        except Exception:
+            for source, _, target in reversed(completed):
+                if target.exists():
+                    os.replace(target, source)
+            for source, temp, _ in reversed(staged):
+                if temp.exists():
+                    os.replace(temp, source)
+            raise
+
+    def execute_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentExecuteResultModel:
+        """执行文档重命名。
+
+        会先基于预检结果校验冲突，再执行批量重命名。
+        """
+        precheck = self.precheck_rename_document(source_image_path=source_image_path, target_image_path=target_image_path)
+        if precheck.hasConflicts:
+            message = "\n".join(precheck.conflicts)
+            raise ValueError(f"Cannot execute rename due to conflicts:\n{message}")
+        renames = [(Path(item.sourcePath), Path(item.targetPath)) for item in precheck.fileRenames]
+        self._execute_file_rename_batch(renames)
+        return RenameDocumentExecuteResultModel(
+            documents=precheck.documents,
+            fileRenames=precheck.fileRenames,
+            renamedFileCount=len(precheck.fileRenames),
+            renamedDocumentCount=len(precheck.documents),
+        )
+
     def get_image_path(self, path: str) -> Path:
         safe_path = self._get_safe_path(path)
         if not safe_path.exists():
@@ -439,16 +520,16 @@ class RestApiLogic:
         return self._get_prefabs_cache()
 
     def get_meta_index(self) -> Any:
-        return self.index_store.get_snapshot_lite()
+        return self.symbol_index_view.get_snapshot_lite()
 
     def update_meta_index(self, meta_path: str) -> Any:
-        return self.index_store.update_file(meta_path=meta_path)
+        return self.symbol_index_view.update_file(meta_path=meta_path)
 
     def get_meta_diagnostics(self) -> Any:
-        return self.index_store.get_diagnostics()
+        return self.symbol_index_view.get_diagnostics()
 
     def get_meta_index_health(self) -> Any:
-        return self.index_store.get_health()
+        return self.symbol_index_view.get_health()
 
     def clone_variant_to_image(
         self,

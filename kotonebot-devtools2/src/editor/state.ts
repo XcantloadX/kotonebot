@@ -81,6 +81,8 @@ interface AppState {
   // Actions
   openDocument: (path: string, width: number, height: number) => void;
   closeDocument: (id: string) => void;
+  renameDocument: (oldId: string, newId: string) => void;
+  renameDocuments: (renames: Array<{ oldId: string; newId: string }>) => void;
   setActiveDocument: (id: string) => void;
   setViewState: (id: string, view: { x: number; y: number; scale: number }) => void;
   
@@ -141,6 +143,82 @@ export const useAppStore = create<AppState>()(
       if (state.activeDocumentId === id) {
         const ids = Object.keys(state.documents);
         state.activeDocumentId = ids.length > 0 ? ids[ids.length - 1] : null;
+      }
+    }),
+
+    renameDocument: (oldId, newId) => set((state) => {
+      const doc = state.documents[oldId];
+      if (!doc) {
+        throw new Error(`Document not found: ${oldId}`);
+      }
+      if (state.documents[newId]) {
+        throw new Error(`Document already exists: ${newId}`);
+      }
+      const nextMetaPath = `${newId}.json`;
+      delete state.documents[oldId];
+      doc.id = newId;
+      doc.image.path = newId;
+      doc.image.url = `/api/image?path=${encodeURIComponent(newId)}`;
+      if (!doc.meta) {
+        throw new Error(`Document meta is not loaded: ${oldId}`);
+      }
+      doc.meta.path = nextMetaPath;
+      state.documents[newId] = doc;
+      if (state.activeDocumentId === oldId) {
+        state.activeDocumentId = newId;
+      }
+    }),
+
+    renameDocuments: (renames) => set((state) => {
+      if (renames.length === 0) {
+        return;
+      }
+      const oldSet = new Set<string>();
+      const newSet = new Set<string>();
+      for (const item of renames) {
+        if (oldSet.has(item.oldId)) {
+          throw new Error(`Duplicate oldId in rename list: ${item.oldId}`);
+        }
+        if (newSet.has(item.newId)) {
+          throw new Error(`Duplicate newId in rename list: ${item.newId}`);
+        }
+        oldSet.add(item.oldId);
+        newSet.add(item.newId);
+      }
+      for (const item of renames) {
+        const doc = state.documents[item.oldId];
+        if (!doc) {
+          throw new Error(`Document not found: ${item.oldId}`);
+        }
+        const existing = state.documents[item.newId];
+        if (existing && !oldSet.has(item.newId)) {
+          throw new Error(`Document already exists: ${item.newId}`);
+        }
+      }
+      const movingDocs: Array<{ oldId: string; newId: string; doc: DocumentState }> = [];
+      for (const item of renames) {
+        const doc = state.documents[item.oldId];
+        if (!doc) {
+          throw new Error(`Document not found: ${item.oldId}`);
+        }
+        delete state.documents[item.oldId];
+        movingDocs.push({ oldId: item.oldId, newId: item.newId, doc });
+      }
+      for (const item of movingDocs) {
+        item.doc.id = item.newId;
+        item.doc.image.path = item.newId;
+        item.doc.image.url = `/api/image?path=${encodeURIComponent(item.newId)}`;
+        if (!item.doc.meta) {
+          throw new Error(`Document meta is not loaded: ${item.oldId}`);
+        }
+        item.doc.meta.path = `${item.newId}.json`;
+        state.documents[item.newId] = item.doc;
+      }
+      if (state.activeDocumentId) {
+        const activeRename = movingDocs.find((item) => item.oldId === state.activeDocumentId);
+        if (activeRename) {
+          state.activeDocumentId = activeRename.newId;
+        }
       }
     }),
 

@@ -26,6 +26,66 @@ export async function writeText(path: string, content: string): Promise<void> {
   });
 }
 
+export async function renamePath(sourcePath: string, targetPath: string): Promise<void> {
+  await fetchJson("/api/fs/rename", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sourcePath, targetPath }),
+  });
+}
+
+export interface RenameDocumentPrecheckResult {
+  documents: Array<{
+    variant: string;
+    sourceImagePath: string;
+    targetImagePath: string;
+    sourceMetaPath: string;
+    targetMetaPath: string;
+  }>;
+  fileRenames: Array<{
+    kind: "image" | "meta";
+    variant: string;
+    sourcePath: string;
+    targetPath: string;
+  }>;
+  conflicts: string[];
+  hasConflicts: boolean;
+}
+
+export interface RenameDocumentExecuteResult {
+  documents: Array<{
+    variant: string;
+    sourceImagePath: string;
+    targetImagePath: string;
+    sourceMetaPath: string;
+    targetMetaPath: string;
+  }>;
+  fileRenames: Array<{
+    kind: "image" | "meta";
+    variant: string;
+    sourcePath: string;
+    targetPath: string;
+  }>;
+  renamedFileCount: number;
+  renamedDocumentCount: number;
+}
+
+export async function precheckRenameDocument(sourceImagePath: string, targetImagePath: string): Promise<RenameDocumentPrecheckResult> {
+  return fetchJson<RenameDocumentPrecheckResult>("/api/fs/rename_document/precheck", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sourceImagePath, targetImagePath }),
+  });
+}
+
+export async function executeRenameDocument(sourceImagePath: string, targetImagePath: string): Promise<RenameDocumentExecuteResult> {
+  return fetchJson<RenameDocumentExecuteResult>("/api/fs/rename_document/execute", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sourceImagePath, targetImagePath }),
+  });
+}
+
 export function getImageUrl(path: string): string {
   return `/api/image?path=${encodeURIComponent(path)}`;
 }
