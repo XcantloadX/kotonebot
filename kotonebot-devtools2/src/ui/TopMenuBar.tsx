@@ -26,11 +26,13 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
 }) => {
   const {
     canSave,
+    canSaveAll,
     canRenameDocument,
     canCreateVariantDocument,
     canCopySelectedPrefabToVariant,
     selectImages,
     saveDocument,
+    saveAllDocuments,
     renameDocument,
     createVariantDocument,
     copySelectedPrefabToVariant,
@@ -170,6 +172,16 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           },
         },
         {
+          icon: "floppy-disk",
+          text: "Save All",
+          label: "Ctrl+Shift+S",
+          disabled: !canSaveAll,
+          onClick: () => {
+            setOpenMenu(null);
+            void saveAllDocuments();
+          },
+        },
+        {
           icon: "edit",
           text: "Rename...",
           disabled: !canRenameDocument,
@@ -253,6 +265,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       canRedo,
       canRenameDocument,
       canSave,
+      canSaveAll,
       canUndo,
       closeActiveDocumentWithChecks,
       closeAllDocumentsWithChecks,
@@ -264,6 +277,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       redoMenuText,
       redo,
       saveDocument,
+      saveAllDocuments,
       undoMenuText,
       undo,
     ]
@@ -378,6 +392,16 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     when: () => canSave,
     onKeyDown: () => {
       void saveDocument();
+    },
+  });
+
+  useShortcut({
+    id: "editor.save-all-documents",
+    scope: "editor",
+    combo: "mod+shift+s",
+    when: () => canSaveAll,
+    onKeyDown: () => {
+      void saveAllDocuments();
     },
   });
 

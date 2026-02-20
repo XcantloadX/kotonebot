@@ -11,17 +11,20 @@ import {
   pickVariantForActiveDocument,
   promptAndRenameActiveDocument,
   saveActiveDocumentWithToast,
+  saveAllDocumentsWithToast,
   selectVariantImageForActiveDocument,
 } from "./actions";
 import { useAppStore } from "./state";
 
 export interface EditorCommandsResult {
   canSave: boolean;
+  canSaveAll: boolean;
   canRenameDocument: boolean;
   canCreateVariantDocument: boolean;
   canCopySelectedPrefabToVariant: boolean;
   selectImages: (paths: string[]) => Promise<void>;
   saveDocument: () => Promise<void>;
+  saveAllDocuments: () => Promise<void>;
   renameDocument: () => Promise<void>;
   createVariantDocument: () => Promise<string | null>;
   copySelectedPrefabToVariant: (variant: string) => Promise<void>;
@@ -58,6 +61,10 @@ export function useEditorCommands(): EditorCommandsResult {
 
   const saveDocument = useCallback(async () => {
     await saveActiveDocumentWithToast();
+  }, []);
+
+  const saveAllDocuments = useCallback(async () => {
+    await saveAllDocumentsWithToast();
   }, []);
 
   const renameDocument = useCallback(async () => {
@@ -113,6 +120,7 @@ export function useEditorCommands(): EditorCommandsResult {
 
   return {
     canSave: !!activeMeta,
+    canSaveAll: Object.values(documents).some((doc) => doc.dirty),
     canRenameDocument: !!activeDoc?.meta,
     canCreateVariantDocument: !!activeDoc?.meta,
     canCopySelectedPrefabToVariant: !!activeDoc?.meta
@@ -120,6 +128,7 @@ export function useEditorCommands(): EditorCommandsResult {
       && activeDoc.meta.data.definitions[activeDoc.selection.definitionId]?.type === "prefab",
     selectImages,
     saveDocument,
+    saveAllDocuments,
     renameDocument,
     createVariantDocument,
     copySelectedPrefabToVariant,

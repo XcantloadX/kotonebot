@@ -102,6 +102,7 @@ interface AppState {
   undo: () => void;
   redo: () => void;
   saveActiveDocument: () => Promise<void>;
+  saveAllDocuments: () => Promise<number>;
   showFocusSpotlight: (spotlight: FocusSpotlightState) => void;
   clearFocusSpotlight: () => void;
 }
@@ -498,6 +499,34 @@ export const useAppStore = create<AppState>()(
             doc.dirty = false;
           }
         });
+      } catch (e: any) {
+        toaster.show({ message: `保存失败: ${e?.message ?? String(e)}`, intent: 'danger' as any });
+        throw e;
+      }
+    },
+
+    saveAllDocuments: async () => {
+      const current = useAppStore.getState();
+      const dirtyDocuments = Object.values(current.documents).filter((doc) => doc.dirty);
+      let savedCount = 0;
+      try {
+        for (const doc of dirtyDocuments) {
+          if (!doc.meta) {
+            throw new Error(`Document meta is not loaded: ${doc.id}`);
+          }
+          await writeText(doc.meta.path, JSON.stringify(doc.meta.data, null, 2));
+          await useSymbolIndexStore.getState().patchMetaPath(doc.meta.path);
+          set((state) => {
+            const target = state.documents[doc.id];
+            if (!target) {
+              throw new Error(`Document not found: ${doc.id}`);
+            }
+            target.history.saveCursor = target.history.cursor;
+            target.dirty = false;
+          });
+          savedCount += 1;
+        }
+        return savedCount;
       } catch (e: any) {
         toaster.show({ message: `保存失败: ${e?.message ?? String(e)}`, intent: 'danger' as any });
         throw e;
