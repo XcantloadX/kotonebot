@@ -3,8 +3,7 @@ import { FormGroup, InputGroup, Button, H5, Card } from '@blueprintjs/core';
 import { useAppStore } from '../editor/state';
 import { PropValue } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
-import { jumpToSymbol } from '../editor/actions/navigation';
-import { promptAndRenameVariantsForDefinition } from '../editor/actions/variantRename';
+import { editorActions } from '../editor/actions';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import { getEditorForType } from './properties/PropertyEditorRegistry';
 import { OverridableField } from './components/OverridableField';
@@ -94,7 +93,7 @@ export const RightProperties: React.FC = () => {
     if (valueOnFocus === currentValue) {
       return;
     }
-    void promptAndRenameVariantsForDefinition(defId);
+    void editorActions.variant.renameVariantsForDefinitionByPrompt(defId);
   };
 
     const renderPropEditor = (key: string, value: PropValue | undefined, schema?: EditorPropSchema) => {
@@ -219,7 +218,7 @@ export const RightProperties: React.FC = () => {
                   minimal
                   icon="share"
                   text={symbol.variant || "base"}
-                  onClick={() => void jumpToSymbol(symbol)}
+                  onClick={() => void editorActions.navigation.jumpToSymbol(symbol)}
                 />
               ))}
             </div>

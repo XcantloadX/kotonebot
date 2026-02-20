@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Button, Icon, InputGroup } from "@blueprintjs/core";
 import { DiagnosticItem } from "../model/symbolIndex";
 import { useSymbolIndexStore } from "../editor/symbolIndexStore";
-import { jumpToDiagnostic } from "../editor/actions/navigation";
+import { editorActions } from "../editor/actions";
 import { useSettingsStore } from "../editor/settings";
 
 interface ProblemsPanelProps {
@@ -234,7 +234,7 @@ export const ProblemsPanel: React.FC<ProblemsPanelProps> = ({
                     type="button"
                     onClick={() => {
                       setSelectedProblemId(row.id);
-                      void jumpToDiagnostic({ ...row.item, meta_path: row.metaPath });
+                      void editorActions.navigation.jumpToDiagnostic({ ...row.item, meta_path: row.metaPath });
                     }}
                     style={{
                       width: "100%",

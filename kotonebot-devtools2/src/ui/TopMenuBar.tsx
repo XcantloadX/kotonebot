@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconName, InputGroup, Menu, MenuItem } from "@blueprintjs/core";
-import { useEditorCommands } from "../editor/useEditorCommands";
+import { editorActions } from "../editor/actions";
 import { useAppStore } from "../editor/state";
 import { FileOpenDialog } from "./components/FileOpenDialog/FileOpenDialog";
 import { FileOpenOrImportDialog } from "./components/FileOpenDialog/FileOpenOrImportDialog";
@@ -24,25 +24,16 @@ interface MenuDefinitionItem {
 export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   onOpenCommandPalette,
 }) => {
-  const {
-    canSave,
-    canSaveAll,
-    canRenameDocument,
-    canCreateVariantDocument,
-    canCopySelectedPrefabToVariant,
-    selectImages,
-    saveDocument,
-    saveAllDocuments,
-    renameDocument,
-    createVariantDocument,
-    copySelectedPrefabToVariant,
-    selectVariantImage,
-    importVariantImage,
-    closeActiveDocumentWithChecks,
-    closeAllDocumentsWithChecks,
-  } = useEditorCommands();
   const { undo, redo, activeDocumentId, documents } = useAppStore();
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
+  const activeMeta = activeDoc?.meta;
+  const canSave = !!activeMeta;
+  const canSaveAll = Object.values(documents).some((doc) => doc.dirty);
+  const canRenameDocument = !!activeMeta;
+  const canCreateVariantDocument = !!activeMeta;
+  const canCopySelectedPrefabToVariant = !!activeMeta
+    && !!activeDoc?.selection
+    && activeMeta.data.definitions[activeDoc.selection.definitionId]?.type === "prefab";
   const canUndo = !!activeDoc && activeDoc.history.cursor > 0;
   const canRedo = !!activeDoc && activeDoc.history.cursor < activeDoc.history.entries.length;
   const undoLabel = canUndo ? activeDoc.history.entries[activeDoc.history.cursor - 1].label : "";
@@ -56,6 +47,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   const [openMenu, setOpenMenu] = useState<MenuKey>(null);
   const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
   const [isImageDialogOpen, setImageDialogOpen] = useState(false);
+  const [projectVariants, setProjectVariants] = useState<string[]>([]);
   const [variantDialogState, setVariantDialogState] = useState<{ isOpen: boolean; variant: string | null }>({
     isOpen: false,
     variant: null,
@@ -68,6 +60,16 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
 
   useShortcutScope("menu", openMenu !== null);
   useShortcutScope("modal", modalOpen);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setProjectVariants(await editorActions.variant.loadOptions());
+      } catch {
+        setProjectVariants([]);
+      }
+    })();
+  }, []);
 
   const openImageDialog = useCallback(() => {
     setImageDialogOpen(true);
@@ -82,27 +84,27 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   }, []);
 
   const openVariantDialog = useCallback(async () => {
-    const variant = await createVariantDocument();
+    const variant = await editorActions.variant.pickForActive(projectVariants);
     if (variant === null) {
       return;
     }
     setVariantDialogState({ isOpen: true, variant });
-  }, [createVariantDocument]);
+  }, [projectVariants]);
 
   const handleCopySelectedPrefabToVariant = useCallback(async () => {
-    const variant = await createVariantDocument();
+    const variant = await editorActions.variant.pickForActive(projectVariants);
     if (variant === null) {
       return;
     }
-    await copySelectedPrefabToVariant(variant);
-  }, [copySelectedPrefabToVariant, createVariantDocument]);
+    await editorActions.variant.copySelectedPrefabForActive(variant);
+  }, [projectVariants]);
 
   const handleSelectImages = useCallback(
     async (paths: string[]) => {
-      await selectImages(paths);
+      await editorActions.image.openWithChecks(paths);
       setImageDialogOpen(false);
     },
-    [selectImages]
+    []
   );
 
   const handleSelectVariantImage = useCallback(
@@ -111,10 +113,10 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       if (!variant) {
         throw new Error("No variant selected for target image");
       }
-      await selectVariantImage(paths, variant);
+      await editorActions.variant.selectImageForActive(paths, variant);
       setVariantDialogState({ isOpen: false, variant: null });
     },
-    [selectVariantImage, variantDialogState.variant]
+    [variantDialogState.variant]
   );
 
   const handleImportVariantImage = useCallback(
@@ -123,13 +125,13 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       if (!variant) {
         throw new Error("No variant selected for import");
       }
-      const shouldClose = await importVariantImage(files, variant);
+      const shouldClose = await editorActions.variant.importImageForActive(files, variant);
       if (shouldClose) {
         setVariantDialogState({ isOpen: false, variant: null });
       }
       return shouldClose;
     },
-    [importVariantImage, variantDialogState.variant]
+    [variantDialogState.variant]
   );
 
   const triggerStyle = useMemo<React.CSSProperties>(
@@ -168,7 +170,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canSave,
           onClick: () => {
             setOpenMenu(null);
-            void saveDocument();
+            void editorActions.document.save();
           },
         },
         {
@@ -178,7 +180,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canSaveAll,
           onClick: () => {
             setOpenMenu(null);
-            void saveAllDocuments();
+            void editorActions.document.saveAll();
           },
         },
         {
@@ -187,7 +189,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canRenameDocument,
           onClick: () => {
             setOpenMenu(null);
-            void renameDocument();
+            void editorActions.document.renameByPrompt();
           },
         },
         {
@@ -200,7 +202,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
               return;
             }
             setOpenMenu(null);
-            void closeActiveDocumentWithChecks();
+            void editorActions.document.closeActive();
           },
         },
         {
@@ -210,7 +212,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: Object.keys(documents).length === 0,
           onClick: () => {
             setOpenMenu(null);
-            void closeAllDocumentsWithChecks();
+            void editorActions.document.closeAll();
           },
         },
       ],
@@ -267,17 +269,12 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       canSave,
       canSaveAll,
       canUndo,
-      closeActiveDocumentWithChecks,
-      closeAllDocumentsWithChecks,
       documents,
       handleCopySelectedPrefabToVariant,
       openImageDialog,
       openVariantDialog,
-      renameDocument,
       redoMenuText,
       redo,
-      saveDocument,
-      saveAllDocuments,
       undoMenuText,
       undo,
     ]
@@ -391,7 +388,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     combo: "mod+s",
     when: () => canSave,
     onKeyDown: () => {
-      void saveDocument();
+      void editorActions.document.save();
     },
   });
 
@@ -401,7 +398,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     combo: "mod+shift+s",
     when: () => canSaveAll,
     onKeyDown: () => {
-      void saveAllDocuments();
+      void editorActions.document.saveAll();
     },
   });
 
@@ -411,7 +408,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     combo: "mod+2",
     when: () => !!activeDocumentId,
     onKeyDown: () => {
-      void closeActiveDocumentWithChecks();
+      void editorActions.document.closeActive();
     },
   });
 
@@ -421,7 +418,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     combo: "mod+shift+2",
     when: () => hasAnyDocument,
     onKeyDown: () => {
-      void closeAllDocumentsWithChecks();
+      void editorActions.document.closeAll();
     },
   });
 

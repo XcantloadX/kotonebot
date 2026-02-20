@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useHorizontalScroll } from './hooks/useHorizontalScroll';
 import { Icon, Tooltip, Menu, MenuItem } from '@blueprintjs/core';
 import { useAppStore } from '../editor/state';
-import { useEditorCommands } from '../editor/useEditorCommands';
+import { editorActions } from '../editor/actions';
 
 const TAB_MIN_WIDTH = 120;
 const TAB_SIDE_PADDING = 20;
@@ -12,7 +12,6 @@ const TAB_FONT = '600 13px system-ui';
 
 export const TabBar: React.FC = () => {
     const { documents, activeDocumentId, setActiveDocument } = useAppStore();
-    const { closeDocumentWithChecks, closeDocumentsWithChecks } = useEditorCommands();
     const scrollRef = useHorizontalScroll();
 
     const docList = Object.values(documents);
@@ -128,12 +127,12 @@ export const TabBar: React.FC = () => {
                                 }}>
                                     {doc.dirty ? '*' : ''}{name}
                                 </div>
-                                <Icon
+                                    <Icon
                                     icon="small-cross"
                                     className="tab-close-btn"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        void closeDocumentWithChecks(doc.id);
+                                        void editorActions.document.close(doc.id);
                                     }}
                                     style={{ opacity: 0.6 }}
                                 />
@@ -151,18 +150,18 @@ export const TabBar: React.FC = () => {
                     <Menu>
                         <MenuItem text="Close" onClick={() => {
                             const id = contextMenu.docId;
-                            void closeDocumentWithChecks(id);
+                            void editorActions.document.close(id);
                             setContextMenu(null);
                         }} />
                         <MenuItem text="Close All" onClick={() => {
                             const ids = Object.keys(documents);
-                            void closeDocumentsWithChecks(ids);
+                            void editorActions.document.closeMany(ids);
                             setContextMenu(null);
                         }} />
                         <MenuItem text="Close Others" onClick={() => {
                             const id = contextMenu.docId;
                             const ids = Object.keys(documents).filter(i => i !== id);
-                            void closeDocumentsWithChecks(ids);
+                            void editorActions.document.closeMany(ids);
                             setContextMenu(null);
                         }} />
                     </Menu>

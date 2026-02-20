@@ -3,7 +3,7 @@ import { Classes, Dialog, InputGroup } from "@blueprintjs/core";
 import { SymbolLite } from "../model/symbolIndex";
 import { useSymbolIndexStore } from "../editor/symbolIndexStore";
 import { useAppStore } from "../editor/state";
-import { jumpToSymbol } from "../editor/actions/navigation";
+import { editorActions } from "../editor/actions";
 import { useShortcutScope } from "../shortcuts/shortcutManager";
 
 interface CommandPaletteProps {
@@ -176,7 +176,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     if (!symbol) {
       return;
     }
-    await jumpToSymbol(symbol);
+    await editorActions.navigation.jumpToSymbol(symbol);
     onClose();
   };
 
