@@ -3,16 +3,23 @@ import { Classes, Dialog, InputGroup } from "@blueprintjs/core";
 import { SymbolLite } from "../model/symbolIndex";
 import { useSymbolIndexStore } from "../editor/symbolIndexStore";
 import { useAppStore } from "../editor/state";
-import { editorActions } from "../editor/actions";
+import { COMMAND_ID, executeCommand, getPaletteCommands, useCommandStatuses } from "../editor/commands";
+import type { EditorCommandContext, EditorCommandDefinition, NoArgCommandId } from "../editor/commands";
 import { useShortcutScope } from "../shortcuts/shortcutManager";
 
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
+  commandContext: EditorCommandContext;
 }
 
 type RankedSymbol = {
   symbol: SymbolLite;
+  score: number;
+};
+
+type RankedCommand = {
+  command: EditorCommandDefinition<NoArgCommandId>;
   score: number;
 };
 
@@ -99,24 +106,44 @@ function rankSymbol(symbol: SymbolLite, query: string, tokens: string[], activeD
   return score;
 }
 
-/**
- * 命令面板组件，目前只有搜索符号的功能。
- * 通过 Ctrl + Shift + P 打开，输入 # 加上关键词搜索符号，使用上下键选择，回车确认。
- * 搜索结果会根据匹配度、最近使用情况和是否在当前文档中进行排序。
- */
+function rankCommand(command: EditorCommandDefinition<NoArgCommandId>, query: string, tokens: string[]): number {
+  if (query.trim() === "") {
+    return 100;
+  }
+  const full = query.toLowerCase();
+  const title = command.title.toLowerCase();
+  const keywords = (command.keywords ?? []).join(" ").toLowerCase();
+  const haystack = `${title} ${keywords}`.trim();
+
+  if (title === full) {
+    return 1000;
+  }
+  if (title.startsWith(full)) {
+    return 800;
+  }
+  if (tokens.length > 0 && tokens.every((token) => haystack.includes(token))) {
+    return 500;
+  }
+  if (haystack.includes(full)) {
+    return 300;
+  }
+  return -1;
+}
+
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
   isOpen,
   onClose,
+  commandContext,
 }) => {
   useShortcutScope("palette", isOpen);
   const { activeDocumentId } = useAppStore();
   const { symbols, recentSymbolKeys } = useSymbolIndexStore();
-  const [query, setQuery] = useState("#");
+  const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
-      setQuery("#");
+      setQuery("");
       setSelectedIndex(0);
     }
   }, [isOpen]);
@@ -130,15 +157,27 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   }, [recentSymbolKeys]);
 
   const queryTokens = useMemo(() => {
-    if (!query.startsWith("#")) {
-      return [];
-    }
-    const raw = query.slice(1).trim();
-    if (raw.length === 0) {
-      return [];
-    }
+    const raw = query.startsWith("#") ? query.slice(1) : query;
     return splitQueryTokens(raw);
   }, [query]);
+
+  const rankedCommands = useMemo((): RankedCommand[] => {
+    if (query.startsWith("#")) {
+      return [];
+    }
+    return getPaletteCommands(commandContext)
+      .map((command) => ({
+        command,
+        score: rankCommand(command, query, queryTokens),
+      }))
+      .filter((item) => item.score >= 0)
+      .sort((a, b) => b.score - a.score);
+  }, [commandContext, query, queryTokens]);
+  const commandStatusEntries = useMemo(
+    () => rankedCommands.map((item) => ({ id: item.command.id, args: undefined })),
+    [rankedCommands],
+  );
+  const commandStatuses = useCommandStatuses(commandStatusEntries, commandContext);
 
   const ranked = useMemo((): RankedSymbol[] => {
     if (!query.startsWith("#")) {
@@ -159,24 +198,37 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   }, [query, symbols, activeDocumentId, recentOrder, queryTokens]);
 
   useEffect(() => {
-    if (selectedIndex >= ranked.length) {
+    const currentLength = query.startsWith("#") ? ranked.length : rankedCommands.length;
+    if (selectedIndex >= currentLength) {
       setSelectedIndex(0);
     }
-  }, [ranked, selectedIndex]);
+  }, [query, ranked, rankedCommands, selectedIndex]);
 
   useEffect(() => {
-    if (ranked.length === 0) {
+    const currentLength = query.startsWith("#") ? ranked.length : rankedCommands.length;
+    if (currentLength === 0) {
       return;
     }
     const selected = document.getElementById(`command-palette-row-${selectedIndex}`);
     selected?.scrollIntoView({ block: "nearest" });
-  }, [selectedIndex, ranked.length]);
+  }, [query, ranked.length, rankedCommands.length, selectedIndex]);
 
-  const handleConfirm = async (symbol: SymbolLite | undefined) => {
+  const handleConfirmSymbol = async (symbol: SymbolLite | undefined) => {
     if (!symbol) {
       return;
     }
-    await editorActions.navigation.jumpToSymbol(symbol);
+    await executeCommand(COMMAND_ID.NAVIGATION_JUMP_TO_SYMBOL, commandContext, { symbol });
+    onClose();
+  };
+
+  const handleConfirmCommand = async (command: EditorCommandDefinition<NoArgCommandId> | undefined) => {
+    if (!command) {
+      return;
+    }
+    if (!commandStatuses[command.id]?.enabled) {
+      return;
+    }
+    await executeCommand(command.id, commandContext, undefined);
     onClose();
   };
 
@@ -188,33 +240,42 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           leftIcon="search"
           value={query}
           onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
-          placeholder="#search symbol"
+          placeholder="Type command name, or # to search symbols"
           onKeyDown={async (e) => {
             const step = 10;
+            const currentLength = query.startsWith("#") ? ranked.length : rankedCommands.length;
             if (e.key === "ArrowDown") {
               e.preventDefault();
-              setSelectedIndex((v) => (ranked.length === 0 ? 0 : (v + 1) % ranked.length));
+              setSelectedIndex((v) => (currentLength === 0 ? 0 : (v + 1) % currentLength));
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
-              setSelectedIndex((v) => (ranked.length === 0 ? 0 : (v - 1 + ranked.length) % ranked.length));
+              setSelectedIndex((v) => (currentLength === 0 ? 0 : (v - 1 + currentLength) % currentLength));
             } else if (e.key === "Home") {
               e.preventDefault();
               setSelectedIndex(0);
             } else if (e.key === "End") {
               e.preventDefault();
-              setSelectedIndex(Math.max(0, ranked.length - 1));
+              setSelectedIndex(Math.max(0, currentLength - 1));
             } else if (e.key === "PageDown") {
               e.preventDefault();
-              setSelectedIndex((v) => Math.min(Math.max(0, ranked.length - 1), v + step));
+              setSelectedIndex((v) => Math.min(Math.max(0, currentLength - 1), v + step));
             } else if (e.key === "PageUp") {
               e.preventDefault();
               setSelectedIndex((v) => Math.max(0, v - step));
             } else if (e.key === "Enter") {
               e.preventDefault();
-              await handleConfirm(ranked[selectedIndex]?.symbol);
+              if (query.startsWith("#")) {
+                await handleConfirmSymbol(ranked[selectedIndex]?.symbol);
+              } else {
+                await handleConfirmCommand(rankedCommands[selectedIndex]?.command);
+              }
             } else if (e.key === "Tab") {
               e.preventDefault();
-              await handleConfirm(ranked[selectedIndex]?.symbol);
+              if (query.startsWith("#")) {
+                await handleConfirmSymbol(ranked[selectedIndex]?.symbol);
+              } else {
+                await handleConfirmCommand(rankedCommands[selectedIndex]?.command);
+              }
             } else if (e.key === "Escape") {
               e.preventDefault();
               onClose();
@@ -222,13 +283,47 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           }}
         />
         <div style={{ marginTop: 10, border: "1px solid #d8e1e8", borderRadius: 4, maxHeight: 360, overflowY: "auto" }}>
-          {query.startsWith("#") ? null : (
-            <div style={{ padding: 12, color: "#5c7080" }}>Type # to search symbols</div>
-          )}
           {query.startsWith("#") && ranked.length === 0 ? (
             <div style={{ padding: 12, color: "#5c7080" }}>No symbol match</div>
           ) : null}
+          {!query.startsWith("#") && rankedCommands.length === 0 ? (
+            <div style={{ padding: 12, color: "#5c7080" }}>No command match</div>
+          ) : null}
+          {!query.startsWith("#")
+            ? rankedCommands.map((item, idx) => {
+              const isSelected = idx === selectedIndex;
+              const enabled = commandStatuses[item.command.id]?.enabled ?? false;
+              return (
+                <div
+                  id={`command-palette-row-${idx}`}
+                  key={item.command.id}
+                  style={{
+                    padding: "8px 10px",
+                    borderBottom: "1px solid #eef2f5",
+                    background: isSelected ? "#ebf1f5" : "#ffffff",
+                    cursor: enabled ? "pointer" : "not-allowed",
+                    opacity: enabled ? 1 : 0.5,
+                  }}
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                  onClick={() => {
+                    if (!enabled) {
+                      return;
+                    }
+                    void handleConfirmCommand(item.command);
+                  }}
+                >
+                  <div style={{ fontSize: 13, color: "#182026" }}>
+                    {renderHighlightedText(item.command.title, queryTokens)}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#5c7080", marginTop: 2 }}>{item.command.id}</div>
+                </div>
+              );
+            })
+            : null}
           {ranked.map((item, idx) => {
+            if (!query.startsWith("#")) {
+              return null;
+            }
             const symbol = item.symbol;
             const mainLabel = (symbol.name || symbol.definitionId).trim();
             const displayLabel = (symbol.displayName || "").trim();
@@ -246,7 +341,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   cursor: "pointer",
                 }}
                 onMouseEnter={() => setSelectedIndex(idx)}
-                onClick={() => void handleConfirm(symbol)}
+                onClick={() => void handleConfirmSymbol(symbol)}
               >
                 <div style={{ fontSize: 13, color: "#182026" }} aria-label={label}>
                   {renderHighlightedText(mainLabel, queryTokens)}

@@ -3,7 +3,7 @@ import { FormGroup, InputGroup, Button, H5, Card } from '@blueprintjs/core';
 import { useAppStore } from '../editor/state';
 import { PropValue } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
-import { editorActions } from '../editor/actions';
+import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import { getEditorForType } from './properties/PropertyEditorRegistry';
 import { OverridableField } from './components/OverridableField';
@@ -18,6 +18,7 @@ const VARIANT_INHERIT_OPTIONS: readonly SegmentedOption<VariantInheritValue>[] =
 ];
 
 export const RightProperties: React.FC = () => {
+  const commandContext = React.useMemo(() => ({ ui: {} }), []);
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
   const symbols = useSymbolIndexStore(s => s.symbols);
   const nameValueOnFocusRef = React.useRef<string>('');
@@ -93,7 +94,7 @@ export const RightProperties: React.FC = () => {
     if (valueOnFocus === currentValue) {
       return;
     }
-    void editorActions.variant.renameVariantsForDefinitionByPrompt(defId);
+    void executeCommand(COMMAND_ID.VARIANT_RENAME_VARIANTS_FOR_DEFINITION, commandContext, { definitionId: defId });
   };
 
     const renderPropEditor = (key: string, value: PropValue | undefined, schema?: EditorPropSchema) => {
@@ -218,7 +219,7 @@ export const RightProperties: React.FC = () => {
                   minimal
                   icon="share"
                   text={symbol.variant || "base"}
-                  onClick={() => void editorActions.navigation.jumpToSymbol(symbol)}
+                  onClick={() => void executeCommand(COMMAND_ID.NAVIGATION_JUMP_TO_SYMBOL, commandContext, { symbol })}
                 />
               ))}
             </div>

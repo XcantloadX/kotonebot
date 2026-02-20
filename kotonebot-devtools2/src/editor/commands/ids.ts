@@ -1,0 +1,20 @@
+/** 命令 ID 常量表，供注册表与调用方统一引用。 */
+export const COMMAND_ID = {
+  APP_OPEN_COMMAND_PALETTE: "app.openCommandPalette",
+  APP_TOGGLE_PROBLEMS_PANEL: "app.toggleProblemsPanel",
+  FILE_OPEN_IMAGE: "file.openImage",
+  FILE_SAVE: "file.save",
+  FILE_SAVE_ALL: "file.saveAll",
+  FILE_RENAME: "file.rename",
+  FILE_CLOSE_ACTIVE: "file.closeActive",
+  FILE_CLOSE_ALL: "file.closeAll",
+  EDIT_UNDO: "edit.undo",
+  EDIT_REDO: "edit.redo",
+  VARIANT_NEW_DOCUMENT: "variant.newDocument",
+  VARIANT_COPY_SELECTED_PREFAB: "variant.copySelectedPrefab",
+  VARIANT_RENAME_VARIANTS_FOR_DEFINITION: "variant.renameVariantsForDefinition",
+  DOCUMENT_CLOSE: "document.close",
+  DOCUMENT_CLOSE_MANY: "document.closeMany",
+  NAVIGATION_JUMP_TO_SYMBOL: "navigation.jumpToSymbol",
+  NAVIGATION_JUMP_TO_DIAGNOSTIC: "navigation.jumpToDiagnostic",
+} as const;

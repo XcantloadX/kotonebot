@@ -11,6 +11,7 @@ import { TopMenuBar } from '../ui/TopMenuBar';
 import { ProblemsPanel } from '../ui/ProblemsPanel';
 import { useSettingsStore } from './settings';
 import { FocusSpotlightOverlay } from './FocusSpotlightOverlay';
+import { COMMAND_ID, executeCommand } from './commands';
 import { useShortcut, useShortcutScope } from '../shortcuts/shortcutManager';
 
 export const EditorApp: React.FC = () => {
@@ -21,6 +22,14 @@ export const EditorApp: React.FC = () => {
   const setProblemsVisible = useSettingsStore((s) => s.setProblemsVisible);
   const problemsHeight = useSettingsStore((s) => s.problemsHeight);
   const setProblemsHeight = useSettingsStore((s) => s.setProblemsHeight);
+  const commandContext = React.useMemo(
+    () => ({
+      ui: {
+        openCommandPalette: () => setPaletteOpen(true),
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     getPrefabSchema().then(setPrefabSchema).catch(console.error);
@@ -36,14 +45,18 @@ export const EditorApp: React.FC = () => {
     id: "editor.open-command-palette",
     scope: "editor",
     combo: "mod+shift+p",
-    onKeyDown: () => setPaletteOpen(true),
+    onKeyDown: () => {
+      void executeCommand(COMMAND_ID.APP_OPEN_COMMAND_PALETTE, commandContext, undefined);
+    },
   });
 
   useShortcut({
     id: "editor.toggle-problems-panel",
     scope: "editor",
     combo: "mod+shift+m",
-    onKeyDown: () => setProblemsVisible(!useSettingsStore.getState().problemsVisible),
+    onKeyDown: () => {
+      void executeCommand(COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL, commandContext, undefined);
+    },
   });
 
   return (
@@ -84,6 +97,7 @@ export const EditorApp: React.FC = () => {
       <CommandPalette
         isOpen={isPaletteOpen}
         onClose={() => setPaletteOpen(false)}
+        commandContext={commandContext}
       />
       <FocusSpotlightOverlay />
     </div>

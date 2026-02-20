@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconName, InputGroup, Menu, MenuItem } from "@blueprintjs/core";
 import { editorActions } from "../editor/actions";
+import { COMMAND_ID, executeCommand, useCommandStatuses } from "../editor/commands";
 import { useAppStore } from "../editor/state";
 import { FileOpenDialog } from "./components/FileOpenDialog/FileOpenDialog";
 import { FileOpenOrImportDialog } from "./components/FileOpenDialog/FileOpenOrImportDialog";
@@ -24,22 +25,8 @@ interface MenuDefinitionItem {
 export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   onOpenCommandPalette,
 }) => {
-  const { undo, redo, activeDocumentId, documents } = useAppStore();
+  const { activeDocumentId, documents } = useAppStore();
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
-  const activeMeta = activeDoc?.meta;
-  const canSave = !!activeMeta;
-  const canSaveAll = Object.values(documents).some((doc) => doc.dirty);
-  const canRenameDocument = !!activeMeta;
-  const canCreateVariantDocument = !!activeMeta;
-  const canCopySelectedPrefabToVariant = !!activeMeta
-    && !!activeDoc?.selection
-    && activeMeta.data.definitions[activeDoc.selection.definitionId]?.type === "prefab";
-  const canUndo = !!activeDoc && activeDoc.history.cursor > 0;
-  const canRedo = !!activeDoc && activeDoc.history.cursor < activeDoc.history.entries.length;
-  const undoLabel = canUndo ? activeDoc.history.entries[activeDoc.history.cursor - 1].label : "";
-  const redoLabel = canRedo ? activeDoc.history.entries[activeDoc.history.cursor].label : "";
-  const undoMenuText = canUndo ? `Undo: ${undoLabel}` : "Undo";
-  const redoMenuText = canRedo ? `Redo: ${redoLabel}` : "Redo";
   const fileButtonRef = useRef<HTMLButtonElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const variantButtonRef = useRef<HTMLButtonElement>(null);
@@ -55,7 +42,6 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   const variantDialogTitle = variantDialogState.variant
     ? `Select target image for variant ${variantDialogState.variant}`
     : "Select target image for variant";
-  const hasAnyDocument = Object.keys(documents).length > 0;
   const modalOpen = isImageDialogOpen || variantDialogState.isOpen;
 
   useShortcutScope("menu", openMenu !== null);
@@ -98,6 +84,42 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     }
     await editorActions.variant.copySelectedPrefabForActive(variant);
   }, [projectVariants]);
+
+  const commandContext = useMemo(
+    () => ({
+      ui: {
+        openCommandPalette: onOpenCommandPalette,
+        openImageDialog,
+        openVariantDialog,
+        copySelectedPrefabToVariant: handleCopySelectedPrefabToVariant,
+      },
+    }),
+    [handleCopySelectedPrefabToVariant, onOpenCommandPalette, openImageDialog, openVariantDialog],
+  );
+
+  const statusEntries = useMemo(() => ([
+    { id: COMMAND_ID.FILE_SAVE, args: undefined },
+    { id: COMMAND_ID.FILE_SAVE_ALL, args: undefined },
+    { id: COMMAND_ID.FILE_RENAME, args: undefined },
+    { id: COMMAND_ID.FILE_CLOSE_ACTIVE, args: undefined },
+    { id: COMMAND_ID.FILE_CLOSE_ALL, args: undefined },
+    { id: COMMAND_ID.EDIT_UNDO, args: undefined },
+    { id: COMMAND_ID.EDIT_REDO, args: undefined },
+    { id: COMMAND_ID.VARIANT_NEW_DOCUMENT, args: undefined },
+    { id: COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB, args: undefined },
+  ] as const), []);
+  const statuses = useCommandStatuses(statusEntries, commandContext);
+  const canSave = statuses[COMMAND_ID.FILE_SAVE].enabled;
+  const canSaveAll = statuses[COMMAND_ID.FILE_SAVE_ALL].enabled;
+  const canRenameDocument = statuses[COMMAND_ID.FILE_RENAME].enabled;
+  const canCreateVariantDocument = statuses[COMMAND_ID.VARIANT_NEW_DOCUMENT].enabled;
+  const canCopySelectedPrefabToVariant = statuses[COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB].enabled;
+  const canUndo = statuses[COMMAND_ID.EDIT_UNDO].enabled;
+  const canRedo = statuses[COMMAND_ID.EDIT_REDO].enabled;
+  const undoLabel = canUndo && activeDoc ? activeDoc.history.entries[activeDoc.history.cursor - 1].label : "";
+  const redoLabel = canRedo && activeDoc ? activeDoc.history.entries[activeDoc.history.cursor].label : "";
+  const undoMenuText = canUndo ? `Undo: ${undoLabel}` : "Undo";
+  const redoMenuText = canRedo ? `Redo: ${redoLabel}` : "Redo";
 
   const handleSelectImages = useCallback(
     async (paths: string[]) => {
@@ -160,7 +182,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           label: "Ctrl+O",
           onClick: () => {
             setOpenMenu(null);
-            openImageDialog();
+            void executeCommand(COMMAND_ID.FILE_OPEN_IMAGE, commandContext, undefined);
           },
         },
         {
@@ -170,7 +192,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canSave,
           onClick: () => {
             setOpenMenu(null);
-            void editorActions.document.save();
+            void executeCommand(COMMAND_ID.FILE_SAVE, commandContext, undefined);
           },
         },
         {
@@ -180,7 +202,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canSaveAll,
           onClick: () => {
             setOpenMenu(null);
-            void editorActions.document.saveAll();
+            void executeCommand(COMMAND_ID.FILE_SAVE_ALL, commandContext, undefined);
           },
         },
         {
@@ -189,30 +211,27 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canRenameDocument,
           onClick: () => {
             setOpenMenu(null);
-            void editorActions.document.renameByPrompt();
+            void executeCommand(COMMAND_ID.FILE_RENAME, commandContext, undefined);
           },
         },
         {
           icon: "cross",
           text: "Close Document",
           label: "Ctrl+2",
-          disabled: !activeDocumentId,
+          disabled: !statuses[COMMAND_ID.FILE_CLOSE_ACTIVE].enabled,
           onClick: () => {
-            if (!activeDocumentId) {
-              return;
-            }
             setOpenMenu(null);
-            void editorActions.document.closeActive();
+            void executeCommand(COMMAND_ID.FILE_CLOSE_ACTIVE, commandContext, undefined);
           },
         },
         {
           icon: "small-cross",
           text: "Close All Document",
           label: "Ctrl+Shift+2",
-          disabled: Object.keys(documents).length === 0,
+          disabled: !statuses[COMMAND_ID.FILE_CLOSE_ALL].enabled,
           onClick: () => {
             setOpenMenu(null);
-            void editorActions.document.closeAll();
+            void executeCommand(COMMAND_ID.FILE_CLOSE_ALL, commandContext, undefined);
           },
         },
       ],
@@ -224,7 +243,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canUndo,
           onClick: () => {
             setOpenMenu(null);
-            undo();
+            void executeCommand(COMMAND_ID.EDIT_UNDO, commandContext, undefined);
           },
         },
         {
@@ -234,7 +253,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canRedo,
           onClick: () => {
             setOpenMenu(null);
-            redo();
+            void executeCommand(COMMAND_ID.EDIT_REDO, commandContext, undefined);
           },
         },
       ],
@@ -246,7 +265,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canCreateVariantDocument,
           onClick: () => {
             setOpenMenu(null);
-            void openVariantDialog();
+            void executeCommand(COMMAND_ID.VARIANT_NEW_DOCUMENT, commandContext, undefined);
           },
         },
         {
@@ -255,7 +274,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           disabled: !canCopySelectedPrefabToVariant,
           onClick: () => {
             setOpenMenu(null);
-            void handleCopySelectedPrefabToVariant();
+            void executeCommand(COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB, commandContext, undefined);
           },
         },
       ],
@@ -269,14 +288,10 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       canSave,
       canSaveAll,
       canUndo,
+      commandContext,
       documents,
-      handleCopySelectedPrefabToVariant,
-      openImageDialog,
-      openVariantDialog,
       redoMenuText,
-      redo,
       undoMenuText,
-      undo,
     ]
   );
 
@@ -379,16 +394,18 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     id: "editor.open-image",
     scope: "editor",
     combo: "mod+o",
-    onKeyDown: () => openImageDialog(),
+    onKeyDown: () => {
+      void executeCommand(COMMAND_ID.FILE_OPEN_IMAGE, commandContext, undefined);
+    },
   });
 
   useShortcut({
     id: "editor.save-document",
     scope: "editor",
     combo: "mod+s",
-    when: () => canSave,
+    when: () => statuses[COMMAND_ID.FILE_SAVE].enabled,
     onKeyDown: () => {
-      void editorActions.document.save();
+      void executeCommand(COMMAND_ID.FILE_SAVE, commandContext, undefined);
     },
   });
 
@@ -396,9 +413,9 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     id: "editor.save-all-documents",
     scope: "editor",
     combo: "mod+shift+s",
-    when: () => canSaveAll,
+    when: () => statuses[COMMAND_ID.FILE_SAVE_ALL].enabled,
     onKeyDown: () => {
-      void editorActions.document.saveAll();
+      void executeCommand(COMMAND_ID.FILE_SAVE_ALL, commandContext, undefined);
     },
   });
 
@@ -406,9 +423,9 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     id: "editor.close-active-document",
     scope: "editor",
     combo: "mod+2",
-    when: () => !!activeDocumentId,
+    when: () => statuses[COMMAND_ID.FILE_CLOSE_ACTIVE].enabled,
     onKeyDown: () => {
-      void editorActions.document.closeActive();
+      void executeCommand(COMMAND_ID.FILE_CLOSE_ACTIVE, commandContext, undefined);
     },
   });
 
@@ -416,9 +433,9 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     id: "editor.close-all-document",
     scope: "editor",
     combo: "mod+shift+2",
-    when: () => hasAnyDocument,
+    when: () => statuses[COMMAND_ID.FILE_CLOSE_ALL].enabled,
     onKeyDown: () => {
-      void editorActions.document.closeAll();
+      void executeCommand(COMMAND_ID.FILE_CLOSE_ALL, commandContext, undefined);
     },
   });
 
@@ -426,9 +443,9 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     id: "editor.open-variant-dialog",
     scope: "editor",
     combo: "mod+alt+n",
-    when: () => canCreateVariantDocument,
+    when: () => statuses[COMMAND_ID.VARIANT_NEW_DOCUMENT].enabled,
     onKeyDown: () => {
-      void openVariantDialog();
+      void executeCommand(COMMAND_ID.VARIANT_NEW_DOCUMENT, commandContext, undefined);
     },
   });
 
@@ -498,7 +515,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       <div
         onMouseDown={(e) => {
           e.preventDefault();
-          onOpenCommandPalette();
+          void executeCommand(COMMAND_ID.APP_OPEN_COMMAND_PALETTE, commandContext, undefined);
         }}
       >
         <InputGroup

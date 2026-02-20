@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useHorizontalScroll } from './hooks/useHorizontalScroll';
 import { Icon, Tooltip, Menu, MenuItem } from '@blueprintjs/core';
+import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { useAppStore } from '../editor/state';
-import { editorActions } from '../editor/actions';
 
 const TAB_MIN_WIDTH = 120;
 const TAB_SIDE_PADDING = 20;
@@ -13,6 +13,7 @@ const TAB_FONT = '600 13px system-ui';
 export const TabBar: React.FC = () => {
     const { documents, activeDocumentId, setActiveDocument } = useAppStore();
     const scrollRef = useHorizontalScroll();
+    const commandContext = useMemo(() => ({ ui: {} }), []);
 
     const docList = Object.values(documents);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; docId: string } | null>(null);
@@ -132,7 +133,7 @@ export const TabBar: React.FC = () => {
                                     className="tab-close-btn"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        void editorActions.document.close(doc.id);
+                                        void executeCommand(COMMAND_ID.DOCUMENT_CLOSE, commandContext, { id: doc.id });
                                     }}
                                     style={{ opacity: 0.6 }}
                                 />
@@ -150,18 +151,18 @@ export const TabBar: React.FC = () => {
                     <Menu>
                         <MenuItem text="Close" onClick={() => {
                             const id = contextMenu.docId;
-                            void editorActions.document.close(id);
+                            void executeCommand(COMMAND_ID.DOCUMENT_CLOSE, commandContext, { id });
                             setContextMenu(null);
                         }} />
                         <MenuItem text="Close All" onClick={() => {
                             const ids = Object.keys(documents);
-                            void editorActions.document.closeMany(ids);
+                            void executeCommand(COMMAND_ID.DOCUMENT_CLOSE_MANY, commandContext, { ids });
                             setContextMenu(null);
                         }} />
                         <MenuItem text="Close Others" onClick={() => {
                             const id = contextMenu.docId;
                             const ids = Object.keys(documents).filter(i => i !== id);
-                            void editorActions.document.closeMany(ids);
+                            void executeCommand(COMMAND_ID.DOCUMENT_CLOSE_MANY, commandContext, { ids });
                             setContextMenu(null);
                         }} />
                     </Menu>
