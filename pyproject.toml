@@ -22,6 +22,7 @@ dependencies = [
     "typing-extensions~=4.12",
     "python-dotenv~=1.0",
     "onnxruntime~=1.14",
+    "rich~=13.9",
     "numpy",
     "mouse>=0.7.1",
 ]
