@@ -1,6 +1,5 @@
-graft kotonebot/kaa/sprites
-graft kotonebot/kaa/resources
+include build_backend.py
 graft kotonebot/devtools/web/dist
 prune tests
 prune tools
-prune experiments
+prune kotonebot-devtools2
