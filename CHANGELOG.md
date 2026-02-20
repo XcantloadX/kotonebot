@@ -7,6 +7,10 @@ Devtools：
 1. [feat] **BREAKING** 现在强制要求在 `pyproject.toml` 中填写 `resource_path` 字段。
 2. [feat] Devtools 中打开文件对话框的默认路径现在变为 `resource_path` 字段的值。
 3. [feat] 现在支持 Ctrl + Shift + P 打开 Command Pattle，输入 `#` 来搜索项目内所有资源文件的名称与展示名称，类似于 VSCode。
+4. [feat] 新增「问题面板」，展示项目内的所有问题。
+5. [feat] resgen 优化构建时的输出，现在会展示进度以及所有的 warning、error、info。
+6. [feat] 新增 variant 机制，可用于适配多语言游戏。
+7. [feat] 优化 Devtool 的 UI，新增引入顶部菜单栏。
 
 ## v0.8.0
 Library:
