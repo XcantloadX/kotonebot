@@ -778,34 +778,3 @@ def expect(
         raise TemplateNoMatchError(image, template)
     else:
         return ret
-
-@deprecated("This function is deprecated. Use 'structural_similarity' from 'skimage.metrics' directly instead.")
-def similar(
-    image1: MatLike,
-    image2: MatLike,
-    threshold: float = 0.9
-) -> bool:
-    """
-    判断两张图像是否相似（灰度）。输入的两张图片必须为相同尺寸。
-    """
-    from skimage.metrics import structural_similarity
-    if image1.shape != image2.shape:
-        raise ValueError('Expected two images with the same size.')
-    image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-    image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
-    result = structural_similarity(image1, image2, multichannel=True)
-    # logger.debug(
-    #     f'similar(): image1: {_img2str(image1)} image2: {_img2str(image2)} '
-    #     f'result: {result}'
-    # )
-    # 调试输出
-    if debug.enabled:
-        result_image = np.hstack([image1, image2])
-        debug_result(
-            'image.similar',
-            [result_image, image1, image2],
-            f"result: {result} >= {threshold} == {result >= threshold} \n"
-        )
-    return result >= threshold
-
-

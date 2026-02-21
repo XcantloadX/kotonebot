@@ -1,4 +1,8 @@
 # 更新日志
+## v0.10.0
+Library:
+1. [feat] **BREAKING** 移除 image.similar 分发与 scikit-image 依赖。
+
 ## v0.9.0
 Framework: 
 1. [feat] 为 AnyOf 类支持 `wait` 方法。
