@@ -3,10 +3,13 @@ import subprocess
 from pathlib import Path
 
 from setuptools.build_meta import (
+    build_editable as _build_editable,
     build_sdist as _build_sdist,
     build_wheel as _build_wheel,
+    get_requires_for_build_editable,
     get_requires_for_build_sdist,
     get_requires_for_build_wheel,
+    prepare_metadata_for_build_editable,
     prepare_metadata_for_build_wheel,
 )
 
@@ -55,6 +58,15 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     return _build_wheel(wheel_directory, config_settings, metadata_directory)
 
 
+def build_editable(wheel_directory, config_settings=None, metadata_directory=None):
+    can_build_frontend = (FRONTEND_DIR / "package-lock.json").exists()
+    if can_build_frontend:
+        _build_frontend()
+    if not PACKAGE_DIST.exists():
+        raise FileNotFoundError(f"Packaged frontend dist not found: {PACKAGE_DIST}")
+    return _build_editable(wheel_directory, config_settings, metadata_directory)
+
+
 def build_sdist(sdist_directory, config_settings=None):
     _build_frontend()
     return _build_sdist(sdist_directory, config_settings)
@@ -62,8 +74,11 @@ def build_sdist(sdist_directory, config_settings=None):
 
 __all__ = [
     "build_wheel",
+    "build_editable",
     "build_sdist",
+    "get_requires_for_build_editable",
     "get_requires_for_build_wheel",
     "get_requires_for_build_sdist",
+    "prepare_metadata_for_build_editable",
     "prepare_metadata_for_build_wheel",
 ]
