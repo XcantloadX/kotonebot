@@ -29,17 +29,15 @@ def build_meta_state(
             variant_configured=variant_configured,
         )
     )
-    # 仅当不存在错误时才解析 prefab_groups
-    has_error = any(diag.severity == "error" for diag in diagnostics)
-    if has_error:
-        docs_graph = build_docs_graph(corpus, prefab_groups={})
-    else:
+    try:
         grouped = collect_variant_groups(corpus)
         resolved = resolve_prefab_variant_groups(
             grouped,
             resource_variants=resource_variants,
         )
         docs_graph = build_docs_graph(corpus, prefab_groups=resolved)
+    except ValueError:
+        docs_graph = build_docs_graph(corpus, prefab_groups={})
     return MetaState(
         docs_graph=docs_graph,
         diagnostics=diagnostics,
