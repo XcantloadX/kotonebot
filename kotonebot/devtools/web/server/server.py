@@ -1,5 +1,5 @@
 import webbrowser
-from pathlib import Path
+from importlib import resources
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -20,13 +20,13 @@ def create_app():
     app.include_router(create_rest_router(project))
     
     # Get the dist directory path
-    dist_dir = Path(__file__).parent.parent / "web" / "dist"
+    dist_dir = resources.files("kotonebot.devtools.web") / "dist"
 
     # Mount static files if dist directory exists
-    if dist_dir.exists():
+    if dist_dir.is_dir():
         # 优先将打包好的静态资源挂载到 /assets（如果构建将资源放在 dist/assets）
         assets_dir = dist_dir / "assets"
-        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
         # SPA: 直接将除 /api/* 之外的所有路径映射到 index.html
         @app.get("/{_path:path}")
@@ -36,7 +36,7 @@ def create_app():
                 return JSONResponse({"detail": "Not Found"}, status_code=404)
 
             index_file = dist_dir / "index.html"
-            if index_file.exists():
+            if index_file.is_file():
                 return HTMLResponse(index_file.read_text(encoding="utf-8"))
 
             return JSONResponse({"detail": "Not Found"}, status_code=404)
