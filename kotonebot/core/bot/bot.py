@@ -125,10 +125,10 @@ class KotoneBot:
     def run(self, tasks: Iterable[Task] | Throwable[Task]) -> None:
         self._initialize()
         assert self._ctx is not None, 'BotContext not initialized (this should not happen)'
-        
+        self._ctx.device.start()
+        self.events.started.trigger()
         iterator = iter(tasks)
         pending_exc = None
-        
         try:
             while True:
                 try:
@@ -146,10 +146,10 @@ class KotoneBot:
                 logger.info('=' * 20)
                 logger.info(f'Task started: {task.name}')
                 self.events.task_status_changed.trigger(task, 'running')
-                
+
                 if not self._ctx.is_running:
                     break
-                
+
                 vars.flow.check()
 
                 def core_execution():
@@ -181,6 +181,8 @@ class KotoneBot:
         except Exception as e:
             logger.critical(f"Bot Main Loop Crashed: {e}", exc_info=True)
             self.events.stopped.trigger(BotStopReason.ERROR, e)
+        finally:
+            self._ctx.device.stop()
 
     def start(self, tasks: Iterable[Task]) -> RunStatus:
         t = threading.Thread(target=lambda: self.run(tasks))

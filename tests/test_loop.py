@@ -10,7 +10,7 @@ class TestLoop(unittest.TestCase):
         self.mock_device = MagicMock(spec=Device)
         # Provide a dummy screenshot so Context/image operations do not fail
         self.mock_device.screenshot.return_value = object()
-        init_context(target_device=self.mock_device)
+        init_context(force=True, target_device=self.mock_device)
         # Ensure no leftover global callbacks from other tests
         from kotonebot.config.config import conf
         conf().loop.loop_callbacks.clear()
@@ -48,6 +48,7 @@ class TestLoop(unittest.TestCase):
         """Ensure callbacks in conf().loop.loop_callbacks are invoked with Loop."""
         from kotonebot.config.config import conf
         called = MagicMock()
+        called.return_value = False
         conf().loop.loop_callbacks.append(called)
 
         with manual_context():
@@ -61,6 +62,8 @@ class TestLoop(unittest.TestCase):
         from kotonebot.config.config import conf
         cb1 = MagicMock()
         cb2 = MagicMock()
+        cb1.return_value = False
+        cb2.return_value = False
         conf().loop.loop_callbacks.extend([cb1, cb2])
 
         with manual_context():

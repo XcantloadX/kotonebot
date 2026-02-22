@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from kotonebot.errors import CapabilityNotSupportedError
+from kotonebot.errors import CapabilityNotSupportedError, DeviceAlreadyStartedError
 
 if TYPE_CHECKING:
     from adbutils._device import AdbDevice as AdbUtilsDevice
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 from kotonebot import logging
 from ..backend.debug import result
 from kotonebot.primitives import Rect, Point, is_point
-from .protocol import ClickableObjectProtocol, Commandable, MultiTouchable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable
+from .protocol import ClickableObjectProtocol, Commandable, MultiTouchable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable, Lifecycle
 from .scaler import AbstractScaler
 from kotonebot.config.config import conf
 from kotonebot.primitives.geometry import Size
@@ -64,6 +64,11 @@ class Device:
     
         self._scaler = scaler or conf().device.default_scaler_factory()
         self._scaler_initialized = False
+        self._lifecycle_started = False
+        """是否已启动生命周期。
+
+        此变量用于标识 components（touchable、screenshotable 等）是否已启动。
+        """
 
     @property
     def scaler(self) -> AbstractScaler:
@@ -111,6 +116,52 @@ class Device:
         self._touch = touch
         self._multitouch = multitouch
         self.commands = commands
+
+    def _lifecycle_components(self) -> list[Lifecycle]:
+        components: list[Lifecycle] = []
+        component_ids: set[int] = set()
+        for item in (self._screenshot, self._touch, self._multitouch, getattr(self, 'commands', None)):
+            if item is None:
+                continue
+            if not isinstance(item, Lifecycle):
+                continue
+            item_id = id(item)
+            if item_id in component_ids:
+                continue
+            component_ids.add(item_id)
+            components.append(item)
+        return components
+
+    def start(self) -> None:
+        """启动设备并初始化组件。
+
+        :raises DeviceAlreadyStartedError: 如果设备生命周期已经启动，则抛出异常。
+        """
+        if self._lifecycle_started:
+            raise DeviceAlreadyStartedError()
+        components = self._lifecycle_components()
+        started_components: list[Lifecycle] = []
+        try:
+            for component in components:
+                component.start()
+                started_components.append(component)
+        except Exception:
+            for component in reversed(started_components):
+                component.stop()
+            raise
+        self._lifecycle_started = True
+
+    def stop(self) -> None:
+        """停止设备并清理组件。
+
+        如果设备生命周期未启动，则此方法不会执行任何操作。
+        """
+        if not self._lifecycle_started:
+            return
+        components = self._lifecycle_components()
+        for component in reversed(components):
+            component.stop()
+        self._lifecycle_started = False
 
     def __log(self, message: str, level: LogLevel | None = None, *args):
         """以指定的日志级别输出日志。

@@ -62,6 +62,11 @@ class Touchable(Protocol):
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float|None = None) -> None: ...
 
 @runtime_checkable
+class Lifecycle(Protocol):
+    def start(self) -> None: ...
+    def stop(self) -> None: ...
+
+@runtime_checkable
 class MultiTouchable(Touchable, Protocol):
     def multi_touch_down(self, x: int, y: int, pointer_id: int) -> None:
         """以指定的 pointer_id 按下坐标 (x, y)。

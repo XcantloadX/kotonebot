@@ -44,13 +44,7 @@ class CommonWindowsCreateDeviceMixin(ABC):
             case 'windows_background':
                 if not isinstance(config, WindowsHostConfig):
                     raise ValueError(f"Expected WindowsHostConfig for 'windows' recipe, got {type(config)}")
-                from kotonebot.client.implements.windows import WindowsImpl
                 d = WindowsDevice()
-                impl = WindowsImpl(
-                    device=d,
-                    window_title=config.window_title,
-                    ahk_exe_path=config.ahk_exe_path
-                )
                 from kotonebot.client.implements.windows.send_message import SendMessageImpl
                 from kotonebot.client.implements.windows.print_window import PrintWindowImpl
                 d._screenshot = PrintWindowImpl(d, config.window_title)

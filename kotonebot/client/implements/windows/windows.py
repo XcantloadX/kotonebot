@@ -19,7 +19,7 @@ except ImportError as _e:
 from cv2.typing import MatLike
 
 from ...device import Device
-from ...protocol import Touchable, Screenshotable
+from ...protocol import Touchable, Screenshotable, Lifecycle
 from ...registration import ImplConfig
 
 # 1. 定义配置模型
@@ -28,35 +28,51 @@ class WindowsImplConfig(ImplConfig):
     window_title: str
     ahk_exe_path: str
 
-class WindowsImpl(Touchable, Screenshotable):
+class WindowsImpl(Touchable, Screenshotable, Lifecycle):
     def __init__(self, device: Device, window_title: str, ahk_exe_path: str):
         self.__hwnd: int | None = None
         self.window_title = window_title
         self.ahk = AHK(executable_path=ahk_exe_path)
         self.device = device
+        self._started = False
 
         # 设置 DPI aware，否则高缩放显示器上返回的坐标会错误
         windll.user32.SetProcessDPIAware()
-        # TODO: 这个应该移动到其他地方去
-        def _stop():
-            from kotonebot.backend.context.context import vars
-            vars.flow.request_interrupt()
-            self.ahk.msg_box('任务已停止。', title='琴音小助手', icon=MsgBoxIcon.EXCLAMATION)
 
-        def _toggle_pause():
-            from kotonebot.backend.context.context import vars
-            if vars.flow.is_paused:
-                self.ahk.msg_box('任务即将恢复。\n关闭此消息框后将会继续执行', title='琴音小助手', icon=MsgBoxIcon.EXCLAMATION)
-                vars.flow.request_resume()
-            else:
-                vars.flow.request_pause()
-                self.ahk.msg_box('任务已暂停。\n关闭此消息框后再按一次快捷键恢复执行。', title='琴音小助手', icon=MsgBoxIcon.EXCLAMATION)
+    # TODO: 这个应该移动到其他地方去
+    def _stop_hotkey(self):
+        from kotonebot.backend.context.context import vars
+        vars.flow.request_interrupt()
+        self.ahk.msg_box('任务已停止。', title='琴音小助手', icon=MsgBoxIcon.EXCLAMATION)
 
-        self.ahk.add_hotkey('^F4', _toggle_pause) # Ctrl+F4 暂停/恢复
-        self.ahk.add_hotkey('^F3', _stop)  # Ctrl+F3 停止
+    def _toggle_pause_hotkey(self):
+        from kotonebot.backend.context.context import vars
+        if vars.flow.is_paused:
+            self.ahk.msg_box('任务即将恢复。\n关闭此消息框后将会继续执行', title='琴音小助手', icon=MsgBoxIcon.EXCLAMATION)
+            vars.flow.request_resume()
+        else:
+            vars.flow.request_pause()
+            self.ahk.msg_box('任务已暂停。\n关闭此消息框后再按一次快捷键恢复执行。', title='琴音小助手', icon=MsgBoxIcon.EXCLAMATION)
+
+    def start(self) -> None:
+        if self._started:
+            raise RuntimeError("WindowsImpl lifecycle is already started.")
+        self.ahk.add_hotkey('^F4', self._toggle_pause_hotkey) # Ctrl+F4 暂停/恢复
+        self.ahk.add_hotkey('^F3', self._stop_hotkey)  # Ctrl+F3 停止
         self.ahk.start_hotkeys()
         # 将点击坐标设置为相对 Client
         self.ahk.set_coord_mode('Mouse', 'Client')
+        self._started = True
+
+    def stop(self) -> None:
+        if not self._started:
+            return
+        self.ahk.stop_hotkeys()
+        self._started = False
+
+    def _require_started(self) -> None:
+        if not self._started:
+            raise RuntimeError("WindowsImpl lifecycle is not started.")
 
     @property
     def hwnd(self) -> int:
@@ -79,6 +95,7 @@ class WindowsImpl(Touchable, Screenshotable):
         return win32gui.ClientToScreen(hwnd, (x, y))
 
     def screenshot(self) -> MatLike:
+        self._require_started()
         if not self.ahk.win_is_active(self.window_title):
             self.ahk.win_activate(self.window_title)
         hwnd = self.hwnd
@@ -126,12 +143,14 @@ class WindowsImpl(Touchable, Screenshotable):
 
     @property
     def screen_size(self) -> tuple[int, int]:
+        self._require_started()
         left, top, right, bot = self.__client_rect()
         w = right - left
         h = bot - top
         return w, h
 
     def detect_orientation(self) -> None | Literal['portrait'] | Literal['landscape']:
+        self._require_started()
         pos = self.ahk.win_get_position(self.window_title)
         if pos is None:
             return None
@@ -142,6 +161,7 @@ class WindowsImpl(Touchable, Screenshotable):
             return 'portrait'
 
     def click(self, x: int, y: int) -> None:
+        self._require_started()
         # x, y = self.__client_to_screen(self.hwnd, x, y)
         # (0, 0) 很可能会点到窗口边框上
         if x == 0:
@@ -153,6 +173,7 @@ class WindowsImpl(Touchable, Screenshotable):
         self.ahk.click(x, y)
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float | None = None) -> None:
+        self._require_started()
         if not self.ahk.win_is_active(self.window_title):
             self.ahk.win_activate(self.window_title)
         # TODO: 这个 speed 的单位是什么？

@@ -80,3 +80,7 @@ class CapabilityNotSupportedError(KotonebotError):
     def __init__(self, capability_name: str):
         self.capability_name = capability_name
         super().__init__(f'Capability "{capability_name}" is not supported by the current device implementation.')
+
+class DeviceAlreadyStartedError(KotonebotError):
+    def __init__(self):
+        super().__init__('Device lifecycle is already started.')

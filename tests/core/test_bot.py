@@ -8,6 +8,12 @@ from kotonebot.backend.context import Task, init_context, vars
 
 
 class DummyDevice:
+    def start(self):
+        return None
+
+    def stop(self):
+        return None
+
     def screenshot(self):
         raise NotImplementedError
 
@@ -45,7 +51,7 @@ class TestEvent(unittest.TestCase):
 
 class TestKotoneBotRun(unittest.TestCase):
     def setUp(self):
-        init_context(target_device=DummyDevice()) # type: ignore
+        init_context(force=True, target_device=DummyDevice()) # type: ignore
         vars.flow.clear_interrupt()
 
     def test_run_middlewares_and_events(self):

@@ -17,7 +17,7 @@ from cv2.typing import MatLike
 
 from kotonebot import logging
 from ..device import Device, WindowsDevice
-from ..protocol import Touchable, Screenshotable
+from ..protocol import Touchable, Screenshotable, Lifecycle
 from ..registration import ImplConfig
 from .windows import WindowsImpl, WindowsImplConfig
 
@@ -68,6 +68,7 @@ class RemoteWindowsServer:
 
     def start(self):
         """Start the XML-RPC server."""
+        self.impl.start()
         self.server = xmlrpc.server.SimpleXMLRPCServer(
             (self.host, self.port),
             logRequests=True,
@@ -76,6 +77,13 @@ class RemoteWindowsServer:
         self.server.register_instance(self)
         logger.info(f"Starting RemoteWindowsServer on {self.host}:{self.port}")
         self.server.serve_forever()
+
+    def stop(self):
+        if self.server is not None:
+            self.server.shutdown()
+            self.server.server_close()
+            self.server = None
+        self.impl.stop()
 
     def start_in_thread(self):
         """Start the XML-RPC server in a separate thread."""
@@ -133,7 +141,7 @@ class RemoteWindowsServer:
         return True
 
 
-class RemoteWindowsImpl(Touchable, Screenshotable):
+class RemoteWindowsImpl(Touchable, Screenshotable, Lifecycle):
     """
     Client implementation that connects to a remote Windows machine via XML-RPC.
 
@@ -146,43 +154,57 @@ class RemoteWindowsImpl(Touchable, Screenshotable):
         self.device = device
         self.host = host
         self.port = port
+        self.proxy: xmlrpc.client.ServerProxy | None = None
+        self._started = False
+
+    def _require_proxy(self) -> xmlrpc.client.ServerProxy:
+        if self.proxy is None:
+            raise RuntimeError("RemoteWindowsImpl lifecycle is not started.")
+        return self.proxy
+
+    def start(self) -> None:
+        if self._started:
+            raise RuntimeError("RemoteWindowsImpl lifecycle is already started.")
         self.proxy = xmlrpc.client.ServerProxy(
-            f"http://{host}:{port}/",
+            f"http://{self.host}:{self.port}/",
             allow_none=True
         )
-        # Test connection
-        try:
-            if not self.proxy.ping():
-                raise ConnectionError(f"Failed to connect to RemoteWindowsServer at {host}:{port}")
-            logger.info(f"Connected to RemoteWindowsServer at {host}:{port}")
-        except Exception as e:
-            raise ConnectionError(f"Failed to connect to RemoteWindowsServer at {host}:{port}: {e}")
+        if not self.proxy.ping():
+            raise ConnectionError(f"Failed to connect to RemoteWindowsServer at {self.host}:{self.port}")
+        logger.info(f"Connected to RemoteWindowsServer at {self.host}:{self.port}")
+        self._started = True
+
+    def stop(self) -> None:
+        if not self._started:
+            return
+        self.proxy = None
+        self._started = False
 
     @cached_property
     def scale_ratio(self) -> float:
         """Get the scale ratio from the remote server."""
-        return cast(float, self.proxy.get_scale_ratio())
+        return cast(float, self._require_proxy().get_scale_ratio())
 
     @property
     def screen_size(self) -> tuple[int, int]:
         """Get the screen size from the remote server."""
-        return cast(Tuple[int, int], self.proxy.get_screen_size())
+        return cast(Tuple[int, int], self._require_proxy().get_screen_size())
 
     def detect_orientation(self) -> None | Literal['portrait'] | Literal['landscape']:
         """Detect the screen orientation from the remote server."""
-        return cast(None | Literal['portrait'] | Literal['landscape'], self.proxy.detect_orientation())
+        return cast(None | Literal['portrait'] | Literal['landscape'], self._require_proxy().detect_orientation())
 
     def screenshot(self) -> MatLike:
         """Take a screenshot from the remote server."""
-        encoded_image = cast(str, self.proxy.screenshot())
+        encoded_image = cast(str, self._require_proxy().screenshot())
         return _decode_image(encoded_image)
 
     def click(self, x: int, y: int) -> None:
         """Click at the given coordinates on the remote server."""
-        if not self.proxy.click(x, y):
+        if not self._require_proxy().click(x, y):
             raise RuntimeError(f"Failed to click at ({x}, {y})")
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float | None = None) -> None:
         """Swipe from (x1, y1) to (x2, y2) on the remote server."""
-        if not self.proxy.swipe(x1, y1, x2, y2, duration):
+        if not self._require_proxy().swipe(x1, y1, x2, y2, duration):
             raise RuntimeError(f"Failed to swipe from ({x1}, {y1}) to ({x2}, {y2})")

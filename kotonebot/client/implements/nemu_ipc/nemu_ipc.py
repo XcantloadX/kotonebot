@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from ...protocol import MultiTouchable, Screenshotable
+from ...protocol import MultiTouchable, Screenshotable, Lifecycle
 from ...registration import ImplConfig
 from .external_renderer_ipc import ExternalRendererIpc
 from kotonebot.errors import KotonebotError
@@ -45,7 +45,7 @@ class NemuIpcImplConfig(ImplConfig):
     wait_package_interval: float = 0.1  # 单位秒
 
 
-class NemuIpcImpl(MultiTouchable, Screenshotable):
+class NemuIpcImpl(MultiTouchable, Screenshotable, Lifecycle):
     """
     利用 MuMu12 提供的 external_renderer_ipc.dll 进行截图与触摸控制。
     """
@@ -91,7 +91,7 @@ class NemuIpcImpl(MultiTouchable, Screenshotable):
 
     def _ensure_connected(self) -> None:
         if not self.__connected:
-            self.connect()
+            raise RuntimeError("NemuIpcImpl lifecycle is not started.")
 
     def _get_display_id(self) -> int:
         """获取有效的 display_id。"""
@@ -144,6 +144,11 @@ class NemuIpcImpl(MultiTouchable, Screenshotable):
         self.__connected = True
         logger.debug("NemuIpc connected, connect_id=%d", connect_id)
 
+    def start(self) -> None:
+        if self.__connected:
+            raise RuntimeError("NemuIpcImpl lifecycle is already started.")
+        self.connect()
+
     def disconnect(self) -> None:
         """断开连接。"""
         if not self.__connected:
@@ -152,6 +157,11 @@ class NemuIpcImpl(MultiTouchable, Screenshotable):
         self.__connected = False
         self._connect_id = 0
         logger.debug("NemuIpc disconnected.")
+
+    def stop(self) -> None:
+        if not self.__connected:
+            return
+        self.disconnect()
 
     # ------------------------------------------------------------------
     # Screenshotable 接口实现
