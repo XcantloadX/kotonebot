@@ -18,7 +18,6 @@ import { DefinitionPoint } from './shapes/DefinitionPoint';
 import { resolveBasePrefabsByName } from '../prefabResolver';
 import { useShortcuts } from '../../shortcuts/shortcutManager';
 import { COMMAND_ID, executeCommand } from '../commands';
-import { editorActions } from '../actions';
 
 export const StageView: React.FC = () => {
   const {
@@ -73,15 +72,7 @@ export const StageView: React.FC = () => {
 
   const stageRef = useRef<any>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
-  const [projectVariants, setProjectVariants] = useState<string[]>([]);
-  const copySelectedPrefabToVariant = React.useCallback(async () => {
-    const variant = await editorActions.variant.pickForActive(projectVariants);
-    if (variant === null) {
-      return;
-    }
-    await editorActions.variant.copySelectedPrefabForActive(variant);
-  }, [projectVariants]);
-  const commandContext = useMemo(() => ({ ui: { copySelectedPrefabToVariant } }), [copySelectedPrefabToVariant]);
+  const commandContext = useMemo(() => ({ ui: {} }), []);
   const [definitionContextMenu, setDefinitionContextMenu] = useState<{ x: number; y: number; definitionId: string } | null>(null);
   const [blankContextMenu, setBlankContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -136,26 +127,6 @@ export const StageView: React.FC = () => {
       cancelled = true;
     };
   }, [activeMeta, symbols, documents]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void editorActions.variant.loadOptions()
-      .then((variants) => {
-        if (cancelled) {
-          return;
-        }
-        setProjectVariants(variants);
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-        setProjectVariants([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const renderDefinitions = useMemo(() => {
     if (!activeMeta) return null;

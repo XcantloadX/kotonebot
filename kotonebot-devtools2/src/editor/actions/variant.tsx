@@ -243,12 +243,21 @@ export async function importVariantImageForActiveDocument(
 }
 
 export async function copySelectedPrefabToVariantForActiveDocument(
-  variant: string
+  variant?: string
 ): Promise<void> {
   const activeId = useAppStore.getState().activeDocumentId;
   const activeDoc = activeId ? useAppStore.getState().documents[activeId] : null;
   if (!activeDoc?.meta) {
     throw new Error("No active source meta document");
+  }
+  let targetVariant = variant;
+  if (!targetVariant) {
+    const projectVariants = await loadProjectVariants();
+    const picked = await pickVariantForActiveDocument(projectVariants);
+    if (!picked) {
+      return;
+    }
+    targetVariant = picked;
   }
   const selection = activeDoc.selection;
   if (!selection) {
@@ -266,7 +275,7 @@ export async function copySelectedPrefabToVariantForActiveDocument(
     sourceMetaPath: activeDoc.meta.path,
     sourceDefinitionId: selection.definitionId,
     baseImagePath: activeDoc.image.path,
-    variant,
+    variant: targetVariant,
   });
 
   const confirmed = await messageBox.confirm_cancel({
@@ -275,7 +284,7 @@ export async function copySelectedPrefabToVariantForActiveDocument(
       <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 760 }}>
         <div style={{ fontWeight: 600 }}>
           Copy prefab <span style={{ color: "#106ba3" }}>{precheck.sourceDefinitionName}</span> to variant{" "}
-          <span style={{ color: "#106ba3" }}>{variant}</span>
+          <span style={{ color: "#106ba3" }}>{targetVariant}</span>
         </div>
         <div
           style={{
@@ -322,14 +331,14 @@ export async function copySelectedPrefabToVariantForActiveDocument(
     sourceMetaPath: activeDoc.meta.path,
     sourceDefinitionId: selection.definitionId,
     baseImagePath: activeDoc.image.path,
-    variant,
+    variant: targetVariant,
     forceOverwrite,
   });
 
   await useSymbolIndexStore.getState().patchMetaPath(result.targetMetaPath);
   await openImageWithMeta(result.targetImagePath);
   toaster.show({
-    message: `Copied prefab '${result.definitionName}' to variant '${variant}'`,
+    message: `Copied prefab '${result.definitionName}' to variant '${targetVariant}'`,
     intent: "success",
   });
 }

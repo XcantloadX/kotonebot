@@ -39,7 +39,7 @@ export interface EditorCommandArgsMap {
   /** 创建新的 variant 图像文档。 */
   [COMMAND_ID.VARIANT_NEW_DOCUMENT]: undefined;
   /** 将当前选中 prefab 复制到 variant。 */
-  [COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB]: undefined;
+  [COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB]: { variant?: string } | undefined;
   /** 依据定义 ID 重命名关联 variants。 */
   [COMMAND_ID.VARIANT_RENAME_VARIANTS_FOR_DEFINITION]: { definitionId: string };
   /** 关闭指定文档。 */
@@ -54,7 +54,7 @@ export interface EditorCommandArgsMap {
 
 /** 无参数命令 ID 集合。 */
 export type NoArgCommandId = {
-  [K in EditorCommandId]: EditorCommandArgsMap[K] extends undefined ? K : never;
+  [K in EditorCommandId]: undefined extends EditorCommandArgsMap[K] ? K : never;
 }[EditorCommandId];
 
 /** 由 UI 层提供给命令层的交互入口。 */
@@ -65,8 +65,6 @@ export interface EditorCommandUiHandlers {
   openImageDialog: () => void;
   /** 打开 variant 目标选择对话框。 */
   openVariantDialog: () => Promise<void>;
-  /** 执行“复制选中 prefab 到 variant”流程。 */
-  copySelectedPrefabToVariant: () => Promise<void>;
 }
 
 /** 命令执行上下文。 */

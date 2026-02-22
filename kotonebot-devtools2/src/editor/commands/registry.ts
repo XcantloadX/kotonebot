@@ -197,10 +197,9 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     title: "Copy Selected Prefab to Variant",
     keywords: ["variant", "copy", "prefab"],
     showInPalette: true,
-    requiredUi: ["copySelectedPrefabToVariant"],
     when: () => canCopySelectedPrefabToVariantForActiveDocument(),
-    run: async (ctx) => {
-      await requireUiHandler(ctx, "copySelectedPrefabToVariant")();
+    run: async (_, args) => {
+      await editorActions.variant.copySelectedPrefabForActive(args?.variant);
     },
   },
   [COMMAND_ID.VARIANT_RENAME_VARIANTS_FOR_DEFINITION]: {

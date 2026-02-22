@@ -77,24 +77,15 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
     setVariantDialogState({ isOpen: true, variant });
   }, [projectVariants]);
 
-  const handleCopySelectedPrefabToVariant = useCallback(async () => {
-    const variant = await editorActions.variant.pickForActive(projectVariants);
-    if (variant === null) {
-      return;
-    }
-    await editorActions.variant.copySelectedPrefabForActive(variant);
-  }, [projectVariants]);
-
   const commandContext = useMemo(
     () => ({
       ui: {
         openCommandPalette: onOpenCommandPalette,
         openImageDialog,
         openVariantDialog,
-        copySelectedPrefabToVariant: handleCopySelectedPrefabToVariant,
       },
     }),
-    [handleCopySelectedPrefabToVariant, onOpenCommandPalette, openImageDialog, openVariantDialog],
+    [onOpenCommandPalette, openImageDialog, openVariantDialog],
   );
 
   const statusEntries = useMemo(() => ([
