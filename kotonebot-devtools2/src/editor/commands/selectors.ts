@@ -65,3 +65,22 @@ export function canRedoInActiveDocument(): boolean {
   const activeDoc = getActiveDocument();
   return !!activeDoc && activeDoc.history.cursor < activeDoc.history.entries.length;
 }
+
+/** 当前激活文档是否存在可操作的选中 definition。 */
+export function canOperateOnSelectedDefinitionInActiveDocument(): boolean {
+  const activeDoc = getActiveDocument();
+  if (!activeDoc?.meta || !activeDoc.selection) {
+    return false;
+  }
+  return !!activeDoc.meta.data.definitions[activeDoc.selection.definitionId];
+}
+
+/** 当前激活文档是否可从内部剪贴板粘贴 definition。 */
+export function canPasteDefinitionFromClipboardInActiveDocument(): boolean {
+  const state = useAppStore.getState();
+  const activeDoc = getActiveDocument();
+  if (!activeDoc?.meta) {
+    return false;
+  }
+  return !!state.definitionClipboard;
+}

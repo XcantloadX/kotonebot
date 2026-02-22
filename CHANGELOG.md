@@ -6,6 +6,9 @@ Library:
 Framework:
 1. [feat] **BREAKING** Device 类及其底层组件新增生命周期方法 `start` 与 `stop`，现在使用时需要在恰当的时机调用生命周期方法。
 
+Devtool:
+1. [feat] 新增 Definition 的右键菜单，支持复制、粘贴与创建副本。
+
 ## v0.9.0
 Framework: 
 1. [feat] 为 AnyOf 类支持 `wait` 方法。

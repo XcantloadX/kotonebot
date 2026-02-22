@@ -3,6 +3,8 @@ import { useAppStore } from "../state";
 import { useSettingsStore } from "../settings";
 import { COMMAND_ID } from "./ids";
 import {
+  canPasteDefinitionFromClipboardInActiveDocument,
+  canOperateOnSelectedDefinitionInActiveDocument,
   canCopySelectedPrefabToVariantForActiveDocument,
   canCreateVariantForActiveDocument,
   canRedoInActiveDocument,
@@ -127,6 +129,56 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     when: () => canRedoInActiveDocument(),
     run: async () => {
       useAppStore.getState().redo();
+    },
+  },
+  [COMMAND_ID.DEFINITION_DUPLICATE_SELECTED]: {
+    id: COMMAND_ID.DEFINITION_DUPLICATE_SELECTED,
+    title: "Duplicate Selected Definition",
+    keywords: ["definition", "duplicate", "copy"],
+    showInPalette: false,
+    when: () => canOperateOnSelectedDefinitionInActiveDocument(),
+    run: async () => {
+      await editorActions.definition.duplicateSelected();
+    },
+  },
+  [COMMAND_ID.DEFINITION_COPY_SELECTED]: {
+    id: COMMAND_ID.DEFINITION_COPY_SELECTED,
+    title: "Copy Selected Definition",
+    keywords: ["definition", "copy", "clipboard"],
+    showInPalette: false,
+    when: () => canOperateOnSelectedDefinitionInActiveDocument(),
+    run: async () => {
+      await editorActions.definition.copySelected();
+    },
+  },
+  [COMMAND_ID.DEFINITION_CUT_SELECTED]: {
+    id: COMMAND_ID.DEFINITION_CUT_SELECTED,
+    title: "Cut Selected Definition",
+    keywords: ["definition", "cut", "clipboard"],
+    showInPalette: false,
+    when: () => canOperateOnSelectedDefinitionInActiveDocument(),
+    run: async () => {
+      await editorActions.definition.cutSelected();
+    },
+  },
+  [COMMAND_ID.DEFINITION_DELETE_SELECTED]: {
+    id: COMMAND_ID.DEFINITION_DELETE_SELECTED,
+    title: "Delete Selected Definition",
+    keywords: ["definition", "delete", "remove"],
+    showInPalette: false,
+    when: () => canOperateOnSelectedDefinitionInActiveDocument(),
+    run: async () => {
+      await editorActions.definition.deleteSelected();
+    },
+  },
+  [COMMAND_ID.DEFINITION_PASTE_FROM_CLIPBOARD]: {
+    id: COMMAND_ID.DEFINITION_PASTE_FROM_CLIPBOARD,
+    title: "Paste Definition From Clipboard",
+    keywords: ["definition", "paste", "clipboard"],
+    showInPalette: false,
+    when: () => canPasteDefinitionFromClipboardInActiveDocument(),
+    run: async () => {
+      await editorActions.definition.pasteFromClipboard();
     },
   },
   [COMMAND_ID.VARIANT_NEW_DOCUMENT]: {

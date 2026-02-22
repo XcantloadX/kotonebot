@@ -26,6 +26,16 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.EDIT_UNDO]: undefined;
   /** 重做。 */
   [COMMAND_ID.EDIT_REDO]: undefined;
+  /** 复制当前选中定义并创建副本。 */
+  [COMMAND_ID.DEFINITION_DUPLICATE_SELECTED]: undefined;
+  /** 复制当前选中定义到内部剪贴板。 */
+  [COMMAND_ID.DEFINITION_COPY_SELECTED]: undefined;
+  /** 剪切当前选中定义到内部剪贴板。 */
+  [COMMAND_ID.DEFINITION_CUT_SELECTED]: undefined;
+  /** 删除当前选中定义。 */
+  [COMMAND_ID.DEFINITION_DELETE_SELECTED]: undefined;
+  /** 从内部剪贴板粘贴定义。 */
+  [COMMAND_ID.DEFINITION_PASTE_FROM_CLIPBOARD]: undefined;
   /** 创建新的 variant 图像文档。 */
   [COMMAND_ID.VARIANT_NEW_DOCUMENT]: undefined;
   /** 将当前选中 prefab 复制到 variant。 */

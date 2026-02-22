@@ -13,6 +13,7 @@ interface DefinitionRectProps {
   isSelected: boolean;
   scale: number;
   onClick: (id: string, e: KonvaEventObject<MouseEvent>) => void;
+  onContextMenu?: (id: string, e: KonvaEventObject<MouseEvent>) => void;
   propKey?: string;
   onResizeStart?: (id: string, propKey: string | undefined) => void;
   onResize?: (id: string, propKey: string | undefined, rect: { x1: number; y1: number; x2: number; y2: number }) => void;
@@ -20,7 +21,7 @@ interface DefinitionRectProps {
 }
 
 export const DefinitionRect: React.FC<DefinitionRectProps> = React.memo(({
-  id, x1, y1, x2, y2, kind, label, isSelected, scale, onClick, propKey, onResizeStart, onResize, onResizeEnd
+  id, x1, y1, x2, y2, kind, label, isSelected, scale, onClick, onContextMenu, propKey, onResizeStart, onResize, onResizeEnd
 }) => {
   const [hovered, setHovered] = React.useState(false);
   const handleSize = 8 / Math.max(1, scale);
@@ -104,7 +105,7 @@ export const DefinitionRect: React.FC<DefinitionRectProps> = React.memo(({
   const ORANGE = '#ff7300';
   const ORANGE_FILL = 'rgba(255, 115, 0, 0.2)';
     return (
-    <Group onClick={(e) => onClick(id, e)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <Group onClick={(e) => onClick(id, e)} onContextMenu={(e) => onContextMenu?.(id, e)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <Rect
           x={x1}
           y={y1}

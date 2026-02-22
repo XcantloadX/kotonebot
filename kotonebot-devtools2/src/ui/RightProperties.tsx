@@ -231,10 +231,7 @@ export const RightProperties: React.FC = () => {
             small 
             style={{ position: 'absolute', top: 5, right: 5 }} 
             onClick={() => {
-                updateMeta(draft => {
-                    delete draft.definitions[defId];
-                }, { label: "Delete definition", mergeKey: `delete:${defId}`, forceNewEntry: true });
-                setMode({ kind: 'idle' });
+                void executeCommand(COMMAND_ID.DEFINITION_DELETE_SELECTED, commandContext, undefined);
             }}
           />
       </Card>

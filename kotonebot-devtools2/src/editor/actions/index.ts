@@ -4,6 +4,13 @@ import {
   closeDocumentWithChecks,
   closeDocumentsWithChecks,
 } from "./close";
+import {
+  copySelectedDefinition,
+  cutSelectedDefinition,
+  deleteSelectedDefinition,
+  duplicateSelectedDefinition,
+  pasteDefinitionFromClipboard,
+} from "./definition";
 import { openImageWithMeta, openImagesWithChecks } from "./image";
 import { jumpToDiagnostic, jumpToSymbol } from "./navigation";
 import { promptAndRenameActiveDocument } from "./rename";
@@ -63,9 +70,18 @@ const navigationActions = {
   jumpToDiagnostic,
 };
 
+const definitionActions = {
+  copySelected: copySelectedDefinition,
+  cutSelected: cutSelectedDefinition,
+  deleteSelected: deleteSelectedDefinition,
+  duplicateSelected: duplicateSelectedDefinition,
+  pasteFromClipboard: pasteDefinitionFromClipboard,
+};
+
 export const editorActions = {
   image: imageActions,
   document: documentActions,
   variant: variantActions,
   navigation: navigationActions,
+  definition: definitionActions,
 };

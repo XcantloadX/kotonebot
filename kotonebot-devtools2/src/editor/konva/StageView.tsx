@@ -1,5 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Stage, Layer, Image as KonvaImage, Rect, Circle, Line } from 'react-konva';
+import { Menu, MenuItem } from '@blueprintjs/core';
 import useImage from 'use-image';
 import { useAppStore } from '../state';
 import { useSymbolIndexStore } from '../symbolIndexStore';
@@ -16,6 +17,8 @@ import { DefinitionRect } from './shapes/DefinitionRect';
 import { DefinitionPoint } from './shapes/DefinitionPoint';
 import { resolveBasePrefabsByName } from '../prefabResolver';
 import { useShortcuts } from '../../shortcuts/shortcutManager';
+import { COMMAND_ID, executeCommand } from '../commands';
+import { editorActions } from '../actions';
 
 export const StageView: React.FC = () => {
   const {
@@ -29,7 +32,8 @@ export const StageView: React.FC = () => {
     commitMetaTransaction,
     setMode,
     prefabSchema,
-    setViewState
+    setViewState,
+    definitionClipboard,
   } = useAppStore();
   const symbols = useSymbolIndexStore(s => s.symbols);
 
@@ -68,6 +72,18 @@ export const StageView: React.FC = () => {
   const missingBaseToastKeyRef = useRef<string>("");
 
   const stageRef = useRef<any>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const [projectVariants, setProjectVariants] = useState<string[]>([]);
+  const copySelectedPrefabToVariant = React.useCallback(async () => {
+    const variant = await editorActions.variant.pickForActive(projectVariants);
+    if (variant === null) {
+      return;
+    }
+    await editorActions.variant.copySelectedPrefabForActive(variant);
+  }, [projectVariants]);
+  const commandContext = useMemo(() => ({ ui: { copySelectedPrefabToVariant } }), [copySelectedPrefabToVariant]);
+  const [definitionContextMenu, setDefinitionContextMenu] = useState<{ x: number; y: number; definitionId: string } | null>(null);
+  const [blankContextMenu, setBlankContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +137,26 @@ export const StageView: React.FC = () => {
     };
   }, [activeMeta, symbols, documents]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void editorActions.variant.loadOptions()
+      .then((variants) => {
+        if (cancelled) {
+          return;
+        }
+        setProjectVariants(variants);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setProjectVariants([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const renderDefinitions = useMemo(() => {
     if (!activeMeta) return null;
     const out: Record<string, DefinitionV2> = {};
@@ -170,12 +206,7 @@ export const StageView: React.FC = () => {
       return;
     }
     e.preventDefault();
-    const defId = selection.definitionId;
-    updateMeta((draft) => {
-      delete draft.definitions[defId];
-    }, { label: "Delete definition", mergeKey: `delete:${defId}`, forceNewEntry: true });
-    setSelection(null);
-    setMode({ kind: 'idle' });
+    void executeCommand(COMMAND_ID.DEFINITION_DELETE_SELECTED, commandContext, undefined);
   };
 
   useShortcuts([
@@ -200,6 +231,14 @@ export const StageView: React.FC = () => {
       scope: "editor",
       combo: "escape",
       onKeyDown: () => {
+        if (definitionContextMenu) {
+          setDefinitionContextMenu(null);
+          return;
+        }
+        if (blankContextMenu) {
+          setBlankContextMenu(null);
+          return;
+        }
         if (mode.kind === 'picking' || mode.kind === 'creating-prefab') {
           setMode({ kind: 'idle' });
           setPreview(null);
@@ -219,6 +258,29 @@ export const StageView: React.FC = () => {
       onKeyDown: deleteSelectedDefinition,
     },
   ]);
+
+  useEffect(() => {
+    if (!definitionContextMenu && !blankContextMenu) {
+      return;
+    }
+    const closeOnPointerDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const isInMenu = contextMenuRef.current?.contains(target) ?? false;
+      if (!isInMenu) {
+        setDefinitionContextMenu(null);
+        setBlankContextMenu(null);
+      }
+    };
+    window.addEventListener('mousedown', closeOnPointerDown);
+    return () => {
+      window.removeEventListener('mousedown', closeOnPointerDown);
+    };
+  }, [definitionContextMenu, blankContextMenu]);
+
+  useEffect(() => {
+    setDefinitionContextMenu(null);
+    setBlankContextMenu(null);
+  }, [activeDocumentId]);
 
   useEffect(() => {
     if (!view && image && size.width > 0 && size.height > 0 && activeDocumentId) {
@@ -273,6 +335,13 @@ export const StageView: React.FC = () => {
     // Right mouse button (button === 2) also starts panning
     if (e.evt.button === 2) {
       e.evt.preventDefault();
+      const stage = stageRef.current;
+      const pointer = stage?.getPointerPosition();
+      const hit = pointer ? stage.getIntersection(pointer) : null;
+      const cls = hit ? hit.getClassName() : null;
+      if (hit && cls !== 'Image' && cls !== 'Stage' && cls !== 'Layer') {
+        return;
+      }
       setIsRightMouseDown(true);
       setIsPanning(true);
       setPanOrigin({ viewX: position.x, viewY: position.y, pointerX: e.evt.clientX, pointerY: e.evt.clientY });
@@ -343,7 +412,34 @@ export const StageView: React.FC = () => {
 
   const handleShapeClick = (id: string, e: KonvaEventObject<MouseEvent>) => {
     if (isSpacePressed || isRightMouseDown) return;
+    if (definitionContextMenu) {
+      setDefinitionContextMenu(null);
+    }
+    if (blankContextMenu) {
+      setBlankContextMenu(null);
+    }
     tool.onShapeClick(id, e, getToolContext());
+  };
+
+  const handleShapeContextMenu = (id: string, e: KonvaEventObject<MouseEvent>) => {
+    e.evt.preventDefault();
+    e.cancelBubble = true;
+    setSelection(id);
+    setBlankContextMenu(null);
+    setDefinitionContextMenu({ x: e.evt.clientX, y: e.evt.clientY, definitionId: id });
+  };
+
+  const handleStageContextMenu = (e: KonvaEventObject<MouseEvent>) => {
+    e.evt.preventDefault();
+    const stage = stageRef.current;
+    const pointer = stage?.getPointerPosition();
+    const hit = pointer ? stage.getIntersection(pointer) : null;
+    const cls = hit ? hit.getClassName() : null;
+    if (hit && cls !== 'Image' && cls !== 'Stage' && cls !== 'Layer') {
+      return;
+    }
+    setDefinitionContextMenu(null);
+    setBlankContextMenu({ x: e.evt.clientX, y: e.evt.clientY });
   };
 
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
@@ -387,6 +483,10 @@ export const StageView: React.FC = () => {
 
   const showCrosshair = !isSpacePressed && !isRightMouseDown && cursorPos && (activeTool === 'rect' || activeTool === 'point' || mode.kind === 'picking' || mode.kind === 'creating-prefab');
   const cursor = isPanning ? 'grabbing' : (isSpacePressed || isRightMouseDown) ? 'grab' : tool.getCursor();
+  const contextDefinition = definitionContextMenu && activeMeta
+    ? activeMeta.data.definitions[definitionContextMenu.definitionId]
+    : null;
+  const canCopySelectedPrefabToVariant = !!contextDefinition && contextDefinition.type === 'prefab';
 
   return (
     <div id="kb-editor-stage-container" ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', background: '#e1e8ed' }}>
@@ -397,7 +497,7 @@ export const StageView: React.FC = () => {
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          onContextMenu={(e) => e.evt.preventDefault()}
+          onContextMenu={handleStageContextMenu}
           onWheel={handleWheel}
           scaleX={scale}
           scaleY={scale}
@@ -436,6 +536,7 @@ export const StageView: React.FC = () => {
                         isSelected={isSelected}
                         scale={scale}
                         onClick={handleShapeClick}
+                        onContextMenu={handleShapeContextMenu}
                         onResize={(defId, propKey, rect) => {
                           updateMeta(draft => {
                             const d = draft.definitions[defId];
@@ -468,6 +569,7 @@ export const StageView: React.FC = () => {
                         isSelected={isSelected}
                         scale={scale}
                         onClick={handleShapeClick}
+                        onContextMenu={handleShapeContextMenu}
                       />
                     );
                   }
@@ -517,6 +619,99 @@ export const StageView: React.FC = () => {
           </Layer>
         </Stage>
       )}
+      {definitionContextMenu ? (
+        <div
+          ref={contextMenuRef}
+          style={{
+            position: 'fixed',
+            left: definitionContextMenu.x,
+            top: definitionContextMenu.y,
+            zIndex: 2600,
+            minWidth: 180,
+            background: '#ffffff',
+            border: '1px solid #b7c6d2',
+            borderRadius: 3,
+            boxShadow: '0 6px 18px rgba(16, 22, 26, 0.22)',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <Menu>
+            <MenuItem
+              icon="duplicate"
+              text="创建副本"
+              onClick={() => {
+                void executeCommand(COMMAND_ID.DEFINITION_DUPLICATE_SELECTED, commandContext, undefined);
+                setDefinitionContextMenu(null);
+              }}
+            />
+            <MenuItem
+              icon="duplicate"
+              text="复制"
+              onClick={() => {
+                void executeCommand(COMMAND_ID.DEFINITION_COPY_SELECTED, commandContext, undefined);
+                setDefinitionContextMenu(null);
+              }}
+            />
+            <MenuItem
+              icon="cut"
+              text="剪切"
+              onClick={() => {
+                void executeCommand(COMMAND_ID.DEFINITION_CUT_SELECTED, commandContext, undefined);
+                setDefinitionContextMenu(null);
+              }}
+            />
+            <MenuItem
+              icon="trash"
+              text="删除"
+              intent="danger"
+              onClick={() => {
+                void executeCommand(COMMAND_ID.DEFINITION_DELETE_SELECTED, commandContext, undefined);
+                setDefinitionContextMenu(null);
+              }}
+            />
+            <MenuItem
+              icon="duplicate"
+              text="Copy Selected Prefab to Variant"
+              disabled={!canCopySelectedPrefabToVariant}
+              onClick={() => {
+                void executeCommand(COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB, commandContext, undefined);
+                setDefinitionContextMenu(null);
+              }}
+            />
+          </Menu>
+        </div>
+      ) : null}
+      {blankContextMenu ? (
+        <div
+          ref={contextMenuRef}
+          style={{
+            position: 'fixed',
+            left: blankContextMenu.x,
+            top: blankContextMenu.y,
+            zIndex: 2600,
+            minWidth: 160,
+            background: '#ffffff',
+            border: '1px solid #b7c6d2',
+            borderRadius: 3,
+            boxShadow: '0 6px 18px rgba(16, 22, 26, 0.22)',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <Menu>
+            <MenuItem
+              icon="clipboard"
+              text="粘贴"
+              disabled={!definitionClipboard}
+              onClick={() => {
+                void executeCommand(COMMAND_ID.DEFINITION_PASTE_FROM_CLIPBOARD, commandContext, undefined);
+                setBlankContextMenu(null);
+              }}
+            />
+          </Menu>
+        </div>
+      ) : null}
     </div>
   );
 };

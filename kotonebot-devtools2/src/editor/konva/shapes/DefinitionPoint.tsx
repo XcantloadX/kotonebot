@@ -9,13 +9,14 @@ interface DefinitionPointProps {
   isSelected: boolean;
   scale: number;
   onClick: (id: string, e: KonvaEventObject<MouseEvent>) => void;
+  onContextMenu?: (id: string, e: KonvaEventObject<MouseEvent>) => void;
 }
 
 export const DefinitionPoint: React.FC<DefinitionPointProps> = React.memo(({
-  id, x, y, isSelected, scale, onClick
+  id, x, y, isSelected, scale, onClick, onContextMenu
 }) => {
   return (
-    <Group onClick={(e) => onClick(id, e)}>
+    <Group onClick={(e) => onClick(id, e)} onContextMenu={(e) => onContextMenu?.(id, e)}>
       <Circle
           x={x}
           y={y}

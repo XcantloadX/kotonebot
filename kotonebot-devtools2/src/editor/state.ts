@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { Patch, applyPatches, current, enablePatches, produceWithPatches } from 'immer';
-import { MetaV2, ResourceType } from '../model/metaV2';
+import { DefinitionV2, MetaV2, ResourceType } from '../model/metaV2';
 import { PrefabSchema } from '../model/prefabSchema';
 import { writeText } from '../api/fs';
 import { toaster } from '../ui/toaster';
@@ -69,10 +69,16 @@ export interface FocusSpotlightState {
   exitMs: number;
 }
 
+export interface DefinitionClipboard {
+  sourceDefinitionId: string;
+  definition: DefinitionV2;
+}
+
 interface AppState {
   documents: Record<string, DocumentState>;
   activeDocumentId: string | null;
   focusSpotlight: FocusSpotlightState | null;
+  definitionClipboard: DefinitionClipboard | null;
   
   prefabSchema: PrefabSchema | null;
   activeTool: ToolType;
@@ -89,6 +95,7 @@ interface AppState {
   setPrefabSchema: (schema: PrefabSchema) => void;
   setActiveTool: (tool: ToolType) => void;
   setActiveResourceType: (type: ResourceType) => void;
+  setDefinitionClipboard: (clipboard: DefinitionClipboard | null) => void;
 
   // Active Document Actions
   setSelection: (definitionId: string | null) => void;
@@ -112,6 +119,7 @@ export const useAppStore = create<AppState>()(
     documents: {},
     activeDocumentId: null,
     focusSpotlight: null,
+    definitionClipboard: null,
     prefabSchema: null,
     activeTool: "select",
     activeResourceType: "hint-box",
@@ -245,6 +253,8 @@ export const useAppStore = create<AppState>()(
     }),
     
     setActiveResourceType: (type) => set({ activeResourceType: type }),
+
+    setDefinitionClipboard: (clipboard) => set({ definitionClipboard: clipboard }),
 
     showFocusSpotlight: (spotlight) => set({ focusSpotlight: spotlight }),
 
