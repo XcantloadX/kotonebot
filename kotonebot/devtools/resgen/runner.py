@@ -50,6 +50,7 @@ def generate_resources(
     clean_output_img_dir: bool = True,
     show_progress: bool = True,
     show_diagnostics: bool = True,
+    ignore_error: bool = False,
 ) -> ResgenGenerateResult:
     if clean_output_img_dir and os.path.exists(output_img_dir):
         shutil.rmtree(output_img_dir)
@@ -65,9 +66,10 @@ def generate_resources(
         print_diagnostics_report(
             diagnostics,
             cwd=os.getcwd(),
+            abort_on_error=not ignore_error,
         )
     error_count = sum(1 for diag in diagnostics if diag.severity == "error")
-    if error_count > 0:
+    if error_count > 0 and not ignore_error:
         raise ValueError(f"resgen aborted due to {error_count} error(s)")
 
     context = runtime_context.parser_context

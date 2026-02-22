@@ -58,3 +58,32 @@ def test_print_diagnostics_report_empty_output():
 
     assert summary.total == 0
     assert output == ""
+
+
+def test_print_diagnostics_report_continue_output_when_not_abort(tmp_path: Path):
+    meta_path = (tmp_path / "resources" / "ui" / "button.png.json").resolve()
+    diagnostics = [
+        Diagnostic(
+            code=META_VARIANT_INHERIT_MISSING_VARIANTS.code,
+            severity="error",
+            message="variant_inherit=False requires all configured variants to exist: ui.button; missing=en",
+            meta_path=meta_path.as_posix(),
+            definition_id="base",
+            field_path="definitions.base.variant_inherit",
+        ),
+    ]
+
+    stream = StringIO()
+    console = Console(file=stream, force_terminal=False, color_system=None, width=240)
+    summary = print_diagnostics_report(
+        diagnostics,
+        cwd=tmp_path.as_posix(),
+        console=console,
+        abort_on_error=False,
+    )
+    output = stream.getvalue()
+
+    assert summary.error_count == 1
+    assert "error: encountered 1 error(s);" in output
+    assert "continuing due to --ignore-error" in output
+    assert "error: aborting due to 1 previous error(s);" not in output

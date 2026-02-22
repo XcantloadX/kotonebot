@@ -1,8 +1,12 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from kotonebot.devtools.diagnostics.codes import META_VARIANT_INHERIT_MISSING_VARIANTS
+from kotonebot.devtools.diagnostics.models import Diagnostic
 from kotonebot.devtools.resgen import StandardGenerator
+from kotonebot.devtools.resgen.parsers import ResgenProjectContext
 from kotonebot.devtools.resgen.runner import generate_resources
 from tests.devtools._testkit import write_min_png, write_png_with_meta, write_pyproject
 
@@ -78,6 +82,46 @@ class TestResgenRunner(unittest.TestCase):
                     show_progress=False,
                     show_diagnostics=False,
                 )
+
+    def test_generate_resources_continues_when_meta_has_error_diagnostics_and_ignore_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            resources = tmp_path / "resources_empty"
+            resources.mkdir()
+
+            output_img_dir = tmp_path / "out_img"
+            output_code_file = tmp_path / "out_code" / "R.py"
+            runtime_context = ResgenProjectContext(
+                parser_context={
+                    "output_img_dir": output_img_dir.as_posix(),
+                    "root_scan_path": resources.as_posix(),
+                },
+                default_variant="",
+                diagnostics=[
+                    Diagnostic(
+                        code=META_VARIANT_INHERIT_MISSING_VARIANTS.code,
+                        severity="error",
+                        message="synthetic error",
+                        meta_path=(resources / "dummy.png.json").as_posix(),
+                    ),
+                ],
+            )
+            with patch("kotonebot.devtools.resgen.runner.load_resgen_runtime_context", return_value=runtime_context):
+                result = generate_resources(
+                    output_code_file=output_code_file.as_posix(),
+                    output_img_dir=output_img_dir.as_posix(),
+                    conf_path=(tmp_path / "pyproject.toml").as_posix(),
+                    generator_factory=lambda _: StandardGenerator(production=True),
+                    show_progress=False,
+                    show_diagnostics=False,
+                    ignore_error=True,
+                )
+
+            self.assertEqual(Path(result.root_scan_path).as_posix(), resources.as_posix())
+            self.assertEqual(result.parsed_file_count, 0)
+            self.assertEqual(result.resource_count, 0)
+            self.assertTrue(output_code_file.exists())
+            self.assertTrue((output_img_dir / "__init__.py").exists())
 
 
 if __name__ == "__main__":

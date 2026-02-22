@@ -49,6 +49,7 @@ def print_diagnostics_report(
     *,
     cwd: str | None = None,
     console: Console | None = None,
+    abort_on_error: bool = True,
 ) -> DiagnosticSummary:
     summary = summarize_diagnostics(diagnostics)
     if summary.total == 0:
@@ -79,7 +80,7 @@ def print_diagnostics_report(
             resolved_console.print(f"   = field: {diag.field_path}")
         resolved_console.print("")
 
-    if summary.error_count > 0:
+    if summary.error_count > 0 and abort_on_error:
         resolved_console.print(
             Text(
                 "error: aborting due to "
@@ -87,6 +88,16 @@ def print_diagnostics_report(
                 f"{summary.warning_count} warning(s), "
                 f"{summary.info_count} info message(s) emitted",
                 style="bold red",
+            )
+        )
+    elif summary.error_count > 0:
+        resolved_console.print(
+            Text(
+                "error: encountered "
+                f"{summary.error_count} error(s); "
+                f"{summary.warning_count} warning(s), "
+                f"{summary.info_count} info message(s) emitted; continuing due to --ignore-error",
+                style="bold yellow",
             )
         )
     elif summary.warning_count > 0:
