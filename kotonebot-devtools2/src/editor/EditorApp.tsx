@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useAppStore } from './state';
 import { getPrefabSchema } from '../api/prefabs';
 import { StageView } from './konva/StageView';
@@ -6,7 +6,6 @@ import { LeftToolBar } from '../ui/LeftToolBar';
 import { RightProperties } from '../ui/RightProperties';
 import { TabBar } from '../ui/TabBar';
 import { useSymbolIndexStore } from './symbolIndexStore';
-import { CommandPalette } from '../ui/CommandPalette';
 import { TopMenuBar } from '../ui/TopMenuBar';
 import { ProblemsPanel } from '../ui/ProblemsPanel';
 import { useSettingsStore } from './settings';
@@ -17,16 +16,13 @@ import { useShortcut, useShortcutScope } from '../shortcuts/shortcutManager';
 export const EditorApp: React.FC = () => {
   const { setPrefabSchema, activeDocumentId } = useAppStore();
   const { initialize } = useSymbolIndexStore();
-  const [isPaletteOpen, setPaletteOpen] = useState(false);
   const problemsVisible = useSettingsStore((s) => s.problemsVisible);
   const setProblemsVisible = useSettingsStore((s) => s.setProblemsVisible);
   const problemsHeight = useSettingsStore((s) => s.problemsHeight);
   const setProblemsHeight = useSettingsStore((s) => s.setProblemsHeight);
   const commandContext = React.useMemo(
     () => ({
-      ui: {
-        openCommandPalette: () => setPaletteOpen(true),
-      },
+      ui: {},
     }),
     [],
   );
@@ -62,7 +58,6 @@ export const EditorApp: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#f5f8fa' }}>
       <TopMenuBar
-        onOpenCommandPalette={() => setPaletteOpen(true)}
       />
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <div style={{ width: 60, background: '#e1e8ed', borderRight: '1px solid #c5d2db', padding: '10px 5px' }}>
@@ -94,11 +89,6 @@ export const EditorApp: React.FC = () => {
           <RightProperties />
         </div>
       </div>
-      <CommandPalette
-        isOpen={isPaletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        commandContext={commandContext}
-      />
       <FocusSpotlightOverlay />
     </div>
   );

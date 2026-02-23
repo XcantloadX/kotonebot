@@ -7,6 +7,7 @@ import {
   preCheckVariantImportPath,
 } from "../../api/metaIndex";
 import { messageBox } from "../../ui/messageBox";
+import { quickPick } from "../../ui/quickPick";
 import { toaster } from "../../ui/toaster";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { useAppStore } from "../state";
@@ -30,14 +31,12 @@ export async function pickVariantForActiveDocument(
     toaster.show({ message: "No selectable variants configured", intent: "warning" });
     return null;
   }
-  return messageBox.select({
+  return quickPick.select({
     title: "Select Variant",
+    placeholder: "Type variant name",
     options: projectVariants,
     defaultValue: projectVariants[0],
-    confirmText: "OK",
-    cancelText: "Cancel",
-    confirmIntent: "primary",
-    cancelIntent: "none",
+    emptyText: "No variant match",
   });
 }
 

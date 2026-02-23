@@ -59,8 +59,6 @@ export type NoArgCommandId = {
 
 /** 由 UI 层提供给命令层的交互入口。 */
 export interface EditorCommandUiHandlers {
-  /** 打开命令面板。 */
-  openCommandPalette: () => void;
   /** 打开图片文件对话框。 */
   openImageDialog: () => void;
   /** 打开 variant 目标选择对话框。 */

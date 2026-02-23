@@ -7,10 +7,6 @@ import { FileOpenDialog } from "./components/FileOpenDialog/FileOpenDialog";
 import { FileOpenOrImportDialog } from "./components/FileOpenDialog/FileOpenOrImportDialog";
 import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
 
-interface TopMenuBarProps {
-  onOpenCommandPalette: () => void;
-}
-
 type MenuKey = "file" | "edit" | "variant" | null;
 type MenuId = Exclude<MenuKey, null>;
 
@@ -22,9 +18,7 @@ interface MenuDefinitionItem {
   onClick: () => void;
 }
 
-export const TopMenuBar: React.FC<TopMenuBarProps> = ({
-  onOpenCommandPalette,
-}) => {
+export const TopMenuBar: React.FC = () => {
   const { activeDocumentId, documents } = useAppStore();
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const fileButtonRef = useRef<HTMLButtonElement>(null);
@@ -80,12 +74,11 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   const commandContext = useMemo(
     () => ({
       ui: {
-        openCommandPalette: onOpenCommandPalette,
         openImageDialog,
         openVariantDialog,
       },
     }),
-    [onOpenCommandPalette, openImageDialog, openVariantDialog],
+    [openImageDialog, openVariantDialog],
   );
 
   const statusEntries = useMemo(() => ([

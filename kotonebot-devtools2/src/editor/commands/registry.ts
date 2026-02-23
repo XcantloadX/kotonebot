@@ -36,9 +36,9 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     title: "Open Command Palette",
     keywords: ["command", "palette"],
     showInPalette: false,
-    requiredUi: ["openCommandPalette"],
-    run: async (ctx) => {
-      requireUiHandler(ctx, "openCommandPalette")();
+    run: async () => {
+      const { openCommandPalette } = await import("../actions/app");
+      await openCommandPalette();
     },
   },
   [COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL]: {
