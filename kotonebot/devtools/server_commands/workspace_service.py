@@ -13,6 +13,8 @@ from kotonebot.devtools.server_commands.commands import (
     SERVER_COMMAND_META_UPDATE_FILE,
     SERVER_COMMAND_RENAME_DOCUMENT_EXECUTE,
     SERVER_COMMAND_RENAME_DOCUMENT_PRECHECK,
+    SERVER_COMMAND_RENAME_SYMBOL_EXECUTE,
+    SERVER_COMMAND_RENAME_SYMBOL_PRECHECK,
     SERVER_COMMAND_VARIANT_CLONE_TO_IMAGE,
     SERVER_COMMAND_VARIANT_COPY_SELECTED_PREFAB_PRECHECK,
     SERVER_COMMAND_VARIANT_IMPORT_IMAGE,
@@ -26,6 +28,11 @@ from kotonebot.devtools.server_commands.types import (
     MetaUpdateFileCommand,
     RenameDocumentExecuteCommand,
     RenameDocumentPrecheckCommand,
+    RenameSymbolExecuteCommand,
+    RenameSymbolPrecheckCommand,
+    RenameSymbolPrecheckResult,
+    RenameSymbolExecuteResult,
+    RenameSymbolTargetModel,
     VariantCloneToImageCommand,
     VariantCloneToImageResult,
     VariantCopySelectedPrefabPrecheckCommand,
@@ -99,6 +106,16 @@ class WorkspaceService:
                 args_schema={"sourceImagePath": "string", "targetImagePath": "string"},
             ),
             ServerCommandSpec(
+                id=SERVER_COMMAND_RENAME_SYMBOL_PRECHECK,
+                title="Precheck symbol rename and collect impacted variants",
+                args_schema={"metaPath": "string", "definitionId": "string", "newName": "string"},
+            ),
+            ServerCommandSpec(
+                id=SERVER_COMMAND_RENAME_SYMBOL_EXECUTE,
+                title="Execute symbol rename and apply to all variants",
+                args_schema={"metaPath": "string", "definitionId": "string", "newName": "string"},
+            ),
+            ServerCommandSpec(
                 id=SERVER_COMMAND_VARIANT_CLONE_TO_IMAGE,
                 title="Clone variant definitions to target image",
                 args_schema={
@@ -142,6 +159,18 @@ class WorkspaceService:
             return self.execute_rename_document(
                 source_image_path=request.args.sourceImagePath,
                 target_image_path=request.args.targetImagePath,
+            )
+        if isinstance(request, RenameSymbolPrecheckCommand):
+            return self.precheck_rename_symbol(
+                source_meta_path=request.args.metaPath,
+                source_definition_id=request.args.definitionId,
+                new_name=request.args.newName,
+            )
+        if isinstance(request, RenameSymbolExecuteCommand):
+            return self.execute_rename_symbol(
+                source_meta_path=request.args.metaPath,
+                source_definition_id=request.args.definitionId,
+                new_name=request.args.newName,
             )
         if isinstance(request, VariantCloneToImageCommand):
             result = self.clone_variant_to_image(
@@ -220,6 +249,126 @@ class WorkspaceService:
             fileRenames=precheck.fileRenames,
             renamedFileCount=len(precheck.fileRenames),
             renamedDocumentCount=len(precheck.documents),
+        )
+
+    def precheck_rename_symbol(
+        self,
+        *,
+        source_meta_path: str,
+        source_definition_id: str,
+        new_name: str,
+    ) -> RenameSymbolPrecheckResult:
+        self.symbol_index_view.ensure_ready()
+        normalized_meta_path = self._normalize_path_key(str(self._get_safe_path(source_meta_path)))
+        requested_name = new_name.strip()
+        if requested_name == "":
+            raise ValueError("newName cannot be empty")
+        if source_definition_id.strip() == "":
+            raise ValueError("definitionId cannot be empty")
+
+        source_symbol = None
+        for symbol in self.symbol_index_view.snapshot.symbols.values():
+            if self._normalize_path_key(symbol.meta_path) == normalized_meta_path and symbol.definition_id == source_definition_id:
+                source_symbol = symbol
+                break
+        if source_symbol is None:
+            raise ValueError(f"Source symbol not found: {source_meta_path}::{source_definition_id}")
+
+        old_name = source_symbol.name.strip()
+        if old_name == "":
+            raise ValueError(f"Source symbol name is empty: {source_meta_path}::{source_definition_id}")
+        if requested_name == old_name:
+            raise ValueError("newName must be different from oldName")
+
+        targets_by_key: dict[tuple[str, str], RenameSymbolTargetModel] = {}
+        for symbol in self.symbol_index_view.snapshot.symbols.values():
+            if symbol.name != old_name:
+                continue
+            key = (symbol.meta_path, symbol.definition_id)
+            if key in targets_by_key:
+                continue
+            targets_by_key[key] = RenameSymbolTargetModel(
+                symbolKey=symbol.symbol_key,
+                metaPath=symbol.meta_path,
+                imagePath=symbol.image_path,
+                definitionId=symbol.definition_id,
+                variant=symbol.variant,
+                type=symbol.type,
+                oldName=old_name,
+                newName=requested_name,
+            )
+        if len(targets_by_key) == 0:
+            raise ValueError(f"No symbols found for name: {old_name}")
+
+        targets = sorted(
+            targets_by_key.values(),
+            key=lambda item: (item.metaPath, item.definitionId),
+        )
+        affected_meta_count = len({item.metaPath for item in targets})
+
+        return RenameSymbolPrecheckResult(
+            sourceMetaPath=source_symbol.meta_path,
+            sourceDefinitionId=source_definition_id,
+            oldName=old_name,
+            newName=requested_name,
+            targets=targets,
+            affectedMetaCount=affected_meta_count,
+            affectedDefinitionCount=len(targets),
+        )
+
+    def execute_rename_symbol(
+        self,
+        *,
+        source_meta_path: str,
+        source_definition_id: str,
+        new_name: str,
+    ) -> RenameSymbolExecuteResult:
+        precheck = self.precheck_rename_symbol(
+            source_meta_path=source_meta_path,
+            source_definition_id=source_definition_id,
+            new_name=new_name,
+        )
+
+        grouped_definition_ids: dict[str, list[str]] = {}
+        for item in precheck.targets:
+            existing = grouped_definition_ids.get(item.metaPath)
+            if existing is None:
+                grouped_definition_ids[item.metaPath] = [item.definitionId]
+            else:
+                existing.append(item.definitionId)
+
+        for meta_path, definition_ids in grouped_definition_ids.items():
+            safe_meta_path = self._get_safe_path(meta_path)
+            payload = json.loads(safe_meta_path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError(f"Invalid meta payload: {meta_path}")
+            if payload.get("version") != 2:
+                raise ValueError(f"Unsupported meta version for rename: {meta_path}")
+            definitions = payload.get("definitions")
+            if not isinstance(definitions, dict):
+                raise ValueError(f"Meta definitions must be object: {meta_path}")
+            for definition_id in definition_ids:
+                definition = definitions.get(definition_id)
+                if not isinstance(definition, dict):
+                    raise ValueError(f"Definition not found: {meta_path}::{definition_id}")
+                current_name = definition.get("name")
+                if not isinstance(current_name, str) or current_name.strip() == "":
+                    raise ValueError(f"Definition name must be non-empty string: {meta_path}::{definition_id}")
+                definition["name"] = precheck.newName
+            safe_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        self.symbol_index_view.build_full()
+
+        return RenameSymbolExecuteResult(
+            sourceMetaPath=precheck.sourceMetaPath,
+            sourceDefinitionId=precheck.sourceDefinitionId,
+            oldName=precheck.oldName,
+            newName=precheck.newName,
+            targets=precheck.targets,
+            affectedMetaCount=precheck.affectedMetaCount,
+            affectedDefinitionCount=precheck.affectedDefinitionCount,
+            updatedIndexVersion=self.symbol_index_view.snapshot.index_version,
+            updatedContentHash=self.symbol_index_view.snapshot.content_hash,
         )
 
     def clone_variant_to_image(
@@ -426,6 +575,9 @@ class WorkspaceService:
         if len(decoded) == 0:
             raise ValueError("decoded payload is empty")
         return decoded
+
+    def _normalize_path_key(self, path_str: str) -> str:
+        return Path(path_str).resolve().as_posix().lower()
 
     def _execute_file_rename_batch(self, renames: list[tuple[Path, Path]]) -> None:
         staged: list[tuple[Path, Path, Path]] = []

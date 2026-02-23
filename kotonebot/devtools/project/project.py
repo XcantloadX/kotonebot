@@ -42,6 +42,23 @@ class Project:
                     'Please set [tool.kotonebot.editor.resource_path] to a valid path in pyproject.toml.'
                 )
             self.conf.editor.resource_path = str(resource_path)
+        if self.conf.editor and self.conf.editor.r_file is not None:
+            r_file = self.conf.editor.r_file.strip()
+            if r_file == "":
+                raise ValueError("editor.r_file cannot be empty")
+            resolved_r_file = Path(r_file)
+            if not resolved_r_file.is_absolute():
+                resolved_r_file = (self.pyproject_root / resolved_r_file).resolve()
+            else:
+                resolved_r_file = resolved_r_file.resolve()
+            if not resolved_r_file.exists():
+                raise FileNotFoundError(
+                    f'editor.r_file does not exist: {resolved_r_file}. '
+                    'Please set [tool.kotonebot.editor.r_file] to a valid file path in pyproject.toml.'
+                )
+            if not resolved_r_file.is_file():
+                raise ValueError(f"editor.r_file must be a file path: {resolved_r_file}")
+            self.conf.editor.r_file = str(resolved_r_file)
 
         if self.conf.variant is not None:
             variants = self.conf.variant.variants

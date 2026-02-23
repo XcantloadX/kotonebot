@@ -16,6 +16,8 @@ from .commands import (
     SERVER_COMMAND_META_UPDATE_FILE,
     SERVER_COMMAND_RENAME_DOCUMENT_EXECUTE,
     SERVER_COMMAND_RENAME_DOCUMENT_PRECHECK,
+    SERVER_COMMAND_RENAME_SYMBOL_EXECUTE,
+    SERVER_COMMAND_RENAME_SYMBOL_PRECHECK,
     SERVER_COMMAND_VARIANT_CLONE_TO_IMAGE,
     SERVER_COMMAND_VARIANT_COPY_SELECTED_PREFAB_PRECHECK,
     SERVER_COMMAND_VARIANT_IMPORT_IMAGE,
@@ -63,6 +65,42 @@ class VariantCopySelectedPrefabPrecheckResult(StrictModel):
     targetDefinition: dict[str, Any]
 
 
+class RenameSymbolTargetModel(StrictModel):
+
+    symbolKey: str
+    metaPath: str
+    imagePath: str
+    definitionId: str
+    variant: str | None
+    type: str
+    oldName: str
+    newName: str
+
+
+class RenameSymbolPrecheckResult(StrictModel):
+
+    sourceMetaPath: str
+    sourceDefinitionId: str
+    oldName: str
+    newName: str
+    targets: list[RenameSymbolTargetModel]
+    affectedMetaCount: int
+    affectedDefinitionCount: int
+
+
+class RenameSymbolExecuteResult(StrictModel):
+
+    sourceMetaPath: str
+    sourceDefinitionId: str
+    oldName: str
+    newName: str
+    targets: list[RenameSymbolTargetModel]
+    affectedMetaCount: int
+    affectedDefinitionCount: int
+    updatedIndexVersion: int
+    updatedContentHash: str
+
+
 class EmptyArgs(StrictModel):
     pass
 
@@ -75,6 +113,13 @@ class RenameDocumentArgs(StrictModel):
 
     sourceImagePath: str
     targetImagePath: str
+
+
+class RenameSymbolArgs(StrictModel):
+
+    metaPath: str
+    definitionId: str
+    newName: str
 
 
 class VariantCloneToImageArgs(StrictModel):
@@ -125,6 +170,18 @@ class RenameDocumentExecuteCommand(StrictModel):
     args: RenameDocumentArgs
 
 
+class RenameSymbolPrecheckCommand(StrictModel):
+
+    command: Literal["server.symbol.rename.precheck"] = Field(default=SERVER_COMMAND_RENAME_SYMBOL_PRECHECK, frozen=True)
+    args: RenameSymbolArgs
+
+
+class RenameSymbolExecuteCommand(StrictModel):
+
+    command: Literal["server.symbol.rename.execute"] = Field(default=SERVER_COMMAND_RENAME_SYMBOL_EXECUTE, frozen=True)
+    args: RenameSymbolArgs
+
+
 class VariantCloneToImageCommand(StrictModel):
 
     command: Literal["server.variant.cloneToImage"] = Field(default=SERVER_COMMAND_VARIANT_CLONE_TO_IMAGE, frozen=True)
@@ -151,6 +208,8 @@ ServerCommandRequest: TypeAlias = Annotated[
     | MetaUpdateFileCommand
     | RenameDocumentPrecheckCommand
     | RenameDocumentExecuteCommand
+    | RenameSymbolPrecheckCommand
+    | RenameSymbolExecuteCommand
     | VariantCloneToImageCommand
     | VariantImportImageCommand
     | VariantCopySelectedPrefabPrecheckCommand,
@@ -164,6 +223,8 @@ ServerCommandResponse: TypeAlias = (
     | SymbolUpdateResultModel
     | RenameDocumentPrecheckResultModel
     | RenameDocumentExecuteResultModel
+    | RenameSymbolPrecheckResult
+    | RenameSymbolExecuteResult
     | VariantCloneToImageResult
     | VariantImportImageResult
     | VariantCopySelectedPrefabPrecheckResult

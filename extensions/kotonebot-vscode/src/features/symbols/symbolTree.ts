@@ -1,5 +1,8 @@
+import * as http from "node:http";
+import * as https from "node:https";
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
+import { getDevtoolsServerConfig } from "../../lsp/client";
 
 /** 获取全局符号树的 LSP 方法名。 */
 const SYMBOL_TREE_METHOD = "kotonebot/symbolTree";
@@ -9,8 +12,14 @@ const SYMBOL_TREE_VIEW_ID = "kotonebot.symbolsView";
 const SYMBOL_TREE_OPEN_SYMBOL_COMMAND = "kotonebot.editor.openSymbol";
 /** 手动刷新符号树命令 ID。 */
 const SYMBOL_TREE_REFRESH_COMMAND = "kotonebot.symbolTree.refresh";
+/** 符号树重命名命令 ID。 */
+const SYMBOL_TREE_RENAME_COMMAND = "kotonebot.symbolTree.rename";
 /** meta 文件匹配模式。 */
 const META_PATTERN = "**/*.png.json";
+/** 服务端符号重命名预检命令。 */
+const SERVER_COMMAND_RENAME_SYMBOL_PRECHECK = "server.symbol.rename.precheck";
+/** 服务端符号重命名执行命令。 */
+const SERVER_COMMAND_RENAME_SYMBOL_EXECUTE = "server.symbol.rename.execute";
 
 /** 符号树节点联合类型。 */
 type SymbolTreeNode = GroupNode | SymbolNode | VariantNode | FileNode;
@@ -61,6 +70,274 @@ interface FileNode {
   imagePath: string;
   /** definition 标识。 */
   definitionId: string;
+}
+
+interface RenameSymbolTarget {
+  symbolKey: string;
+  metaPath: string;
+  imagePath: string;
+  definitionId: string;
+  variant: string | null;
+  type: string;
+  oldName: string;
+  newName: string;
+}
+
+interface RenameSymbolPrecheckResult {
+  sourceMetaPath: string;
+  sourceDefinitionId: string;
+  oldName: string;
+  newName: string;
+  targets: RenameSymbolTarget[];
+  affectedMetaCount: number;
+  affectedDefinitionCount: number;
+}
+
+interface RenameSymbolExecuteResult extends RenameSymbolPrecheckResult {
+  updatedIndexVersion: number;
+  updatedContentHash: string;
+}
+
+interface ApiEnvelope<T> {
+  success: boolean;
+  message: string | null;
+  data: T | null;
+}
+
+interface ProjectRootData {
+  editor: {
+    r_file: string | null;
+  } | null;
+}
+
+interface PythonRenamePreview {
+  edit: vscode.WorkspaceEdit | null;
+  pythonFiles: string[];
+}
+
+function requestBuffer(url: string): Promise<Buffer> {
+  const parsed = new URL(url);
+  const sender = parsed.protocol === "https:" ? https : http;
+  return new Promise((resolve, reject) => {
+    const req = sender.request(
+      parsed,
+      {
+        method: "GET",
+        timeout: 8000,
+      },
+      (res) => {
+        const status = res.statusCode;
+        if (status === undefined || status < 200 || status >= 300) {
+          reject(new Error(`Request failed with status ${String(status)}: ${url}`));
+          res.resume();
+          return;
+        }
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => {
+          chunks.push(chunk);
+        });
+        res.on("end", () => {
+          resolve(Buffer.concat(chunks));
+        });
+      },
+    );
+    req.on("timeout", () => {
+      req.destroy(new Error(`Request timeout: ${url}`));
+    });
+    req.on("error", (err: Error) => {
+      reject(err);
+    });
+    req.end();
+  });
+}
+
+async function requestJson<T>(url: string): Promise<T> {
+  const content = await requestBuffer(url);
+  return JSON.parse(content.toString("utf-8")) as T;
+}
+
+function toIdentifierSegment(raw: string): string {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(raw)) {
+    throw new Error(`Unsupported name segment for Python rename: ${raw}`);
+  }
+  return raw;
+}
+
+function toDisplayPath(path: string): string {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (!folder) {
+    return path;
+  }
+  const rel = vscode.workspace.asRelativePath(vscode.Uri.file(path), false);
+  if (rel === "") {
+    return path;
+  }
+  return rel;
+}
+
+function appendPathSection(lines: string[], title: string, paths: string[], maxShow: number): void {
+  lines.push(title);
+  if (paths.length === 0) {
+    lines.push("- (none)");
+    return;
+  }
+  for (const path of paths.slice(0, maxShow)) {
+    lines.push(`- ${toDisplayPath(path)}`);
+  }
+  const omitted = paths.length - Math.min(paths.length, maxShow);
+  if (omitted > 0) {
+    lines.push(`- ... and ${String(omitted)} more file(s)`);
+  }
+}
+
+function buildRenameConfirmDetail(precheck: RenameSymbolPrecheckResult, pythonFiles: string[]): string {
+  const uniqueMetaPaths = Array.from(new Set(precheck.targets.map((item) => item.metaPath))).sort();
+  const lines: string[] = [];
+  appendPathSection(lines, "Affected meta files:", uniqueMetaPaths, 20);
+  lines.push("");
+  appendPathSection(lines, "Affected python files:", pythonFiles, 20);
+  return lines.join("\n");
+}
+
+async function getRFilePathFromProjectRoot(): Promise<string> {
+  const server = getDevtoolsServerConfig();
+  const rootEnvelope = await requestJson<ApiEnvelope<ProjectRootData>>(
+    `http://${server.host}:${String(server.port)}/api/project/root`,
+  );
+  if (rootEnvelope.success !== true) {
+    throw new Error(`project root request failed: ${String(rootEnvelope.message)}`);
+  }
+  if (rootEnvelope.data === null || rootEnvelope.data.editor === null) {
+    throw new Error("project root response editor is null");
+  }
+  if (rootEnvelope.data.editor.r_file === null || rootEnvelope.data.editor.r_file.trim() === "") {
+    throw new Error("Missing [tool.kotonebot.editor.r_file] in pyproject.toml");
+  }
+  return rootEnvelope.data.editor.r_file;
+}
+
+async function buildPythonRenamePreview(oldName: string, newName: string): Promise<PythonRenamePreview> {
+  const oldParts = oldName.split(".").filter((part) => part.trim() !== "");
+  const newParts = newName.split(".").filter((part) => part.trim() !== "");
+  if (oldParts.length === 0 || newParts.length === 0) {
+    throw new Error("Symbol name cannot be empty");
+  }
+  if (oldParts.length !== newParts.length) {
+    throw new Error("Phase 2 rename only supports terminal segment rename with unchanged path depth");
+  }
+  const prefixOld = oldParts.slice(0, -1).join(".");
+  const prefixNew = newParts.slice(0, -1).join(".");
+  if (prefixOld !== prefixNew) {
+    throw new Error("Phase 2 rename only supports terminal segment rename with unchanged path prefix");
+  }
+  const oldTerminal = toIdentifierSegment(oldParts[oldParts.length - 1]);
+  const newTerminal = toIdentifierSegment(newParts[newParts.length - 1]);
+  if (oldTerminal === newTerminal) {
+    return { edit: null, pythonFiles: [] };
+  }
+
+  const rFilePath = await getRFilePathFromProjectRoot();
+  const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(rFilePath));
+  const text = doc.getText();
+  const pattern = new RegExp(`\\b${oldTerminal}\\b`, "g");
+  const match = pattern.exec(text);
+  if (match === null) {
+    throw new Error(`Cannot find symbol token '${oldTerminal}' in r_file: ${rFilePath}`);
+  }
+  const at = doc.positionAt(match.index);
+  const edit = await vscode.commands.executeCommand<vscode.WorkspaceEdit | null>(
+    "vscode.executeDocumentRenameProvider",
+    doc.uri,
+    at,
+    newTerminal,
+  );
+  if (edit === null) {
+    throw new Error("No rename provider result from vscode.executeDocumentRenameProvider");
+  }
+  const pythonFiles = edit
+    .entries()
+    .map(([uri]) => uri.fsPath)
+    .filter((path) => {
+      const lowered = path.toLowerCase();
+      return lowered.endsWith(".py") || lowered.endsWith(".pyi");
+    })
+    .sort();
+  return {
+    edit,
+    pythonFiles: Array.from(new Set(pythonFiles)),
+  };
+}
+
+async function applyPythonRenameEdit(preview: PythonRenamePreview): Promise<void> {
+  if (preview.edit === null) {
+    return;
+  }
+  const applied = await vscode.workspace.applyEdit(preview.edit);
+  if (!applied) {
+    throw new Error("Failed to apply python rename workspace edit");
+  }
+}
+
+function firstFileNodeForSymbol(node: SymbolNode): FileNode {
+  const firstVariant = node.children[0];
+  if (firstVariant === undefined) {
+    throw new Error(`No variant node found for symbol: ${node.fullName}`);
+  }
+  const firstFile = firstVariant.children[0];
+  if (firstFile === undefined) {
+    throw new Error(`No file node found for symbol: ${node.fullName}`);
+  }
+  return firstFile;
+}
+
+function isSymbolNode(node: SymbolTreeNode): node is SymbolNode {
+  return node.kind === "symbol";
+}
+
+async function executeServerCommand(client: LanguageClient, command: string, args: Record<string, unknown>): Promise<unknown> {
+  return client.sendRequest("workspace/executeCommand", { command, arguments: [args] });
+}
+
+async function renameSymbolByNode(client: LanguageClient, provider: SymbolTreeProvider, node: SymbolNode): Promise<void> {
+  const target = firstFileNodeForSymbol(node);
+  const input = await vscode.window.showInputBox({
+    prompt: "Rename symbol (meta name)",
+    value: node.fullName,
+  });
+  if (input === undefined) {
+    return;
+  }
+  const newName = input.trim();
+  if (newName === "") {
+    throw new Error("newName cannot be empty");
+  }
+  if (newName === node.fullName) {
+    return;
+  }
+  const precheck = (await executeServerCommand(client, SERVER_COMMAND_RENAME_SYMBOL_PRECHECK, {
+    metaPath: target.metaPath,
+    definitionId: target.definitionId,
+    newName,
+  })) as RenameSymbolPrecheckResult;
+  const pythonRenamePreview = await buildPythonRenamePreview(precheck.oldName, precheck.newName);
+  const confirm = await vscode.window.showWarningMessage(
+    `Rename '${precheck.oldName}' -> '${precheck.newName}' in ${String(precheck.affectedDefinitionCount)} definition(s) across ${String(precheck.affectedMetaCount)} file(s)?`,
+    { modal: true, detail: buildRenameConfirmDetail(precheck, pythonRenamePreview.pythonFiles) },
+    "Rename",
+  );
+  if (confirm !== "Rename") {
+    return;
+  }
+  const result = (await executeServerCommand(client, SERVER_COMMAND_RENAME_SYMBOL_EXECUTE, {
+    metaPath: target.metaPath,
+    definitionId: target.definitionId,
+    newName,
+  })) as RenameSymbolExecuteResult;
+  await applyPythonRenameEdit(pythonRenamePreview);
+  await provider.refresh();
+  vscode.window.showInformationMessage(
+    `Kotonebot symbol renamed: ${result.oldName} -> ${result.newName} (${String(result.affectedDefinitionCount)} definitions).`,
+  );
 }
 
 /** 将后端返回的树结构解析为前端节点模型。 */
@@ -220,6 +497,7 @@ class SymbolTreeProvider implements vscode.TreeDataProvider<SymbolTreeNode> {
       item.tooltip = element.fullName;
       item.description = element.displayName ?? undefined;
       item.iconPath = new vscode.ThemeIcon("symbol-class");
+      item.contextValue = "kotonebot.symbol";
       return item;
     }
     if (element.kind === "variant") {
@@ -258,6 +536,14 @@ export function registerSymbolTree(context: vscode.ExtensionContext, client: Lan
   context.subscriptions.push(
     vscode.commands.registerCommand(SYMBOL_TREE_REFRESH_COMMAND, async () => {
       await provider.refresh();
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(SYMBOL_TREE_RENAME_COMMAND, async (node: SymbolTreeNode | undefined) => {
+      if (node === undefined || !isSymbolNode(node)) {
+        throw new Error("kotonebot.symbolTree.rename requires a symbol tree node");
+      }
+      await renameSymbolByNode(client, provider, node);
     }),
   );
 

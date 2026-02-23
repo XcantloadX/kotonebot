@@ -93,6 +93,7 @@ class ChoiceProp(EditorProp):
 class EditorData(BaseModel):
     prefabs_module: str | None = None
     resource_path: str | None = None
+    r_file: str | None = None
 
 
 class VariantData(BaseModel):

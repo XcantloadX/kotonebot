@@ -18,7 +18,8 @@
     "onCommand:kotonebot.refreshDiagnostics",
     "onCommand:kotonebot.updateMetaIndex",
     "onCommand:kotonebot.renameDocumentPair",
-    "onCommand:kotonebot.symbolTree.refresh"
+    "onCommand:kotonebot.symbolTree.refresh",
+    "onCommand:kotonebot.symbolTree.rename"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -84,6 +85,10 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "kotonebot.symbolTree.rename",
+        "title": "Rename Symbol"
+      },
+      {
         "command": "kotonebot.editor.open",
         "title": "Kotonebot: Open Editor"
       },
@@ -119,6 +124,13 @@
         {
           "command": "kotonebot.symbolTree.refresh",
           "when": "view == kotonebot.symbolsView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "kotonebot.symbolTree.rename",
+          "when": "view == kotonebot.symbolsView && viewItem == kotonebot.symbol",
           "group": "navigation"
         }
       ]

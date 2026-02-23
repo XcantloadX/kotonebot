@@ -8,6 +8,7 @@ import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import { getEditorForType } from './properties/PropertyEditorRegistry';
 import { OverridableField } from './components/OverridableField';
 import { SegmentedControl, SegmentedOption } from './components/SegmentedControl';
+import { toaster } from './toaster';
 
 type VariantInheritValue = boolean | null;
 
@@ -21,18 +22,20 @@ export const RightProperties: React.FC = () => {
   const commandContext = React.useMemo(() => ({ ui: {} }), []);
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
   const symbols = useSymbolIndexStore(s => s.symbols);
-  const nameValueOnFocusRef = React.useRef<string>('');
+  const [nameDraft, setNameDraft] = React.useState<string>('');
 
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const activeMeta = activeDoc?.meta;
   const selection = activeDoc?.selection;
+  const defId = selection?.definitionId ?? null;
+  const definition = activeMeta && defId ? activeMeta.data.definitions[defId] : null;
+  React.useEffect(() => {
+    setNameDraft(definition?.name || '');
+  }, [activeMeta?.path, defId, definition?.name]);
 
-  if (!activeMeta || !selection) {
+  if (!activeMeta || !selection || !defId) {
     return <div style={{ padding: 10, color: '#8a9ba8' }}>No selection</div>;
   }
-
-  const defId = selection.definitionId;
-  const definition = activeMeta.data.definitions[defId];
 
   if (!definition) {
       return <div style={{ padding: 10, color: '#8a9ba8' }}>Definition not found</div>;
@@ -81,20 +84,41 @@ export const RightProperties: React.FC = () => {
       });
   };
 
-  const handleNameFocus = () => {
-    nameValueOnFocusRef.current = definition.name || '';
-  };
-
   const handleNameBlur = () => {
     if (isVariantPrefab) {
       return;
     }
-    const valueOnFocus = nameValueOnFocusRef.current;
     const currentValue = definition.name || '';
-    if (valueOnFocus === currentValue) {
+    const targetValue = nameDraft.trim();
+    if (targetValue === currentValue) {
       return;
     }
-    void executeCommand(COMMAND_ID.VARIANT_RENAME_VARIANTS_FOR_DEFINITION, commandContext, { definitionId: defId });
+    void (async () => {
+      try {
+        await executeCommand(
+          COMMAND_ID.SYMBOL_RENAME_FOR_DEFINITION,
+          commandContext,
+          { definitionId: defId, newName: targetValue },
+        );
+        const latestState = useAppStore.getState();
+        const latestDocId = latestState.activeDocumentId;
+        if (!latestDocId) {
+          throw new Error("No active document after symbol rename");
+        }
+        const latestDoc = latestState.documents[latestDocId];
+        if (!latestDoc || !latestDoc.meta) {
+          throw new Error("Active document meta is missing after symbol rename");
+        }
+        const latestDefinition = latestDoc.meta.data.definitions[defId];
+        if (!latestDefinition) {
+          throw new Error(`Definition not found after symbol rename: ${defId}`);
+        }
+        setNameDraft(latestDefinition.name || '');
+      } catch (error: any) {
+        setNameDraft(currentValue);
+        toaster.show({ message: `Rename failed: ${error?.message ?? String(error)}`, intent: "danger" as any });
+      }
+    })();
   };
 
     const renderPropEditor = (key: string, value: PropValue | undefined, schema?: EditorPropSchema) => {
@@ -124,11 +148,10 @@ export const RightProperties: React.FC = () => {
   editors.push(
       <FormGroup key="common-name" label="Name (Class Path)">
           <InputGroup
-            value={definition.name || ''}
+            value={nameDraft}
             readOnly={isVariantPrefab}
-            onFocus={handleNameFocus}
             onBlur={handleNameBlur}
-            onChange={e => handleChange('name', e.target.value)}
+            onChange={e => setNameDraft(e.target.value)}
           />
       </FormGroup>
   );
