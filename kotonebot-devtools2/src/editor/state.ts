@@ -302,7 +302,7 @@ export const useAppStore = create<AppState>()(
             if (transaction) {
               transaction.patches.push(...patches);
               transaction.inversePatches.unshift(...inversePatches);
-              doc.dirty = doc.history.saveCursor !== doc.history.cursor;
+              doc.dirty = transaction.patches.length > 0 || doc.history.saveCursor !== doc.history.cursor;
               return;
             }
 

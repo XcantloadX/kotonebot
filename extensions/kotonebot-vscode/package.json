@@ -18,6 +18,9 @@
     "onCommand:kotonebot.editor.openSymbol",
     "onCommand:kotonebot.meta.openEditor",
     "onCommand:kotonebot.meta.openText",
+    "onCommand:kotonebot.meta.undo",
+    "onCommand:kotonebot.meta.redo",
+    "onCommand:kotonebot.meta.save",
     "onCommand:kotonebot.refreshDiagnostics",
     "onCommand:kotonebot.updateMetaIndex",
     "onCommand:kotonebot.renameDocumentPair",
@@ -118,6 +121,18 @@
         "command": "kotonebot.meta.openText",
         "title": "Kotonebot: Switch To Text Mode",
         "icon": "$(file-code)"
+      },
+      {
+        "command": "kotonebot.meta.undo",
+        "title": "Kotonebot: Undo In Editor"
+      },
+      {
+        "command": "kotonebot.meta.redo",
+        "title": "Kotonebot: Redo In Editor"
+      },
+      {
+        "command": "kotonebot.meta.save",
+        "title": "Kotonebot: Save In Editor"
       }
     ],
     "customEditors": [
@@ -181,7 +196,27 @@
           "group": "navigation"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "kotonebot.meta.undo",
+        "key": "ctrl+z",
+        "mac": "cmd+z",
+        "when": "activeCustomEditorId == kotonebot.metaEditor"
+      },
+      {
+        "command": "kotonebot.meta.redo",
+        "key": "ctrl+y",
+        "mac": "cmd+shift+z",
+        "when": "activeCustomEditorId == kotonebot.metaEditor"
+      },
+      {
+        "command": "kotonebot.meta.save",
+        "key": "ctrl+s",
+        "mac": "cmd+s",
+        "when": "activeCustomEditorId == kotonebot.metaEditor"
+      }
+    ]
   },
   "scripts": {
     "build": "tsc -p .",

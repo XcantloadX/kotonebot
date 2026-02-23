@@ -19,6 +19,12 @@ const COMMAND_EDITOR_OPEN_SYMBOL = "kotonebot.editor.openSymbol";
 const COMMAND_META_OPEN_EDITOR = "kotonebot.meta.openEditor";
 /** 从编辑器模式切换到文本模式命令 ID。 */
 const COMMAND_META_OPEN_TEXT = "kotonebot.meta.openText";
+/** 在自定义编辑器中执行 Undo。 */
+const COMMAND_META_UNDO = "kotonebot.meta.undo";
+/** 在自定义编辑器中执行 Redo。 */
+const COMMAND_META_REDO = "kotonebot.meta.redo";
+/** 在自定义编辑器中执行 Save。 */
+const COMMAND_META_SAVE = "kotonebot.meta.save";
 /** 编辑器 Custom Editor 类型标识。 */
 const VIEW_TYPE = "kotonebot.metaEditor";
 /** iframe 请求 host 打开 meta 文档命令 ID。 */
@@ -37,6 +43,16 @@ function metaToImagePath(metaPath: string): string {
 
 interface HostOpenMetaDocumentPayload {
   metaPath: string;
+}
+
+interface RunEditorCommandPayload {
+  command: "undo" | "redo" | "save";
+}
+
+interface EditorDocumentStatePayload {
+  metaPath: string;
+  content: string;
+  dirty: boolean;
 }
 
 /** 编辑器面板控制器。 */
@@ -84,8 +100,15 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
       await this.openMetaInEditor(vscode.Uri.file(parsed.metaPath));
       return { ok: true };
     });
+    const disposeDocumentState = bridge.on("kotonebot.editor.documentState", (message) => {
+      const parsed = this.parseEditorDocumentStatePayload(message.payload);
+      void this.syncMetaTextDocument(parsed).catch((err: unknown) => {
+        console.warn("[kotonebot.metaEditor] sync document state failed", err);
+      });
+    });
     webviewPanel.onDidDispose(() => {
       disposeOpenMetaRequest();
+      disposeDocumentState();
     }, null, this.context.subscriptions);
     this.openMetaDocument(document.uri, bridge);
   }
@@ -324,6 +347,56 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
     }
     return payload as HostOpenMetaDocumentPayload;
   }
+
+  /** 解析 editor 上报的文档状态。 */
+  private parseEditorDocumentStatePayload(value: unknown): EditorDocumentStatePayload {
+    if (typeof value !== "object" || value === null) {
+      throw new Error("kotonebot.editor.documentState payload is required");
+    }
+    const payload = value as Partial<EditorDocumentStatePayload>;
+    if (typeof payload.metaPath !== "string" || payload.metaPath.trim() === "") {
+      throw new Error("kotonebot.editor.documentState payload.metaPath is required");
+    }
+    if (!payload.metaPath.toLowerCase().endsWith(".png.json")) {
+      throw new Error(`kotonebot.editor.documentState payload.metaPath must end with .png.json: ${payload.metaPath}`);
+    }
+    if (typeof payload.content !== "string") {
+      throw new Error("kotonebot.editor.documentState payload.content must be string");
+    }
+    if (typeof payload.dirty !== "boolean") {
+      throw new Error("kotonebot.editor.documentState payload.dirty must be boolean");
+    }
+    return payload as EditorDocumentStatePayload;
+  }
+
+  /** 将 editor 内部文档状态同步到 VS Code 文本文档。 */
+  private async syncMetaTextDocument(payload: EditorDocumentStatePayload): Promise<void> {
+    const uri = vscode.Uri.file(payload.metaPath);
+    const doc = await vscode.workspace.openTextDocument(uri);
+    if (doc.getText() !== payload.content) {
+      const end = doc.lineAt(doc.lineCount - 1).range.end;
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(uri, new vscode.Range(0, 0, end.line, end.character), payload.content);
+      const applied = await vscode.workspace.applyEdit(edit);
+      if (!applied) {
+        throw new Error(`Failed to apply text sync edit: ${payload.metaPath}`);
+      }
+    }
+    const latest = vscode.workspace.textDocuments.find((item) => item.uri.toString() === uri.toString());
+    if (!latest) {
+      throw new Error(`Text document not found after sync: ${payload.metaPath}`);
+    }
+    if (!payload.dirty && latest.isDirty) {
+      await latest.save();
+    }
+  }
+
+  /** 在指定文档对应的 editor 会话中执行命令。 */
+  async runEditorCommand(uri: vscode.Uri, command: RunEditorCommandPayload["command"]): Promise<void> {
+    await this.openMetaInEditor(uri);
+    const session = await this.waitForSession(uri);
+    await session.bridge.request("kotonebot.editor.runCommand", { command });
+  }
 }
 
 /** 注册编辑器面板相关命令。 */
@@ -373,6 +446,24 @@ export function registerEditorPanel(
     vscode.commands.registerCommand(COMMAND_META_OPEN_TEXT, async (arg: unknown) => {
       const uri = controller.getMetaUriFromCommandArg(arg);
       await controller.openMetaInText(uri);
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_META_UNDO, async (arg: unknown) => {
+      const uri = controller.getMetaUriFromCommandArg(arg);
+      await controller.runEditorCommand(uri, "undo");
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_META_REDO, async (arg: unknown) => {
+      const uri = controller.getMetaUriFromCommandArg(arg);
+      await controller.runEditorCommand(uri, "redo");
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_META_SAVE, async (arg: unknown) => {
+      const uri = controller.getMetaUriFromCommandArg(arg);
+      await controller.runEditorCommand(uri, "save");
     }),
   );
 }

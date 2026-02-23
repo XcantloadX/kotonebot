@@ -14,6 +14,7 @@ import { COMMAND_ID, executeCommand } from './commands';
 import { useShortcut, useShortcutScope } from '../shortcuts/shortcutManager';
 import { installHostBridge, isSingleTabMode } from './host/hostBridge';
 import { registerHostHandlers } from './host/hostHandlers';
+import { installDocumentStateSync } from './host/documentStateSync';
 
 export const EditorApp: React.FC = () => {
   // host mode: 当 editor 以嵌入模式在 VSCode 扩展里执行时
@@ -44,11 +45,13 @@ export const EditorApp: React.FC = () => {
   useEffect(() => {
     const disposeHandlers = registerHostHandlers();
     const uninstall = installHostBridge();
+    const uninstallStateSync = isHostMode ? installDocumentStateSync() : () => {};
     return () => {
+      uninstallStateSync();
       uninstall();
       disposeHandlers();
     };
-  }, []);
+  }, [isHostMode]);
 
   useShortcutScope("editor", true);
 
