@@ -1,8 +1,9 @@
-from dataclasses import dataclass
 from pathlib import Path
 
-@dataclass(slots=True)
-class MetaFileRef:
+from pydantic import BaseModel
+
+
+class MetaFileRef(BaseModel):
     meta_path: str
     """JSON 元数据文件的相对路径，使用 POSIX 风格路径表示。"""
     image_path: str

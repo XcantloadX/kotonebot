@@ -1,10 +1,9 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 
 from ..diagnostics.models import Diagnostic
 from .graph import ResolvedDocsGraph
 
 
-@dataclass(slots=True)
-class MetaState:
+class MetaState(BaseModel):
     docs_graph: ResolvedDocsGraph
     diagnostics: list[Diagnostic]

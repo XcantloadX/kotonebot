@@ -6,16 +6,28 @@ from pydantic import ValidationError
 from .models import MetaV2Model
 
 
-def parse_meta_file(meta_path: str | Path) -> MetaV2Model:
-    """读入并解析元数据文件，返回 `MetaV2Model` 实例。
+class MetaValidationError(ValueError):
+    def __init__(self, message: str, field_path: str | None) -> None:
+        super().__init__(message)
+        self.field_path = field_path
 
-    :param meta_path: 元数据文件的路径。
-    :raises ValueError: 当元数据文件不存在或格式不正确时。
-    :return: 解析后的 `MetaV2Model` 实例。
-    """
-    path = Path(meta_path)
-    data = json.loads(path.read_text(encoding="utf-8"))
+
+def parse_meta_text(text: str) -> MetaV2Model:
+    data = json.loads(text)
     try:
         return MetaV2Model.model_validate(data)
     except ValidationError as exc:
-        raise ValueError(str(exc)) from exc
+        errors = exc.errors(include_url=False)
+        field_path: str | None = None
+        if len(errors) > 0:
+            first = errors[0]
+            loc = first.get("loc")
+            if isinstance(loc, tuple) and len(loc) > 0:
+                field_path = ".".join(str(item) for item in loc)
+        raise MetaValidationError(str(exc), field_path) from exc
+
+
+def parse_meta_file(meta_path: str | Path) -> MetaV2Model:
+    path = Path(meta_path)
+    text = path.read_text(encoding="utf-8")
+    return parse_meta_text(text)

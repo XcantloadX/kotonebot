@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import time
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
 
+from kotonebot.devtools.diagnostics.models import Diagnostic
 from kotonebot.devtools.meta import build_indexing_projection
 
 from .models import IndexedFile, IndexSnapshot
@@ -56,7 +56,39 @@ class SymbolUpdateResultModel(BaseModel):
     updatedMetaPath: str
     removedSymbolKeys: list[str]
     upsertedSymbols: list[SymbolLiteModel]
-    diagnostics: list[dict[str, Any]]
+    diagnostics: list["DiagnosticPayloadModel"]
+
+
+class DiagnosticPayloadModel(BaseModel):
+    code: str
+    message: str
+    meta_path: str
+    severity: str
+    definition_id: str | None
+    field_path: str | None
+    line: int
+    column: int
+    endLine: int
+    endColumn: int
+
+    @classmethod
+    def from_diagnostic(cls, diag: Diagnostic) -> "DiagnosticPayloadModel":
+        return cls(
+            code=diag.code,
+            message=diag.message,
+            meta_path=diag.meta_path,
+            severity=diag.severity,
+            definition_id=diag.definition_id,
+            field_path=diag.field_path,
+            line=diag.line,
+            column=diag.column,
+            endLine=diag.end_line,
+            endColumn=diag.end_column,
+        )
+
+    @classmethod
+    def from_diagnostics(cls, diagnostics: list[Diagnostic]) -> list["DiagnosticPayloadModel"]:
+        return [cls.from_diagnostic(diag) for diag in diagnostics]
 
 
 class MetaDiagnosticsStatsModel(BaseModel):
@@ -72,7 +104,7 @@ class MetaDiagnosticsSnapshotModel(BaseModel):
     """诊断快照。"""
 
     indexVersion: int
-    diagnosticsByFile: dict[str, list[dict[str, Any]]]
+    diagnosticsByFile: dict[str, list[DiagnosticPayloadModel]]
     stats: MetaDiagnosticsStatsModel
 
 
@@ -196,7 +228,7 @@ class SymbolIndexView:
             updatedMetaPath=normalized_meta_path,
             removedSymbolKeys=removed_symbol_keys,
             upsertedSymbols=[SymbolLiteModel(**symbol_to_lite(symbol)) for symbol in upserted_symbols],
-            diagnostics=[asdict(diag) for diag in file_diags],
+            diagnostics=DiagnosticPayloadModel.from_diagnostics(file_diags),
         )
 
     def get_snapshot_lite(self) -> SymbolSnapshotLiteModel:
@@ -235,7 +267,7 @@ class SymbolIndexView:
         return MetaDiagnosticsSnapshotModel(
             indexVersion=self._snapshot.index_version,
             diagnosticsByFile={
-                meta_path: [asdict(diag) for diag in entries]
+                meta_path: DiagnosticPayloadModel.from_diagnostics(entries)
                 for meta_path, entries in self._snapshot.diagnostics.items()
             },
             stats=MetaDiagnosticsStatsModel(total=total, error=error, warning=warning, info=info),

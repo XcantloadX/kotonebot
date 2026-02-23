@@ -1,6 +1,7 @@
 import sys
 import argparse
 
+from ..lsp.server import run_lsp_server
 from ..web.server.server import start_devtools
 
 
@@ -35,6 +36,22 @@ def main():
         action="store_true",
         help="Do not automatically open browser"
     )
+
+    lsp_parser = subparsers.add_parser(
+        "devtools-lsp",
+        help="Start the KotoneBot DevTools LSP server over stdio",
+    )
+    lsp_parser.add_argument(
+        "--workspace",
+        type=str,
+        default=None,
+        help="Workspace directory containing pyproject.toml (default: current working directory)",
+    )
+    lsp_parser.add_argument(
+        "--stdio",
+        action="store_true",
+        help="Use stdio transport (default behavior).",
+    )
     
     args = parser.parse_args()
     
@@ -44,6 +61,8 @@ def main():
             port=args.port,
             open_browser=not args.no_browser
         )
+    elif args.command == "devtools-lsp":
+        run_lsp_server(workspace=args.workspace)
     else:
         parser.print_help()
         sys.exit(0)

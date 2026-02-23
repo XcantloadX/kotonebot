@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Dict, Literal
 
+from pydantic import BaseModel
 
 class MetaValidationError(ValueError):
     """Raised when a meta JSON file does not conform to expected schema."""
@@ -11,8 +11,7 @@ class MetaValidationError(ValueError):
 MetaFormat = Literal["simple", "complex", "v2"]
 
 
-@dataclass
-class MetaSchemaInfo:
+class MetaSchemaInfo(BaseModel):
     """Lightweight description of detected meta schema.
 
     This is intentionally minimal for now but can be extended later

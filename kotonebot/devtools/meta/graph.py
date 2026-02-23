@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field
 
 from .corpus import MetaCorpus
 from .models import DefinitionV2Model
@@ -8,8 +8,7 @@ from .resolver import ResolvedPrefabVariants
 DefinitionKey = tuple[str, str]
 
 
-@dataclass(slots=True)
-class ResolvedDefinition:
+class ResolvedDefinition(BaseModel):
     key: DefinitionKey
     meta_path: str
     image_path: str
@@ -17,14 +16,13 @@ class ResolvedDefinition:
     definition: DefinitionV2Model
     merged_definition: DefinitionV2Model
     base_ref: DefinitionKey | None = None
-    variant_refs: list[DefinitionKey] = field(default_factory=list)
+    variant_refs: list[DefinitionKey] = Field(default_factory=list)
 
 
-@dataclass(slots=True)
-class ResolvedDocsGraph:
-    definitions: dict[DefinitionKey, ResolvedDefinition] = field(default_factory=dict)
-    by_name: dict[str, list[DefinitionKey]] = field(default_factory=dict)
-    prefab_groups: dict[str, ResolvedPrefabVariants] = field(default_factory=dict)
+class ResolvedDocsGraph(BaseModel):
+    definitions: dict[DefinitionKey, ResolvedDefinition] = Field(default_factory=dict)
+    by_name: dict[str, list[DefinitionKey]] = Field(default_factory=dict)
+    prefab_groups: dict[str, ResolvedPrefabVariants] = Field(default_factory=dict)
 
 
 def build_docs_graph(

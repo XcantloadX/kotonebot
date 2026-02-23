@@ -1,17 +1,19 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 
 from .models import DefinitionV2Model
 
 
-@dataclass(slots=True)
-class DefinitionRef:
+class DefinitionRef(BaseModel):
     meta_path: str
     definition_id: str
     definition: DefinitionV2Model
+    line: int
+    column: int
+    end_line: int
+    end_column: int
 
 
-@dataclass(slots=True)
-class ResolvedPrefabVariants:
+class ResolvedPrefabVariants(BaseModel):
     name: str
     base: DefinitionRef
     variants: dict[str, DefinitionRef]

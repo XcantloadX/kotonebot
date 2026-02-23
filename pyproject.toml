@@ -58,6 +58,8 @@ dev = [
     # Additional utilities
     "jinja2~=3.1",
     "tqdm~=4.67",
+    # for LSP
+    "pygls~=2.0",
 ]
 
 # All optional dependencies

@@ -1,0 +1,58 @@
+{
+  "name": "kotonebot-vscode",
+  "displayName": "Kotonebot Devtools",
+  "description": "VS Code integration for kotonebot devtools diagnostics and server commands.",
+  "version": "0.0.1",
+  "publisher": "kotonebot",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Linters"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:kotonebot.refreshDiagnostics",
+    "onCommand:kotonebot.updateMetaIndex",
+    "onCommand:kotonebot.renameDocumentPair"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Kotonebot",
+      "properties": {
+        "kotonebot.lspCommand": {
+          "type": "string",
+          "default": "kbot",
+          "description": "Executable used to launch kotonebot devtools lsp."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "kotonebot.refreshDiagnostics",
+        "title": "Kotonebot: Refresh Diagnostics"
+      },
+      {
+        "command": "kotonebot.updateMetaIndex",
+        "title": "Kotonebot: Update Meta Index For Current File"
+      },
+      {
+        "command": "kotonebot.renameDocumentPair",
+        "title": "Kotonebot: Rename Document Pair"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -w -p ."
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.5.2"
+  }
+}

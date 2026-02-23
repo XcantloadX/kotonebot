@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any
+
+from pydantic import BaseModel, Field
 
 from ..diagnostics.models import Diagnostic
 
 
-@dataclass(slots=True)
-class IndexedFile:
+class IndexedFile(BaseModel):
     image_path: str
     meta_path: str
     mtime_ns: int
@@ -15,8 +15,7 @@ class IndexedFile:
     definition_ids: list[str]
 
 
-@dataclass(slots=True)
-class IndexedSymbol:
+class IndexedSymbol(BaseModel):
     symbol_key: str
     definition_id: str
     type: str
@@ -32,11 +31,10 @@ class IndexedSymbol:
     search_tokens: list[str]
 
 
-@dataclass(slots=True)
-class IndexSnapshot:
+class IndexSnapshot(BaseModel):
     index_version: int
     content_hash: str
-    files: dict[str, IndexedFile] = field(default_factory=dict)
-    symbols: dict[str, IndexedSymbol] = field(default_factory=dict)
-    diagnostics: dict[str, list[Diagnostic]] = field(default_factory=dict)
-    reverse_refs: dict[str, list[str]] = field(default_factory=dict)
+    files: dict[str, IndexedFile] = Field(default_factory=dict)
+    symbols: dict[str, IndexedSymbol] = Field(default_factory=dict)
+    diagnostics: dict[str, list[Diagnostic]] = Field(default_factory=dict)
+    reverse_refs: dict[str, list[str]] = Field(default_factory=dict)

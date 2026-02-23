@@ -1,9 +1,7 @@
 import os
 import time
-import pstats
 import typing
 import logging
-import cProfile
 import platform
 from importlib import resources
 from typing import Literal, Callable, TYPE_CHECKING
@@ -344,7 +342,8 @@ class Profiler:
     ```
     """
     def __init__(self, file_path: str):
-
+        import cProfile
+        
         self.profiler = cProfile.Profile()
         self.stats = None
         self.file_path = file_path
@@ -354,6 +353,8 @@ class Profiler:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        import pstats
+
         self.profiler.disable()
         self.stats = pstats.Stats(self.profiler)
         self.stats.dump_stats(self.file_path)

@@ -103,6 +103,10 @@ class TestResgenRunner(unittest.TestCase):
                         severity="error",
                         message="synthetic error",
                         meta_path=(resources / "dummy.png.json").as_posix(),
+                        line=1,
+                        column=1,
+                        end_line=1,
+                        end_column=2,
                     ),
                 ],
             )

@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from pydantic.generics import GenericModel
 
+from kotonebot.devtools.server_commands.types import parse_server_command_request
 from kotonebot.devtools.project.project import Project
 
 from .rest_api_logic import RestApiLogic
@@ -288,5 +289,22 @@ def create_rest_router(project: Project) -> APIRouter:
     @router.get("/health")
     async def health_check():
         return _ok(logic.get_health())
+
+    @router.get("/server/commands")
+    async def get_server_commands():
+        try:
+            return _ok([item.model_dump() for item in logic.workspace.list_server_commands()])
+        except Exception as e:
+            logging.exception("Error while handling /server/commands")
+            return _err(str(e))
+
+    @router.post("/server/execute_command")
+    async def execute_server_command(body: dict[str, Any] = Body(...)):
+        try:
+            request = parse_server_command_request(body)
+            return _ok(logic.workspace.execute_server_command(request).model_dump())
+        except Exception as e:
+            logging.exception("Error while handling /server/execute_command")
+            return _err(str(e))
 
     return router
