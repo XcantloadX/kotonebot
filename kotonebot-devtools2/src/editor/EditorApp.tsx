@@ -16,6 +16,8 @@ import { installHostBridge } from './host/hostBridge';
 import { registerHostHandlers } from './host/hostHandlers';
 
 export const EditorApp: React.FC = () => {
+  // host mode: 当 editor 以嵌入模式在 VSCode 扩展里执行时
+  const isHostMode = window.parent !== window;
   const { setPrefabSchema, activeDocumentId } = useAppStore();
   const { initialize } = useSymbolIndexStore();
   const problemsVisible = useSettingsStore((s) => s.problemsVisible);
@@ -52,6 +54,7 @@ export const EditorApp: React.FC = () => {
     id: "editor.open-command-palette",
     scope: "editor",
     combo: "mod+shift+p",
+    when: () => !isHostMode,
     onKeyDown: () => {
       void executeCommand(COMMAND_ID.APP_OPEN_COMMAND_PALETTE, commandContext, undefined);
     },
@@ -68,8 +71,9 @@ export const EditorApp: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#f5f8fa' }}>
-      <TopMenuBar
-      />
+      {!isHostMode ? (
+        <TopMenuBar />
+      ) : null}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <div style={{ width: 60, background: '#e1e8ed', borderRight: '1px solid #c5d2db', padding: '10px 5px' }}>
           <LeftToolBar />
@@ -86,13 +90,15 @@ export const EditorApp: React.FC = () => {
               </div>
             )}
           </div>
-          <ProblemsPanel
-            visible={problemsVisible}
-            height={problemsHeight}
-            onToggleVisible={() => setProblemsVisible(!problemsVisible)}
-            onClose={() => setProblemsVisible(false)}
-            onHeightChange={setProblemsHeight}
-          />
+          {!isHostMode ? (
+            <ProblemsPanel
+              visible={problemsVisible}
+              height={problemsHeight}
+              onToggleVisible={() => setProblemsVisible(!problemsVisible)}
+              onClose={() => setProblemsVisible(false)}
+              onHeightChange={setProblemsHeight}
+            />
+          ) : null}
         </div>
 
         <div style={{ width: 300, background: '#e1e8ed', borderLeft: '1px solid #c5d2db', padding: 10, overflowY: 'auto' }}>
