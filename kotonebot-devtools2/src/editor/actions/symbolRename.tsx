@@ -7,36 +7,58 @@ import { useAppStore } from "../state";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { SERVER_COMMAND_ID } from "../commands/serverIds";
 
+/** 单个受影响符号目标。 */
 interface RenameSymbolTarget {
+  /** 唯一符号键。 */
   symbolKey: string;
+  /** 所在 meta 路径。 */
   metaPath: string;
+  /** 所在图片路径。 */
   imagePath: string;
+  /** definition 标识。 */
   definitionId: string;
+  /** 变体名，base 为 null。 */
   variant: string | null;
+  /** definition 类型。 */
   type: string;
+  /** 原符号名。 */
   oldName: string;
+  /** 新符号名。 */
   newName: string;
 }
 
+/** 符号重命名预检结果。 */
 interface RenameSymbolPrecheckResult {
+  /** 触发重命名的源 meta。 */
   sourceMetaPath: string;
+  /** 触发重命名的源 definition。 */
   sourceDefinitionId: string;
+  /** 原符号名。 */
   oldName: string;
+  /** 新符号名。 */
   newName: string;
+  /** 受影响目标集合。 */
   targets: RenameSymbolTarget[];
+  /** 受影响 meta 文件数。 */
   affectedMetaCount: number;
+  /** 受影响 definition 数。 */
   affectedDefinitionCount: number;
 }
 
+/** 符号重命名执行结果。 */
 interface RenameSymbolExecuteResult extends RenameSymbolPrecheckResult {
+  /** 执行后索引版本。 */
   updatedIndexVersion: number;
+  /** 执行后索引哈希。 */
   updatedContentHash: string;
 }
 
+/** 统一路径格式用于大小写无关比较。 */
 function normalizePath(path: string): string {
   return path.split("\\").join("/").toLowerCase();
 }
 
+/** 构建重命名确认弹窗内容（仅展示 meta 文件影响范围）。 */
 function buildRenameConfirmContent(precheck: RenameSymbolPrecheckResult): React.ReactNode {
   const affectedMetaPaths = Array.from(new Set(precheck.targets.map((item) => item.metaPath))).sort();
   return (
@@ -83,6 +105,7 @@ function buildRenameConfirmContent(precheck: RenameSymbolPrecheckResult): React.
   );
 }
 
+/** 保存受影响且已打开的脏文档，避免服务端改名覆盖未保存修改。 */
 async function saveDirtyAffectedOpenDocuments(affectedMetaPathSet: Set<string>): Promise<void> {
   const current = useAppStore.getState();
   const previousActiveId = current.activeDocumentId;
@@ -115,6 +138,7 @@ async function saveDirtyAffectedOpenDocuments(affectedMetaPathSet: Set<string>):
   }
 }
 
+/** 重命名后重新加载受影响且已打开文档的 meta。 */
 async function reloadAffectedOpenDocuments(affectedMetaPathSet: Set<string>): Promise<void> {
   const app = useAppStore.getState();
   for (const doc of Object.values(app.documents)) {
@@ -133,6 +157,7 @@ async function reloadAffectedOpenDocuments(affectedMetaPathSet: Set<string>): Pr
   }
 }
 
+/** 对当前激活 definition 执行符号重命名（precheck -> confirm -> execute）。 */
 export async function renameSymbolNameForActiveDefinition(definitionId: string, newNameInput: string): Promise<boolean> {
   const state = useAppStore.getState();
   const activeId = state.activeDocumentId;

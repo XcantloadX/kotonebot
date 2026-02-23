@@ -58,6 +58,16 @@
           "default": true,
           "description": "Automatically refetch diagnostics when *.png.json files are created, changed, deleted, or renamed."
         },
+        "kotonebot.autoPairRenameOnFileRename": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically rename paired image/meta file when renaming or moving a *.png or *.png.json file."
+        },
+        "kotonebot.autoVariantRenameOnFileRename": {
+          "type": "boolean",
+          "default": true,
+          "description": "When file name changes, automatically rename all related variant documents together (requires autoPairRenameOnFileRename)."
+        },
         "kotonebot.autoRefreshDebounceMs": {
           "type": "number",
           "default": 300,

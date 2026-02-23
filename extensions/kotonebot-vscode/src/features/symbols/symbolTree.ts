@@ -72,49 +72,79 @@ interface FileNode {
   definitionId: string;
 }
 
+/** 符号重命名影响目标。 */
 interface RenameSymbolTarget {
+  /** 唯一符号键。 */
   symbolKey: string;
+  /** 所在 meta 文件路径。 */
   metaPath: string;
+  /** 所在图片路径。 */
   imagePath: string;
+  /** definition 标识。 */
   definitionId: string;
+  /** variant 名称，base 为 null。 */
   variant: string | null;
+  /** definition 类型。 */
   type: string;
+  /** 原符号名。 */
   oldName: string;
+  /** 目标符号名。 */
   newName: string;
 }
 
+/** 符号重命名预检结果。 */
 interface RenameSymbolPrecheckResult {
+  /** 触发重命名的源 meta。 */
   sourceMetaPath: string;
+  /** 触发重命名的源 definition。 */
   sourceDefinitionId: string;
+  /** 原符号名。 */
   oldName: string;
+  /** 目标符号名。 */
   newName: string;
+  /** 受影响目标列表。 */
   targets: RenameSymbolTarget[];
+  /** 受影响 meta 文件数。 */
   affectedMetaCount: number;
+  /** 受影响 definition 数。 */
   affectedDefinitionCount: number;
 }
 
+/** 符号重命名执行结果。 */
 interface RenameSymbolExecuteResult extends RenameSymbolPrecheckResult {
+  /** 执行后的索引版本。 */
   updatedIndexVersion: number;
+  /** 执行后的索引哈希。 */
   updatedContentHash: string;
 }
 
+/** 通用 API 响应包装。 */
 interface ApiEnvelope<T> {
+  /** 请求是否成功。 */
   success: boolean;
+  /** 错误信息。 */
   message: string | null;
+  /** 返回数据。 */
   data: T | null;
 }
 
+/** 项目根配置响应（仅本功能需要的字段）。 */
 interface ProjectRootData {
   editor: {
+    /** pyproject 配置的 R 文件路径。 */
     r_file: string | null;
   } | null;
 }
 
+/** Python 重命名预演结果。 */
 interface PythonRenamePreview {
+  /** 预演得到的工作区编辑；无需改动时为 null。 */
   edit: vscode.WorkspaceEdit | null;
+  /** 将被修改的 Python 文件列表。 */
   pythonFiles: string[];
 }
 
+/** 以 GET 方式请求并返回二进制内容。 */
 function requestBuffer(url: string): Promise<Buffer> {
   const parsed = new URL(url);
   const sender = parsed.protocol === "https:" ? https : http;
@@ -151,11 +181,13 @@ function requestBuffer(url: string): Promise<Buffer> {
   });
 }
 
+/** 以 GET 方式请求并解析 JSON。 */
 async function requestJson<T>(url: string): Promise<T> {
   const content = await requestBuffer(url);
   return JSON.parse(content.toString("utf-8")) as T;
 }
 
+/** 校验并返回合法的 Python 标识符片段。 */
 function toIdentifierSegment(raw: string): string {
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(raw)) {
     throw new Error(`Unsupported name segment for Python rename: ${raw}`);
@@ -163,6 +195,7 @@ function toIdentifierSegment(raw: string): string {
   return raw;
 }
 
+/** 将绝对路径转成更易读的工作区相对路径。 */
 function toDisplayPath(path: string): string {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) {
@@ -175,6 +208,7 @@ function toDisplayPath(path: string): string {
   return rel;
 }
 
+/** 向详情文本追加一个“路径分组”区块。 */
 function appendPathSection(lines: string[], title: string, paths: string[], maxShow: number): void {
   lines.push(title);
   if (paths.length === 0) {
@@ -190,6 +224,7 @@ function appendPathSection(lines: string[], title: string, paths: string[], maxS
   }
 }
 
+/** 构建符号重命名确认弹窗详情文本。 */
 function buildRenameConfirmDetail(precheck: RenameSymbolPrecheckResult, pythonFiles: string[]): string {
   const uniqueMetaPaths = Array.from(new Set(precheck.targets.map((item) => item.metaPath))).sort();
   const lines: string[] = [];
@@ -199,6 +234,7 @@ function buildRenameConfirmDetail(precheck: RenameSymbolPrecheckResult, pythonFi
   return lines.join("\n");
 }
 
+/** 从项目配置读取 `r_file`。 */
 async function getRFilePathFromProjectRoot(): Promise<string> {
   const server = getDevtoolsServerConfig();
   const rootEnvelope = await requestJson<ApiEnvelope<ProjectRootData>>(
@@ -216,6 +252,7 @@ async function getRFilePathFromProjectRoot(): Promise<string> {
   return rootEnvelope.data.editor.r_file;
 }
 
+/** 预演 Python 重命名并返回受影响文件列表。 */
 async function buildPythonRenamePreview(oldName: string, newName: string): Promise<PythonRenamePreview> {
   const oldParts = oldName.split(".").filter((part) => part.trim() !== "");
   const newParts = newName.split(".").filter((part) => part.trim() !== "");
@@ -268,6 +305,7 @@ async function buildPythonRenamePreview(oldName: string, newName: string): Promi
   };
 }
 
+/** 应用 Python 重命名预演得到的编辑。 */
 async function applyPythonRenameEdit(preview: PythonRenamePreview): Promise<void> {
   if (preview.edit === null) {
     return;
@@ -278,6 +316,7 @@ async function applyPythonRenameEdit(preview: PythonRenamePreview): Promise<void
   }
 }
 
+/** 从符号节点中提取可执行重命名的代表文件节点。 */
 function firstFileNodeForSymbol(node: SymbolNode): FileNode {
   const firstVariant = node.children[0];
   if (firstVariant === undefined) {
@@ -290,14 +329,17 @@ function firstFileNodeForSymbol(node: SymbolNode): FileNode {
   return firstFile;
 }
 
+/** 类型守卫：判断节点是否为 symbol 节点。 */
 function isSymbolNode(node: SymbolTreeNode): node is SymbolNode {
   return node.kind === "symbol";
 }
 
+/** 通过 LSP `workspace/executeCommand` 调用服务端命令。 */
 async function executeServerCommand(client: LanguageClient, command: string, args: Record<string, unknown>): Promise<unknown> {
   return client.sendRequest("workspace/executeCommand", { command, arguments: [args] });
 }
 
+/** 基于 symbol 树节点执行重命名流程。 */
 async function renameSymbolByNode(client: LanguageClient, provider: SymbolTreeProvider, node: SymbolNode): Promise<void> {
   const target = firstFileNodeForSymbol(node);
   const input = await vscode.window.showInputBox({
