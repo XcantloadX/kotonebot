@@ -11,6 +11,8 @@ from kotonebot.devtools.indexing.symbol_index_view import DiagnosticPayloadModel
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.server_commands.workspace_service import WorkspaceService
 
+METHOD_SYMBOL_TREE = "kotonebot/symbolTree"
+
 
 def normalize_path(path: str) -> str:
     return str(Path(path).resolve()).replace("\\", "/").lower()
@@ -106,6 +108,92 @@ class DevtoolsLspServer(LanguageServer):
         self.publish_all_diagnostics()
         return result.model_dump()
 
+    def get_symbol_tree(self) -> list[dict[str, Any]]:
+        self.workspace_service.symbol_index_view.ensure_ready()
+        symbols = list(self.workspace_service.symbol_index_view.snapshot.symbols.values())
+        root: dict[str, Any] = {"kind": "group", "label": "__root__", "children": []}
+        group_map: dict[str, dict[str, Any]] = {"": root}
+
+        for symbol in symbols:
+            parts = symbol.name.split(".")
+            if len(parts) == 0:
+                raise ValueError(f"Invalid symbol name: {symbol.name}")
+            for part in parts:
+                if part.strip() == "":
+                    raise ValueError(f"Invalid symbol name segment: {symbol.name}")
+
+            current_path = ""
+            current_group = root
+            for segment in parts[:-1]:
+                current_path = segment if current_path == "" else f"{current_path}.{segment}"
+                next_group = group_map.get(current_path)
+                if next_group is None:
+                    next_group = {"kind": "group", "label": segment, "children": []}
+                    group_map[current_path] = next_group
+                    current_group["children"].append(next_group)
+                current_group = next_group
+
+            leaf_label = parts[-1]
+            full_name = ".".join(parts)
+            symbol_node = None
+            for node in current_group["children"]:
+                if node["kind"] == "symbol" and node["fullName"] == full_name:
+                    symbol_node = node
+                    break
+            if symbol_node is None:
+                symbol_node = {
+                    "kind": "symbol",
+                    "label": leaf_label,
+                    "fullName": full_name,
+                    "displayName": symbol.display_name,
+                    "children": [],
+                }
+                current_group["children"].append(symbol_node)
+            elif symbol_node["displayName"] is None and symbol.display_name is not None:
+                symbol_node["displayName"] = symbol.display_name
+
+            variant_label = "base" if symbol.variant is None else symbol.variant
+            variant_node = None
+            for node in symbol_node["children"]:
+                if node["label"] == variant_label:
+                    variant_node = node
+                    break
+            if variant_node is None:
+                variant_node = {"kind": "variant", "label": variant_label, "children": []}
+                symbol_node["children"].append(variant_node)
+
+            already_exists = any(item["metaPath"] == symbol.meta_path for item in variant_node["children"])
+            if not already_exists:
+                variant_node["children"].append(
+                    {
+                        "kind": "file",
+                        "label": Path(symbol.meta_path).name,
+                        "metaPath": symbol.meta_path,
+                    }
+                )
+
+        def sort_nodes(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            groups: list[dict[str, Any]] = []
+            symbols_nodes: list[dict[str, Any]] = []
+            for node in nodes:
+                kind = node["kind"]
+                if kind == "group":
+                    node["children"] = sort_nodes(node["children"])
+                    groups.append(node)
+                    continue
+                if kind == "symbol":
+                    node["children"].sort(key=lambda item: item["label"])
+                    for variant in node["children"]:
+                        variant["children"].sort(key=lambda item: item["metaPath"])
+                    symbols_nodes.append(node)
+                    continue
+                raise ValueError(f"Unexpected root node kind: {kind}")
+            groups.sort(key=lambda item: item["label"])
+            symbols_nodes.sort(key=lambda item: item["fullName"])
+            return [*groups, *symbols_nodes]
+
+        return sort_nodes(root["children"])
+
 
 def _first_argument_dict(args: tuple[Any, ...]) -> dict[str, Any]:
     if len(args) == 0:
@@ -147,6 +235,10 @@ def _register_features(server: DevtoolsLspServer) -> None:
     @server.feature(lsp.TEXT_DOCUMENT_DID_CHANGE)
     def _on_did_change(_ls: DevtoolsLspServer, _params: lsp.DidChangeTextDocumentParams) -> None:
         return
+
+    @server.feature(METHOD_SYMBOL_TREE)
+    def _on_symbol_tree(ls: DevtoolsLspServer, _params: Any = None) -> list[dict[str, Any]]:
+        return ls.get_symbol_tree()
 
     for command in SERVER_COMMAND_IDS:
         def _make_handler(command_id: ServerCommandId):

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { createLanguageClient } from "./client";
 import { executeServerCommand, registerCommands } from "./commands";
+import { registerSymbolTree } from "./symbolTree";
 
 let clientStopped: Promise<void> | undefined;
 const SERVER_COMMAND_META_REFETCH = "server.meta.refetch";
@@ -101,6 +102,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   await client.start();
   registerCommands(context, client);
+  registerSymbolTree(context, client);
   registerAutoRefresh(context, client);
 }
 

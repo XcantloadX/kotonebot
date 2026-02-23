@@ -12,9 +12,11 @@
   ],
   "activationEvents": [
     "onStartupFinished",
+    "onView:kotonebot.symbolsView",
     "onCommand:kotonebot.refreshDiagnostics",
     "onCommand:kotonebot.updateMetaIndex",
-    "onCommand:kotonebot.renameDocumentPair"
+    "onCommand:kotonebot.renameDocumentPair",
+    "onCommand:kotonebot.symbolTree.refresh"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -56,8 +58,39 @@
       {
         "command": "kotonebot.renameDocumentPair",
         "title": "Kotonebot: Rename Document Pair"
+      },
+      {
+        "command": "kotonebot.symbolTree.refresh",
+        "title": "Refresh Symbol Tree",
+        "icon": "$(refresh)"
       }
-    ]
+    ],
+    "views": {
+      "kotonebot": [
+        {
+          "id": "kotonebot.symbolsView",
+          "name": "Kotonebot Symbols"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kotonebot",
+          "title": "Kotonebot",
+          "icon": "media/kotonebot.svg"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "kotonebot.symbolTree.refresh",
+          "when": "view == kotonebot.symbolsView",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "tsc -p .",
