@@ -45,6 +45,10 @@ export function createLanguageClient(context: vscode.ExtensionContext): Language
   };
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", pattern: "**/*.png.json" }],
+    initializationOptions: {
+      devtoolsServerHost: server.host,
+      devtoolsServerPort: server.port,
+    },
   };
   return new LanguageClient("kotonebot-devtools", "Kotonebot Devtools", serverOptions, clientOptions);
 }

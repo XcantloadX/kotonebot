@@ -3,7 +3,10 @@ from tempfile import TemporaryDirectory
 
 from kotonebot.devtools.server_commands.commands import SERVER_COMMAND_META_REFETCH
 from kotonebot.devtools.server_commands.types import parse_server_command_request
-from kotonebot.devtools.lsp.server import _first_argument_dict, DevtoolsLspServer
+from kotonebot.devtools.lsp.server import (
+    _first_argument_dict,
+    DevtoolsLspServer,
+)
 from tests.devtools._testkit import in_cwd, write_png_with_meta, write_pyproject
 
 
@@ -95,3 +98,4 @@ def test_server_symbol_tree_groups_name_and_variant():
             assert base_file["metaPath"].endswith("base.png.json")
             assert base_file["imagePath"].endswith("base.png")
             assert base_file["definitionId"] == "id1"
+

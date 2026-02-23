@@ -23,6 +23,7 @@ class SymbolLiteModel(BaseModel):
     type: str
     name: str
     displayName: str | None
+    description: str | None
     prefabId: str | None
     variant: str | None
     metaPath: str

@@ -9,6 +9,7 @@ from typing import Any, Optional
 import cv2
 import numpy as np
 
+from kotonebot.devtools.image_preview import build_image_preview
 from kotonebot.devtools.server_commands.workspace_service import WorkspaceService
 from kotonebot.devtools.indexing.symbol_index_view import SymbolIndexView
 from kotonebot.devtools.indexing.document_index_view import (
@@ -471,6 +472,34 @@ class RestApiLogic:
         if not self._is_image_file(safe_path):
             raise ValueError("Not an image file")
         return self._ensure_thumbnail(safe_path, size)
+
+    def get_image_hover_preview_path(
+        self,
+        *,
+        path: str,
+        size: int | None,
+        x1: float | None,
+        y1: float | None,
+        x2: float | None,
+        y2: float | None,
+    ) -> Path:
+        safe_path = self._get_safe_path(path)
+        if not safe_path.exists():
+            raise FileNotFoundError("Image not found")
+        if not self._is_image_file(safe_path):
+            raise ValueError("Not an image file")
+        if x1 is None and y1 is None and x2 is None and y2 is None:
+            rect = None
+        elif x1 is not None and y1 is not None and x2 is not None and y2 is not None:
+            rect = (x1, y1, x2, y2)
+        else:
+            raise ValueError("x1,y1,x2,y2 must be all provided or all omitted")
+        return build_image_preview(
+            source_path=safe_path,
+            cache_root=self.project.pyproject_root / ".kotonebot" / "cache" / "hover_previews",
+            size=size,
+            rect=rect,
+        )
 
     def get_prefabs_schema(self) -> dict[str, Any]:
         return self.workspace.get_prefabs_schema()

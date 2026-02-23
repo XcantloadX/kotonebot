@@ -4,7 +4,6 @@ from typing import Any, Generic, Optional, TypeVar
 from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
-from pydantic.generics import GenericModel
 
 from kotonebot.devtools.server_commands.types import parse_server_command_request
 from kotonebot.devtools.project.project import Project
@@ -15,7 +14,7 @@ from .rest_api_logic import RestApiLogic
 T = TypeVar("T")
 
 
-class ResponseModel(GenericModel, Generic[T]):
+class ResponseModel(BaseModel, Generic[T]):
     success: bool
     message: Optional[str] = None
     data: Optional[T] = None
@@ -158,6 +157,30 @@ def create_rest_router(project: Project) -> APIRouter:
     async def get_image_thumbnail(path: str = Query(...), size: int = Query(128, ge=1, le=2048)):
         try:
             cache_path = logic.get_image_thumbnail_path(path, size)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return FileResponse(cache_path)
+
+    @router.get("/image/hover_preview")
+    async def get_image_hover_preview(
+        path: str = Query(...),
+        size: int | None = Query(None, ge=1, le=4096),
+        x1: float | None = Query(None),
+        y1: float | None = Query(None),
+        x2: float | None = Query(None),
+        y2: float | None = Query(None),
+    ):
+        try:
+            cache_path = logic.get_image_hover_preview_path(
+                path=path,
+                size=size,
+                x1=x1,
+                y1=y1,
+                x2=x2,
+                y2=y2,
+            )
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e))
         except ValueError as e:

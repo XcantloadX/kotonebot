@@ -37,13 +37,13 @@ class EditorPanelController {
       if (this.panel.visible) {
         return;
       }
-      this.panel.reveal(vscode.ViewColumn.Beside, false);
+      this.panel.reveal(vscode.ViewColumn.Active, false);
       return;
     }
     this.panel = vscode.window.createWebviewPanel(
       VIEW_TYPE,
       "Kotonebot Editor",
-      vscode.ViewColumn.Beside,
+      vscode.ViewColumn.Active,
       {
         enableScripts: true,
         retainContextWhenHidden: true,

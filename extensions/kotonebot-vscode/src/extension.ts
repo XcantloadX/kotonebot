@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { createLanguageClient, getDevtoolsServerConfig, getEditorBaseUrl } from "./lsp/client";
 import { executeServerCommand, registerCommands } from "./features/commands";
 import { registerEditorPanel } from "./features/editor/editorPanel";
+import { registerRSymbolHover } from "./features/hover/rSymbolHover";
 import { registerSymbolTree } from "./features/symbols/symbolTree";
 
 /** 客户端停止 Promise 缓存。 */
@@ -118,6 +119,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   await client.start();
   registerCommands(context, client);
   registerSymbolTree(context, client);
+  registerRSymbolHover(context, server);
   registerAutoRefresh(context, client);
 }
 
