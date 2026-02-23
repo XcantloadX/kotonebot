@@ -12,9 +12,12 @@
   ],
   "activationEvents": [
     "onStartupFinished",
+    "onCustomEditor:kotonebot.metaEditor",
     "onView:kotonebot.symbolsView",
     "onCommand:kotonebot.editor.open",
     "onCommand:kotonebot.editor.openSymbol",
+    "onCommand:kotonebot.meta.openEditor",
+    "onCommand:kotonebot.meta.openText",
     "onCommand:kotonebot.refreshDiagnostics",
     "onCommand:kotonebot.updateMetaIndex",
     "onCommand:kotonebot.renameDocumentPair",
@@ -105,6 +108,28 @@
       {
         "command": "kotonebot.editor.openSymbol",
         "title": "Kotonebot: Open Symbol In Editor"
+      },
+      {
+        "command": "kotonebot.meta.openEditor",
+        "title": "Kotonebot: Switch To Editor Mode",
+        "icon": "$(symbol-misc)"
+      },
+      {
+        "command": "kotonebot.meta.openText",
+        "title": "Kotonebot: Switch To Text Mode",
+        "icon": "$(file-code)"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "kotonebot.metaEditor",
+        "displayName": "Kotonebot Meta Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.png.json"
+          }
+        ],
+        "priority": "default"
       }
     ],
     "views": {
@@ -141,6 +166,18 @@
         {
           "command": "kotonebot.symbolTree.rename",
           "when": "view == kotonebot.symbolsView && viewItem == kotonebot.symbol",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "kotonebot.meta.openEditor",
+          "when": "resourceScheme == file && resourceFilename =~ /.*\\.png\\.json$/ && activeCustomEditorId != kotonebot.metaEditor",
+          "group": "navigation"
+        },
+        {
+          "command": "kotonebot.meta.openText",
+          "when": "resourceScheme == file && resourceFilename =~ /.*\\.png\\.json$/ && activeCustomEditorId == kotonebot.metaEditor",
           "group": "navigation"
         }
       ]

@@ -15,15 +15,28 @@ export interface OpenSymbolPayload {
 const COMMAND_EDITOR_OPEN = "kotonebot.editor.open";
 /** 打开并跳转符号命令 ID。 */
 const COMMAND_EDITOR_OPEN_SYMBOL = "kotonebot.editor.openSymbol";
-/** 编辑器 Webview 类型标识。 */
-const VIEW_TYPE = "kotonebot.editor";
+/** 从文本模式切换到编辑器模式命令 ID。 */
+const COMMAND_META_OPEN_EDITOR = "kotonebot.meta.openEditor";
+/** 从编辑器模式切换到文本模式命令 ID。 */
+const COMMAND_META_OPEN_TEXT = "kotonebot.meta.openText";
+/** 编辑器 Custom Editor 类型标识。 */
+const VIEW_TYPE = "kotonebot.metaEditor";
+
+function isMetaDocumentUri(uri: vscode.Uri): boolean {
+  return uri.scheme === "file" && uri.fsPath.toLowerCase().endsWith(".png.json");
+}
+
+function metaToImagePath(metaPath: string): string {
+  if (!metaPath.toLowerCase().endsWith(".png.json")) {
+    throw new Error(`Meta path must end with .png.json: ${metaPath}`);
+  }
+  return metaPath.slice(0, -".json".length);
+}
 
 /** 编辑器面板控制器。 */
-class EditorPanelController {
-  /** 当前编辑器面板实例。 */
-  private panel: vscode.WebviewPanel | null = null;
-  /** 扩展侧桥接客户端。 */
-  private bridge: BridgeClient | null = null;
+class EditorPanelController implements vscode.CustomTextEditorProvider {
+  /** 每个 meta 文档对应的活跃会话。 */
+  private readonly sessions = new Map<string, { panel: vscode.WebviewPanel; bridge: BridgeClient }>();
 
   /** 创建控制器。 */
   constructor(
@@ -31,69 +44,48 @@ class EditorPanelController {
     private readonly getEditorUrl: () => string,
   ) {}
 
-  /** 打开或激活编辑器面板。 */
-  openPanel(): void {
-    if (this.panel) {
-      if (this.panel.visible) {
+  /** CustomTextEditorProvider 入口。 */
+  async resolveCustomTextEditor(
+    document: vscode.TextDocument,
+    webviewPanel: vscode.WebviewPanel,
+    _token: vscode.CancellationToken,
+  ): Promise<void> {
+    const bridge = new BridgeClient((message) => {
+      webviewPanel.webview.postMessage(message);
+    });
+    const key = document.uri.toString();
+    this.sessions.set(key, { panel: webviewPanel, bridge });
+    webviewPanel.webview.options = {
+      enableScripts: true,
+    };
+    webviewPanel.webview.html = this.buildHtml(webviewPanel.webview, this.getEditorUrl());
+    webviewPanel.onDidDispose(() => {
+      bridge.dispose();
+      this.sessions.delete(key);
+    }, null, this.context.subscriptions);
+    webviewPanel.webview.onDidReceiveMessage((message: unknown) => {
+      if (typeof message !== "object" || message === null) {
         return;
       }
-      this.panel.reveal(vscode.ViewColumn.Active, false);
-      return;
-    }
-    this.panel = vscode.window.createWebviewPanel(
-      VIEW_TYPE,
-      "Kotonebot Editor",
-      vscode.ViewColumn.Active,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-      },
-    );
-    this.bridge = new BridgeClient((message) => {
-      if (!this.panel) {
-        throw new Error("Editor panel is not available");
+      try {
+        bridge.handleIncoming(message);
+      } catch (err) {
+        console.error("[kotonebot.metaEditor] invalid bridge message", err);
       }
-      this.panel.webview.postMessage(message);
-    });
-    this.panel.webview.html = this.buildHtml(this.panel.webview, this.getEditorUrl());
-    this.panel.onDidDispose(
-      () => {
-        if (this.bridge) {
-          this.bridge.dispose();
-        }
-        this.bridge = null;
-        this.panel = null;
-      },
-      null,
-      this.context.subscriptions,
-    );
-    this.panel.webview.onDidReceiveMessage(
-      (message: unknown) => {
-        if (typeof message !== "object" || message === null) {
-          return;
-        }
-        if (!this.bridge) {
-          return;
-        }
-        try {
-          this.bridge.handleIncoming(message);
-        } catch (err) {
-          console.error("[kotonebot.editorPanel] invalid bridge message", err);
-        }
-      },
-      null,
-      this.context.subscriptions,
-    );
+    }, null, this.context.subscriptions);
+    this.openMetaDocument(document.uri, bridge);
   }
 
   /** 打开面板并请求内嵌页面跳转到指定符号。 */
   async openSymbol(payload: OpenSymbolPayload): Promise<void> {
-    this.openPanel();
-    if (!this.bridge) {
-      throw new Error("Bridge is not initialized");
+    const uri = vscode.Uri.file(payload.metaPath);
+    await this.openMetaInEditor(uri);
+    const session = await this.waitForSession(uri);
+    if (!session.panel.visible) {
+      session.panel.reveal(vscode.ViewColumn.Active, false);
     }
     try {
-      await this.bridge.request("kotonebot.jumpToSymbol", payload);
+      await session.bridge.request("kotonebot.jumpToSymbol", payload);
     } catch (err) {
       console.error("[kotonebot.editorPanel] jumpToSymbol request failed", err);
       return;
@@ -152,6 +144,144 @@ class EditorPanelController {
   </body>
 </html>`;
   }
+
+  /** 在编辑器模式中打开指定 meta 文档。 */
+  async openMetaInEditor(uri: vscode.Uri): Promise<void> {
+    if (!isMetaDocumentUri(uri)) {
+      throw new Error(`Unsupported meta document uri: ${uri.toString()}`);
+    }
+    await vscode.commands.executeCommand("vscode.openWith", uri, VIEW_TYPE);
+    if (!this.isMetaTextDocumentDirty(uri)) {
+      await this.closeTabsByKind(uri, "text");
+    }
+  }
+
+  /** 在文本模式中打开指定 meta 文档。 */
+  async openMetaInText(uri: vscode.Uri): Promise<void> {
+    if (!isMetaDocumentUri(uri)) {
+      throw new Error(`Unsupported meta document uri: ${uri.toString()}`);
+    }
+    await vscode.commands.executeCommand("vscode.openWith", uri, "default");
+    await this.closeTabsByKind(uri, "custom");
+  }
+
+  /** 获取命令上下文中的 meta 文档 URI。 */
+  getMetaUriFromCommandArg(arg: unknown): vscode.Uri {
+    const fromArg = this.tryParseUri(arg);
+    if (fromArg && isMetaDocumentUri(fromArg)) {
+      return fromArg;
+    }
+    const active = this.getActiveResourceUri();
+    if (active && isMetaDocumentUri(active)) {
+      return active;
+    }
+    throw new Error("No active .png.json document");
+  }
+
+  /** 解析当前激活 Tab 对应的资源 URI。 */
+  private getActiveResourceUri(): vscode.Uri | null {
+    const textEditor = vscode.window.activeTextEditor;
+    if (textEditor) {
+      return textEditor.document.uri;
+    }
+    const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
+    if (!tab) {
+      return null;
+    }
+    if (tab.input instanceof vscode.TabInputText) {
+      return tab.input.uri;
+    }
+    if (tab.input instanceof vscode.TabInputCustom) {
+      return tab.input.uri;
+    }
+    return null;
+  }
+
+  /** 从命令参数中提取 URI。 */
+  private tryParseUri(arg: unknown): vscode.Uri | null {
+    if (arg instanceof vscode.Uri) {
+      return arg;
+    }
+    if (typeof arg !== "object" || arg === null) {
+      return null;
+    }
+    const value = arg as { fsPath?: unknown };
+    if (typeof value.fsPath === "string" && value.fsPath.trim() !== "") {
+      return vscode.Uri.file(value.fsPath);
+    }
+    return null;
+  }
+
+  /** 收集某个 URI 对应且匹配输入类型的所有 tab。 */
+  private collectTabsByKind(uri: vscode.Uri, kind: "text" | "custom"): vscode.Tab[] {
+    const uriKey = uri.toString();
+    const result: vscode.Tab[] = [];
+    for (const group of vscode.window.tabGroups.all) {
+      for (const tab of group.tabs) {
+        if (kind === "text") {
+          if (!(tab.input instanceof vscode.TabInputText)) {
+            continue;
+          }
+          if (tab.input.uri.toString() === uriKey) {
+            result.push(tab);
+          }
+          continue;
+        }
+        if (!(tab.input instanceof vscode.TabInputCustom)) {
+          continue;
+        }
+        if (tab.input.uri.toString() === uriKey) {
+          result.push(tab);
+        }
+      }
+    }
+    return result;
+  }
+
+  /** 关闭指定 URI 的某一类 tab。 */
+  private async closeTabsByKind(uri: vscode.Uri, kind: "text" | "custom"): Promise<void> {
+    const tabs = this.collectTabsByKind(uri, kind);
+    if (tabs.length === 0) {
+      return;
+    }
+    try {
+      await vscode.window.tabGroups.close(tabs);
+    } catch (err) {
+      console.warn(`[kotonebot.metaEditor] close ${kind} tabs failed`, err);
+    }
+  }
+
+  /** 判断 meta 文本文档是否存在未保存改动。 */
+  private isMetaTextDocumentDirty(uri: vscode.Uri): boolean {
+    const hit = vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === uri.toString());
+    if (!hit) {
+      return false;
+    }
+    return hit.isDirty;
+  }
+
+  /** 等待目标文档对应的 editor 会话就绪。 */
+  private async waitForSession(uri: vscode.Uri, timeoutMs = 6000): Promise<{ panel: vscode.WebviewPanel; bridge: BridgeClient }> {
+    const key = uri.toString();
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const session = this.sessions.get(key);
+      if (session) {
+        return session;
+      }
+      await new Promise<void>((resolve) => {
+        setTimeout(() => resolve(), 40);
+      });
+    }
+    throw new Error(`Meta editor session not ready: ${uri.fsPath}`);
+  }
+
+  /** 请求 iframe 打开指定 meta 文档。 */
+  private openMetaDocument(uri: vscode.Uri, bridge: BridgeClient): void {
+    const metaPath = uri.fsPath;
+    const imagePath = metaToImagePath(metaPath);
+    bridge.send("kotonebot.openMetaDocument", { metaPath, imagePath });
+  }
 }
 
 /** 注册编辑器面板相关命令。 */
@@ -161,8 +291,17 @@ export function registerEditorPanel(
 ): void {
   const controller = new EditorPanelController(context, getEditorUrl);
   context.subscriptions.push(
-    vscode.commands.registerCommand(COMMAND_EDITOR_OPEN, () => {
-      controller.openPanel();
+    vscode.window.registerCustomEditorProvider(VIEW_TYPE, controller, {
+      webviewOptions: {
+        retainContextWhenHidden: true,
+      },
+      supportsMultipleEditorsPerDocument: false,
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_EDITOR_OPEN, async (arg: unknown) => {
+      const uri = controller.getMetaUriFromCommandArg(arg);
+      await controller.openMetaInEditor(uri);
     }),
   );
   context.subscriptions.push(
@@ -180,6 +319,18 @@ export function registerEditorPanel(
         throw new Error("openSymbol payload.definitionId is required");
       }
       await controller.openSymbol(payload);
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_META_OPEN_EDITOR, async (arg: unknown) => {
+      const uri = controller.getMetaUriFromCommandArg(arg);
+      await controller.openMetaInEditor(uri);
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_META_OPEN_TEXT, async (arg: unknown) => {
+      const uri = controller.getMetaUriFromCommandArg(arg);
+      await controller.openMetaInText(uri);
     }),
   );
 }
