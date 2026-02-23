@@ -162,13 +162,18 @@ class DevtoolsLspServer(LanguageServer):
                 variant_node = {"kind": "variant", "label": variant_label, "children": []}
                 symbol_node["children"].append(variant_node)
 
-            already_exists = any(item["metaPath"] == symbol.meta_path for item in variant_node["children"])
+            already_exists = any(
+                item["metaPath"] == symbol.meta_path and item["definitionId"] == symbol.definition_id
+                for item in variant_node["children"]
+            )
             if not already_exists:
                 variant_node["children"].append(
                     {
                         "kind": "file",
                         "label": Path(symbol.meta_path).name,
                         "metaPath": symbol.meta_path,
+                        "imagePath": symbol.image_path,
+                        "definitionId": symbol.definition_id,
                     }
                 )
 

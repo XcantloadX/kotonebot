@@ -1,14 +1,19 @@
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 
+/** 刷新 meta 索引命令。 */
 const SERVER_COMMAND_META_REFETCH = "server.meta.refetch";
+/** 更新单文件 meta 索引命令。 */
 const SERVER_COMMAND_META_UPDATE_FILE = "server.meta.updateFile";
+/** 执行文档重命名命令。 */
 const SERVER_COMMAND_RENAME_DOCUMENT_EXECUTE = "server.document.rename.execute";
 
+/** 向语言服务执行服务端命令。 */
 export async function executeServerCommand(client: LanguageClient, command: string, args: Record<string, unknown>): Promise<unknown> {
   return client.sendRequest("workspace/executeCommand", { command, arguments: [args] });
 }
 
+/** 注册扩展命令入口。 */
 export function registerCommands(context: vscode.ExtensionContext, client: LanguageClient): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("kotonebot.refreshDiagnostics", async () => {

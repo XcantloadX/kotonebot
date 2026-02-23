@@ -90,3 +90,8 @@ def test_server_symbol_tree_groups_name_and_variant():
             assert len(variants) == 2
             variant_labels = sorted([item["label"] for item in variants])
             assert variant_labels == ["base", "jp"]
+            base_variant = next(item for item in variants if item["label"] == "base")
+            base_file = base_variant["children"][0]
+            assert base_file["metaPath"].endswith("base.png.json")
+            assert base_file["imagePath"].endswith("base.png")
+            assert base_file["definitionId"] == "id1"

@@ -13,6 +13,8 @@
   "activationEvents": [
     "onStartupFinished",
     "onView:kotonebot.symbolsView",
+    "onCommand:kotonebot.editor.open",
+    "onCommand:kotonebot.editor.openSymbol",
     "onCommand:kotonebot.refreshDiagnostics",
     "onCommand:kotonebot.updateMetaIndex",
     "onCommand:kotonebot.renameDocumentPair",
@@ -27,6 +29,23 @@
           "type": "string",
           "default": "kbot",
           "description": "Executable used to launch kotonebot devtools lsp."
+        },
+        "kotonebot.devtoolsServerHost": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Host used by integrated kotonebot backend server (started by devtools-host)."
+        },
+        "kotonebot.devtoolsServerPort": {
+          "type": "number",
+          "default": 1178,
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Port used by integrated kotonebot backend server (started by devtools-host)."
+        },
+        "kotonebot.editorBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Optional editor page URL for webview. Empty means use devtoolsServerHost/devtoolsServerPort."
         },
         "kotonebot.autoRefreshOnSave": {
           "type": "boolean",
@@ -63,6 +82,14 @@
         "command": "kotonebot.symbolTree.refresh",
         "title": "Refresh Symbol Tree",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "kotonebot.editor.open",
+        "title": "Kotonebot: Open Editor"
+      },
+      {
+        "command": "kotonebot.editor.openSymbol",
+        "title": "Kotonebot: Open Symbol In Editor"
       }
     ],
     "views": {
@@ -83,6 +110,11 @@
       ]
     },
     "menus": {
+      "commandPalette": [
+        {
+          "command": "kotonebot.editor.open"
+        }
+      ],
       "view/title": [
         {
           "command": "kotonebot.symbolTree.refresh",

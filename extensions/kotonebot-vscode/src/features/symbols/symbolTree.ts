@@ -1,12 +1,18 @@
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 
+/** 获取全局符号树的 LSP 方法名。 */
 const SYMBOL_TREE_METHOD = "kotonebot/symbolTree";
+/** 符号树视图 ID。 */
 const SYMBOL_TREE_VIEW_ID = "kotonebot.symbolsView";
-const SYMBOL_TREE_OPEN_FILE_COMMAND = "kotonebot.symbolTree.openFile";
+/** 打开编辑器符号命令 ID。 */
+const SYMBOL_TREE_OPEN_SYMBOL_COMMAND = "kotonebot.editor.openSymbol";
+/** 手动刷新符号树命令 ID。 */
 const SYMBOL_TREE_REFRESH_COMMAND = "kotonebot.symbolTree.refresh";
+/** meta 文件匹配模式。 */
 const META_PATTERN = "**/*.png.json";
 
+/** 符号树节点联合类型。 */
 type SymbolTreeNode = GroupNode | SymbolNode | VariantNode | FileNode;
 
 /** 命名空间分组节点，对应 name 点分路径中的中间层。 */
@@ -51,6 +57,10 @@ interface FileNode {
   label: string;
   /** meta 文件绝对路径。 */
   metaPath: string;
+  /** image 文件绝对路径。 */
+  imagePath: string;
+  /** definition 标识。 */
+  definitionId: string;
 }
 
 /** 将后端返回的树结构解析为前端节点模型。 */
@@ -61,6 +71,7 @@ function parseServerTree(payload: unknown): SymbolTreeNode[] {
   return payload.map((item) => parseTreeNode(item));
 }
 
+/** 递归解析单个树节点。 */
 function parseTreeNode(value: unknown): SymbolTreeNode {
   if (typeof value !== "object" || value === null) {
     throw new Error("Invalid tree node payload");
@@ -137,16 +148,26 @@ function parseTreeNode(value: unknown): SymbolTreeNode {
   if (kind === "file") {
     const label = node.label;
     const metaPath = node.metaPath;
+    const imagePath = node.imagePath;
+    const definitionId = node.definitionId;
     if (typeof label !== "string" || label.trim() === "") {
       throw new Error("Invalid file.label");
     }
     if (typeof metaPath !== "string" || metaPath.trim() === "") {
       throw new Error("Invalid file.metaPath");
     }
+    if (typeof imagePath !== "string" || imagePath.trim() === "") {
+      throw new Error("Invalid file.imagePath");
+    }
+    if (typeof definitionId !== "string" || definitionId.trim() === "") {
+      throw new Error("Invalid file.definitionId");
+    }
     return {
       kind: "file",
       label,
       metaPath,
+      imagePath,
+      definitionId,
     };
   }
   throw new Error(`Unsupported node kind: ${String(kind)}`);
@@ -156,8 +177,11 @@ class SymbolTreeProvider implements vscode.TreeDataProvider<SymbolTreeNode> {
   /** 用于触发树视图刷新。 */
   constructor(private readonly client: LanguageClient) {}
 
+  /** 树数据变更事件发射器。 */
   private readonly changeEmitter = new vscode.EventEmitter<SymbolTreeNode | undefined | null | void>();
+  /** 当前缓存的根节点列表。 */
   private cachedRootNodes: SymbolTreeNode[] = [];
+  /** 树数据变更事件。 */
   readonly onDidChangeTreeData = this.changeEmitter.event;
 
   /** 从服务端拉取已构建好的符号树。 */
@@ -204,9 +228,9 @@ class SymbolTreeProvider implements vscode.TreeDataProvider<SymbolTreeNode> {
         const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
         item.iconPath = new vscode.ThemeIcon("symbol-enum-member");
         item.command = {
-          command: SYMBOL_TREE_OPEN_FILE_COMMAND,
-          title: "Open File",
-          arguments: [only.metaPath],
+          command: SYMBOL_TREE_OPEN_SYMBOL_COMMAND,
+          title: "Open Symbol In Editor",
+          arguments: [{ metaPath: only.metaPath, imagePath: only.imagePath, definitionId: only.definitionId }],
         };
         return item;
       }
@@ -218,9 +242,9 @@ class SymbolTreeProvider implements vscode.TreeDataProvider<SymbolTreeNode> {
     item.tooltip = element.metaPath;
     item.iconPath = new vscode.ThemeIcon("symbol-file");
     item.command = {
-      command: SYMBOL_TREE_OPEN_FILE_COMMAND,
-      title: "Open File",
-      arguments: [element.metaPath],
+      command: SYMBOL_TREE_OPEN_SYMBOL_COMMAND,
+      title: "Open Symbol In Editor",
+      arguments: [{ metaPath: element.metaPath, imagePath: element.imagePath, definitionId: element.definitionId }],
     };
     return item;
   }
@@ -230,16 +254,6 @@ class SymbolTreeProvider implements vscode.TreeDataProvider<SymbolTreeNode> {
 export function registerSymbolTree(context: vscode.ExtensionContext, client: LanguageClient): void {
   const provider = new SymbolTreeProvider(client);
   context.subscriptions.push(vscode.window.createTreeView(SYMBOL_TREE_VIEW_ID, { treeDataProvider: provider }));
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(SYMBOL_TREE_OPEN_FILE_COMMAND, async (metaPath: string) => {
-      if (typeof metaPath !== "string" || metaPath.trim() === "") {
-        throw new Error("metaPath is required");
-      }
-      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(metaPath));
-      await vscode.window.showTextDocument(doc, { preview: false });
-    }),
-  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(SYMBOL_TREE_REFRESH_COMMAND, async () => {

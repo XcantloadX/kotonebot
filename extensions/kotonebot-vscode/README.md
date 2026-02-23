@@ -3,7 +3,7 @@
 VS Code extension for Kotonebot devtools core capabilities.
 
 ## Features
-- Publish diagnostics for `.png.json` meta files through `kbot devtools-lsp`.
+- Publish diagnostics for `.png.json` meta files through `kbot devtools-host`.
 - Execute backend-related server commands.
 
 ## Development

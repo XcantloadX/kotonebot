@@ -12,6 +12,8 @@ import { useSettingsStore } from './settings';
 import { FocusSpotlightOverlay } from './FocusSpotlightOverlay';
 import { COMMAND_ID, executeCommand } from './commands';
 import { useShortcut, useShortcutScope } from '../shortcuts/shortcutManager';
+import { installHostBridge } from './host/hostBridge';
+import { registerHostHandlers } from './host/hostHandlers';
 
 export const EditorApp: React.FC = () => {
   const { setPrefabSchema, activeDocumentId } = useAppStore();
@@ -34,6 +36,15 @@ export const EditorApp: React.FC = () => {
   useEffect(() => {
     initialize().catch(console.error);
   }, [initialize]);
+
+  useEffect(() => {
+    const disposeHandlers = registerHostHandlers();
+    const uninstall = installHostBridge();
+    return () => {
+      uninstall();
+      disposeHandlers();
+    };
+  }, []);
 
   useShortcutScope("editor", true);
 
