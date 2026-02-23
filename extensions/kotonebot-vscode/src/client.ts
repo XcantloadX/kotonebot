@@ -15,7 +15,6 @@ export function createLanguageClient(context: vscode.ExtensionContext): Language
   };
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", pattern: "**/*.png.json" }],
-    synchronize: { fileEvents: vscode.workspace.createFileSystemWatcher("**/*.png.json") },
   };
   return new LanguageClient("kotonebot-devtools", "Kotonebot Devtools", serverOptions, clientOptions);
 }

@@ -76,9 +76,11 @@ class DevtoolsLspServer(LanguageServer):
             normalized = uri_to_normalized_path(uri)
             if normalized is not None:
                 opened_by_path[normalized] = uri
+        published_paths: set[str] = set()
 
         for meta_path, items in by_file.items():
             normalized = normalize_path(meta_path)
+            published_paths.add(normalized)
             uri = opened_by_path.get(normalized, path_to_uri(meta_path))
             diagnostics = [to_lsp_diagnostic(item) for item in items]
             self.text_document_publish_diagnostics(
@@ -87,11 +89,21 @@ class DevtoolsLspServer(LanguageServer):
                     diagnostics=diagnostics,
                 )
             )
+        for normalized, uri in opened_by_path.items():
+            if normalized in published_paths:
+                continue
+            self.text_document_publish_diagnostics(
+                lsp.PublishDiagnosticsParams(
+                    uri=uri,
+                    diagnostics=[],
+                )
+            )
 
     def execute_server_command(self, command_id: ServerCommandId, args: tuple[Any, ...]) -> dict[str, Any]:
         payload = _first_argument_dict(args)
         request = parse_server_command_request({"command": command_id, "args": payload})
         result = self.workspace_service.execute_server_command(request)
+        self.publish_all_diagnostics()
         return result.model_dump()
 
 

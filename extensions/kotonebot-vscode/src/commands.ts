@@ -5,7 +5,7 @@ const SERVER_COMMAND_META_REFETCH = "server.meta.refetch";
 const SERVER_COMMAND_META_UPDATE_FILE = "server.meta.updateFile";
 const SERVER_COMMAND_RENAME_DOCUMENT_EXECUTE = "server.document.rename.execute";
 
-async function executeServerCommand(client: LanguageClient, command: string, args: Record<string, unknown>): Promise<unknown> {
+export async function executeServerCommand(client: LanguageClient, command: string, args: Record<string, unknown>): Promise<unknown> {
   return client.sendRequest("workspace/executeCommand", { command, arguments: [args] });
 }
 

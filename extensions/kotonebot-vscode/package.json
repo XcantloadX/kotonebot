@@ -25,6 +25,22 @@
           "type": "string",
           "default": "kbot",
           "description": "Executable used to launch kotonebot devtools lsp."
+        },
+        "kotonebot.autoRefreshOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically update meta index when saving a *.png.json file."
+        },
+        "kotonebot.autoRefetchOnFsChanges": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refetch diagnostics when *.png.json files are created, changed, deleted, or renamed."
+        },
+        "kotonebot.autoRefreshDebounceMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 50,
+          "description": "Debounce delay in milliseconds for auto refetch triggered by file system changes."
         }
       }
     },
