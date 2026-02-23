@@ -124,3 +124,25 @@ export function createBridgeRequest(type: string, payload: unknown): BridgeEnvel
     payload,
   };
 }
+
+/** 创建扩展侧响应消息。 */
+export function createBridgeResponse(
+  requestId: string,
+  type: string,
+  payload: unknown,
+  ok: boolean,
+  error?: string,
+): BridgeEnvelope {
+  return {
+    version: BRIDGE_PROTOCOL_VERSION,
+    id: nextId(),
+    kind: "response",
+    type,
+    source: "extension",
+    ts: Date.now(),
+    payload,
+    requestId,
+    ok,
+    error,
+  };
+}

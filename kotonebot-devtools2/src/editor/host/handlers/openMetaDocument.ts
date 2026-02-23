@@ -39,7 +39,7 @@ function parsePayload(value: unknown): OpenMetaDocumentPayload {
 export function registerOpenMetaDocumentHandler(): () => void {
   return registerHostMessage("kotonebot.openMetaDocument", async (payload) => {
     const parsed = parsePayload(payload);
-    await editorActions.image.openWithMeta(parsed.imagePath);
+    await editorActions.image.openWithMeta(parsed.imagePath, { allowHostDelegate: false });
     return { ok: true };
   });
 }

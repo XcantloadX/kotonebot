@@ -12,12 +12,14 @@ import { useSettingsStore } from './settings';
 import { FocusSpotlightOverlay } from './FocusSpotlightOverlay';
 import { COMMAND_ID, executeCommand } from './commands';
 import { useShortcut, useShortcutScope } from '../shortcuts/shortcutManager';
-import { installHostBridge } from './host/hostBridge';
+import { installHostBridge, isSingleTabMode } from './host/hostBridge';
 import { registerHostHandlers } from './host/hostHandlers';
 
 export const EditorApp: React.FC = () => {
   // host mode: 当 editor 以嵌入模式在 VSCode 扩展里执行时
   const isHostMode = window.parent !== window;
+  // single tab mode: 禁用多标签页功能，将标签页管理托管给 host（如 VSCode 扩展）
+  const singleTabMode = isSingleTabMode();
   const { setPrefabSchema, activeDocumentId } = useAppStore();
   const { initialize } = useSymbolIndexStore();
   const problemsVisible = useSettingsStore((s) => s.problemsVisible);
@@ -80,7 +82,7 @@ export const EditorApp: React.FC = () => {
         </div>
 
         <div style={{ flex: 1, background: '#f5f8fa', position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <TabBar />
+          {singleTabMode ? null : <TabBar />}
           <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
             {activeDocumentId ? (
               <StageView />

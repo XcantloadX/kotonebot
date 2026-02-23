@@ -94,6 +94,18 @@ export function createIframeEvent(type: string, payload: unknown): BridgeEnvelop
   };
 }
 
+export function createIframeRequest(type: string, payload: unknown): BridgeEnvelope {
+  return {
+    version: BRIDGE_PROTOCOL_VERSION,
+    id: nextId(),
+    kind: "request",
+    type,
+    source: "iframe",
+    ts: Date.now(),
+    payload,
+  };
+}
+
 export function createIframeResponse(
   requestId: string,
   type: string,

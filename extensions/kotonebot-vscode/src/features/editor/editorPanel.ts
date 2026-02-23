@@ -21,6 +21,8 @@ const COMMAND_META_OPEN_EDITOR = "kotonebot.meta.openEditor";
 const COMMAND_META_OPEN_TEXT = "kotonebot.meta.openText";
 /** 编辑器 Custom Editor 类型标识。 */
 const VIEW_TYPE = "kotonebot.metaEditor";
+/** iframe 请求 host 打开 meta 文档命令 ID。 */
+const REQUEST_HOST_OPEN_META_DOCUMENT = "kotonebot.host.openMetaDocument";
 
 function isMetaDocumentUri(uri: vscode.Uri): boolean {
   return uri.scheme === "file" && uri.fsPath.toLowerCase().endsWith(".png.json");
@@ -31,6 +33,10 @@ function metaToImagePath(metaPath: string): string {
     throw new Error(`Meta path must end with .png.json: ${metaPath}`);
   }
   return metaPath.slice(0, -".json".length);
+}
+
+interface HostOpenMetaDocumentPayload {
+  metaPath: string;
 }
 
 /** 编辑器面板控制器。 */
@@ -73,6 +79,14 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
         console.error("[kotonebot.metaEditor] invalid bridge message", err);
       }
     }, null, this.context.subscriptions);
+    const disposeOpenMetaRequest = bridge.onRequest(REQUEST_HOST_OPEN_META_DOCUMENT, async (payload: unknown) => {
+      const parsed = this.parseHostOpenMetaDocumentPayload(payload);
+      await this.openMetaInEditor(vscode.Uri.file(parsed.metaPath));
+      return { ok: true };
+    });
+    webviewPanel.onDidDispose(() => {
+      disposeOpenMetaRequest();
+    }, null, this.context.subscriptions);
     this.openMetaDocument(document.uri, bridge);
   }
 
@@ -103,6 +117,7 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
       `frame-src http://127.0.0.1:* http://localhost:*`,
       `connect-src http://127.0.0.1:* http://localhost:*`,
     ].join("; ");
+    const iframeUrl = this.withSingleTabMode(editorUrl);
     return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -115,7 +130,7 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
     </style>
   </head>
   <body>
-    <iframe id="editor-frame" src="${editorUrl}" referrerpolicy="no-referrer"></iframe>
+    <iframe id="editor-frame" src="${iframeUrl}" referrerpolicy="no-referrer"></iframe>
     <script nonce="${nonce}">
       const vscode = acquireVsCodeApi();
       const iframe = document.getElementById("editor-frame");
@@ -143,6 +158,18 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
     </script>
   </body>
 </html>`;
+  }
+
+  /** 将 singleTabMode 参数附加到 iframe URL。 */
+  private withSingleTabMode(editorUrl: string): string {
+    try {
+      const url = new URL(editorUrl);
+      url.searchParams.set("singleTabMode", "1");
+      return url.toString();
+    } catch {
+      const joiner = editorUrl.includes("?") ? "&" : "?";
+      return `${editorUrl}${joiner}singleTabMode=1`;
+    }
   }
 
   /** 在编辑器模式中打开指定 meta 文档。 */
@@ -281,6 +308,21 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
     const metaPath = uri.fsPath;
     const imagePath = metaToImagePath(metaPath);
     bridge.send("kotonebot.openMetaDocument", { metaPath, imagePath });
+  }
+
+  /** 解析 iframe 发来的 host 打开文档请求。 */
+  private parseHostOpenMetaDocumentPayload(value: unknown): HostOpenMetaDocumentPayload {
+    if (typeof value !== "object" || value === null) {
+      throw new Error(`${REQUEST_HOST_OPEN_META_DOCUMENT} payload is required`);
+    }
+    const payload = value as Partial<HostOpenMetaDocumentPayload>;
+    if (typeof payload.metaPath !== "string" || payload.metaPath.trim() === "") {
+      throw new Error(`${REQUEST_HOST_OPEN_META_DOCUMENT} payload.metaPath is required`);
+    }
+    if (!payload.metaPath.toLowerCase().endsWith(".png.json")) {
+      throw new Error(`${REQUEST_HOST_OPEN_META_DOCUMENT} payload.metaPath must end with .png.json: ${payload.metaPath}`);
+    }
+    return payload as HostOpenMetaDocumentPayload;
   }
 }
 

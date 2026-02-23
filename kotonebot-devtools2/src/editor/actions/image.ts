@@ -1,6 +1,17 @@
 import { readText } from "../../api/fs";
 import { messageBox } from "../../ui/messageBox";
 import { useAppStore } from "../state";
+import { requestHost, shouldUseSingleTabHostOpen } from "../host/hostBridge";
+
+const REQUEST_HOST_OPEN_META_DOCUMENT = "kotonebot.host.openMetaDocument";
+
+interface OpenImageWithMetaOptions {
+  allowHostDelegate?: boolean;
+}
+
+async function requestHostOpenMetaDocument(metaPath: string): Promise<void> {
+  await requestHost(REQUEST_HOST_OPEN_META_DOCUMENT, { metaPath });
+}
 
 async function loadImage(path: string): Promise<{ width: number; height: number }> {
   const img = new Image();
@@ -12,7 +23,15 @@ async function loadImage(path: string): Promise<{ width: number; height: number 
   return { width: img.width, height: img.height };
 }
 
-export async function openImageWithMeta(path: string): Promise<void> {
+export async function openImageWithMeta(path: string, options?: OpenImageWithMetaOptions): Promise<void> {
+  const allowHostDelegate = options?.allowHostDelegate ?? true;
+  if (allowHostDelegate && shouldUseSingleTabHostOpen()) {
+    const activeDocumentId = useAppStore.getState().activeDocumentId;
+    if (activeDocumentId !== path) {
+      await requestHostOpenMetaDocument(`${path}.json`);
+      return;
+    }
+  }
   const { openDocument, setActiveMeta } = useAppStore.getState();
   const image = await loadImage(path);
   openDocument(path, image.width, image.height);

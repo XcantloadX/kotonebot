@@ -1,7 +1,8 @@
-import { BridgeEnvelope, createBridgeEvent, createBridgeRequest, parseBridgeEnvelope } from "./bridgeProtocol";
+import { BridgeEnvelope, createBridgeEvent, createBridgeRequest, createBridgeResponse, parseBridgeEnvelope } from "./bridgeProtocol";
 
 /** 事件消息处理器。 */
 type BridgeEventHandler = (message: BridgeEnvelope) => void;
+type BridgeRequestHandler = (payload: unknown, message: BridgeEnvelope) => unknown | Promise<unknown>;
 
 /** 待完成请求上下文。 */
 interface PendingRequest {
@@ -23,6 +24,8 @@ export class BridgeClient {
   private readonly pending = new Map<string, PendingRequest>();
   /** 事件订阅处理器表。 */
   private readonly handlers = new Map<string, Set<BridgeEventHandler>>();
+  /** 请求处理器表。 */
+  private readonly requestHandlers = new Map<string, Set<BridgeRequestHandler>>();
 
   /** 创建桥接客户端实例。 */
   constructor(private readonly postMessage: (message: unknown) => void) {}
@@ -35,6 +38,7 @@ export class BridgeClient {
     }
     this.pending.clear();
     this.handlers.clear();
+    this.requestHandlers.clear();
     this.queue.length = 0;
   }
 
@@ -54,6 +58,26 @@ export class BridgeClient {
       current.delete(handler);
       if (current.size === 0) {
         this.handlers.delete(type);
+      }
+    };
+  }
+
+  /** 注册请求处理器并返回取消订阅函数。 */
+  onRequest(type: string, handler: BridgeRequestHandler): () => void {
+    let set = this.requestHandlers.get(type);
+    if (!set) {
+      set = new Set<BridgeRequestHandler>();
+      this.requestHandlers.set(type, set);
+    }
+    set.add(handler);
+    return () => {
+      const current = this.requestHandlers.get(type);
+      if (!current) {
+        return;
+      }
+      current.delete(handler);
+      if (current.size === 0) {
+        this.requestHandlers.delete(type);
       }
     };
   }
@@ -92,6 +116,26 @@ export class BridgeClient {
       for (const handler of listeners) {
         handler(message);
       }
+      return;
+    }
+    if (message.kind === "request") {
+      const listeners = this.requestHandlers.get(message.type);
+      if (!listeners || listeners.size === 0) {
+        this.dispatch(createBridgeResponse(message.id, message.type, null, false, `No handler registered for ${message.type}`));
+        return;
+      }
+      void (async () => {
+        try {
+          let value: unknown = null;
+          for (const handler of listeners) {
+            value = await handler(message.payload, message);
+          }
+          this.dispatch(createBridgeResponse(message.id, message.type, value, true));
+        } catch (err) {
+          const text = err instanceof Error ? err.message : String(err);
+          this.dispatch(createBridgeResponse(message.id, message.type, null, false, text));
+        }
+      })();
     }
   }
 
