@@ -21,6 +21,7 @@
     "onCommand:kotonebot.meta.undo",
     "onCommand:kotonebot.meta.redo",
     "onCommand:kotonebot.meta.save",
+    "onCommand:kotonebot.meta.openFromImage",
     "onCommand:kotonebot.refreshDiagnostics",
     "onCommand:kotonebot.updateMetaIndex",
     "onCommand:kotonebot.renameDocumentPair",
@@ -133,6 +134,10 @@
       {
         "command": "kotonebot.meta.save",
         "title": "Kotonebot: Save In Editor"
+      },
+      {
+        "command": "kotonebot.meta.openFromImage",
+        "title": "Kotonebot: Open Meta In Editor"
       }
     ],
     "customEditors": [
@@ -181,6 +186,13 @@
         {
           "command": "kotonebot.symbolTree.rename",
           "when": "view == kotonebot.symbolsView && viewItem == kotonebot.symbol",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "kotonebot.meta.openFromImage",
+          "when": "resourceScheme == file && resourceExtname == .png && resourceFilename !~ /.*\\.png\\.json$/",
           "group": "navigation"
         }
       ],

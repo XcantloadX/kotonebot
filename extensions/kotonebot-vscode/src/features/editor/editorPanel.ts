@@ -25,6 +25,8 @@ const COMMAND_META_UNDO = "kotonebot.meta.undo";
 const COMMAND_META_REDO = "kotonebot.meta.redo";
 /** 在自定义编辑器中执行 Save。 */
 const COMMAND_META_SAVE = "kotonebot.meta.save";
+/** 从图片文件打开对应 meta editor。 */
+const COMMAND_META_OPEN_FROM_IMAGE = "kotonebot.meta.openFromImage";
 /** 编辑器 Custom Editor 类型标识。 */
 const VIEW_TYPE = "kotonebot.metaEditor";
 /** iframe 请求 host 打开 meta 文档命令 ID。 */
@@ -41,6 +43,18 @@ function metaToImagePath(metaPath: string): string {
   return metaPath.slice(0, -".json".length);
 }
 
+function imageToMetaPath(imagePath: string): string {
+  if (!imagePath.toLowerCase().endsWith(".png")) {
+    throw new Error(`Image path must end with .png: ${imagePath}`);
+  }
+  return `${imagePath}.json`;
+}
+
+function defaultMetaContent(): Uint8Array {
+  const payload = JSON.stringify({ version: 2, definitions: {} }, null, 2);
+  return new TextEncoder().encode(payload);
+}
+
 interface HostOpenMetaDocumentPayload {
   metaPath: string;
 }
@@ -53,6 +67,14 @@ interface EditorDocumentStatePayload {
   metaPath: string;
   content: string;
   dirty: boolean;
+}
+
+function normalizeToDocumentEol(content: string, eol: vscode.EndOfLine): string {
+  const normalized = content.replace(/\r\n/g, "\n");
+  if (eol === vscode.EndOfLine.CRLF) {
+    return normalized.replace(/\n/g, "\r\n");
+  }
+  return normalized;
 }
 
 /** 编辑器面板控制器。 */
@@ -200,6 +222,7 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
     if (!isMetaDocumentUri(uri)) {
       throw new Error(`Unsupported meta document uri: ${uri.toString()}`);
     }
+    await this.ensureMetaDocumentExists(uri);
     await vscode.commands.executeCommand("vscode.openWith", uri, VIEW_TYPE);
     if (!this.isMetaTextDocumentDirty(uri)) {
       await this.closeTabsByKind(uri, "text");
@@ -215,6 +238,16 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
     await this.closeTabsByKind(uri, "custom");
   }
 
+  /** 若 meta 文件不存在则创建默认 v2 文档。 */
+  async ensureMetaDocumentExists(uri: vscode.Uri): Promise<void> {
+    try {
+      await vscode.workspace.fs.stat(uri);
+      return;
+    } catch {
+      await vscode.workspace.fs.writeFile(uri, defaultMetaContent());
+    }
+  }
+
   /** 获取命令上下文中的 meta 文档 URI。 */
   getMetaUriFromCommandArg(arg: unknown): vscode.Uri {
     const fromArg = this.tryParseUri(arg);
@@ -226,6 +259,19 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
       return active;
     }
     throw new Error("No active .png.json document");
+  }
+
+  /** 获取命令上下文中的图片文档 URI。 */
+  getImageUriFromCommandArg(arg: unknown): vscode.Uri {
+    const fromArg = this.tryParseUri(arg);
+    if (fromArg && fromArg.scheme === "file" && fromArg.fsPath.toLowerCase().endsWith(".png")) {
+      return fromArg;
+    }
+    const active = this.getActiveResourceUri();
+    if (active && active.scheme === "file" && active.fsPath.toLowerCase().endsWith(".png")) {
+      return active;
+    }
+    throw new Error("No active .png document");
   }
 
   /** 解析当前激活 Tab 对应的资源 URI。 */
@@ -373,10 +419,11 @@ class EditorPanelController implements vscode.CustomTextEditorProvider {
   private async syncMetaTextDocument(payload: EditorDocumentStatePayload): Promise<void> {
     const uri = vscode.Uri.file(payload.metaPath);
     const doc = await vscode.workspace.openTextDocument(uri);
-    if (doc.getText() !== payload.content) {
+    const desiredContent = normalizeToDocumentEol(payload.content, doc.eol);
+    if (doc.getText() !== desiredContent) {
       const end = doc.lineAt(doc.lineCount - 1).range.end;
       const edit = new vscode.WorkspaceEdit();
-      edit.replace(uri, new vscode.Range(0, 0, end.line, end.character), payload.content);
+      edit.replace(uri, new vscode.Range(0, 0, end.line, end.character), desiredContent);
       const applied = await vscode.workspace.applyEdit(edit);
       if (!applied) {
         throw new Error(`Failed to apply text sync edit: ${payload.metaPath}`);
@@ -464,6 +511,14 @@ export function registerEditorPanel(
     vscode.commands.registerCommand(COMMAND_META_SAVE, async (arg: unknown) => {
       const uri = controller.getMetaUriFromCommandArg(arg);
       await controller.runEditorCommand(uri, "save");
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_META_OPEN_FROM_IMAGE, async (arg: unknown) => {
+      const imageUri = controller.getImageUriFromCommandArg(arg);
+      const metaUri = vscode.Uri.file(imageToMetaPath(imageUri.fsPath));
+      await controller.ensureMetaDocumentExists(metaUri);
+      await controller.openMetaInEditor(metaUri);
     }),
   );
 }
