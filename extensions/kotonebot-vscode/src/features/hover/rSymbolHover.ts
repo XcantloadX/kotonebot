@@ -1,7 +1,6 @@
-import * as http from "node:http";
-import * as https from "node:https";
 import * as vscode from "vscode";
 import { DevtoolsHttpConfig } from "../../lsp/client";
+import { requestBuffer, requestJson } from "../../shared/http";
 
 interface ApiEnvelope<T> {
   success: boolean;
@@ -38,48 +37,6 @@ interface ProjectRootData {
 
 const R_CHAIN_PATTERN = /R(?:\.[A-Za-z_][A-Za-z0-9_]*)+/g;
 const R_TOKEN_CHARS = new Set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.");
-
-function requestBuffer(url: string): Promise<Buffer> {
-  const parsed = new URL(url);
-  const sender = parsed.protocol === "https:" ? https : http;
-  return new Promise((resolve, reject) => {
-    const req = sender.request(
-      parsed,
-      {
-        method: "GET",
-        timeout: 8000,
-      },
-      (res) => {
-        const status = res.statusCode;
-        if (status === undefined || status < 200 || status >= 300) {
-          reject(new Error(`Request failed with status ${String(status)}: ${url}`));
-          res.resume();
-          return;
-        }
-        const chunks: Buffer[] = [];
-        res.on("data", (chunk: Buffer) => {
-          chunks.push(chunk);
-        });
-        res.on("end", () => {
-          resolve(Buffer.concat(chunks));
-        });
-      },
-    );
-    req.on("timeout", () => {
-      req.destroy(new Error(`Request timeout: ${url}`));
-    });
-    req.on("error", (err: Error) => {
-      reject(err);
-    });
-    req.end();
-  });
-}
-
-async function requestJson<T>(url: string): Promise<T> {
-  const content = await requestBuffer(url);
-  const parsed = JSON.parse(content.toString("utf-8")) as T;
-  return parsed;
-}
 
 function extractRChainAtPosition(text: string, position: vscode.Position): {
   chainText: string;

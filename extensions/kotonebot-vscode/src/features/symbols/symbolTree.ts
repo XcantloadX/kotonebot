@@ -1,8 +1,8 @@
-import * as http from "node:http";
-import * as https from "node:https";
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
+import { executeServerCommand, RenameSymbolPrecheckResult } from "../../lsp/executeCommand";
 import { getDevtoolsServerConfig } from "../../lsp/client";
+import { requestJson } from "../../shared/http";
 
 /** 获取全局符号树的 LSP 方法名。 */
 const SYMBOL_TREE_METHOD = "kotonebot/symbolTree";
@@ -72,52 +72,6 @@ interface FileNode {
   definitionId: string;
 }
 
-/** 符号重命名影响目标。 */
-interface RenameSymbolTarget {
-  /** 唯一符号键。 */
-  symbolKey: string;
-  /** 所在 meta 文件路径。 */
-  metaPath: string;
-  /** 所在图片路径。 */
-  imagePath: string;
-  /** definition 标识。 */
-  definitionId: string;
-  /** variant 名称，base 为 null。 */
-  variant: string | null;
-  /** definition 类型。 */
-  type: string;
-  /** 原符号名。 */
-  oldName: string;
-  /** 目标符号名。 */
-  newName: string;
-}
-
-/** 符号重命名预检结果。 */
-interface RenameSymbolPrecheckResult {
-  /** 触发重命名的源 meta。 */
-  sourceMetaPath: string;
-  /** 触发重命名的源 definition。 */
-  sourceDefinitionId: string;
-  /** 原符号名。 */
-  oldName: string;
-  /** 目标符号名。 */
-  newName: string;
-  /** 受影响目标列表。 */
-  targets: RenameSymbolTarget[];
-  /** 受影响 meta 文件数。 */
-  affectedMetaCount: number;
-  /** 受影响 definition 数。 */
-  affectedDefinitionCount: number;
-}
-
-/** 符号重命名执行结果。 */
-interface RenameSymbolExecuteResult extends RenameSymbolPrecheckResult {
-  /** 执行后的索引版本。 */
-  updatedIndexVersion: number;
-  /** 执行后的索引哈希。 */
-  updatedContentHash: string;
-}
-
 /** 通用 API 响应包装。 */
 interface ApiEnvelope<T> {
   /** 请求是否成功。 */
@@ -142,49 +96,6 @@ interface PythonRenamePreview {
   edit: vscode.WorkspaceEdit | null;
   /** 将被修改的 Python 文件列表。 */
   pythonFiles: string[];
-}
-
-/** 以 GET 方式请求并返回二进制内容。 */
-function requestBuffer(url: string): Promise<Buffer> {
-  const parsed = new URL(url);
-  const sender = parsed.protocol === "https:" ? https : http;
-  return new Promise((resolve, reject) => {
-    const req = sender.request(
-      parsed,
-      {
-        method: "GET",
-        timeout: 8000,
-      },
-      (res) => {
-        const status = res.statusCode;
-        if (status === undefined || status < 200 || status >= 300) {
-          reject(new Error(`Request failed with status ${String(status)}: ${url}`));
-          res.resume();
-          return;
-        }
-        const chunks: Buffer[] = [];
-        res.on("data", (chunk: Buffer) => {
-          chunks.push(chunk);
-        });
-        res.on("end", () => {
-          resolve(Buffer.concat(chunks));
-        });
-      },
-    );
-    req.on("timeout", () => {
-      req.destroy(new Error(`Request timeout: ${url}`));
-    });
-    req.on("error", (err: Error) => {
-      reject(err);
-    });
-    req.end();
-  });
-}
-
-/** 以 GET 方式请求并解析 JSON。 */
-async function requestJson<T>(url: string): Promise<T> {
-  const content = await requestBuffer(url);
-  return JSON.parse(content.toString("utf-8")) as T;
 }
 
 /** 校验并返回合法的 Python 标识符片段。 */
@@ -334,11 +245,6 @@ function isSymbolNode(node: SymbolTreeNode): node is SymbolNode {
   return node.kind === "symbol";
 }
 
-/** 通过 LSP `workspace/executeCommand` 调用服务端命令。 */
-async function executeServerCommand(client: LanguageClient, command: string, args: Record<string, unknown>): Promise<unknown> {
-  return client.sendRequest("workspace/executeCommand", { command, arguments: [args] });
-}
-
 /** 基于 symbol 树节点执行重命名流程。 */
 async function renameSymbolByNode(client: LanguageClient, provider: SymbolTreeProvider, node: SymbolNode): Promise<void> {
   const target = firstFileNodeForSymbol(node);
@@ -356,11 +262,11 @@ async function renameSymbolByNode(client: LanguageClient, provider: SymbolTreePr
   if (newName === node.fullName) {
     return;
   }
-  const precheck = (await executeServerCommand(client, SERVER_COMMAND_RENAME_SYMBOL_PRECHECK, {
+  const precheck = await executeServerCommand(client, SERVER_COMMAND_RENAME_SYMBOL_PRECHECK, {
     metaPath: target.metaPath,
     definitionId: target.definitionId,
     newName,
-  })) as RenameSymbolPrecheckResult;
+  });
   const pythonRenamePreview = await buildPythonRenamePreview(precheck.oldName, precheck.newName);
   const confirm = await vscode.window.showWarningMessage(
     `Rename '${precheck.oldName}' -> '${precheck.newName}' in ${String(precheck.affectedDefinitionCount)} definition(s) across ${String(precheck.affectedMetaCount)} file(s)?`,
@@ -370,11 +276,11 @@ async function renameSymbolByNode(client: LanguageClient, provider: SymbolTreePr
   if (confirm !== "Rename") {
     return;
   }
-  const result = (await executeServerCommand(client, SERVER_COMMAND_RENAME_SYMBOL_EXECUTE, {
+  const result = await executeServerCommand(client, SERVER_COMMAND_RENAME_SYMBOL_EXECUTE, {
     metaPath: target.metaPath,
     definitionId: target.definitionId,
     newName,
-  })) as RenameSymbolExecuteResult;
+  });
   await applyPythonRenameEdit(pythonRenamePreview);
   await provider.refresh();
   vscode.window.showInformationMessage(

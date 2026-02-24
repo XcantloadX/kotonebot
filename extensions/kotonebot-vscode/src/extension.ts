@@ -1,10 +1,12 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import { createLanguageClient, getDevtoolsServerConfig, getEditorBaseUrl } from "./lsp/client";
-import { executeServerCommand, registerCommands } from "./features/commands";
+import { registerCommands } from "./features/commands";
 import { registerEditorPanel } from "./features/editor/editorPanel";
 import { registerRSymbolHover } from "./features/hover/rSymbolHover";
 import { registerSymbolTree } from "./features/symbols/symbolTree";
+import { executeServerCommand } from "./lsp/executeCommand";
+import { imageToMetaPath, isImagePath, isMetaDocumentUri, isMetaPath, metaToImagePath, normalizePathKey } from "./shared/metaPaths";
 
 /** 客户端停止 Promise 缓存。 */
 let clientStopped: Promise<void> | undefined;
@@ -17,42 +19,6 @@ const SERVER_COMMAND_RENAME_DOCUMENT_PRECHECK = "server.document.rename.precheck
 /** meta 文件匹配模式。 */
 const META_PATTERN = "**/*.png.json";
 
-/** 判断 URI 是否为 meta 文档。 */
-function isMetaDocumentUri(uri: vscode.Uri): boolean {
-  return uri.scheme === "file" && uri.fsPath.toLowerCase().endsWith(".png.json");
-}
-
-/** 判断路径是否为 meta 文件（*.png.json）。 */
-function isMetaPath(fsPath: string): boolean {
-  return fsPath.toLowerCase().endsWith(".png.json");
-}
-
-/** 判断路径是否为图片文件（*.png）。 */
-function isImagePath(fsPath: string): boolean {
-  return fsPath.toLowerCase().endsWith(".png");
-}
-
-/** 将 meta 文件路径映射为对应图片路径。 */
-function metaToImagePath(metaPath: string): string {
-  if (!isMetaPath(metaPath)) {
-    throw new Error(`Meta path must end with .png.json: ${metaPath}`);
-  }
-  return metaPath.slice(0, -".json".length);
-}
-
-/** 将图片路径映射为对应 meta 路径。 */
-function imageToMetaPath(imagePath: string): string {
-  if (!isImagePath(imagePath)) {
-    throw new Error(`Image path must end with .png: ${imagePath}`);
-  }
-  return `${imagePath}.json`;
-}
-
-/** 统一路径格式用于比较和去重。 */
-function normalizePathKey(fsPath: string): string {
-  return fsPath.split("\\").join("/").toLowerCase();
-}
-
 /** 单次文件重命名解析出的业务意图。 */
 interface RenameIntent {
   /** 源图片绝对路径。 */
@@ -63,28 +29,6 @@ interface RenameIntent {
   sourceKind: "meta" | "image";
   /** 业务模式：改名或仅移动。 */
   mode: "rename" | "move";
-}
-
-/** 预检返回的单条文件重命名计划。 */
-interface RenameFileItem {
-  /** 文件类型。 */
-  kind: "image" | "meta";
-  /** 所属变体（base/en/...）。 */
-  variant: string;
-  /** 源文件绝对路径。 */
-  sourcePath: string;
-  /** 目标文件绝对路径。 */
-  targetPath: string;
-}
-
-/** 文档重命名预检返回结构。 */
-interface RenameDocumentPrecheckResult {
-  /** 是否存在冲突。 */
-  hasConflicts: boolean;
-  /** 冲突详情列表。 */
-  conflicts: string[];
-  /** 计划执行的文件重命名列表。 */
-  fileRenames: RenameFileItem[];
 }
 
 /** 将 VS Code 的文件重命名项解析为扩展内部意图。 */
@@ -227,7 +171,7 @@ async function applyRenameWithVariants(
   const precheck = await executeServerCommand(client, SERVER_COMMAND_RENAME_DOCUMENT_PRECHECK, {
     sourceImagePath: intent.sourceImagePath,
     targetImagePath: intent.targetImagePath,
-  }) as RenameDocumentPrecheckResult;
+  });
   if (precheck.hasConflicts) {
     throw new Error(`Cannot rename document:\n${precheck.conflicts.join("\n")}`);
   }

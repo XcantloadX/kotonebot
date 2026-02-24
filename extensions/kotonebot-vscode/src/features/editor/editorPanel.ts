@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { BridgeClient } from "../../bridge/bridgeClient";
+import { imageToMetaPath, isMetaDocumentUri, metaToImagePath } from "../../shared/metaPaths";
 
 /** 打开符号所需的最小定位信息。 */
 export interface OpenSymbolPayload {
@@ -31,24 +32,6 @@ const COMMAND_META_OPEN_FROM_IMAGE = "kotonebot.meta.openFromImage";
 const VIEW_TYPE = "kotonebot.metaEditor";
 /** iframe 请求 host 打开 meta 文档命令 ID。 */
 const REQUEST_HOST_OPEN_META_DOCUMENT = "kotonebot.host.openMetaDocument";
-
-function isMetaDocumentUri(uri: vscode.Uri): boolean {
-  return uri.scheme === "file" && uri.fsPath.toLowerCase().endsWith(".png.json");
-}
-
-function metaToImagePath(metaPath: string): string {
-  if (!metaPath.toLowerCase().endsWith(".png.json")) {
-    throw new Error(`Meta path must end with .png.json: ${metaPath}`);
-  }
-  return metaPath.slice(0, -".json".length);
-}
-
-function imageToMetaPath(imagePath: string): string {
-  if (!imagePath.toLowerCase().endsWith(".png")) {
-    throw new Error(`Image path must end with .png: ${imagePath}`);
-  }
-  return `${imagePath}.json`;
-}
 
 function defaultMetaContent(): Uint8Array {
   const payload = JSON.stringify({ version: 2, definitions: {} }, null, 2);
