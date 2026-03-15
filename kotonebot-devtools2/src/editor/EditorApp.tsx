@@ -12,8 +12,15 @@ import { useSettingsStore } from './settings';
 import { FocusSpotlightOverlay } from './FocusSpotlightOverlay';
 import { COMMAND_ID, executeCommand } from './commands';
 import { useShortcut, useShortcutScope } from '../shortcuts/shortcutManager';
+import { installHostBridge, isSingleTabMode } from './host/hostBridge';
+import { registerHostHandlers } from './host/hostHandlers';
+import { installDocumentStateSync } from './host/documentStateSync';
 
 export const EditorApp: React.FC = () => {
+  // host mode: 当 editor 以嵌入模式在 VSCode 扩展里执行时
+  const isHostMode = window.parent !== window;
+  // single tab mode: 禁用多标签页功能，将标签页管理托管给 host（如 VSCode 扩展）
+  const singleTabMode = isSingleTabMode();
   const { setPrefabSchema, activeDocumentId } = useAppStore();
   const { initialize } = useSymbolIndexStore();
   const problemsVisible = useSettingsStore((s) => s.problemsVisible);
@@ -35,12 +42,24 @@ export const EditorApp: React.FC = () => {
     initialize().catch(console.error);
   }, [initialize]);
 
+  useEffect(() => {
+    const disposeHandlers = registerHostHandlers();
+    const uninstall = installHostBridge();
+    const uninstallStateSync = isHostMode ? installDocumentStateSync() : () => {};
+    return () => {
+      uninstallStateSync();
+      uninstall();
+      disposeHandlers();
+    };
+  }, [isHostMode]);
+
   useShortcutScope("editor", true);
 
   useShortcut({
     id: "editor.open-command-palette",
     scope: "editor",
     combo: "mod+shift+p",
+    when: () => !isHostMode,
     onKeyDown: () => {
       void executeCommand(COMMAND_ID.APP_OPEN_COMMAND_PALETTE, commandContext, undefined);
     },
@@ -57,15 +76,16 @@ export const EditorApp: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#f5f8fa' }}>
-      <TopMenuBar
-      />
+      {!isHostMode ? (
+        <TopMenuBar />
+      ) : null}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <div style={{ width: 60, background: '#e1e8ed', borderRight: '1px solid #c5d2db', padding: '10px 5px' }}>
           <LeftToolBar />
         </div>
 
         <div style={{ flex: 1, background: '#f5f8fa', position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <TabBar />
+          {singleTabMode ? null : <TabBar />}
           <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
             {activeDocumentId ? (
               <StageView />
@@ -75,13 +95,15 @@ export const EditorApp: React.FC = () => {
               </div>
             )}
           </div>
-          <ProblemsPanel
-            visible={problemsVisible}
-            height={problemsHeight}
-            onToggleVisible={() => setProblemsVisible(!problemsVisible)}
-            onClose={() => setProblemsVisible(false)}
-            onHeightChange={setProblemsHeight}
-          />
+          {!isHostMode ? (
+            <ProblemsPanel
+              visible={problemsVisible}
+              height={problemsHeight}
+              onToggleVisible={() => setProblemsVisible(!problemsVisible)}
+              onClose={() => setProblemsVisible(false)}
+              onHeightChange={setProblemsHeight}
+            />
+          ) : null}
         </div>
 
         <div style={{ width: 300, background: '#e1e8ed', borderLeft: '1px solid #c5d2db', padding: 10, overflowY: 'auto' }}>

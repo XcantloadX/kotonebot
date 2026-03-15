@@ -2,18 +2,16 @@ from __future__ import annotations
 
 import re
 import string
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from kotonebot.devtools.project.project import Project
 from .resource_index_store import ResourceIndexStore
 
 
-@dataclass(slots=True)
-class DocumentEntry:
+class DocumentEntry(BaseModel):
     """文档索引条目。"""
 
     image_path: str
@@ -30,12 +28,11 @@ class DocumentEntry:
     group_key: str
 
 
-@dataclass(slots=True)
-class DocumentIndexSnapshot:
+class DocumentIndexSnapshot(BaseModel):
     """文档索引快照。"""
 
-    documents_by_image: dict[str, DocumentEntry]
-    groups: dict[str, list[DocumentEntry]]
+    documents_by_image: dict[str, DocumentEntry] = Field(default_factory=dict)
+    groups: dict[str, list[DocumentEntry]] = Field(default_factory=dict)
 
 
 class RenameDocumentItemModel(BaseModel):

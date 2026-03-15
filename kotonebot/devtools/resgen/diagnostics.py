@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
+from pydantic import BaseModel
 from rich.console import Console
 from rich.text import Text
 
 from ..diagnostics.models import Diagnostic
 
 
-@dataclass(slots=True)
-class DiagnosticSummary:
+class DiagnosticSummary(BaseModel):
     error_count: int
     warning_count: int
     info_count: int

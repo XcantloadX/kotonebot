@@ -4,8 +4,8 @@ from typing import Any, Generic, Optional, TypeVar
 from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
-from pydantic.generics import GenericModel
 
+from kotonebot.devtools.server_commands.types import parse_server_command_request
 from kotonebot.devtools.project.project import Project
 
 from .rest_api_logic import RestApiLogic
@@ -14,7 +14,7 @@ from .rest_api_logic import RestApiLogic
 T = TypeVar("T")
 
 
-class ResponseModel(GenericModel, Generic[T]):
+class ResponseModel(BaseModel, Generic[T]):
     success: bool
     message: Optional[str] = None
     data: Optional[T] = None
@@ -163,6 +163,30 @@ def create_rest_router(project: Project) -> APIRouter:
             raise HTTPException(status_code=400, detail=str(e))
         return FileResponse(cache_path)
 
+    @router.get("/image/hover_preview")
+    async def get_image_hover_preview(
+        path: str = Query(...),
+        size: int | None = Query(None, ge=1, le=4096),
+        x1: float | None = Query(None),
+        y1: float | None = Query(None),
+        x2: float | None = Query(None),
+        y2: float | None = Query(None),
+    ):
+        try:
+            cache_path = logic.get_image_hover_preview_path(
+                path=path,
+                size=size,
+                x1=x1,
+                y1=y1,
+                x2=x2,
+                y2=y2,
+            )
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return FileResponse(cache_path)
+
     @router.get("/prefabs/schema")
     async def get_prefabs_schema():
         try:
@@ -288,5 +312,22 @@ def create_rest_router(project: Project) -> APIRouter:
     @router.get("/health")
     async def health_check():
         return _ok(logic.get_health())
+
+    @router.get("/server/commands")
+    async def get_server_commands():
+        try:
+            return _ok([item.model_dump() for item in logic.workspace.list_server_commands()])
+        except Exception as e:
+            logging.exception("Error while handling /server/commands")
+            return _err(str(e))
+
+    @router.post("/server/execute_command")
+    async def execute_server_command(body: dict[str, Any] = Body(...)):
+        try:
+            request = parse_server_command_request(body)
+            return _ok(logic.workspace.execute_server_command(request).model_dump())
+        except Exception as e:
+            logging.exception("Error while handling /server/execute_command")
+            return _err(str(e))
 
     return router

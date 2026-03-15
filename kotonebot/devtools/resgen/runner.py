@@ -1,8 +1,8 @@
 import os
 import shutil
-from dataclasses import dataclass
 from typing import Callable
 
+from pydantic import BaseModel
 from rich.progress import (
     BarColumn,
     Progress,
@@ -23,8 +23,7 @@ from .parsers import (
 from .utils import build_class_tree
 
 
-@dataclass(slots=True)
-class ResgenGenerateResult:
+class ResgenGenerateResult(BaseModel):
     root_scan_path: str
     variant_names: list[str] | None
     parsed_file_count: int

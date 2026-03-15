@@ -1,5 +1,10 @@
 import webbrowser
+import time
+import socket
+from dataclasses import dataclass
 from importlib import resources
+from pathlib import Path
+from threading import Thread
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -10,11 +15,29 @@ from kotonebot.devtools.project.project import Project
 from .rest_api import create_rest_router
 
 
-def create_app():
+@dataclass
+class DevtoolsServerHandle:
+    server: uvicorn.Server | None
+    thread: Thread | None
+
+
+def _can_connect(host: str, port: int) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=0.2):
+            return True
+    except OSError:
+        return False
+
+
+def create_app(*, workspace: str | None = None):
     """Create and configure the FastAPI application."""
     app = FastAPI(title="KotoneBot DevTools")
 
-    project = Project()
+    if workspace is None:
+        project = Project()
+    else:
+        conf_path = (Path(workspace).resolve() / "pyproject.toml").as_posix()
+        project = Project(conf_path=conf_path)
 
     # REST API for DevTools2 (file IO, images, prefab schema)
     app.include_router(create_rest_router(project))
@@ -56,7 +79,8 @@ def create_app():
 def start_devtools(
     host: str = "127.0.0.1",
     port: int = 1178,
-    open_browser: bool = False
+    open_browser: bool = False,
+    workspace: str | None = None,
 ) -> None:
     """Start the DevTools web server.
     
@@ -65,7 +89,7 @@ def start_devtools(
         port: Port to listen on (default: 1178)
         open_browser: Automatically open browser (default: False)
     """
-    app = create_app()
+    app = create_app(workspace=workspace)
     
     # Open browser before starting server
     if open_browser:
@@ -79,6 +103,31 @@ def start_devtools(
         port=port,
         log_level="info"
     )
+
+
+def start_devtools_background(host: str = "127.0.0.1", port: int = 1178, workspace: str | None = None) -> DevtoolsServerHandle:
+    app = create_app(workspace=workspace)
+    config = uvicorn.Config(app=app, host=host, port=port, log_level="warning")
+    server = uvicorn.Server(config=config)
+    thread = Thread(target=server.run, daemon=True, name="kotonebot-devtools-http")
+    thread.start()
+    deadline = time.time() + 10.0
+    while not server.started:
+        if not thread.is_alive():
+            if _can_connect(host, port):
+                return DevtoolsServerHandle(server=None, thread=None)
+            raise RuntimeError("Devtools HTTP server failed to start")
+        if time.time() >= deadline:
+            raise RuntimeError("Devtools HTTP server start timed out")
+        time.sleep(0.05)
+    return DevtoolsServerHandle(server=server, thread=thread)
+
+
+def stop_devtools_background(handle: DevtoolsServerHandle) -> None:
+    if handle.server is None or handle.thread is None:
+        return
+    handle.server.should_exit = True
+    handle.thread.join(timeout=5.0)
 
 
 if __name__ == "__main__":

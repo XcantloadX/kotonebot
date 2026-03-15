@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
 from pathlib import Path
+
+from pydantic import BaseModel, Field
 
 from kotonebot.devtools.meta.scanner import MetaFileRef, scan_meta_files
 
 
-@dataclass(slots=True)
-class ResourceSnapshot:
+class ResourceSnapshot(BaseModel):
     """资源扫描快照。
 
     该快照仅包含文件层面的事实数据，不包含符号语义与业务操作。
@@ -16,7 +16,7 @@ class ResourceSnapshot:
 
     index_version: int
     content_hash: str
-    meta_refs: list[MetaFileRef] = field(default_factory=list)
+    meta_refs: list[MetaFileRef] = Field(default_factory=list)
 
 
 class ResourceIndexStore:

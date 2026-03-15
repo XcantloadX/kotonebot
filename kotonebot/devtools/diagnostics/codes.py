@@ -1,9 +1,12 @@
 import re
-from dataclasses import dataclass
 from typing import Final, Literal
 
-@dataclass(frozen=True, slots=True)
-class DiagnosticCodeDef:
+from pydantic import BaseModel, ConfigDict
+
+
+class DiagnosticCodeDef(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     code: str
     severity: Literal["error", "warning", "info"]
     summary: str

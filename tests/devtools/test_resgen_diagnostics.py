@@ -21,6 +21,10 @@ def test_print_diagnostics_report_compiler_style_output(tmp_path: Path):
             meta_path=meta_path.as_posix(),
             definition_id="base",
             field_path="definitions.base.variant_inherit",
+            line=1,
+            column=1,
+            end_line=1,
+            end_column=2,
         ),
         Diagnostic(
             code=META_VARIANT_INHERIT_MISSING_VARIANTS.code,
@@ -29,6 +33,10 @@ def test_print_diagnostics_report_compiler_style_output(tmp_path: Path):
             meta_path=meta_path.as_posix(),
             definition_id="base",
             field_path="definitions.base.variant_inherit",
+            line=1,
+            column=1,
+            end_line=1,
+            end_column=2,
         ),
     ]
 
@@ -70,6 +78,10 @@ def test_print_diagnostics_report_continue_output_when_not_abort(tmp_path: Path)
             meta_path=meta_path.as_posix(),
             definition_id="base",
             field_path="definitions.base.variant_inherit",
+            line=1,
+            column=1,
+            end_line=1,
+            end_column=2,
         ),
     ]
 

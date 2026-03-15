@@ -185,3 +185,38 @@ class TestProject(unittest.TestCase):
             with in_cwd(tmp_path):
                 with self.assertRaises(ValueError):
                     Project(conf_path=str(conf_path))
+
+    def test_load_with_r_file_resolves_relative_path(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            resource_dir = tmp_path / "resources"
+            resource_dir.mkdir()
+            r_file = tmp_path / "generated" / "R.py"
+            r_file.parent.mkdir(parents=True, exist_ok=True)
+            r_file.write_text("class R:\n    pass\n", encoding="utf-8")
+            conf_path = write_pyproject(
+                tmp_path / "pyproject.toml",
+                resource_path="resources",
+                r_file="generated/R.py",
+            )
+            with in_cwd(tmp_path):
+                project = Project(conf_path=str(conf_path))
+
+            if project.conf.editor is None:
+                raise AssertionError("editor config must exist")
+            self.assertEqual(project.conf.editor.r_file, str(r_file.resolve()))
+
+    def test_load_with_missing_r_file_raises(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            resource_dir = tmp_path / "resources"
+            resource_dir.mkdir()
+            conf_path = write_pyproject(
+                tmp_path / "pyproject.toml",
+                resource_path="resources",
+                r_file="generated/R.py",
+            )
+            with in_cwd(tmp_path):
+                with self.assertRaises(FileNotFoundError) as context:
+                    Project(conf_path=str(conf_path))
+            self.assertIn("[tool.kotonebot.editor.r_file]", str(context.exception))

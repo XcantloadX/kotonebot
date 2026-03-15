@@ -39,6 +39,7 @@ def make_resgen_context(root: Path, **overrides: Any) -> dict[str, Any]:
 def write_pyproject(
     path: Path,
     resource_path: str = "resources",
+    r_file: str | None = None,
     variant_variants: Sequence[str] | None = None,
     variant_base: str | None = None,
     variant_path_pattern: str | None = None,
@@ -46,6 +47,8 @@ def write_pyproject(
     lines: list[str] = []
     lines.append("[tool.kotonebot.editor]")
     lines.append(f'resource_path = "{resource_path}"')
+    if r_file is not None:
+        lines.append(f'r_file = "{r_file}"')
     if variant_variants is not None or variant_base is not None or variant_path_pattern is not None:
         lines.append("")
         lines.append("[tool.kotonebot.variant]")

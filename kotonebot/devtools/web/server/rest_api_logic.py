@@ -9,6 +9,8 @@ from typing import Any, Optional
 import cv2
 import numpy as np
 
+from kotonebot.devtools.image_preview import build_image_preview
+from kotonebot.devtools.server_commands.workspace_service import WorkspaceService
 from kotonebot.devtools.indexing.symbol_index_view import SymbolIndexView
 from kotonebot.devtools.indexing.document_index_view import (
     DocumentIndexView,
@@ -23,34 +25,13 @@ from kotonebot.devtools.project.scanner import scan_prefabs
 
 class RestApiLogic:
     def __init__(self, project: Project):
+        self.workspace = WorkspaceService(project)
         self.project = project
         self._prefabs_cache: Optional[dict[str, Any]] = None
-
-        if project.conf is None or project.conf.editor is None or project.conf.editor.resource_path is None:
-            raise ValueError("Missing [tool.kotonebot.editor.resource_path] in pyproject.toml")
-        self.project_root = Path(project.conf.editor.resource_path).resolve()
-
-        try:
-            prefab_schema_for_index = self._get_prefabs_cache().get("prefabs", {})
-        except Exception:
-            logging.exception("Failed to preload prefab schema for index store")
-            prefab_schema_for_index = {}
-
-        self.resource_index_store = ResourceIndexStore(resource_root=self.project_root)
-        self.symbol_index_view = SymbolIndexView(
-            resource_root=self.project_root,
-            resource_index_store=self.resource_index_store,
-            prefab_schema=prefab_schema_for_index,
-            resource_variants=project.conf.variant.variants if project.conf.variant and project.conf.variant.variants is not None else None,
-            base_variant=project.conf.variant.base if project.conf.variant is not None else None,
-            variant_configured=project.conf.variant is not None,
-        )
-        self.document_index_view = DocumentIndexView(
-            project=project,
-            resource_root=self.project_root,
-            image_suffixes={".png", ".jpg", ".jpeg", ".bmp", ".webp"},
-            resource_index_store=self.resource_index_store,
-        )
+        self.project_root = self.workspace.project_root
+        self.resource_index_store = self.workspace.resource_index_store
+        self.symbol_index_view = self.workspace.symbol_index_view
+        self.document_index_view = self.workspace.document_index_view
         self.thumbnail_cache_root = project.pyproject_root / ".kotonebot" / "cache" / "thumbnails"
         self.image_suffixes = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
         self.variant_path_placeholders = {
@@ -378,15 +359,7 @@ class RestApiLogic:
     ############## API Logic Methods ##############
 
     def get_project_root_data(self) -> dict[str, Any]:
-        data: dict[str, Any] = {"resource_root": str(self.project_root)}
-        try:
-            if self.project.conf and self.project.conf.editor:
-                data["editor"] = self.project.conf.editor.model_dump()
-            if self.project.conf and self.project.conf.variant:
-                data["variant"] = self.project.conf.variant.model_dump()
-        except Exception:
-            logging.exception("Failed to include editor config in /project/root response")
-        return data
+        return self.workspace.get_project_root_data()
 
     def list_dir(self, path: str) -> dict[str, Any]:
         safe_path = self._get_safe_path(path)
@@ -450,11 +423,7 @@ class RestApiLogic:
         return {"sourcePath": safe_source.as_posix(), "targetPath": safe_target.as_posix()}
 
     def precheck_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentPrecheckResultModel:
-        """预检文档重命名计划。
-
-        仅返回计划与冲突，不执行实际文件操作。
-        """
-        return self.document_index_view.precheck_rename_document(
+        return self.workspace.precheck_rename_document(
             source_image_path=source_image_path,
             target_image_path=target_image_path,
         )
@@ -483,21 +452,9 @@ class RestApiLogic:
             raise
 
     def execute_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentExecuteResultModel:
-        """执行文档重命名。
-
-        会先基于预检结果校验冲突，再执行批量重命名。
-        """
-        precheck = self.precheck_rename_document(source_image_path=source_image_path, target_image_path=target_image_path)
-        if precheck.hasConflicts:
-            message = "\n".join(precheck.conflicts)
-            raise ValueError(f"Cannot execute rename due to conflicts:\n{message}")
-        renames = [(Path(item.sourcePath), Path(item.targetPath)) for item in precheck.fileRenames]
-        self._execute_file_rename_batch(renames)
-        return RenameDocumentExecuteResultModel(
-            documents=precheck.documents,
-            fileRenames=precheck.fileRenames,
-            renamedFileCount=len(precheck.fileRenames),
-            renamedDocumentCount=len(precheck.documents),
+        return self.workspace.execute_rename_document(
+            source_image_path=source_image_path,
+            target_image_path=target_image_path,
         )
 
     def get_image_path(self, path: str) -> Path:
@@ -516,20 +473,48 @@ class RestApiLogic:
             raise ValueError("Not an image file")
         return self._ensure_thumbnail(safe_path, size)
 
+    def get_image_hover_preview_path(
+        self,
+        *,
+        path: str,
+        size: int | None,
+        x1: float | None,
+        y1: float | None,
+        x2: float | None,
+        y2: float | None,
+    ) -> Path:
+        safe_path = self._get_safe_path(path)
+        if not safe_path.exists():
+            raise FileNotFoundError("Image not found")
+        if not self._is_image_file(safe_path):
+            raise ValueError("Not an image file")
+        if x1 is None and y1 is None and x2 is None and y2 is None:
+            rect = None
+        elif x1 is not None and y1 is not None and x2 is not None and y2 is not None:
+            rect = (x1, y1, x2, y2)
+        else:
+            raise ValueError("x1,y1,x2,y2 must be all provided or all omitted")
+        return build_image_preview(
+            source_path=safe_path,
+            cache_root=self.project.pyproject_root / ".kotonebot" / "cache" / "hover_previews",
+            size=size,
+            rect=rect,
+        )
+
     def get_prefabs_schema(self) -> dict[str, Any]:
-        return self._get_prefabs_cache()
+        return self.workspace.get_prefabs_schema()
 
     def get_meta_index(self) -> Any:
-        return self.symbol_index_view.get_snapshot_lite()
+        return self.workspace.get_meta_index()
 
     def update_meta_index(self, meta_path: str) -> Any:
-        return self.symbol_index_view.update_file(meta_path=meta_path)
+        return self.workspace.update_meta_index(meta_path)
 
     def get_meta_diagnostics(self) -> Any:
-        return self.symbol_index_view.get_diagnostics()
+        return self.workspace.get_meta_diagnostics()
 
     def get_meta_index_health(self) -> Any:
-        return self.symbol_index_view.get_health()
+        return self.workspace.get_meta_index_health()
 
     def clone_variant_to_image(
         self,
@@ -539,34 +524,12 @@ class RestApiLogic:
         variant: str,
         force_overwrite: bool,
     ) -> dict[str, Any]:
-        variant_name = self._assert_variant_declared(variant)
-
-        source_meta = self._get_safe_path(source_meta_path)
-        target_image = self._get_safe_path(target_image_path)
-        if not source_meta.exists():
-            raise ValueError(f"Source meta not found: {source_meta}")
-        if not target_image.exists():
-            raise ValueError(f"Target image not found: {target_image}")
-        if not self._is_image_file(target_image):
-            raise ValueError(f"Target path is not an image: {target_image}")
-
-        target_meta_path = Path(str(target_image) + ".json")
-        if target_meta_path.exists() and not force_overwrite:
-            raise ValueError(f"Target meta already exists: {target_meta_path}")
-        plan = self._plan_variant_clone_definitions(
-            source_meta_path=source_meta,
-            target_variant=variant_name,
-            source_image_path=Path(str(source_meta.with_suffix(""))),
-            target_image_path=target_image,
+        return self.workspace.clone_variant_to_image(
+            source_meta_path=source_meta_path,
+            target_image_path=target_image_path,
+            variant=variant,
+            force_overwrite=force_overwrite,
         )
-        target_definitions = plan["targetDefinitions"]
-
-        payload = {"version": 2, "definitions": target_definitions}
-        target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {
-            "targetMetaPath": target_meta_path.as_posix(),
-            "definitionCount": len(target_definitions),
-        }
 
     def precheck_variant_import_path(
         self,
@@ -576,36 +539,12 @@ class RestApiLogic:
         variant: str,
         uploaded_image_data: bytes,
     ) -> dict[str, Any]:
-        variant_name = self._assert_variant_declared(variant)
-        source_meta = self._get_safe_path(source_meta_path)
-        base_image = self._get_safe_path(base_image_path)
-        if not source_meta.exists():
-            raise ValueError(f"Source meta not found: {source_meta}")
-        if not base_image.exists():
-            raise ValueError(f"Base image not found: {base_image}")
-        if not self._is_image_file(base_image):
-            raise ValueError(f"Base path is not an image: {base_image}")
-        uploaded_target_image = self._decode_uploaded_image(uploaded_image_data)
-        target_image_path = self._resolve_variant_import_target_path(
-            base_image_path=base_image,
-            variant_name=variant_name,
+        return self.workspace.precheck_variant_import_path(
+            source_meta_path=source_meta_path,
+            base_image_path=base_image_path,
+            variant=variant,
+            uploaded_image_data=uploaded_image_data,
         )
-        plan = self._plan_variant_clone_definitions(
-            source_meta_path=source_meta,
-            target_variant=variant_name,
-            source_image_path=Path(str(source_meta.with_suffix(""))),
-            target_image_path=target_image_path,
-            target_image_override=uploaded_target_image,
-        )
-        target_meta_path = Path(str(target_image_path) + ".json")
-        return {
-            "targetImagePath": target_image_path.as_posix(),
-            "targetImageExists": target_image_path.exists(),
-            "targetMetaPath": target_meta_path.as_posix(),
-            "targetMetaExists": target_meta_path.exists(),
-            "copiedDefinitions": plan["copiedDefinitions"],
-            "skippedDefinitions": plan["skippedDefinitions"],
-        }
 
     def import_variant_image(
         self,
@@ -615,33 +554,12 @@ class RestApiLogic:
         image_data: bytes,
         delete_existing_target: bool,
     ) -> dict[str, Any]:
-        variant_name = self._assert_variant_declared(variant)
-        base_image = self._get_safe_path(base_image_path)
-        if not base_image.exists():
-            raise ValueError(f"Base image not found: {base_image}")
-        if not self._is_image_file(base_image):
-            raise ValueError(f"Base path is not an image: {base_image}")
-        target_image_path = self._resolve_variant_import_target_path(
-            base_image_path=base_image,
-            variant_name=variant_name,
+        return self.workspace.import_variant_image(
+            base_image_path=base_image_path,
+            variant=variant,
+            image_data=image_data,
+            delete_existing_target=delete_existing_target,
         )
-        if target_image_path.exists():
-            if not delete_existing_target:
-                raise ValueError(f"Target image already exists: {target_image_path}")
-            target_image_path.unlink()
-            target_meta_path = Path(str(target_image_path) + ".json")
-            if target_meta_path.exists():
-                target_meta_path.unlink()
-        if len(image_data) == 0:
-            raise ValueError("Import image is empty")
-        target_image_path.parent.mkdir(parents=True, exist_ok=True)
-        temp_path = target_image_path.with_suffix(target_image_path.suffix + ".tmp")
-        temp_path.write_bytes(image_data)
-        os.replace(temp_path, target_image_path)
-        return {
-            "targetImagePath": target_image_path.as_posix(),
-            "size": len(image_data),
-        }
 
     def precheck_copy_selected_prefab_to_variant(
         self,
@@ -651,59 +569,12 @@ class RestApiLogic:
         base_image_path: str,
         variant: str,
     ) -> dict[str, Any]:
-        variant_name = self._assert_variant_declared(variant)
-        source_meta = self._get_safe_path(source_meta_path)
-        base_image = self._get_safe_path(base_image_path)
-        if not source_meta.exists():
-            raise ValueError(f"Source meta not found: {source_meta}")
-        if not base_image.exists():
-            raise ValueError(f"Base image not found: {base_image}")
-        if not self._is_image_file(base_image):
-            raise ValueError(f"Base path is not an image: {base_image}")
-
-        source_meta_data = parse_meta_file(source_meta)
-        source_definition = source_meta_data.definitions.get(source_definition_id)
-        if source_definition is None:
-            raise ValueError(f"Source definition not found: {source_definition_id}")
-        if source_definition.type != "prefab":
-            raise ValueError(f"Source definition is not prefab: {source_definition_id}")
-        if source_definition.name is None:
-            raise ValueError(f"Source definition requires name: {source_definition_id}")
-
-        base_by_name: dict[str, DefinitionV2Model] = {}
-        for definition in source_meta_data.definitions.values():
-            if definition.type != "prefab" or definition.variant is not None:
-                continue
-            if definition.name is None:
-                raise ValueError("prefab definition requires name")
-            if definition.name in base_by_name:
-                raise ValueError(f"duplicate prefab base definition: {definition.name}")
-            base_by_name[definition.name] = definition
-
-        target_image_path = self._resolve_variant_import_target_path(
-            base_image_path=base_image,
-            variant_name=variant_name,
+        return self.workspace.precheck_copy_selected_prefab_to_variant(
+            source_meta_path=source_meta_path,
+            source_definition_id=source_definition_id,
+            base_image_path=base_image_path,
+            variant=variant,
         )
-        target_meta_path = Path(str(target_image_path) + ".json")
-        target_definition_exists = False
-        if target_meta_path.exists():
-            target_meta_data = parse_meta_file(target_meta_path)
-            target_definition_exists = source_definition_id in target_meta_data.definitions
-
-        return {
-            "targetImagePath": target_image_path.as_posix(),
-            "targetImageExists": target_image_path.exists(),
-            "targetMetaPath": target_meta_path.as_posix(),
-            "targetMetaExists": target_meta_path.exists(),
-            "targetDefinitionExists": target_definition_exists,
-            "sourceDefinitionId": source_definition_id,
-            "sourceDefinitionName": source_definition.name,
-            "targetDefinition": self._build_prefab_variant_definition(
-                definition=source_definition,
-                base_by_name=base_by_name,
-                target_variant=variant_name,
-            ),
-        }
 
     def copy_selected_prefab_to_variant(
         self,
@@ -714,39 +585,13 @@ class RestApiLogic:
         variant: str,
         force_overwrite: bool,
     ) -> dict[str, Any]:
-        precheck = self.precheck_copy_selected_prefab_to_variant(
+        return self.workspace.copy_selected_prefab_to_variant(
             source_meta_path=source_meta_path,
             source_definition_id=source_definition_id,
             base_image_path=base_image_path,
             variant=variant,
+            force_overwrite=force_overwrite,
         )
-        target_meta_path = self._get_safe_path(precheck["targetMetaPath"])
-        target_definition = precheck["targetDefinition"]
-        if not precheck["targetImageExists"]:
-            raise ValueError(f"Target image not found: {precheck['targetImagePath']}")
-
-        if precheck["targetMetaExists"]:
-            target_meta_data = parse_meta_file(target_meta_path)
-            target_definitions = {
-                definition_id: definition.model_dump(by_alias=True, exclude_none=True)
-                for definition_id, definition in target_meta_data.definitions.items()
-            }
-        else:
-            target_definitions = {}
-
-        if source_definition_id in target_definitions and not force_overwrite:
-            raise ValueError(f"Target definition already exists: {source_definition_id}")
-        target_definitions[source_definition_id] = target_definition
-        payload = {"version": 2, "definitions": target_definitions}
-        target_meta_path.parent.mkdir(parents=True, exist_ok=True)
-        target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {
-            "targetImagePath": precheck["targetImagePath"],
-            "targetMetaPath": precheck["targetMetaPath"],
-            "definitionId": source_definition_id,
-            "definitionName": precheck["sourceDefinitionName"],
-            "targetDefinitionOverwritten": precheck["targetDefinitionExists"],
-        }
 
     def get_health(self) -> dict[str, str]:
         return {"status": "ok", "service": "kotonebot-devtools"}

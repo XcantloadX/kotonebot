@@ -19,15 +19,21 @@ def validate_meta_corpus(
     diagnostics: list[Diagnostic] = []
     refs: list[DefinitionRef] = []
     warned_variant_inherit_unused = False
+    doc_by_path = {doc.meta_path: doc for doc in corpus.docs}
 
     # 第一阶段：逐条 definition 做局部校验（不依赖同名分组信息）。
     for doc in corpus.docs:
         for definition_id, definition in doc.data.definitions.items():
+            definition_range = doc.ranges.of_definition(definition_id)
             refs.append(
                 DefinitionRef(
                     meta_path=doc.meta_path,
                     definition_id=definition_id,
                     definition=definition,
+                    line=definition_range.line,
+                    column=definition_range.column,
+                    end_line=definition_range.end_line,
+                    end_column=definition_range.end_column,
                 )
             )
             variant = definition.variant
@@ -40,6 +46,7 @@ def validate_meta_corpus(
                     and definition.type == "prefab"
                     and definition.variant_inherit is not None
                 ):
+                    field_range = doc.ranges.of_field(definition_id, "variant_inherit")
                     diagnostics.append(
                         Diagnostic(
                             code=META_VARIANT_INHERIT_UNUSED.code,
@@ -51,6 +58,10 @@ def validate_meta_corpus(
                             severity="warning",
                             definition_id=definition_id,
                             field_path=f"definitions.{definition_id}.variant_inherit",
+                            line=field_range.line,
+                            column=field_range.column,
+                            end_line=field_range.end_line,
+                            end_column=field_range.end_column,
                         )
                     )
                     warned_variant_inherit_unused = True
@@ -72,6 +83,10 @@ def validate_meta_corpus(
                             severity="warning",
                             definition_id=definition_id,
                             field_path=f"definitions.{definition_id}.variant_inherit",
+                            line=definition_range.line,
+                            column=definition_range.column,
+                            end_line=definition_range.end_line,
+                            end_column=definition_range.end_column,
                         )
                     )
                 continue
@@ -83,6 +98,10 @@ def validate_meta_corpus(
                         message=f"variant is only allowed for prefab: {doc.meta_path}::{definition_id}",
                         meta_path=doc.meta_path,
                         definition_id=definition_id,
+                        line=definition_range.line,
+                        column=definition_range.column,
+                        end_line=definition_range.end_line,
+                        end_column=definition_range.end_column,
                     )
                 )
                 continue
@@ -94,28 +113,42 @@ def validate_meta_corpus(
                         message=f"variant definition requires name: {doc.meta_path}::{definition_id}",
                         meta_path=doc.meta_path,
                         definition_id=definition_id,
+                        line=definition_range.line,
+                        column=definition_range.column,
+                        end_line=definition_range.end_line,
+                        end_column=definition_range.end_column,
                     )
                 )
                 continue
             # 规则：variant 值必须在项目配置的 resource_variants 中。
             if resource_variants is not None and variant not in resource_variants:
+                field_range = doc.ranges.of_field(definition_id, "variant")
                 diagnostics.append(
                     Diagnostic(
                         code=META_VARIANT_INVALID.code,
                         message=f"variant '{variant}' is not declared in resource_variants: {doc.meta_path}::{definition_id}",
                         meta_path=doc.meta_path,
                         definition_id=definition_id,
+                        line=field_range.line,
+                        column=field_range.column,
+                        end_line=field_range.end_line,
+                        end_column=field_range.end_column,
                     )
                 )
                 continue
             # 规则：variant 值不能等于项目配置的 base variant。
             if base_variant is not None and variant == base_variant:
+                field_range = doc.ranges.of_field(definition_id, "variant")
                 diagnostics.append(
                     Diagnostic(
                         code=META_VARIANT_INVALID.code,
                         message=f"variant '{variant}' must not be equal to base variant: {doc.meta_path}::{definition_id}",
                         meta_path=doc.meta_path,
                         definition_id=definition_id,
+                        line=field_range.line,
+                        column=field_range.column,
+                        end_line=field_range.end_line,
+                        end_column=field_range.end_column,
                     )
                 )
 
@@ -140,6 +173,10 @@ def validate_meta_corpus(
                     ),
                     meta_path=ref.meta_path,
                     definition_id=ref.definition_id,
+                    line=ref.line,
+                    column=ref.column,
+                    end_line=ref.end_line,
+                    end_column=ref.end_column,
                 )
             )
             continue
@@ -161,6 +198,10 @@ def validate_meta_corpus(
                 if (base_variant is None or variant != base_variant) and variant not in group
             ]
             if missing_variants:
+                base_doc = doc_by_path.get(base_ref.meta_path)
+                if base_doc is None:
+                    raise ValueError(f"Document not found: {base_ref.meta_path}")
+                field_range = base_doc.ranges.of_field(base_ref.definition_id, "variant_inherit")
                 diagnostics.append(
                     Diagnostic(
                         code=META_VARIANT_INHERIT_MISSING_VARIANTS.code,
@@ -171,6 +212,10 @@ def validate_meta_corpus(
                         meta_path=base_ref.meta_path,
                         definition_id=base_ref.definition_id,
                         field_path=f"definitions.{base_ref.definition_id}.variant_inherit",
+                        line=field_range.line,
+                        column=field_range.column,
+                        end_line=field_range.end_line,
+                        end_column=field_range.end_column,
                     )
                 )
         if not has_variant:
@@ -184,6 +229,10 @@ def validate_meta_corpus(
                     message=f"variant prefab requires base definition: {name}",
                     meta_path=first_variant.meta_path,
                     definition_id=first_variant.definition_id,
+                    line=first_variant.line,
+                    column=first_variant.column,
+                    end_line=first_variant.end_line,
+                    end_column=first_variant.end_column,
                 )
             )
 
@@ -194,11 +243,16 @@ def collect_variant_groups(corpus: MetaCorpus) -> dict[str, dict[str | None, Def
     refs: list[DefinitionRef] = []
     for doc in corpus.docs:
         for definition_id, definition in doc.data.definitions.items():
+            definition_range = doc.ranges.of_definition(definition_id)
             refs.append(
                 DefinitionRef(
                     meta_path=doc.meta_path,
                     definition_id=definition_id,
                     definition=definition,
+                    line=definition_range.line,
+                    column=definition_range.column,
+                    end_line=definition_range.end_line,
+                    end_column=definition_range.end_column,
                 )
             )
     return group_prefab_definitions_by_name(refs)

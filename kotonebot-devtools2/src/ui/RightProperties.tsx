@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormGroup, InputGroup, Button, H5, Card } from '@blueprintjs/core';
+import { FormGroup, InputGroup, Button, H5, Card, Tooltip } from '@blueprintjs/core';
 import { useAppStore } from '../editor/state';
 import { PropValue } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
@@ -8,6 +8,7 @@ import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import { getEditorForType } from './properties/PropertyEditorRegistry';
 import { OverridableField } from './components/OverridableField';
 import { SegmentedControl, SegmentedOption } from './components/SegmentedControl';
+import { toaster } from './toaster';
 
 type VariantInheritValue = boolean | null;
 
@@ -21,24 +22,30 @@ export const RightProperties: React.FC = () => {
   const commandContext = React.useMemo(() => ({ ui: {} }), []);
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
   const symbols = useSymbolIndexStore(s => s.symbols);
-  const nameValueOnFocusRef = React.useRef<string>('');
+  const [nameDraft, setNameDraft] = React.useState<string>('');
 
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const activeMeta = activeDoc?.meta;
   const selection = activeDoc?.selection;
+  const defId = selection?.definitionId ?? null;
+  const definition = activeMeta && defId ? activeMeta.data.definitions[defId] : null;
+  React.useEffect(() => {
+    setNameDraft(definition?.name || '');
+  }, [activeMeta?.path, defId, definition?.name]);
 
-  if (!activeMeta || !selection) {
+  if (!activeMeta || !selection || !defId) {
     return <div style={{ padding: 10, color: '#8a9ba8' }}>No selection</div>;
   }
-
-  const defId = selection.definitionId;
-  const definition = activeMeta.data.definitions[defId];
 
   if (!definition) {
       return <div style={{ padding: 10, color: '#8a9ba8' }}>Definition not found</div>;
   }
 
   const isVariantPrefab = definition.type === "prefab" && !!definition.variant;
+  const currentName = definition.name || '';
+  const trimmedNameDraft = nameDraft.trim();
+  const hasPendingNameChange = !isVariantPrefab && trimmedNameDraft !== currentName;
+  const canSubmitNameChange = hasPendingNameChange && trimmedNameDraft !== "";
   const variantInheritValue: VariantInheritValue = definition.variant_inherit === true
     ? true
     : definition.variant_inherit === false
@@ -81,20 +88,49 @@ export const RightProperties: React.FC = () => {
       });
   };
 
-  const handleNameFocus = () => {
-    nameValueOnFocusRef.current = definition.name || '';
+  const handleRenameOnly = () => {
+    if (!canSubmitNameChange) {
+      return;
+    }
+    try {
+      handleChange("name", trimmedNameDraft);
+      setNameDraft(trimmedNameDraft);
+    } catch (error: any) {
+      setNameDraft(currentName);
+      toaster.show({ message: `Rename failed: ${error?.message ?? String(error)}`, intent: "danger" as any });
+    }
   };
 
-  const handleNameBlur = () => {
-    if (isVariantPrefab) {
+  const handleRenameWithRefactor = () => {
+    if (!canSubmitNameChange) {
       return;
     }
-    const valueOnFocus = nameValueOnFocusRef.current;
-    const currentValue = definition.name || '';
-    if (valueOnFocus === currentValue) {
-      return;
-    }
-    void executeCommand(COMMAND_ID.VARIANT_RENAME_VARIANTS_FOR_DEFINITION, commandContext, { definitionId: defId });
+    void (async () => {
+      try {
+        await executeCommand(
+          COMMAND_ID.SYMBOL_RENAME_FOR_DEFINITION,
+          commandContext,
+          { definitionId: defId, newName: trimmedNameDraft },
+        );
+        const latestState = useAppStore.getState();
+        const latestDocId = latestState.activeDocumentId;
+        if (!latestDocId) {
+          throw new Error("No active document after symbol rename");
+        }
+        const latestDoc = latestState.documents[latestDocId];
+        if (!latestDoc || !latestDoc.meta) {
+          throw new Error("Active document meta is missing after symbol rename");
+        }
+        const latestDefinition = latestDoc.meta.data.definitions[defId];
+        if (!latestDefinition) {
+          throw new Error(`Definition not found after symbol rename: ${defId}`);
+        }
+        setNameDraft(latestDefinition.name || '');
+      } catch (error: any) {
+        setNameDraft(currentName);
+        toaster.show({ message: `Rename failed: ${error?.message ?? String(error)}`, intent: "danger" as any });
+      }
+    })();
   };
 
     const renderPropEditor = (key: string, value: PropValue | undefined, schema?: EditorPropSchema) => {
@@ -123,13 +159,40 @@ export const RightProperties: React.FC = () => {
   // Common fields
   editors.push(
       <FormGroup key="common-name" label="Name (Class Path)">
-          <InputGroup
-            value={definition.name || ''}
-            readOnly={isVariantPrefab}
-            onFocus={handleNameFocus}
-            onBlur={handleNameBlur}
-            onChange={e => handleChange('name', e.target.value)}
-          />
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <InputGroup
+              value={nameDraft}
+              readOnly={isVariantPrefab}
+              onChange={e => setNameDraft(e.target.value)}
+              fill
+            />
+            {hasPendingNameChange ? (
+              <>
+                <Tooltip content="仅重命名" position="top">
+                  <Button
+                    small
+                    intent="none"
+                    icon="edit"
+                    disabled={!canSubmitNameChange}
+                    aria-label="仅重命名"
+                    style={{ width: 28, minWidth: 28 }}
+                    onClick={handleRenameOnly}
+                  />
+                </Tooltip>
+                <Tooltip content="重命名+重构" position="top">
+                  <Button
+                    small
+                    intent="primary"
+                    icon="wrench"
+                    disabled={!canSubmitNameChange}
+                    aria-label="重命名+重构"
+                    style={{ width: 28, minWidth: 28 }}
+                    onClick={handleRenameWithRefactor}
+                  />
+                </Tooltip>
+              </>
+            ) : null}
+          </div>
       </FormGroup>
   );
   editors.push(

@@ -1,0 +1,245 @@
+{
+  "name": "kotonebot-vscode",
+  "displayName": "Kotonebot Devtools",
+  "description": "VS Code integration for kotonebot devtools diagnostics and server commands.",
+  "version": "0.0.1",
+  "publisher": "kotonebot",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Linters"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCustomEditor:kotonebot.metaEditor",
+    "onView:kotonebot.symbolsView",
+    "onCommand:kotonebot.editor.open",
+    "onCommand:kotonebot.editor.openSymbol",
+    "onCommand:kotonebot.meta.openEditor",
+    "onCommand:kotonebot.meta.openText",
+    "onCommand:kotonebot.meta.undo",
+    "onCommand:kotonebot.meta.redo",
+    "onCommand:kotonebot.meta.save",
+    "onCommand:kotonebot.meta.openFromImage",
+    "onCommand:kotonebot.refreshDiagnostics",
+    "onCommand:kotonebot.updateMetaIndex",
+    "onCommand:kotonebot.renameDocumentPair",
+    "onCommand:kotonebot.symbolTree.refresh",
+    "onCommand:kotonebot.symbolTree.rename"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Kotonebot",
+      "properties": {
+        "kotonebot.lspCommand": {
+          "type": "string",
+          "default": "kbot",
+          "description": "Executable used to launch kotonebot devtools lsp."
+        },
+        "kotonebot.devtoolsServerHost": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Host used by integrated kotonebot backend server (started by devtools-host)."
+        },
+        "kotonebot.devtoolsServerPort": {
+          "type": "number",
+          "default": 1178,
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Port used by integrated kotonebot backend server (started by devtools-host)."
+        },
+        "kotonebot.editorBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Optional editor page URL for webview. Empty means use devtoolsServerHost/devtoolsServerPort."
+        },
+        "kotonebot.autoRefreshOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically update meta index when saving a *.png.json file."
+        },
+        "kotonebot.autoRefetchOnFsChanges": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refetch diagnostics when *.png.json files are created, changed, deleted, or renamed."
+        },
+        "kotonebot.autoPairRenameOnFileRename": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically rename paired image/meta file when renaming or moving a *.png or *.png.json file."
+        },
+        "kotonebot.autoVariantRenameOnFileRename": {
+          "type": "boolean",
+          "default": true,
+          "description": "When file name changes, automatically rename all related variant documents together (requires autoPairRenameOnFileRename)."
+        },
+        "kotonebot.autoRefreshDebounceMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 50,
+          "description": "Debounce delay in milliseconds for auto refetch triggered by file system changes."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "kotonebot.refreshDiagnostics",
+        "title": "Kotonebot: Refresh Diagnostics"
+      },
+      {
+        "command": "kotonebot.updateMetaIndex",
+        "title": "Kotonebot: Update Meta Index For Current File"
+      },
+      {
+        "command": "kotonebot.renameDocumentPair",
+        "title": "Kotonebot: Rename Document Pair"
+      },
+      {
+        "command": "kotonebot.symbolTree.refresh",
+        "title": "Refresh Symbol Tree",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "kotonebot.symbolTree.rename",
+        "title": "Rename Symbol"
+      },
+      {
+        "command": "kotonebot.editor.open",
+        "title": "Kotonebot: Open Editor"
+      },
+      {
+        "command": "kotonebot.editor.openSymbol",
+        "title": "Kotonebot: Open Symbol In Editor"
+      },
+      {
+        "command": "kotonebot.meta.openEditor",
+        "title": "Kotonebot: Switch To Editor Mode",
+        "icon": "$(symbol-misc)"
+      },
+      {
+        "command": "kotonebot.meta.openText",
+        "title": "Kotonebot: Switch To Text Mode",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "kotonebot.meta.undo",
+        "title": "Kotonebot: Undo In Editor"
+      },
+      {
+        "command": "kotonebot.meta.redo",
+        "title": "Kotonebot: Redo In Editor"
+      },
+      {
+        "command": "kotonebot.meta.save",
+        "title": "Kotonebot: Save In Editor"
+      },
+      {
+        "command": "kotonebot.meta.openFromImage",
+        "title": "Kotonebot: Open Meta In Editor"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "kotonebot.metaEditor",
+        "displayName": "Kotonebot Meta Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.png.json"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "views": {
+      "kotonebot": [
+        {
+          "id": "kotonebot.symbolsView",
+          "name": "Kotonebot Symbols"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kotonebot",
+          "title": "Kotonebot",
+          "icon": "media/kotonebot.svg"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "kotonebot.editor.open"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "kotonebot.symbolTree.refresh",
+          "when": "view == kotonebot.symbolsView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "kotonebot.symbolTree.rename",
+          "when": "view == kotonebot.symbolsView && viewItem == kotonebot.symbol",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "kotonebot.meta.openFromImage",
+          "when": "resourceScheme == file && resourceExtname == .png && resourceFilename !~ /.*\\.png\\.json$/",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "kotonebot.meta.openEditor",
+          "when": "resourceScheme == file && resourceFilename =~ /.*\\.png\\.json$/ && activeCustomEditorId != kotonebot.metaEditor",
+          "group": "navigation"
+        },
+        {
+          "command": "kotonebot.meta.openText",
+          "when": "resourceScheme == file && resourceFilename =~ /.*\\.png\\.json$/ && activeCustomEditorId == kotonebot.metaEditor",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "kotonebot.meta.undo",
+        "key": "ctrl+z",
+        "mac": "cmd+z",
+        "when": "activeCustomEditorId == kotonebot.metaEditor"
+      },
+      {
+        "command": "kotonebot.meta.redo",
+        "key": "ctrl+y",
+        "mac": "cmd+shift+z",
+        "when": "activeCustomEditorId == kotonebot.metaEditor"
+      },
+      {
+        "command": "kotonebot.meta.save",
+        "key": "ctrl+s",
+        "mac": "cmd+s",
+        "when": "activeCustomEditorId == kotonebot.metaEditor"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -w -p ."
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.5.2"
+  }
+}

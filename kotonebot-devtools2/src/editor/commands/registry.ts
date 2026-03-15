@@ -211,6 +211,15 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
       await editorActions.variant.renameVariantsForDefinitionByPrompt(args.definitionId);
     },
   },
+  [COMMAND_ID.SYMBOL_RENAME_FOR_DEFINITION]: {
+    id: COMMAND_ID.SYMBOL_RENAME_FOR_DEFINITION,
+    title: "Rename Symbol for Definition",
+    keywords: ["symbol", "rename", "definition"],
+    showInPalette: false,
+    run: async (_, args) => {
+      await editorActions.symbol.renameNameForDefinition(args.definitionId, args.newName);
+    },
+  },
   [COMMAND_ID.DOCUMENT_CLOSE]: {
     id: COMMAND_ID.DOCUMENT_CLOSE,
     title: "Close Document",

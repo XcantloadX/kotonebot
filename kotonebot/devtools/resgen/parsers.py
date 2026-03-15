@@ -1,9 +1,10 @@
 import os
 import json
 import uuid
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Any, cast
+
+from pydantic import BaseModel, Field
 from kotonebot.devtools.meta import (
     Diagnostic,
     MetaV2Model,
@@ -21,11 +22,10 @@ _CTX_VARIANT_INCLUDE_BASE = "resgen_include_base_variant"
 _CTX_VARIANT_BASE = "_variant_base"
 
 
-@dataclass(slots=True)
-class ResgenProjectContext:
+class ResgenProjectContext(BaseModel):
     parser_context: dict[str, Any]
     default_variant: str
-    diagnostics: list[Diagnostic] = field(default_factory=list)
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
 
 
 def _normalize_meta_path(path: str) -> str:

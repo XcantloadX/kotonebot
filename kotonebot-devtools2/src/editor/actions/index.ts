@@ -15,6 +15,7 @@ import { openImageWithMeta, openImagesWithChecks } from "./image";
 import { jumpToDiagnostic, jumpToSymbol } from "./navigation";
 import { promptAndRenameActiveDocument } from "./rename";
 import { saveActiveDocumentWithToast, saveAllDocumentsWithToast } from "./save";
+import { renameSymbolNameForActiveDefinition } from "./symbolRename";
 import {
   copySelectedPrefabToVariantForActiveDocument,
   importVariantImageForActiveDocument,
@@ -78,10 +79,15 @@ const definitionActions = {
   pasteFromClipboard: pasteDefinitionFromClipboard,
 };
 
+const symbolActions = {
+  renameNameForDefinition: renameSymbolNameForActiveDefinition,
+};
+
 export const editorActions = {
   image: imageActions,
   document: documentActions,
   variant: variantActions,
   navigation: navigationActions,
   definition: definitionActions,
+  symbol: symbolActions,
 };

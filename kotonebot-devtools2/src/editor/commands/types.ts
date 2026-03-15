@@ -42,6 +42,8 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB]: { variant?: string } | undefined;
   /** 依据定义 ID 重命名关联 variants。 */
   [COMMAND_ID.VARIANT_RENAME_VARIANTS_FOR_DEFINITION]: { definitionId: string };
+  /** 按定义 ID 重命名符号名（走服务端 precheck/execute）。 */
+  [COMMAND_ID.SYMBOL_RENAME_FOR_DEFINITION]: { definitionId: string; newName: string };
   /** 关闭指定文档。 */
   [COMMAND_ID.DOCUMENT_CLOSE]: { id: string };
   /** 批量关闭指定文档。 */

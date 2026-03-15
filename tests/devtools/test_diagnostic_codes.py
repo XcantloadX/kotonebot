@@ -27,4 +27,8 @@ def test_diagnostic_severity_must_match_code_registry():
             severity="error",
             message="x",
             meta_path="a.png.json",
+            line=1,
+            column=1,
+            end_line=1,
+            end_column=2,
         )

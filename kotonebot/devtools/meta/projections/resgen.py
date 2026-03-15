@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
+
+from pydantic import BaseModel
 
 from ...diagnostics.models import Diagnostic
 from ..pipeline import build_meta_state
 from ..resolver import ResolvedPrefabVariants
 
 
-@dataclass(slots=True)
-class ResgenVariantProjection:
+class ResgenVariantProjection(BaseModel):
     variant_group_by_base_key: dict[tuple[str, str], ResolvedPrefabVariants]
     variant_skip_keys: set[tuple[str, str]]
     diagnostics: list[Diagnostic]

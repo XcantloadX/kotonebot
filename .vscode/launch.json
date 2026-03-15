@@ -19,5 +19,16 @@
             "console": "integratedTerminal",
             "module": "${command:extension.commandvariable.file.relativeDirDots}.${fileBasenameNoExtension}",
         },
+        {
+            "name": "VS Code Extension Host (kotonebot-vscode)",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/extensions/kotonebot-vscode"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/extensions/kotonebot-vscode/dist/**/*.js"
+            ]
+        }
     ]
 }

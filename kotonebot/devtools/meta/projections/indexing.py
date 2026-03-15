@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from pydantic import BaseModel
 
 from ...indexing.models import IndexedFile, IndexedSymbol
 from ...diagnostics.codes import (
@@ -29,8 +30,7 @@ _CAMEL_CASE_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _GEOMETRY_KINDS = ("image", "rect", "point")
 
 
-@dataclass(slots=True)
-class IndexingProjection:
+class IndexingProjection(BaseModel):
     files: dict[str, IndexedFile]
     symbols: dict[str, IndexedSymbol]
     diagnostics: dict[str, list[Diagnostic]]
@@ -114,6 +114,10 @@ def _project_symbols_for_doc(
                     meta_path=doc.meta_path,
                     definition_id=str(definition_id),
                     field_path="definitions",
+                    line=doc.ranges.definitions.line,
+                    column=doc.ranges.definitions.column,
+                    end_line=doc.ranges.definitions.end_line,
+                    end_column=doc.ranges.definitions.end_column,
                 )
             )
             continue
@@ -177,6 +181,7 @@ def _project_symbols_for_doc(
                 )
             )
         except ValueError as exc:
+            definition_range = doc.ranges.of_definition(definition_id)
             diagnostics.append(
                 Diagnostic(
                     code=INDEX_DEF_PARSE_ERROR.code,
@@ -185,6 +190,10 @@ def _project_symbols_for_doc(
                     meta_path=doc.meta_path,
                     definition_id=definition_id,
                     field_path=f"definitions.{definition_id}",
+                    line=definition_range.line,
+                    column=definition_range.column,
+                    end_line=definition_range.end_line,
+                    end_column=definition_range.end_column,
                 )
             )
 
@@ -220,6 +229,10 @@ def build_indexing_projection(
                 severity="error",
                 message=diag.message,
                 meta_path=diag.meta_path,
+                line=diag.line,
+                column=diag.column,
+                end_line=diag.end_line,
+                end_column=diag.end_column,
             )
         )
 
@@ -260,6 +273,10 @@ def build_indexing_projection(
                 meta_path=diag.meta_path,
                 definition_id=diag.definition_id,
                 field_path=diag.field_path or "definitions",
+                line=diag.line,
+                column=diag.column,
+                end_line=diag.end_line,
+                end_column=diag.end_column,
             )
         )
 

@@ -1,6 +1,7 @@
 import contextlib
-from dataclasses import dataclass, field
 from typing import List, Any, Protocol, Dict, Optional, Union, Tuple
+
+from pydantic import BaseModel, Field
 
 # --- 工具类: CodeWriter ---
 class CodeWriter:
@@ -29,25 +30,22 @@ class CodeWriter:
 # --- 中间表示 (IR) 数据结构 ---
 
 
-@dataclass
-class ImageAsset:
+class ImageAsset(BaseModel):
     """代表图片资源的结构化数据"""
     path: str
     rect: Tuple[int, int, int, int] | None  # (x1, y1, x2, y2)
 
 
-@dataclass
-class PrefabData:
+class PrefabData(BaseModel):
     """代表自定义 Prefab 资源的结构化数据
     """
     image: Optional[ImageAsset]
     prefab_id: str
-    props: Dict[str, Any] = field(default_factory=dict)
+    props: Dict[str, Any] = Field(default_factory=dict)
     variant_props: Dict[str, Dict[str, Any]] | None = None
 
 
-@dataclass
-class BoxData:
+class BoxData(BaseModel):
     """代表矩形区域的结构化数据"""
     x1: int
     y1: int
@@ -56,8 +54,7 @@ class BoxData:
     resolution: Tuple[int, int] = (720, 1280)
 
 
-@dataclass
-class RectData:
+class RectData(BaseModel):
     """代表矩形区域属性（用于 prefab 字段）。"""
     x1: int
     y1: int
@@ -65,28 +62,25 @@ class RectData:
     y2: int
 
 
-@dataclass
-class PointData:
+class PointData(BaseModel):
     """代表点的结构化数据"""
     x: int
     y: int
 
 
-@dataclass
-class ResourceNode:
+class ResourceNode(BaseModel):
     """资源的最小单元 (Sprite, HintBox 等)。value 存放 IR 对象，而不是代码字符串。"""
     name: str
     type: str  # 'template', 'hint-box', 'hint-point', 'prefab'
     value: Union[ImageAsset, BoxData, PointData, PrefabData, Any]
     docstring: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict) # 原始数据备份，用于扩展
+    metadata: Dict[str, Any] = Field(default_factory=dict) # 原始数据备份，用于扩展
 
-@dataclass
-class ClassNode:
+class ClassNode(BaseModel):
     """表示一个生成的类节点"""
     name: str
-    children: List['ClassNode'] = field(default_factory=list)
-    attributes: List[ResourceNode] = field(default_factory=list)
+    children: List['ClassNode'] = Field(default_factory=list)
+    attributes: List[ResourceNode] = Field(default_factory=list)
     
     def is_empty(self) -> bool:
         return not self.children and not self.attributes
