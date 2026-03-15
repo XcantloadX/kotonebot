@@ -13,7 +13,7 @@ from kotonebot.client.implements.adb import AdbImpl
 from kotonebot.client.implements.nemu_ipc import NemuIpcImpl, NemuIpcImplConfig
 from kotonebot.util import Countdown, Interval
 from .protocol import HostProtocol, Instance, copy_type, AdbHostConfig
-from .adb_common import AdbRecipes, CommonAdbCreateDeviceMixin, connect_adb, is_adb_recipe
+from .adb_common import AdbRecipes, AdbTargetTcpip, CommonAdbCreateDeviceMixin, connect_adb, is_adb_recipe
 from ...interop.win.reg import read_reg
 
 
@@ -224,10 +224,13 @@ class Mumu12Instance(CommonAdbCreateDeviceMixin, Instance[MuMu12HostConfig]):
             nemu_impl = NemuIpcImpl(nemu_config)
             # AdbImpl
             adb_impl = AdbImpl(connect_adb(
-                self.adb_ip,
-                self.adb_port,
-                timeout=host_config.timeout,
-                device_serial=self.adb_name
+                AdbTargetTcpip(
+                    serial=self.adb_name or f'{self.adb_ip}:{self.adb_port}',
+                    addr=f'{self.adb_ip}:{self.adb_port}',
+                    connect=True,
+                    disconnect=True,
+                    timeout=host_config.timeout,
+                )
             ))
             device = AndroidDevice()
             device._screenshot = nemu_impl

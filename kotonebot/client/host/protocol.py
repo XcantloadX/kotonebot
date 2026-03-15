@@ -66,13 +66,15 @@ class Instance(Generic[T_HostConfig], ABC):
         name: str,
         adb_port: int | None = None,
         adb_ip: str = '127.0.0.1',
-        adb_name: str | None = None
+        adb_name: str | None = None,
+        adb_serial: str | None = None,
     ):
         self.id: str = id
         self.name: str = name
         self.adb_port: int | None = adb_port
         self.adb_ip: str = adb_ip
         self.adb_name: str | None = adb_name
+        self.adb_serial: str | None = adb_serial
 
     def require_adb_port(self) -> int:
         if self.adb_port is None:

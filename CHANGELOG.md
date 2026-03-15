@@ -2,6 +2,8 @@
 ## v0.10.0
 Library:
 1. [feat] **BREAKING** 移除 image.similar 分发与 scikit-image 依赖。
+2. [feat] 新增物理 Android 设备支持，可直接通过 USB 连接真机。
+3. [feat] ADB 连接新增 USB 模式支持，兼容 TCPIP 和 USB 两种连接方式。
 
 Framework:
 1. [feat] **BREAKING** Device 类及其底层组件新增生命周期方法 `start` 与 `stop`，现在使用时需要在恰当的时机调用生命周期方法。
