@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormGroup, InputGroup, Button, H5, Card } from '@blueprintjs/core';
+import { FormGroup, InputGroup, Button, H5, Card, Tooltip } from '@blueprintjs/core';
 import { useAppStore } from '../editor/state';
 import { PropValue } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
@@ -42,6 +42,10 @@ export const RightProperties: React.FC = () => {
   }
 
   const isVariantPrefab = definition.type === "prefab" && !!definition.variant;
+  const currentName = definition.name || '';
+  const trimmedNameDraft = nameDraft.trim();
+  const hasPendingNameChange = !isVariantPrefab && trimmedNameDraft !== currentName;
+  const canSubmitNameChange = hasPendingNameChange && trimmedNameDraft !== "";
   const variantInheritValue: VariantInheritValue = definition.variant_inherit === true
     ? true
     : definition.variant_inherit === false
@@ -84,13 +88,21 @@ export const RightProperties: React.FC = () => {
       });
   };
 
-  const handleNameBlur = () => {
-    if (isVariantPrefab) {
+  const handleRenameOnly = () => {
+    if (!canSubmitNameChange) {
       return;
     }
-    const currentValue = definition.name || '';
-    const targetValue = nameDraft.trim();
-    if (targetValue === currentValue) {
+    try {
+      handleChange("name", trimmedNameDraft);
+      setNameDraft(trimmedNameDraft);
+    } catch (error: any) {
+      setNameDraft(currentName);
+      toaster.show({ message: `Rename failed: ${error?.message ?? String(error)}`, intent: "danger" as any });
+    }
+  };
+
+  const handleRenameWithRefactor = () => {
+    if (!canSubmitNameChange) {
       return;
     }
     void (async () => {
@@ -98,7 +110,7 @@ export const RightProperties: React.FC = () => {
         await executeCommand(
           COMMAND_ID.SYMBOL_RENAME_FOR_DEFINITION,
           commandContext,
-          { definitionId: defId, newName: targetValue },
+          { definitionId: defId, newName: trimmedNameDraft },
         );
         const latestState = useAppStore.getState();
         const latestDocId = latestState.activeDocumentId;
@@ -115,7 +127,7 @@ export const RightProperties: React.FC = () => {
         }
         setNameDraft(latestDefinition.name || '');
       } catch (error: any) {
-        setNameDraft(currentValue);
+        setNameDraft(currentName);
         toaster.show({ message: `Rename failed: ${error?.message ?? String(error)}`, intent: "danger" as any });
       }
     })();
@@ -147,12 +159,40 @@ export const RightProperties: React.FC = () => {
   // Common fields
   editors.push(
       <FormGroup key="common-name" label="Name (Class Path)">
-          <InputGroup
-            value={nameDraft}
-            readOnly={isVariantPrefab}
-            onBlur={handleNameBlur}
-            onChange={e => setNameDraft(e.target.value)}
-          />
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <InputGroup
+              value={nameDraft}
+              readOnly={isVariantPrefab}
+              onChange={e => setNameDraft(e.target.value)}
+              fill
+            />
+            {hasPendingNameChange ? (
+              <>
+                <Tooltip content="仅重命名" position="top">
+                  <Button
+                    small
+                    intent="none"
+                    icon="edit"
+                    disabled={!canSubmitNameChange}
+                    aria-label="仅重命名"
+                    style={{ width: 28, minWidth: 28 }}
+                    onClick={handleRenameOnly}
+                  />
+                </Tooltip>
+                <Tooltip content="重命名+重构" position="top">
+                  <Button
+                    small
+                    intent="primary"
+                    icon="wrench"
+                    disabled={!canSubmitNameChange}
+                    aria-label="重命名+重构"
+                    style={{ width: 28, minWidth: 28 }}
+                    onClick={handleRenameWithRefactor}
+                  />
+                </Tooltip>
+              </>
+            ) : null}
+          </div>
       </FormGroup>
   );
   editors.push(

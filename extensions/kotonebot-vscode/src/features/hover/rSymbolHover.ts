@@ -1,39 +1,12 @@
 import * as vscode from "vscode";
 import { DevtoolsHttpConfig } from "../../lsp/client";
-import { requestBuffer, requestJson } from "../../shared/http";
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  message: string | null;
-  data: T | null;
-}
-
-interface SymbolLite {
-  symbolKey: string;
-  definitionId: string;
-  type: string;
-  name: string;
-  displayName: string | null;
-  description: string | null;
-  prefabId: string | null;
-  variant: string | null;
-  metaPath: string;
-  imagePath: string;
-  primaryGeometry: Record<string, unknown> | null;
-  searchText: string;
-}
-
-interface SymbolSnapshotLite {
-  indexVersion: number;
-  contentHash: string;
-  symbols: SymbolLite[];
-}
-
-interface ProjectRootData {
-  variant: {
-    base: string;
-  } | null;
-}
+import {
+  fetchHoverPreviewImage,
+  fetchMetaIndexSnapshot,
+  fetchProjectBaseVariant,
+  SymbolLite,
+  SymbolSnapshotLite,
+} from "../../shared/kotonebotApi";
 
 const R_CHAIN_PATTERN = /R(?:\.[A-Za-z_][A-Za-z0-9_]*)+/g;
 const R_TOKEN_CHARS = new Set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.");
@@ -137,25 +110,6 @@ function commandLinkForOpenSymbol(symbol: SymbolLite): string {
   return `command:kotonebot.editor.openSymbol?${arg}`;
 }
 
-function previewUrl(server: DevtoolsHttpConfig, symbol: SymbolLite): string {
-  const params = new URLSearchParams();
-  params.set("path", symbol.imagePath);
-  const geometry = symbol.primaryGeometry;
-  if (geometry !== null) {
-    const kind = geometry.kind;
-    if (kind === "image" || kind === "rect") {
-      for (const key of ["x1", "y1", "x2", "y2"]) {
-        const value = geometry[key];
-        if (value === undefined || value === null) {
-          throw new Error(`primaryGeometry missing ${key}`);
-        }
-        params.set(key, String(value));
-      }
-    }
-  }
-  return `http://${server.host}:${String(server.port)}/api/image/hover_preview?${params.toString()}`;
-}
-
 class RSymbolHoverProvider implements vscode.HoverProvider {
   private indexCache: SymbolSnapshotLite | null = null;
   private indexCacheTimeMs = 0;
@@ -223,17 +177,10 @@ class RSymbolHoverProvider implements vscode.HoverProvider {
     if (this.indexCache !== null && now - this.indexCacheTimeMs < 1500) {
       return this.indexCache;
     }
-    const url = `http://${this.server.host}:${String(this.server.port)}/api/meta/index`;
-    const envelope = await requestJson<ApiEnvelope<SymbolSnapshotLite>>(url);
-    if (envelope.success !== true) {
-      throw new Error(`meta index request failed: ${String(envelope.message)}`);
-    }
-    if (envelope.data === null) {
-      throw new Error("meta index response data is null");
-    }
-    this.indexCache = envelope.data;
+    const snapshot = await fetchMetaIndexSnapshot(this.server);
+    this.indexCache = snapshot;
     this.indexCacheTimeMs = now;
-    return envelope.data;
+    return snapshot;
   }
 
   private async getBaseVariantName(): Promise<string> {
@@ -241,23 +188,10 @@ class RSymbolHoverProvider implements vscode.HoverProvider {
     if (this.baseVariantNameCache !== null && now - this.baseVariantNameCacheTimeMs < 5000) {
       return this.baseVariantNameCache;
     }
-    const url = `http://${this.server.host}:${String(this.server.port)}/api/project/root`;
-    const envelope = await requestJson<ApiEnvelope<ProjectRootData>>(url);
-    if (envelope.success !== true) {
-      throw new Error(`project root request failed: ${String(envelope.message)}`);
-    }
-    if (envelope.data === null) {
-      throw new Error("project root response data is null");
-    }
-    if (envelope.data.variant === null) {
-      throw new Error("project root response variant is null");
-    }
-    if (typeof envelope.data.variant.base !== "string" || envelope.data.variant.base.trim() === "") {
-      throw new Error("project root response variant.base is invalid");
-    }
-    this.baseVariantNameCache = envelope.data.variant.base;
+    const baseVariant = await fetchProjectBaseVariant(this.server);
+    this.baseVariantNameCache = baseVariant;
     this.baseVariantNameCacheTimeMs = now;
-    return envelope.data.variant.base;
+    return baseVariant;
   }
 
   private async getPreviewDataUri(symbol: SymbolLite): Promise<string> {
@@ -266,8 +200,7 @@ class RSymbolHoverProvider implements vscode.HoverProvider {
     if (cached !== undefined) {
       return cached;
     }
-    const url = previewUrl(this.server, symbol);
-    const imageBytes = await requestBuffer(url);
+    const imageBytes = await fetchHoverPreviewImage(this.server, symbol.imagePath, symbol.primaryGeometry);
     const dataUri = `data:image/png;base64,${imageBytes.toString("base64")}`;
     this.previewCache.set(key, dataUri);
     return dataUri;

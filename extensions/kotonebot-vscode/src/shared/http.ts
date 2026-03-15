@@ -37,7 +37,8 @@ export function requestBuffer(url: string): Promise<Buffer> {
   });
 }
 
-export async function requestJson<T>(url: string): Promise<T> {
+/** 请求并解析 JSON，返回 unknown 供上层做类型校验。 */
+export async function requestJsonUnknown(url: string): Promise<unknown> {
   const content = await requestBuffer(url);
-  return JSON.parse(content.toString("utf-8")) as T;
+  return JSON.parse(content.toString("utf-8")) as unknown;
 }
