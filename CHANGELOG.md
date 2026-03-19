@@ -10,6 +10,8 @@ Framework:
 
 Devtool:
 1. [feat] 新增 Definition 的右键菜单，支持复制、粘贴与创建副本。
+2. [feat] 新增 VSCode 扩展，现在可以在 VSCode 里直接通过 Devtool 进行编辑了。
+3. [feat] resgen 工具现在支持将错误视为警告，强制构建了。
 
 ## v0.9.0
 Framework: 
