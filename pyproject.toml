@@ -36,9 +36,9 @@ android = [
 
 # Windows platform dependencies
 windows = [
-    "pywin32",
-    "ahk>=1.8",
-    "win11toast>=0.35",  # For Windows Toast Notification
+    "pywin32; sys_platform == 'win32'",
+    "ahk>=1.8; sys_platform == 'win32'",
+    "win11toast>=0.35; sys_platform == 'win32'",  # For Windows Toast Notification
     "psutil>=6.1", # for custom host (kill process)
 ]
 

@@ -14,6 +14,7 @@ from ...protocol import MultiTouchable, Screenshotable, Lifecycle, SimpleInputDr
 from ...registration import ImplConfig
 from .external_renderer_ipc import ExternalRendererIpc
 from kotonebot.errors import KotonebotError
+from kotonebot.util import windows_only
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class NemuIpcImplConfig(ImplConfig):
     wait_package_interval: float = 0.1  # 单位秒
 
 
+@windows_only("NemuIpcImpl")
 class NemuIpcImpl(MultiTouchable, Screenshotable, Lifecycle, SimpleInputDriver, TouchDriver):
     """
     利用 MuMu12 提供的 external_renderer_ipc.dll 进行截图与触摸控制。

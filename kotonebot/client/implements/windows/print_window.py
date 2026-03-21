@@ -1,6 +1,5 @@
 # ruff: noqa: E402
-from kotonebot.util import require_windows
-require_windows('"WindowsImpl" implementation')
+from kotonebot.util import windows_only, require_windows
 
 import ctypes
 import ctypes.wintypes as wt
@@ -9,9 +8,26 @@ from typing import TYPE_CHECKING, Literal
 import cv2
 from cv2.typing import MatLike
 import numpy as np
-import win32ui
-import win32con
-import win32gui
+if TYPE_CHECKING:
+    import win32ui
+    import win32con
+    import win32gui
+else:
+    win32ui = None
+    win32con = None
+    win32gui = None
+
+def _load_deps():
+    global win32ui, win32con, win32gui
+    if win32ui is not None and win32con is not None and win32gui is not None:
+        return
+    require_windows('"WindowsImpl" implementation')
+    import win32ui as _win32ui
+    import win32con as _win32con
+    import win32gui as _win32gui
+    win32ui = _win32ui
+    win32con = _win32con
+    win32gui = _win32gui
 
 from ...protocol import Screenshotable
 from kotonebot.interop.win.window import Win32Window
@@ -24,6 +40,7 @@ PW_RENDERFULLCONTENT = 0x2
 # TODO: 目前每次截图都会完整创建和销毁 GDI 对象，性能较差，后续可以考虑缓存这些对象以提升性能
 # TODO: 需要先支持 Impl 的生命周期管理
 def capture_printwindow(hwnd: int) -> MatLike:
+    _load_deps()
     # client rect size
     left, top, right, bottom = win32gui.GetClientRect(hwnd)
     width, height = right - left, bottom - top
@@ -93,8 +110,10 @@ def capture_printwindow(hwnd: int) -> MatLike:
     return img
 
 
+@windows_only('"WindowsImpl" implementation')
 class PrintWindowImpl(Screenshotable):
     def __init__(self, device: 'Device', window_title: str):
+        _load_deps()
         self.window = Win32Window.require_window('title', window_title)
         ctypes.windll.user32.SetProcessDPIAware()
 

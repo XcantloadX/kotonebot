@@ -1,4 +1,8 @@
 # 更新日志
+## v0.12.0
+Library:
+1. [feat] 优化跨平台体验。现在在非 Windows 平台上导入 Windows-Only 的模块不会立刻报错，而是等到调用/实例化时才抛出异常。
+
 ## v0.11.0
 Library:
 1. [refactor] **BREAKING** 为了便于扩展，Prefab 的方法参数从 kwargs 迁移到 Query 入口（`q(...)`），统一 TemplateMatch/OCR 的参数覆盖与谓词过滤写法。旧/新写法对比：

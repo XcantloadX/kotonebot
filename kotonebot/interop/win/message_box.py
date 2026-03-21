@@ -1,6 +1,7 @@
 import ctypes
 from typing import Optional, Literal, List, overload
 from typing_extensions import assert_never
+from kotonebot.util import require_windows
 
 
 # 按钮常量
@@ -61,7 +62,14 @@ ModalType = Literal['application', 'system', 'task']
 OptionsType = Optional[List[Literal['help', 'no_focus', 'set_foreground', 'default_desktop_only', 'topmost', 'right', 'rtl_reading', 'service_notification']]]
 ReturnType = Literal['ok', 'cancel', 'abort', 'retry', 'ignore', 'yes', 'no', 'close', 'help', 'try_again', 'continue']
 
-user32 = ctypes.windll.user32
+user32 = None
+
+def _get_user32():
+    global user32
+    if user32 is None:
+        require_windows("message_box")
+        user32 = ctypes.windll.user32
+    return user32
 
 
 @overload
@@ -260,7 +268,8 @@ def message_box(
                 case _:
                     assert_never(option)
 
-    result = user32.MessageBoxW(hWnd, text, caption, uType)
+    u32 = _get_user32()
+    result = u32.MessageBoxW(hWnd, text, caption, uType)
 
     match result:
         case 1:  # IDOK

@@ -5,45 +5,11 @@ This module provides Windows TaskDialog functionality and is only available on W
 """
 
 
-from kotonebot.util import is_windows
-
-# 检查是否在 Windows 平台上
-if not is_windows():
-    _WINDOWS_ONLY_MSG = (
-        f"TaskDialog is only available on Windows systems. "
-        f"Current system: non-Windows\n"
-        "To use Windows TaskDialog features, please run this code on a Windows system."
-    )
-
-    
-    # 提供虚拟类以避免导入错误
-    class TaskDialog:
-        def __init__(self, *args, **kwargs):
-            raise ImportError(_WINDOWS_ONLY_MSG)
-    
-    # 导出所有常量作为 None
-    __all__ = [
-        "TaskDialog",
-        "TDCBF_OK_BUTTON", "TDCBF_YES_BUTTON", "TDCBF_NO_BUTTON", "TDCBF_CANCEL_BUTTON",
-        "TDCBF_RETRY_BUTTON", "TDCBF_CLOSE_BUTTON",
-        "IDOK", "IDCANCEL", "IDABORT", "IDRETRY", "IDIGNORE", "IDYES", "IDNO", "IDCLOSE",
-        "TD_WARNING_ICON", "TD_ERROR_ICON", "TD_INFORMATION_ICON", "TD_SHIELD_ICON"
-    ]
-    
-    # 设置所有常量为 None 或保留为模块级变量
-    TDCBF_OK_BUTTON = TDCBF_YES_BUTTON = TDCBF_NO_BUTTON = TDCBF_CANCEL_BUTTON = None
-    TDCBF_RETRY_BUTTON = TDCBF_CLOSE_BUTTON = None
-    IDOK = IDCANCEL = IDABORT = IDRETRY = IDIGNORE = IDYES = IDNO = IDCLOSE = None
-    TD_WARNING_ICON = TD_ERROR_ICON = TD_INFORMATION_ICON = TD_SHIELD_ICON = None
-    
-    # 阻止模块加载
-    raise ImportError(_WINDOWS_ONLY_MSG)
-
-# 如果是 Windows，继续正常加载
 import ctypes
 from ctypes import wintypes
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, TYPE_CHECKING
 from typing import Literal
+from kotonebot.util import windows_only, require_windows
 
 __all__ = [
     "TaskDialog",
@@ -172,23 +138,36 @@ class TASKDIALOGCONFIG(ctypes.Structure):
     ]
 
 
-# --- 加载 comctl32.dll 并定义函数原型 ---
+# --- 延迟加载 comctl32.dll 并定义函数原型 ---
+if TYPE_CHECKING:
+    comctl32: ctypes.WinDLL
+    user32: ctypes.WinDLL
+    TaskDialogIndirect: object
+else:
+    comctl32 = None
+    user32 = None
+    TaskDialogIndirect = None
 
-comctl32 = ctypes.WinDLL('comctl32')
-user32 = ctypes.WinDLL('user32')
-
-TaskDialogIndirect = comctl32.TaskDialogIndirect
-TaskDialogIndirect.restype = ctypes.HRESULT
-TaskDialogIndirect.argtypes = [
-    ctypes.POINTER(TASKDIALOGCONFIG),
-    ctypes.POINTER(ctypes.c_int),
-    ctypes.POINTER(ctypes.c_int),
-    ctypes.POINTER(wintypes.BOOL)
-]
+def _ensure_loaded():
+    global comctl32, user32, TaskDialogIndirect
+    if comctl32 is not None and user32 is not None and TaskDialogIndirect is not None:
+        return
+    require_windows("TaskDialog")
+    comctl32 = ctypes.WinDLL('comctl32')
+    user32 = ctypes.WinDLL('user32')
+    TaskDialogIndirect = comctl32.TaskDialogIndirect
+    TaskDialogIndirect.restype = ctypes.HRESULT
+    TaskDialogIndirect.argtypes = [
+        ctypes.POINTER(TASKDIALOGCONFIG),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(wintypes.BOOL)
+    ]
 
 
 # --- Python 封装类 ---
 
+@windows_only("TaskDialog")
 class TaskDialog:
     """
     一个用于显示 Windows TaskDialog 的 Python 封装类。
@@ -235,6 +214,7 @@ class TaskDialog:
         :param show_progress_bar: 是否显示标准进度条。
         :param show_marquee_progress_bar: 是否显示跑马灯式进度条。
         """
+        _ensure_loaded()
         self.config = TASKDIALOGCONFIG()
         self.config.cbSize = ctypes.sizeof(TASKDIALOGCONFIG)
         self.config.hwndParent = parent_hwnd

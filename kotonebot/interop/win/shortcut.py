@@ -1,7 +1,6 @@
 import os
 
-import pythoncom
-from win32comext.shell import shell, shellcon
+from kotonebot.util import require_windows
 
 def create_shortcut(target_file: str, target_args: str, link_file: str | None, *,
                     link_name: str | None = None,
@@ -17,6 +16,9 @@ def create_shortcut(target_file: str, target_args: str, link_file: str | None, *
     :param icon_path: The path to the icon file.
     :param description: The description of the shortcut.
     """
+    require_windows("create_shortcut")
+    import pythoncom
+    from win32comext.shell import shell, shellcon
     pythoncom.CoInitialize()
     if link_file is None:
         desktop_path = shell.SHGetFolderPath(0, shellcon.CSIDL_DESKTOP, 0, 0)
@@ -39,4 +41,3 @@ def create_shortcut(target_file: str, target_args: str, link_file: str | None, *
     persist_file = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
     persist_file.Save(link_file, 0) # type: ignore
     pythoncom.CoUninitialize()
-

@@ -1,14 +1,27 @@
 # ruff: noqa: E402
-from kotonebot.util import require_windows
-require_windows('"WindowsImpl" implementation')
+from kotonebot.util import windows_only, require_windows
 
 import time
 from time import sleep
 from typing_extensions import assert_never
 from typing import Optional, Literal, TYPE_CHECKING
 
-import win32gui
-import win32con
+if TYPE_CHECKING:
+    import win32gui
+    import win32con
+else:
+    win32gui = None
+    win32con = None
+
+def _load_deps():
+    global win32gui, win32con
+    if win32gui is not None and win32con is not None:
+        return
+    require_windows('"WindowsImpl" implementation')
+    import win32gui as _win32gui
+    import win32con as _win32con
+    win32gui = _win32gui
+    win32con = _win32con
 
 from ...protocol import Touchable, SimpleInputDriver
 from kotonebot.interop.win.window import Win32Window
@@ -39,6 +52,7 @@ def _make_wparam(button_data: int, wheel_delta: int = 0) -> int:
     return (wheel_delta << 16) | (button_data & 0xFFFF)
 
 def _wait_cursor_idle(max_speed: float = 50):
+    _load_deps()
     if max_speed <= 0:
         return
     sample_interval = 0.05
@@ -63,6 +77,7 @@ def _wait_cursor_idle(max_speed: float = 50):
 
 class SendMessageWrapper:
     def __init__(self, window: Win32Window, wait_cursor_idle: float = -1):
+        _load_deps()
         self.window = window
         self.last_pos = (0, 0)
         self.last_pos_set = False
@@ -300,8 +315,10 @@ class SendMessageWrapper:
         end_y = y + dy
         return self.drag(x, y, end_x, end_y, button=button, duration=duration)
 
+@windows_only('"WindowsImpl" implementation')
 class SendMessageImpl(Touchable, SimpleInputDriver):
     def __init__(self, device: 'Device', window_title: str, *, wait_cursor_idle: float = -1) -> None:
+        _load_deps()
         self.device = device
         window = Win32Window.require_window('title', window_title)
         self.wrapper = SendMessageWrapper(window, wait_cursor_idle)

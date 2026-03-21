@@ -1,26 +1,41 @@
 # ruff: noqa: E402
-from kotonebot.util import require_windows
-require_windows('"WindowsImpl" implementation')
+from kotonebot.util import windows_only, require_windows
 
-from ctypes import windll
-from typing import Literal
+import ctypes
+from typing import TYPE_CHECKING, Literal
 from importlib import resources
 from dataclasses import dataclass
 
 import cv2
 import numpy as np
-try:
-    import win32ui
-    import win32gui
-    from ahk import AHK, MsgBoxIcon
-except ImportError as _e:
-    from kotonebot.errors import MissingDependencyError
-    raise MissingDependencyError(_e, 'windows')
 from cv2.typing import MatLike
 
 from ...device import Device
 from ...protocol import Touchable, Screenshotable, Lifecycle, SimpleInputDriver
 from ...registration import ImplConfig
+
+if TYPE_CHECKING:
+    import win32ui
+    import win32gui
+    from ahk import AHK, MsgBoxIcon
+else:
+    win32ui = None
+    win32gui = None
+    AHK = None
+    MsgBoxIcon = None
+
+def _load_deps():
+    global win32ui, win32gui, AHK, MsgBoxIcon
+    if win32ui is not None and win32gui is not None and AHK is not None and MsgBoxIcon is not None:
+        return
+    require_windows('"WindowsImpl" implementation')
+    import win32ui as _win32ui
+    import win32gui as _win32gui
+    from ahk import AHK as _AHK, MsgBoxIcon as _MsgBoxIcon
+    win32ui = _win32ui
+    win32gui = _win32gui
+    AHK = _AHK
+    MsgBoxIcon = _MsgBoxIcon
 
 # 1. 定义配置模型
 @dataclass
@@ -28,8 +43,10 @@ class WindowsImplConfig(ImplConfig):
     window_title: str
     ahk_exe_path: str
 
+@windows_only('"WindowsImpl" implementation')
 class WindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
     def __init__(self, device: Device, window_title: str, ahk_exe_path: str):
+        _load_deps()
         self.__hwnd: int | None = None
         self.window_title = window_title
         self.ahk = AHK(executable_path=ahk_exe_path)
@@ -37,7 +54,7 @@ class WindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
         self._started = False
 
         # 设置 DPI aware，否则高缩放显示器上返回的坐标会错误
-        windll.user32.SetProcessDPIAware()
+        ctypes.windll.user32.SetProcessDPIAware()
 
     # TODO: 这个应该移动到其他地方去
     def _stop_hotkey(self):

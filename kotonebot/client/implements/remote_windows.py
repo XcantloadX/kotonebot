@@ -1,6 +1,5 @@
 # ruff: noqa: E402
-from kotonebot.util import require_windows
-require_windows('"RemoteWindowsImpl" implementation')
+from kotonebot.util import windows_only
 
 import base64
 import logging
@@ -45,6 +44,7 @@ def _decode_image(encoded_image: str) -> MatLike:
         raise RuntimeError("Failed to decode image")
     return image
 
+@windows_only('"RemoteWindowsImpl" implementation')
 class RemoteWindowsServer:
     """
     XML-RPC server that exposes a WindowsImpl instance.
@@ -141,6 +141,7 @@ class RemoteWindowsServer:
         return True
 
 
+@windows_only('"RemoteWindowsImpl" implementation')
 class RemoteWindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
     """
     Client implementation that connects to a remote Windows machine via XML-RPC.

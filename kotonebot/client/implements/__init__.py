@@ -1,5 +1,4 @@
 from typing import TYPE_CHECKING
-from kotonebot.util import is_windows, require_windows
 
 if TYPE_CHECKING:
     from .adb import AdbImpl, AdbImplConfig
@@ -14,8 +13,6 @@ def _require_windows():
     global RemoteWindowsImpl, RemoteWindowsImplConfig, RemoteWindowsServer
     global NemuIpcImpl, NemuIpcImplConfig, ExternalRendererIpc
     
-    if not is_windows():
-        require_windows('"windows", "remote_windows" and "nemu_ipc" implementations')
     from .windows import WindowsImpl, WindowsImplConfig
     from .remote_windows import RemoteWindowsImpl, RemoteWindowsImplConfig, RemoteWindowsServer
     from .nemu_ipc import NemuIpcImpl, NemuIpcImplConfig, ExternalRendererIpc

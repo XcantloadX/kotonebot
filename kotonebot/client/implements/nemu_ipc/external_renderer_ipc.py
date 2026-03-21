@@ -4,11 +4,13 @@ import os
 
 logger = logging.getLogger(__name__)
 
+from kotonebot.util import windows_only
 
 class NemuIpcIncompatible(RuntimeError):
     """MuMu12 IPC 环境不兼容或 DLL 加载失败"""
 
 
+@windows_only("ExternalRendererIpc")
 class ExternalRendererIpc:
     r"""对 `external_renderer_ipc.dll` 的轻量封装。
 
@@ -18,9 +20,6 @@ class ExternalRendererIpc:
     """
 
     def __init__(self, mumu_root_folder: str):
-        if os.name != "nt":
-            raise NemuIpcIncompatible("ExternalRendererIpc only supports Windows.")
-
         self.lib = self.__load_dll(mumu_root_folder)
         self.raise_on_error: bool = True
         """是否在调用 DLL 函数失败时抛出异常。"""

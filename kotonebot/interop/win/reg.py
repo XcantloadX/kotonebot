@@ -1,5 +1,5 @@
-import winreg
 from typing import Any, Literal
+from kotonebot.util import require_windows
 
 RegKey = Literal["HKLM", "HKCU", "HKCR", "HKU", "HKCC"]
 
@@ -13,6 +13,8 @@ def read_reg(key: RegKey, subkey: str, name: str, *, default: Any = None) -> Any
     :param default: 如果注册表项不存在时返回的默认值。
     :return: 注册表项的值，如果不存在则返回默认值。
     """
+    require_windows("read_reg")
+    import winreg
     try:
         hkey = {
             "HKLM": winreg.HKEY_LOCAL_MACHINE,

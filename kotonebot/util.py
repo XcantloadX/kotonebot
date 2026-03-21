@@ -3,6 +3,7 @@ import time
 import typing
 import logging
 import platform
+import functools
 from importlib import resources
 from typing import Literal, Callable, TYPE_CHECKING
 from typing_extensions import deprecated
@@ -34,13 +35,34 @@ def is_macos() -> bool:
     return platform.system() == 'Darwin'
 
 def require_windows(feature_name: str | None = None, class_: type | None = None) -> None:
-    """要求必须在 Windows 系统上运行，否则抛出 ImportError"""
+    """要求必须在 Windows 系统上运行，否则抛出 NotImplementedError"""
     if not is_windows():
         feature_name = feature_name or 'not specified'
         if class_:
             full_name = '.'.join([class_.__module__, class_.__name__])
             feature_name += f' ({full_name})'
-        raise ImportError(_WINDOWS_ONLY_MSG.format(feature_name=feature_name))
+        raise NotImplementedError(_WINDOWS_ONLY_MSG.format(feature_name=feature_name))
+
+def windows_only(feature_name: str | None = None):
+    """
+    装饰器：在 Windows 以外平台调用时抛出 NotImplementedError。
+    适用于函数和类。对于类，会装饰其 __init__ 方法，确保实例化时检查平台。
+    """
+    def decorator(obj):
+        if isinstance(obj, type):
+            orig_init = obj.__init__
+            @functools.wraps(orig_init)
+            def __init__(self, *args, **kwargs):
+                require_windows(feature_name=feature_name, class_=obj)
+                return orig_init(self, *args, **kwargs)
+            obj.__init__ = __init__
+            return obj
+        @functools.wraps(obj)
+        def wrapper(*args, **kwargs):
+            require_windows(feature_name=feature_name)
+            return obj(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 
