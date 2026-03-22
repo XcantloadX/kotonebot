@@ -1,4 +1,19 @@
 # 更新日志
+## v0.11.0
+Library:
+1. [refactor] **BREAKING** 为了便于扩展，Prefab 的方法参数从 kwargs 迁移到 Query 入口（`q(...)`），统一 TemplateMatch/OCR 的参数覆盖与谓词过滤写法。旧/新写法对比：
+
+	```python
+	# 旧写法
+	obj = _Prefab.require(threshold=0.7, region=full_region)
+	obj = _Prefab.find(predicate=lambda o: o.rect.w > 0)
+
+	# 新写法
+	obj = _Prefab.q(threshold=0.7, region=full_region).require()
+	obj = _Prefab.q(_Prefab.Query(predicate=lambda o: o.rect.w > 0)).find()
+	```
+
+
 ## v0.10.0
 Library:
 1. [feat] **BREAKING** 移除 image.similar 分发与 scikit-image 依赖。

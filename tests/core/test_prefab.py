@@ -91,32 +91,32 @@ class TestTemplateMatchPrefab(unittest.TestCase):
         class _Prefab(TemplateMatchPrefab[_Obj]):
             template = Image(file_path='tests/images/pdorinku.png')
             threshold = 0.999
-            region = Rect(0, 0, 10, 10)
+            region = Rect(0, 0, 120, 120)
         with self.assertRaises(TemplateNoMatchError):
             _Prefab.require()
 
-    def test_kwargs_override_threshold_and_region(self):
+    def test_query_override_threshold_and_region(self):
         class _Obj(GameObject):
             pass
         class _Prefab(TemplateMatchPrefab[_Obj]):
             template = Image(file_path='tests/images/pdorinku.png')
             # 使用一个非常高的阈值以及错误的区域，默认应匹配失败
             threshold = 0.999
-            region = Rect(0, 0, 10, 10)
+            region = Rect(0, 0, 120, 120)
 
         # 默认配置应抛出异常
         with self.assertRaises(TemplateNoMatchError):
             _Prefab.require()
 
-        # 使用 kwargs 覆盖阈值和区域，应当可以匹配成功
+        # 使用 q(...) 覆盖阈值和区域，应当可以匹配成功
         h, w, _ = self.img.shape
         full_region = Rect(0, 0, w, h)
-        obj = _Prefab.require(threshold=0.7, region=full_region)
+        obj = _Prefab.q(threshold=0.7, region=full_region).require()
         self.assertIsNotNone(obj)
         self.assertIsInstance(obj, _Obj)
         self.assertIs(obj.prefab, _Prefab)
 
-    def test_kwargs_colored_argument(self):
+    def test_query_colored_argument(self):
         class _Obj(GameObject):
             pass
         class _Prefab(TemplateMatchPrefab[_Obj]):
@@ -124,8 +124,8 @@ class TestTemplateMatchPrefab(unittest.TestCase):
             threshold = 0.7
             colored = False
 
-        # 仅验证 colored 参数可以通过 kwargs 传入并正常工作
-        obj = _Prefab.find(colored=True)
+        # 仅验证 colored 参数可以通过 q(...) 传入并正常工作
+        obj = _Prefab.q(colored=True).find()
         # 无论是否匹配成功，代码路径都不应抛异常
         # 如果匹配成功，再做一些基本断言
         if obj is not None:
@@ -139,10 +139,10 @@ class TestTemplateMatchPrefab(unittest.TestCase):
             template = Image(file_path='tests/images/pdorinku.png')
             threshold = 0.7
         # 使用一个总是 False 的谓词，find 应该返回 None
-        obj = _Prefab.find(predicate=lambda o: False)
+        obj = _Prefab.q(_Prefab.Query(predicate=lambda o: False)).find()
         self.assertIsNone(obj)
         # find_all 也应返回空列表
-        objs = _Prefab.find_all(predicate=lambda o: False)
+        objs = _Prefab.q(_Prefab.Query(predicate=lambda o: False)).find_all()
         self.assertEqual(len(objs), 0)
 
 
@@ -237,12 +237,12 @@ class TestOcrPrefab(unittest.TestCase):
         class _Prefab(OcrPrefab[_Obj]):
             pattern = '受け取るPドリンクを選んでください。'
             region = Rect(147, 614, 417, 32)
-        obj = _Prefab.find(predicate=lambda o: False)
+        obj = _Prefab.q(_Prefab.Query(predicate=lambda o: False)).find()
         self.assertIsNone(obj)
-        objs = _Prefab.find_all(predicate=lambda o: False)
+        objs = _Prefab.q(_Prefab.Query(predicate=lambda o: False)).find_all()
         self.assertEqual(len(objs), 0)
 
-    def test_ocr_kwargs_override_region(self):
+    def test_ocr_query_override_region(self):
         class _Obj(GameObject):
             pass
         class _Prefab(OcrPrefab[_Obj]):
@@ -253,9 +253,26 @@ class TestOcrPrefab(unittest.TestCase):
         with self.assertRaises(TextNotFoundError):
             _Prefab.require()
 
-        # 使用 kwargs 覆盖为正确区域，应当可以找到
+        # 使用 q(...) 覆盖为正确区域，应当可以找到
         correct_region = Rect(147, 614, 417, 32)
-        obj = _Prefab.require(region=correct_region)
+        obj = _Prefab.q(region=correct_region).require()
+        self.assertIsNotNone(obj)
+        self.assertIsInstance(obj, _Obj)
+        self.assertIs(obj.prefab, _Prefab)
+
+    def test_matching_entry_for_ocr(self):
+        class _Obj(GameObject):
+            pass
+
+        class _Prefab(OcrPrefab[_Obj]):
+            pattern = '受け取るPドリンクを選んでください。'
+            region = Rect(0, 0, 10, 10)
+
+        with self.assertRaises(TextNotFoundError):
+            _Prefab.require()
+
+        correct_region = Rect(147, 614, 417, 32)
+        obj = _Prefab.q(region=correct_region).require()
         self.assertIsNotNone(obj)
         self.assertIsInstance(obj, _Obj)
         self.assertIs(obj.prefab, _Prefab)

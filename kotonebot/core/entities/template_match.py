@@ -1,36 +1,40 @@
-from typing import TYPE_CHECKING, Generic
-from typing_extensions import Unpack, override
+from dataclasses import dataclass
+from typing import overload
+from typing_extensions import override
 
 from kotonebot.devtools.project.schema import BoolProp, FloatProp, ImageProp, RectProp
 from kotonebot.primitives import Rect, ImageSlice
 from kotonebot.devtools import EditorMetadata
 
-from .base import Prefab, FindKwargs, GameObjectType, ClickKwargs as _ClickKwargs, WaitKwargs as _WaitKwargs
+from .base import (
+    BoundPrefab,
+    FindQuery,
+    GameObjectType,
+    Prefab,
+)
 
-
-class TemplateMatchFindKargs(FindKwargs[GameObjectType], total=False):
-    threshold: float | None
+@dataclass(frozen=True, slots=True)
+class TemplateMatchQuery(FindQuery[GameObjectType]):
+    threshold: float | None = None
     """匹配阈值
     
     如果指定，则覆盖 TemplateMatchPrefab 中定义的 threshold 属性。
     """
-    colored: bool | None
+    colored: bool | None = None
     """是否匹配颜色
     
     如果指定，则覆盖 TemplateMatchPrefab 中定义的 colored 属性。
     """
-    region: Rect | None
+    region: Rect | None = None
     """搜索区域
     
     如果指定，则覆盖 TemplateMatchPrefab 中定义的 region 属性。
     """
 
-class ClickKwargs(TemplateMatchFindKargs[GameObjectType], _ClickKwargs[GameObjectType], Generic[GameObjectType], total=False): pass
-class WaitKwargs(TemplateMatchFindKargs[GameObjectType], _WaitKwargs[GameObjectType], Generic[GameObjectType], total=False): pass
-
-
 class TemplateMatchPrefab(Prefab[GameObjectType]):
     """基于模版匹配的 Prefab"""
+    Query = TemplateMatchQuery
+
     template: ImageSlice
     """[必填] 用于匹配的模版图像"""
     fixed: bool = False
@@ -70,22 +74,24 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
         }
 
 
-    @override
     @classmethod
-    def find(cls, **kwargs: Unpack[TemplateMatchFindKargs[GameObjectType]]) -> GameObjectType | None:
-        from kotonebot import image
-        predicate = kwargs.get('predicate')
-        threshold_override = kwargs.get('threshold')
-        threshold = cls.threshold if threshold_override is None else threshold_override
-        colored_override = kwargs.get('colored')
-        colored = cls.colored if colored_override is None else colored_override
-        region = kwargs.get('region', cls.region)
+    def _resolve_match_options(cls, query: TemplateMatchQuery[GameObjectType]) -> tuple[float, bool, Rect | None]:
+        threshold = cls.threshold if query.threshold is None else query.threshold
+        colored = cls.colored if query.colored is None else query.colored
+        region = cls.region if query.region is None else query.region
         # If prefab is fixed and no explicit region provided, use template.slice_rect
         if region is None and cls.fixed:
             slice_rect = cls.template.slice_rect
             if slice_rect is None:
                 raise ValueError(f"Prefab {cls.__name__} is marked fixed but template has no slice_rect")
             region = slice_rect
+        return threshold, colored, region
+
+    @override
+    @classmethod
+    def _find_impl(cls, query: TemplateMatchQuery[GameObjectType]) -> GameObjectType | None:
+        from kotonebot import image
+        threshold, colored, region = cls._resolve_match_options(query)
         result = image.find(
             cls.template.pixels,
             rect=region,
@@ -98,25 +104,15 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
         obj = obj_class()
         obj.rect = result.rect
         obj.prefab = cls
-        if predicate is not None and not predicate(obj):
+        if query.predicate is not None and not query.predicate(obj):
             return None
         return obj
 
     @override
     @classmethod
-    def find_all(cls, **kwargs: Unpack[TemplateMatchFindKargs[GameObjectType]]) -> list[GameObjectType]:
+    def _find_all_impl(cls, query: TemplateMatchQuery[GameObjectType]) -> list[GameObjectType]:
         from kotonebot import image
-        predicate = kwargs.get('predicate')
-        threshold_override = kwargs.get('threshold')
-        threshold = cls.threshold if threshold_override is None else threshold_override
-        colored_override = kwargs.get('colored')
-        colored = cls.colored if colored_override is None else colored_override
-        region = kwargs.get('region', cls.region)
-        if region is None and cls.fixed:
-            slice_rect = cls.template.slice_rect
-            if slice_rect is None:
-                raise ValueError(f"Prefab {cls.__name__} is marked fixed but template has no slice_rect")
-            region = slice_rect
+        threshold, colored, region = cls._resolve_match_options(query)
         results = image.find_all(
             cls.template.pixels,
             rect=region,
@@ -129,27 +125,17 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
             obj = obj_class()
             obj.rect = r.rect
             obj.prefab = cls
-            if predicate is None or predicate(obj):
+            if query.predicate is None or query.predicate(obj):
                 objects.append(obj)
         return objects
 
     @override
     @classmethod
-    def require(cls, **kwargs: Unpack[TemplateMatchFindKargs[GameObjectType]]) -> GameObjectType:
+    def _require_impl(cls, query: TemplateMatchQuery[GameObjectType]) -> GameObjectType:
         from kotonebot import image, device
         from kotonebot.backend.image import TemplateNoMatchError
-        predicate = kwargs.get('predicate')
-        threshold_override = kwargs.get('threshold')
-        threshold = cls.threshold if threshold_override is None else threshold_override
-        colored_override = kwargs.get('colored')
-        colored = cls.colored if colored_override is None else colored_override
-        region = kwargs.get('region', cls.region)
-        if region is None and cls.fixed:
-            slice_rect = cls.template.slice_rect
-            if slice_rect is None:
-                raise ValueError(f"Prefab {cls.__name__} is marked fixed but template has no slice_rect")
-            region = slice_rect
-        if predicate is None:
+        threshold, colored, region = cls._resolve_match_options(query)
+        if query.predicate is None:
             # 直接使用 expect，未找到会抛出 TemplateNoMatchError
             result = image.expect(
                 cls.template.pixels,
@@ -174,25 +160,40 @@ class TemplateMatchPrefab(Prefab[GameObjectType]):
             for r in results:
                 obj = obj_class()
                 obj.rect = r.rect
-                if predicate(obj):
+                if query.predicate(obj):
                     obj.prefab = cls
                     return obj
             # 没有任何匹配满足 predicate，抛出未找到异常
             raise TemplateNoMatchError(device.screenshot(), cls.template.pixels)
 
-    if TYPE_CHECKING:
-        # 这些方法只需要重载声明，实际实现由基类提供不变
-        @classmethod
-        def exists(cls, **kwargs: Unpack[TemplateMatchFindKargs[GameObjectType]]) -> bool: ...
-        
-        @classmethod
-        def click(cls, **kwargs: Unpack[ClickKwargs[GameObjectType]]) -> None: ...
+    @overload
+    @classmethod
+    def q(cls, query: TemplateMatchQuery[GameObjectType]) -> BoundPrefab[GameObjectType, TemplateMatchQuery[GameObjectType]]: ...
+    @overload
+    @classmethod
+    def q(cls,
+        *,
+        threshold: float | None = None,
+        colored: bool | None = None,
+        region: Rect | None = None,
+    ) -> BoundPrefab[GameObjectType, TemplateMatchQuery[GameObjectType]]: ...
+    @classmethod
+    def q(
+        cls,
+        query: TemplateMatchQuery[GameObjectType] | None = None,
+        *,
+        threshold: float | None = None,
+        colored: bool | None = None,
+        region: Rect | None = None,
+    ) -> BoundPrefab[GameObjectType, TemplateMatchQuery[GameObjectType]]:
+        actual_query: TemplateMatchQuery[GameObjectType]
+        if query is not None:
+            actual_query = query
+        else:
+            actual_query = TemplateMatchQuery(
+                threshold=threshold,
+                colored=colored,
+                region=region,
+            )
 
-        @classmethod
-        def wait(cls, **kwargs: Unpack[WaitKwargs[GameObjectType]]) -> GameObjectType: ...
-        
-        @classmethod
-        def try_click(cls, **kwargs: Unpack[ClickKwargs[GameObjectType]]) -> bool: ...
-        
-        @classmethod
-        def try_wait(cls, **kwargs: Unpack[WaitKwargs[GameObjectType]]) -> GameObjectType | None: ...
+        return BoundPrefab(cls, actual_query)

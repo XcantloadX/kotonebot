@@ -1,5 +1,6 @@
 import time
 from abc import ABC
+from dataclasses import dataclass
 from typing import Any, Callable, Type, cast, get_args
 from typing_extensions import Generic, TypeVar, Unpack, TypedDict
 
@@ -7,19 +8,29 @@ from kotonebot.primitives import Rect
 from kotonebot.backend.context.context import manual_context
 
 GameObjectType = TypeVar('GameObjectType', bound='GameObject', default='GameObject')
+QueryType = TypeVar('QueryType', bound='FindQuery[Any]', default='FindQuery')
+Predicate = Callable[[GameObjectType], bool]
+T = TypeVar('T')
 
-class FindKwargs(TypedDict, Generic[GameObjectType], total=False):
-    predicate: 'Callable[[GameObjectType], bool] | None'
 
-
-class ClickKwargs(FindKwargs[GameObjectType], Generic[GameObjectType], total=False):
+class FindKwargs(TypedDict, total=False):
     pass
 
-class WaitKwargs(FindKwargs[GameObjectType], Generic[GameObjectType], total=False):
+
+class ClickKwargs(FindKwargs, total=False):
+    pass
+
+
+class WaitKwargs(FindKwargs, total=False):
     timeout: float | None
     interval: float | None
 
-T = TypeVar('T')
+@dataclass(frozen=True, slots=True)
+class FindQuery(Generic[GameObjectType]):
+    predicate: Predicate[GameObjectType] | None = None
+
+    def normalized(self) -> 'FindQuery[GameObjectType]':
+        return self
 
 def _wait_cond(
     cond: Callable[[], tuple[bool, T | None]],
@@ -47,7 +58,52 @@ def _wait_cond(
 
 
 class Prefab(Generic[GameObjectType], ABC):
+    """# Prefab
+    ## 自定义
+    你可以通过继承 Prefab 类来定义自己的查找逻辑。例如 Yolo：
+    ```python
+    from kotonebot.core import Prefab, GameObject
+
+    class YoloGameObject(GameObject):
+        label: str
+        bbox: Rect
+        confidence: float
+
+    class YoloPrefab(Prefab[YoloGameObject]):
+        Query = YoloQuery
+
+        label: str
+        threshold: float = 0.5
+
+        @override
+        def _find_impl(cls, query: YoloQuery) -> YoloGameObject | None:
+            return yolo_stuff(...)
+
+        @override
+        def _find_all_impl(cls, query: YoloQuery) -> list[YoloGameObject]:
+            return yolo_stuff(...)
+
+    class YoloQuery(FindQuery[YoloGameObject]):
+        label: str | None = None
+        threshold: float | None = None
+    
+    class BossEnemyPrefab(YoloPrefab):
+        label = 'boss_enemy'
+    
+    for _ in Loop():
+        if b := BossEnemyPrefab.find():
+            attack(b)
+        
+    ```
+    """
+
     __object_class__: Type[GameObjectType] | None = None
+    Query = FindQuery
+    """查询参数类。
+    
+    该属性指定了 Prefab.q() 使用的查询参数类。须是 FindQuery 的子类。
+    """
+
     display_name: str | None = None
     """展示名称
     
@@ -75,41 +131,79 @@ class Prefab(Generic[GameObjectType], ABC):
                 args = get_args(base)
                 if args and isinstance(args[0], type) and issubclass(args[0], GameObject):
                     # 缓存结果，下次不用再推断
-                    cls.__object_class__ = args[0]
-                    return cls.__object_class__
+                    inferred = cast(Type[GameObjectType], args[0])
+                    cls.__object_class__ = inferred
+                    return inferred
         # 3. 如果都失败了，回退到默认的 GameObject
         # (这通常发生在用户没有指定泛型参数时，如 class MyPrefab(TemplateMatchPrefab): ...)
         return cast(Type[GameObjectType], GameObject)
 
     @classmethod
-    def find(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> GameObjectType | None:
+    def _find_impl(cls, query: QueryType) -> GameObjectType | None:
+        raise NotImplementedError
+
+    @classmethod
+    def _find_all_impl(cls, query: QueryType) -> list[GameObjectType]:
+        raise NotImplementedError
+
+    @classmethod
+    def _require_impl(cls, query: QueryType) -> GameObjectType:
+        obj = cls._find_impl(query)
+        if obj is None:
+            raise RuntimeError(f"Could not find {cls.__name__}")
+        return obj
+
+    @classmethod
+    def q(cls, query: QueryType) -> 'BoundPrefab[GameObjectType, QueryType]':
+        """以指定搜索条件开启一次查找。
+
+        例：
+        ```python
+        @dataclass(frozen=True, slots=True)
+        class MyQuery(FindQuery[GameObjectType]):
+            my_param: int | None = None
+        class MyPrefab(Prefab[GameObjectType]):
+            Query = MyQuery
+            @classmethod
+            def q(cls, query: MyQuery) -> BoundPrefab[GameObjectType, MyQuery]: ...
+        
+        MyPrefab.q(MyQuery(my_param=123)).find()
+        ```
+
+        :param query: 搜索参数
+        :return: 绑定了搜索参数的 Prefab 实例，可以像普通 Prefab 类一样调用。
+        """
+        return BoundPrefab(cls, query)
+
+    @classmethod
+    def find(cls, **kwargs: Unpack[FindKwargs]) -> GameObjectType | None:
         """在屏幕画面中寻找当前 Prefab，并返回对应的第一个 GameObject 实例。
 
         :return: 寻找结果。如果没有找到，返回 None。
         """
-        raise NotImplementedError
-    
+        return cls.q(cls.Query()).find()
+
     @classmethod
-    def find_all(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> list[GameObjectType]:
+    def find_all(cls, **kwargs: Unpack[FindKwargs]) -> list[GameObjectType]:
         """在屏幕画面中寻找当前 Prefab，并返回对应的所有 GameObject 实例。
 
         :return: 寻找结果列表。如果没有找到，返回空列表。
         """
-        raise NotImplementedError
-    
+        return cls.q(cls.Query()).find_all()
+
     @classmethod
-    def require(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> GameObjectType:
+    def require(cls, **kwargs: Unpack[FindKwargs]) -> GameObjectType:
         """在屏幕画面中寻找当前 Prefab，并返回对应的第一个 GameObject 实例。
-        
+
         此方法与 find 类似，但如果没有找到任何结果，则会抛出异常。
 
         :raises: 如果没有找到，抛出异常。
         :return: 寻找结果。
         """
-        raise NotImplementedError
-    
+        return cls.q(cls.Query()).require()
+
     @classmethod
-    def exists(cls, **kwargs: Unpack[FindKwargs[GameObjectType]]) -> bool:
+    def exists(cls, **kwargs: Unpack[FindKwargs]) -> bool:
         """判断当前 Prefab 是否存在于屏幕画面中。
         
         此方法为 find 的简化版，仅返回是否存在。
@@ -120,7 +214,7 @@ class Prefab(Generic[GameObjectType], ABC):
         return cls.find(**kwargs) is not None
 
     @classmethod
-    def click(cls, **kwargs: Unpack[ClickKwargs[GameObjectType]]) -> None:
+    def click(cls, **kwargs: Unpack[ClickKwargs]) -> None:
         """在屏幕画面中寻找当前 Prefab，并点击第一个找到的 GameObject 实例。
         
         该方法会调用 require 方法，因此如果没有找到任何结果，则会抛出异常。
@@ -128,7 +222,7 @@ class Prefab(Generic[GameObjectType], ABC):
         return cls.require(**kwargs).click()
     
     @classmethod
-    def try_click(cls, **kwargs: Unpack[ClickKwargs[GameObjectType]]) -> bool:
+    def try_click(cls, **kwargs: Unpack[ClickKwargs]) -> bool:
         """尝试点击当前 Prefab 的第一个找到的 GameObject 实例。
         
         :return: 如果找到了对象并成功点击，返回 True；否则返回 False。
@@ -142,13 +236,13 @@ class Prefab(Generic[GameObjectType], ABC):
     @classmethod
     def wait(
         cls,
-        **kwargs: Unpack[WaitKwargs[GameObjectType]],
+        **kwargs: Unpack[WaitKwargs],
     ) -> GameObjectType:
         """等待当前 Prefab 出现。
         
         若指定时间内未找到，则抛出超时异常（wait 不再返回 None）。
         """
-        # 从 kwargs 中分离出用于等待控制的参数，剩下的传递给 `find`
+        # 从 kwargs 中分离出用于等待控制的参数，剩下的传递给 `matching`
         timeout = kwargs.pop("timeout", None)
         interval = kwargs.pop("interval", None)
         def _cond():
@@ -158,13 +252,13 @@ class Prefab(Generic[GameObjectType], ABC):
             _cond,
             timeout,
             interval,
-            TimeoutError(f"Timeout when waiting for {cls.__name__}（{timeout} s）")
+            TimeoutError(f"Timeout when waiting for {cls.__name__}（{timeout} s）"),
         )
 
     @classmethod
     def try_wait(
         cls,
-        **kwargs: Unpack[WaitKwargs[GameObjectType]],
+        **kwargs: Unpack[WaitKwargs],
     ) -> GameObjectType | None:
         """尝试等待当前 Prefab 出现。
 
@@ -202,3 +296,58 @@ class GameObject:
         from kotonebot import device
         device.double_click(*self.rect.center)
 
+
+class BoundPrefab(Generic[GameObjectType, QueryType]):
+    def __init__(self, prefab_cls: type[Prefab[GameObjectType]], query: QueryType):
+        self.prefab_cls = prefab_cls
+        self.query = query
+
+    def find(self) -> GameObjectType | None:
+        return self.prefab_cls._find_impl(self.query)
+
+    def find_all(self) -> list[GameObjectType]:
+        return self.prefab_cls._find_all_impl(self.query)
+
+    def require(self) -> GameObjectType:
+        return self.prefab_cls._require_impl(self.query)
+
+    def exists(self) -> bool:
+        return self.find() is not None
+
+    def click(self) -> None:
+        self.require().click()
+
+    def try_click(self) -> bool:
+        obj = self.find()
+        if obj is not None:
+            obj.click()
+            return True
+        return False
+
+    def wait(
+        self,
+        *,
+        timeout: float | None = None,
+        interval: float | None = None,
+    ) -> GameObjectType:
+        def _cond():
+            obj = self.find()
+            return (obj is not None, obj)
+
+        return _wait_cond(
+            _cond,
+            timeout,
+            interval,
+            TimeoutError(f"Timeout when waiting for {self.prefab_cls.__name__}（{timeout} s）"),
+        )
+
+    def try_wait(
+        self,
+        *,
+        timeout: float | None = None,
+        interval: float | None = None,
+    ) -> GameObjectType | None:
+        try:
+            return self.wait(timeout=timeout, interval=interval)
+        except TimeoutError:
+            return None
