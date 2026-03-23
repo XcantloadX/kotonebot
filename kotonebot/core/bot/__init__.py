@@ -1,6 +1,6 @@
 from .bot import (
     KotoneBot, BotContext, BotEvents, TaskMiddleware,
-    TaskStatus, BotStopReason,
+    TaskStatus, BotStopReason, RunStatus,
     NextHandler, Event
 )
 
@@ -11,6 +11,7 @@ __all__ = [
     "TaskMiddleware",
     "TaskStatus",
     "BotStopReason",
+    "RunStatus",
     "NextHandler",
     "Event",
 ]
