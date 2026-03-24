@@ -41,6 +41,8 @@ export const StageView: React.FC = () => {
   const activeMeta = activeDoc?.meta;
   const selection = activeDoc?.selection || null;
   const mode = activeDoc?.mode || { kind: "idle" };
+  // 进入 pick rect 模式时，自动隐藏所有标记
+  const hideDefinitionMarkers = mode.kind === 'picking';
   const view = activeDoc?.view;
 
   const [image] = useImage(activeImage?.url || '', 'anonymous');
@@ -252,6 +254,14 @@ export const StageView: React.FC = () => {
     setDefinitionContextMenu(null);
     setBlankContextMenu(null);
   }, [activeDocumentId]);
+
+  useEffect(() => {
+    if (!hideDefinitionMarkers) {
+      return;
+    }
+    setDefinitionContextMenu(null);
+    setBlankContextMenu(null);
+  }, [hideDefinitionMarkers]);
 
   useEffect(() => {
     if (!view && image && size.width > 0 && size.height > 0 && activeDocumentId) {
@@ -480,7 +490,7 @@ export const StageView: React.FC = () => {
           <Layer>
             {image && <KonvaImage image={image} name="bgImage" />}
 
-            {renderDefinitions && Object.entries(renderDefinitions).map(([id, def]) => (
+            {!hideDefinitionMarkers && renderDefinitions && Object.entries(renderDefinitions).map(([id, def]) => (
               <React.Fragment key={id}>
                 {Object.entries(def.props).map(([key, val]: [string, any]) => {
                   if (!val) return null;
