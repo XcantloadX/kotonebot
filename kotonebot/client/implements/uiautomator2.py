@@ -11,13 +11,13 @@ except ImportError as _e:
 from cv2.typing import MatLike
 
 from kotonebot import logging
-from ..protocol import Screenshotable, Commandable, Touchable
+from ..protocol import Screenshotable, Commandable, Touchable, SimpleInputDriver
 
 logger = logging.getLogger(__name__)
 
 SCREENSHOT_INTERVAL = 0.2
 
-class UiAutomator2Impl(Screenshotable, Commandable, Touchable):
+class UiAutomator2Impl(Screenshotable, Commandable, Touchable, SimpleInputDriver):
     def __init__(self, adb_connection: AdbUtilsDevice):
         self.u2_client = u2.Device(adb_connection.serial)
         self.__last_screenshot_time = 0

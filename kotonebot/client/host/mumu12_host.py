@@ -233,10 +233,12 @@ class Mumu12Instance(CommonAdbCreateDeviceMixin, Instance[MuMu12HostConfig]):
                 )
             ))
             device = AndroidDevice()
-            device._screenshot = nemu_impl
-            device._multitouch = nemu_impl
-            device._touch = nemu_impl
-            device.commands = adb_impl
+            device.setup(
+                screenshot=nemu_impl,
+                touch=nemu_impl,
+                multitouch=nemu_impl,
+                commands=adb_impl,
+            )
 
             return device
         elif isinstance(host_config, AdbHostConfig) and is_adb_recipe(recipe):

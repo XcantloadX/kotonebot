@@ -12,6 +12,25 @@ Library:
 	obj = _Prefab.q(threshold=0.7, region=full_region).require()
 	obj = _Prefab.q(_Prefab.Query(predicate=lambda o: o.rect.w > 0)).find()
 	```
+2. [feat] 引入新输入系统 `InputManager`，明确分离鼠标、触摸输入设备，新增键盘输入设备。可用于实现更加复杂的输入操作。原有 device 上的写法仍然支持。
+   ```python
+   	# 引入
+	from kotonebot import device, input
+	device.input # ，或者用全局变量
+	input
+	# 使用
+	# 三个通用方法，会转发到底层输入 Controller
+	device.input.tap()
+	device.input.double_tap()
+	device.input.drag()
+	# 调用 Controller
+	device.input.mouse.click(button='right')
+	device.input.touch.tap(contact=2)
+	# 调用 Driver
+	device.input.mouse.button_down()
+	device.input.touch.touch_down()
+   ```
+3. [refactor] **BREAKING** `Device` 的组件装配统一收敛到 `setup(...)`。直接写入私有字段（如 `device._screenshot`、`device._touch`、`device._multitouch`）不再保证可用，可能导致 `device.input` 未初始化并在点击/滑动时出错。请迁移到 `device.setup(...)`。
 
 
 ## v0.10.0

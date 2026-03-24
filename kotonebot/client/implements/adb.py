@@ -11,7 +11,7 @@ except ImportError as _e:
     from kotonebot.errors import MissingDependencyError
     raise MissingDependencyError(_e, 'android')
 
-from ..protocol import AndroidCommandable, Touchable, Screenshotable
+from ..protocol import AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver
 from ..registration import ImplConfig
 from dataclasses import dataclass
 
@@ -26,7 +26,7 @@ class AdbImplConfig(ImplConfig):
     device_serial: str | None = None
     timeout: float = 180
 
-class AdbImpl(AndroidCommandable, Touchable, Screenshotable):
+class AdbImpl(AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver):
     def __init__(self, adb_connection: AdbUtilsDevice):
         self.adb = adb_connection
 

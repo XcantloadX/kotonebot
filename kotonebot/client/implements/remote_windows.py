@@ -17,7 +17,7 @@ from cv2.typing import MatLike
 
 from kotonebot import logging
 from ..device import Device, WindowsDevice
-from ..protocol import Touchable, Screenshotable, Lifecycle
+from ..protocol import Touchable, Screenshotable, Lifecycle, SimpleInputDriver
 from ..registration import ImplConfig
 from .windows import WindowsImpl, WindowsImplConfig
 
@@ -141,7 +141,7 @@ class RemoteWindowsServer:
         return True
 
 
-class RemoteWindowsImpl(Touchable, Screenshotable, Lifecycle):
+class RemoteWindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
     """
     Client implementation that connects to a remote Windows machine via XML-RPC.
 

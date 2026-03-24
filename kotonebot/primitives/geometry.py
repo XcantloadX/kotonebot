@@ -945,6 +945,9 @@ RectLike = Union[Rect, RectTuple]
 def is_point(obj: object) -> TypeGuard[Point]:
     return isinstance(obj, Point)
 
+def is_point_like(obj: object) -> TypeGuard[PointLike]:
+    return isinstance(obj, Point) or (isinstance(obj, (tuple, list)) and len(obj) == 2 and all(isinstance(coord, int) for coord in obj))
+
 def is_point_f(obj: object) -> TypeGuard[PointF]:
     return isinstance(obj, PointF)
 

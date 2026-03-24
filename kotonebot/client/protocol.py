@@ -1,3 +1,4 @@
+from typing_extensions import deprecated
 from typing import Protocol, TYPE_CHECKING, runtime_checkable, Literal
 
 from cv2.typing import MatLike
@@ -55,6 +56,7 @@ class Screenshotable(Protocol):
     def detect_orientation(self) -> Literal['portrait', 'landscape'] | None: ...
     def screenshot(self) -> MatLike: ...
 
+@deprecated('Use TouchDriver or MouseDriver instead')
 @runtime_checkable
 class Touchable(Protocol):
     def __init__(self, device: 'Device'): ...
@@ -66,6 +68,7 @@ class Lifecycle(Protocol):
     def start(self) -> None: ...
     def stop(self) -> None: ...
 
+@deprecated('Inerit from TouchDriver or MouseDriver instead')
 @runtime_checkable
 class MultiTouchable(Touchable, Protocol):
     def multi_touch_down(self, x: int, y: int, pointer_id: int) -> None:
@@ -85,4 +88,34 @@ class MultiTouchable(Touchable, Protocol):
         :param y: 纵坐标
         :param pointer_id: 指针 ID
         """
-    
+
+@runtime_checkable
+class Driver(Protocol): pass
+
+MouseButton = Literal['left', 'right', 'middle']
+@runtime_checkable
+class MouseDriver(Driver, Protocol):
+    def move(self, x: int, y: int) -> None: ...
+    def button_down(self, button: MouseButton | None = None) -> None: ...
+    def button_up(self, button: MouseButton | None = None) -> None: ...
+    def scroll(self, dx: int = 0, dy: int = 0) -> None: ...
+
+
+@runtime_checkable
+class TouchDriver(Driver, Protocol):
+    max_contacts: int
+
+    def touch_down(self, x: int, y: int, contact_id: int = 0) -> None: ...
+    def touch_move(self, x: int, y: int, contact_id: int = 0) -> None: ...
+    def touch_up(self, x: int, y: int, contact_id: int = 0) -> None: ...
+
+@runtime_checkable
+class KeyboardDriver(Driver, Protocol):
+    def key_down(self, key: str) -> None: ...
+    def key_up(self, key: str) -> None: ...
+    def type_text(self, text: str) -> None: ...
+
+@runtime_checkable
+class SimpleInputDriver(Driver, Protocol):
+    def click(self, x: int, y: int) -> None: ...
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float|None = None) -> None: ...

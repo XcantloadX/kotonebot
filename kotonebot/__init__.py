@@ -8,6 +8,7 @@ from .backend.context import (
     image,
     debug,
     color,
+    input,
     rect_expand,
     sleep,
     task,

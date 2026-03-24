@@ -117,16 +117,12 @@ class CommonAdbCreateDeviceMixin(ABC):
             case 'adb':
                 from kotonebot.client.implements.adb import AdbImpl
                 impl = AdbImpl(connection)
-                d._screenshot = impl
-                d._touch = impl
-                d.commands = impl
+                d.setup(screenshot=impl, touch=impl, commands=impl)
             case 'uiautomator2':
                 from kotonebot.client.implements.uiautomator2 import UiAutomator2Impl
                 from kotonebot.client.implements.adb import AdbImpl
                 impl = UiAutomator2Impl(connection)
-                d._screenshot = impl
-                d._touch = impl
-                d.commands = AdbImpl(connection)
+                d.setup(screenshot=impl, touch=impl, commands=AdbImpl(connection))
             case _:
                 assert_never(f'Unsupported ADB recipe: {recipe}')
         return d

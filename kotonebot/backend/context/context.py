@@ -20,6 +20,7 @@ from typing_extensions import deprecated
 from cv2.typing import MatLike
 
 from kotonebot.client.device import Device, AndroidDevice, WindowsDevice
+from kotonebot.client.input import InputManager
 from kotonebot.backend.flow_controller import FlowController
 from kotonebot.util import Interval
 import kotonebot.backend.image as raw_image
@@ -818,6 +819,8 @@ def wait(at_least: float = 0.3, *, before: WaitBeforeType) -> None:
 _c: Context | None = None
 device: ContextDevice = cast(ContextDevice, Forwarded(name="device"))
 """当前正在执行任务的设备。"""
+input: InputManager = cast(InputManager, Forwarded(name="input"))
+"""当前正在执行任务的输入控制器。"""
 ocr: ContextOcr = cast(ContextOcr, Forwarded(name="ocr"))
 """OCR 引擎。"""
 image: ContextImage = cast(ContextImage, Forwarded(name="image"))
@@ -851,7 +854,7 @@ def init_context(
     :param target_device: 目标设备
     :param target_screenshot_interval: 见 `ContextDevice.target_screenshot_interval`。
     """
-    global _c, device, ocr, image, color, vars, debug
+    global _c, device, input, ocr, image, color, vars, debug
     if _c is not None and not force:
         return
     _c = Context(
@@ -859,6 +862,7 @@ def init_context(
         target_screenshot_interval=target_screenshot_interval,
     )
     device._FORWARD_getter = lambda: _c.device # type: ignore
+    input._FORWARD_getter = lambda: _c.device.input # type: ignore
     ocr._FORWARD_getter = lambda: _c.ocr # type: ignore
     image._FORWARD_getter = lambda: _c.image # type: ignore
     color._FORWARD_getter = lambda: _c.color # type: ignore

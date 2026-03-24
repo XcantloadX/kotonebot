@@ -1,24 +1,26 @@
 from typing import Callable, Literal, overload, TYPE_CHECKING
 
-import cv2
 import numpy as np
 from cv2.typing import MatLike
+from typing_extensions import deprecated
 
-from kotonebot.errors import CapabilityNotSupportedError, DeviceAlreadyStartedError
 
 if TYPE_CHECKING:
     from adbutils._device import AdbDevice as AdbUtilsDevice
 
 from kotonebot import logging
-from ..backend.debug import result
-from kotonebot.primitives import Rect, Point, is_point
-from .protocol import ClickableObjectProtocol, Commandable, MultiTouchable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable, Lifecycle
+from kotonebot._utils import match_types
 from .scaler import AbstractScaler
 from kotonebot.config.config import conf
 from kotonebot.primitives.geometry import Size
+from kotonebot.client.input import InputManager
+from kotonebot.primitives import Rect, Point
+from kotonebot.errors import CapabilityNotSupportedError, DeviceAlreadyStartedError
+from .protocol import ClickableObjectProtocol, Commandable, MultiTouchable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable, Lifecycle
 
 logger = logging.getLogger(__name__)
 LogLevel = Literal['info', 'debug', 'verbose', 'silent']
+CommandComponent = Commandable | AndroidCommandable | WindowsCommandable
 
 class HookContextManager:
     def __init__(self, device: 'Device', func: Callable[[MatLike], MatLike]):
@@ -52,8 +54,12 @@ class Device:
         """
 
         self._touch: Touchable
+        """已弃用，使用输入控制器接口替代。"""
         self._screenshot: Screenshotable
         self._multitouch: MultiTouchable | None = None
+        """已弃用，使用输入控制器接口替代。"""
+        self.input: InputManager
+        """输入控制器接口，包含触摸、鼠标、键盘等输入方式。"""
 
         self.platform: str = platform
         """
@@ -80,6 +86,7 @@ class Device:
         return self._scaler
 
     @property
+    @deprecated('Use input controllers instead.')
     def touch(self) -> Touchable:
         """
         触摸接口。
@@ -94,6 +101,7 @@ class Device:
         return self._screenshot
 
     @property
+    @deprecated('Use input controllers instead.')
     def multi_touch(self) -> MultiTouchable:
         """
         多点触控接口。
@@ -104,18 +112,82 @@ class Device:
             raise CapabilityNotSupportedError("multi_touch")
         return self._multitouch
 
-    def setup(self, 
-        *, 
+    @deprecated('Use setup(components=[...]) instead.')
+    @overload
+    def setup(self,
+        *,
         screenshot: Screenshotable,
         touch: Touchable,
-        commands: Commandable | None = None,
+        commands: CommandComponent | None = None,
         scaler: AbstractScaler | None = None,
         multitouch: MultiTouchable | None = None,
-    ):
+    ) -> None:
+        ...
+
+    @overload
+    def setup(self, components: list[object], *, scaler: AbstractScaler | None = None) -> None:
+        ...
+
+    def setup(self,
+        components: list[object] | None = None,
+        *,
+        screenshot: Screenshotable | None = None,
+        touch: Touchable | None = None,
+        commands: CommandComponent | None = None,
+        scaler: AbstractScaler | None = None,
+        multitouch: MultiTouchable | None = None,
+    ) -> None:
+        if scaler is not None:
+            self._scaler = scaler
+
+        if components is not None:
+            resolved_screenshot: Screenshotable | None = None
+            resolved_touch: Touchable | None = None
+            resolved_multitouch: MultiTouchable | None = None
+            resolved_commands: CommandComponent | None = None
+
+            for component in components:
+                if resolved_screenshot is None and isinstance(component, Screenshotable):
+                    resolved_screenshot = component
+                if resolved_multitouch is None and isinstance(component, MultiTouchable):
+                    resolved_multitouch = component
+                if resolved_touch is None and isinstance(component, Touchable):
+                    resolved_touch = component
+                if (
+                    resolved_commands is None and
+                    (
+                        isinstance(component, Commandable) or
+                        isinstance(component, AndroidCommandable) or
+                        isinstance(component, WindowsCommandable)
+                    )
+                ):
+                    resolved_commands = component
+
+            if resolved_screenshot is None:
+                raise ValueError("No Screenshotable component found")
+            if resolved_touch is None:
+                raise ValueError("No Touchable component found")
+
+            self._screenshot = resolved_screenshot
+            self._touch = resolved_touch
+            self._multitouch = resolved_multitouch
+            self.commands = resolved_commands
+            self.input = InputManager(self._scaler, components)
+            return
+
+        if screenshot is None or touch is None:
+            raise ValueError("screenshot and touch are required")
+
         self._screenshot = screenshot
         self._touch = touch
         self._multitouch = multitouch
         self.commands = commands
+        legacy_components: list[object] = [screenshot, touch]
+        if multitouch is not None:
+            legacy_components.append(multitouch)
+        if commands is not None:
+            legacy_components.append(commands)
+        self.input = InputManager(self._scaler, legacy_components)
 
     def _lifecycle_components(self) -> list[Lifecycle]:
         components: list[Lifecycle] = []
@@ -181,6 +253,7 @@ class Device:
         elif effective_level == 'silent':
             pass # Do nothing
 
+    @deprecated('Exciplicitly store the last find result and use click with the result as argument instead.')
     @overload
     def click(self, *, log: "LogLevel | None" = None) -> None:
         """
@@ -221,64 +294,54 @@ class Device:
 
     def click(self, *args, **kwargs) -> None:
         log: LogLevel | None = kwargs.pop('log', None)
-        arg1 = args[0] if len(args) > 0 else None
-        arg2 = args[1] if len(args) > 1 else None
-        if arg1 is None:
-            self.__click_last(log=log)
-        elif isinstance(arg1, Rect):
-            self.__click_rect(arg1, log=log)
-        elif is_point(arg1):
-            self.__click_point_tuple(arg1, log=log)
-        elif isinstance(arg1, int) and isinstance(arg2, int):
-            self.__click_point(arg1, arg2, log=log)
-        elif isinstance(arg1, ClickableObjectProtocol):
-            self.__click_clickable(arg1, log=log)
-        else:
-            raise ValueError(f"Invalid arguments: {arg1}, {arg2}")
+        if match_types(args, {}, exact=True):
+            target: Rect | ClickableObjectProtocol = self.__click_last_target()
+            self.click(target, log=log)
+            return
+        if len(args) == 1 and isinstance(args[0], Rect):
+            rect = args[0]
+            x = rect.x1 + rect.w // 2 + np.random.randint(-int(rect.w * 0.3), int(rect.w * 0.3))
+            y = rect.y1 + rect.h // 2 + np.random.randint(-int(rect.h * 0.3), int(rect.h * 0.3))
+            point = Point(int(x), int(y))
+            self.click(point, log=log)
+            return
+        if len(args) == 1 and isinstance(args[0], ClickableObjectProtocol):
+            self.click(args[0].rect, log=log)
+            return
 
-    def __click_last(self, *, log: "LogLevel | None" = None) -> None:
-        if self.last_find is None:
-            raise ValueError("No last find result. Make sure you are not calling the 'raw' functions.")
-        self.click(self.last_find, log=log)
-
-    def __click_rect(self, rect: Rect, *, log: "LogLevel | None" = None) -> None:
-        # 从矩形中心的 60% 内部随机选择一点
-        x = rect.x1 + rect.w // 2 + np.random.randint(-int(rect.w * 0.3), int(rect.w * 0.3))
-        y = rect.y1 + rect.h // 2 + np.random.randint(-int(rect.h * 0.3), int(rect.h * 0.3))
-        x = int(x)
-        y = int(y)
-        self.click(x, y, log=log)
-
-    def __click_point(self, x: int, y: int, *, log: "LogLevel | None" = None) -> None:
+        point = self.__solve_click_point(*args)
+        x, y = point.x, point.y
         for hook in self.click_hooks_before:
             logger.debug(f"Executing click hook before: ({x}, {y})")
             x, y = hook(x, y)
             logger.debug(f"Click hook before result: ({x}, {y})")
-        
-        real_pos = self.scaler.logic_to_physical((x, y))
-        real_x, real_y = int(real_pos[0]), int(real_pos[1])
-        
-        log_message = f"Click: {x}, {y}%s"
-        log_details = f"(Physical: {real_x}, {real_y})"
-        self.__log(log_message, log, log_details)
+        if self.input.capabilities.pointer:
+            self.input.tap(x, y, log=log)
+            return
+        real_x, real_y = self.scaler.logic_to_physical((x, y))
+        self._touch.click(int(real_x), int(real_y))
 
-        from ..backend.context import ContextStackVars
-        if ContextStackVars.current() is not None:
-            image = ContextStackVars.ensure_current()._screenshot
-        else:
-            image = np.array([])
-        if image is not None and image.size > 0:
-            cv2.circle(image, (x, y), 10, (0, 0, 255), -1)
-            message = f"Point: ({x}, {y})"
-            message += f" physical: ({real_x}, {real_y})"
-            result("device.click", image, message)
-        self.touch.click(real_x, real_y)
+    def __click_last_target(self) -> Rect | ClickableObjectProtocol:
+        if self.last_find is None:
+            raise ValueError("No last find result. Make sure you are not calling the 'raw' functions.")
+        return self.last_find
 
-    def __click_point_tuple(self, point: Point, *, log: "LogLevel | None" = None) -> None:
-        self.click(point[0], point[1], log=log)
-
-    def __click_clickable(self, clickable: ClickableObjectProtocol, *, log: "LogLevel | None" = None) -> None:
-        self.click(clickable.rect, log=log)
+    def __solve_click_point(self, *args) -> Point:
+        if len(args) == 1 and isinstance(args[0], Point):
+            return args[0]
+        if (
+            len(args) == 1 and
+            isinstance(args[0], (tuple, list)) and
+            len(args[0]) == 2 and
+            all(isinstance(v, int) for v in args[0])
+        ):
+            x, y = args[0]
+            return Point(x, y)
+        if len(args) == 2 and isinstance(args[0], int) and isinstance(args[1], int):
+            x = args[0]
+            y = args[1]
+            return Point(x, y)
+        raise ValueError(f"Invalid arguments: {args}")
 
     def click_center(self, *, log: "LogLevel | None" = None) -> None:
         """
@@ -315,36 +378,32 @@ class Device:
     
     def double_click(self, *args, **kwargs) -> None:
         from kotonebot import sleep
-        arg0 = args[0]
+
         log = kwargs.get('log', None)
-        if isinstance(arg0, Rect) or isinstance(arg0, ClickableObjectProtocol):
-            rect = arg0
-            interval = kwargs.get('interval', 0.4)
-            self.click(rect, log=log)
-            sleep(interval)
-            self.click(rect, log=log)
-        else:
-            x = args[0]
-            y = args[1]
-            interval = kwargs.get('interval', 0.4)
-            self.click(x, y, log=log)
-            sleep(interval)
-            self.click(x, y, log=log)
+        interval = kwargs.get('interval', 0.4)
+
+        if match_types(args, {}, exact=True):
+            target = self.__click_last_target()
+            self.double_click(target, interval=interval, log=log)
+            return
+        self.click(*args, log=log)
+        sleep(interval)
+        self.click(*args, log=log)
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float|None = None, *, log: "LogLevel | None" = None) -> None:
         """
         滑动屏幕
         """
+        if self.input.capabilities.pointer:
+            self.input.drag(x1, y1, x2, y2, duration=duration, log=log)
+            return
         real_pos1 = self.scaler.logic_to_physical((x1, y1))
         real_x1, real_y1 = int(real_pos1[0]), int(real_pos1[1])
         real_pos2 = self.scaler.logic_to_physical((x2, y2))
         real_x2, real_y2 = int(real_pos2[0]), int(real_pos2[1])
-        log_message = f"Swipe: from ({x1}, {y1}) to ({x2}, {y2}) (Physical: from ({real_x1}, {real_y1}) to ({real_x2}, {real_y2}))"
+        self._touch.swipe(real_x1, real_y1, real_x2, real_y2, duration)
 
-        self.__log(log_message, log)
-
-        self.touch.swipe(real_x1, real_y1, real_x2, real_y2, duration)
-
+    @deprecated('Use input controllers instead.')
     def swipe_scaled(self, x1: float, y1: float, x2: float, y2: float, duration: float|None = None, *, log: "LogLevel | None" = None) -> None:
         """
         滑动屏幕，参数为屏幕坐标的百分比。

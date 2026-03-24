@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from ...protocol import MultiTouchable, Screenshotable, Lifecycle
+from ...protocol import MultiTouchable, Screenshotable, Lifecycle, SimpleInputDriver, TouchDriver
 from ...registration import ImplConfig
 from .external_renderer_ipc import ExternalRendererIpc
 from kotonebot.errors import KotonebotError
@@ -45,11 +45,11 @@ class NemuIpcImplConfig(ImplConfig):
     wait_package_interval: float = 0.1  # 单位秒
 
 
-class NemuIpcImpl(MultiTouchable, Screenshotable, Lifecycle):
+class NemuIpcImpl(MultiTouchable, Screenshotable, Lifecycle, SimpleInputDriver, TouchDriver):
     """
     利用 MuMu12 提供的 external_renderer_ipc.dll 进行截图与触摸控制。
     """
-
+    max_contacts = 10
     def __init__(self, config: NemuIpcImplConfig):
         self.config = config
         self.__width: int = 0
@@ -302,6 +302,15 @@ class NemuIpcImpl(MultiTouchable, Screenshotable, Lifecycle):
         self._ensure_connected()
         display_id = self._get_display_id()
         self._ipc.input_finger_touch_up(self._connect_id, display_id, pointer_id)
+
+    def touch_down(self, x: int, y: int, contact_id: int = 0) -> None:
+        self.multi_touch_down(x, y, contact_id)
+
+    def touch_move(self, x: int, y: int, contact_id: int = 0) -> None:
+        self.multi_touch_down(x, y, contact_id)
+
+    def touch_up(self, x: int, y: int, contact_id: int = 0) -> None:
+        self.multi_touch_up(x, y, contact_id)
 
     @override
     def swipe(

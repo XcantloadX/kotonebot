@@ -38,8 +38,7 @@ class CommonWindowsCreateDeviceMixin(ABC):
                     window_title=config.window_title,
                     ahk_exe_path=config.ahk_exe_path
                 )
-                d._screenshot = impl
-                d._touch = impl
+                d.setup(screenshot=impl, touch=impl)
                 return d
             case 'windows_background':
                 if not isinstance(config, WindowsHostConfig):
@@ -47,8 +46,10 @@ class CommonWindowsCreateDeviceMixin(ABC):
                 d = WindowsDevice()
                 from kotonebot.client.implements.windows.send_message import SendMessageImpl
                 from kotonebot.client.implements.windows.print_window import PrintWindowImpl
-                d._screenshot = PrintWindowImpl(d, config.window_title)
-                d._touch = SendMessageImpl(d, config.window_title)
+                d.setup(
+                    screenshot=PrintWindowImpl(d, config.window_title),
+                    touch=SendMessageImpl(d, config.window_title),
+                )
                 return d
             case 'remote_windows':
                 if not isinstance(config, RemoteWindowsHostConfig):
@@ -60,8 +61,7 @@ class CommonWindowsCreateDeviceMixin(ABC):
                     host=config.host,
                     port=config.port
                 )
-                d._screenshot = impl
-                d._touch = impl
+                d.setup(screenshot=impl, touch=impl)
                 return d
             case _:
                 assert_never(f'Unsupported Windows recipe: {recipe}')

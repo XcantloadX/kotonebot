@@ -10,7 +10,7 @@ from typing import Optional, Literal, TYPE_CHECKING
 import win32gui
 import win32con
 
-from ...protocol import Touchable
+from ...protocol import Touchable, SimpleInputDriver
 from kotonebot.interop.win.window import Win32Window
 if TYPE_CHECKING:
     from ...device import Device
@@ -300,7 +300,7 @@ class SendMessageWrapper:
         end_y = y + dy
         return self.drag(x, y, end_x, end_y, button=button, duration=duration)
 
-class SendMessageImpl(Touchable):
+class SendMessageImpl(Touchable, SimpleInputDriver):
     def __init__(self, device: 'Device', window_title: str, *, wait_cursor_idle: float = -1) -> None:
         self.device = device
         window = Win32Window.require_window('title', window_title)

@@ -19,7 +19,7 @@ except ImportError as _e:
 from cv2.typing import MatLike
 
 from ...device import Device
-from ...protocol import Touchable, Screenshotable, Lifecycle
+from ...protocol import Touchable, Screenshotable, Lifecycle, SimpleInputDriver
 from ...registration import ImplConfig
 
 # 1. 定义配置模型
@@ -28,7 +28,7 @@ class WindowsImplConfig(ImplConfig):
     window_title: str
     ahk_exe_path: str
 
-class WindowsImpl(Touchable, Screenshotable, Lifecycle):
+class WindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
     def __init__(self, device: Device, window_title: str, ahk_exe_path: str):
         self.__hwnd: int | None = None
         self.window_title = window_title
