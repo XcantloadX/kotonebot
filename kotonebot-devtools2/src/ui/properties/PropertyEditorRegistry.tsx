@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormGroup, InputGroup, Switch, Button, Tooltip, Icon } from '@blueprintjs/core';
+import { FormGroup, InputGroup, Switch, Button, Tooltip, Icon, HTMLSelect } from '@blueprintjs/core';
 import { PropValue } from '../../model/metaV2';
 import { EditorPropSchema } from '../../model/prefabSchema';
 
@@ -112,6 +112,37 @@ export const StringEditor: React.FC<PropertyEditorProps> = ({ propKey, value, sc
     </FormGroup>
 );
 
+export const ChoiceEditor: React.FC<PropertyEditorProps> = ({ propKey, value, schema, onChange }) => {
+    const choices = schema?.choices ?? [];
+    const selectedIndex = choices.findIndex(([, choiceValue]) => choiceValue === value);
+    const fallbackIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    const currentValue = fallbackIndex >= 0 ? String(fallbackIndex) : '';
+
+    return (
+        <FormGroup label={<PropertyLabel schema={schema} propKey={propKey} />}>
+            {value !== undefined ? (
+                <HTMLSelect
+                    fill
+                    value={currentValue}
+                    onChange={e => {
+                        const index = Number(e.currentTarget.value);
+                        const choice = Number.isFinite(index) ? choices[index] : undefined;
+                        if (choice) {
+                            onChange(choice[1]);
+                        }
+                    }}
+                >
+                    {choices.map(([label], index) => (
+                        <option key={`${index}:${label}`} value={index.toString()}>
+                            {label}
+                        </option>
+                    ))}
+                </HTMLSelect>
+            ) : null}
+        </FormGroup>
+    );
+};
+
 export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, schema, onEditGeometry, onChange }) => {
     const rectVal = value as any;
     const kind = schema?.kind || (value as any)?.kind;
@@ -211,6 +242,7 @@ export const getEditorForType = (kind: string) => {
         case 'number': return NumberEditor;
         case 'str':
         case 'string': return StringEditor;
+        case 'choice': return ChoiceEditor;
         case 'rect':
         case 'image':
         case 'point': return GeometryEditor;

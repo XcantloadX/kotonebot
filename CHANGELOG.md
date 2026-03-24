@@ -32,6 +32,8 @@ Library:
    ```
 3. [refactor] **BREAKING** `Device` 的组件装配统一收敛到 `setup(...)`。直接写入私有字段（如 `device._screenshot`、`device._touch`、`device._multitouch`）不再保证可用，可能导致 `device.input` 未初始化并在点击/滑动时出错。请迁移到 `device.setup(...)`。
 
+Devtool:
+1. [fix] 修复 ChoiceProp 无法正常展示的问题。
 
 ## v0.10.0
 Library:

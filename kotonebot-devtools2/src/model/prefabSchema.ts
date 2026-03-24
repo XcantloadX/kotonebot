@@ -1,4 +1,4 @@
-export type PropKind = "rect" | "point" | "image" | "bool" | "float" | "int" | "str";
+export type PropKind = "rect" | "point" | "image" | "bool" | "float" | "int" | "str" | "choice";
 
 export interface EditorPropSchema {
   kind: PropKind;
@@ -7,6 +7,7 @@ export interface EditorPropSchema {
   default_value?: any;
   min?: number;
   max?: number;
+  choices?: [string, any][];
 }
 
 export interface PrefabMetadata {
