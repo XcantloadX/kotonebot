@@ -5,7 +5,7 @@ backend-path = ["."]
 
 [project]
 name = "kotonebot"
-version = "0.10.0"
+version = "0.11.0"
 description = "Kotonebot is game automation library based on computer vision technology, works for Windows and Android."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -62,8 +62,15 @@ dev = [
     "pygls~=2.0",
 ]
 
+# Documentation dependencies
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.6",
+    "mkdocstrings[python]>=0.30",
+]
+
 # All optional dependencies
-all = ["kotonebot[android,windows,dev]"]
+all = ["kotonebot[android,windows,dev,docs]"]
 
 [project.scripts]
 kbot = "kotonebot.devtools.cli:main"

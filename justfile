@@ -66,6 +66,18 @@ check:
     uv run ruff check .
     uv run black --check .
 
+# Build API docs with MkDocs
+docs:
+    #!{{shebang_pwsh}}
+    Write-Host "Building API docs..."
+    uv run --no-project --with mkdocs --with mkdocs-material --with "mkdocstrings[python]" mkdocs build --strict
+
+# Serve API docs locally
+docs-serve:
+    #!{{shebang_pwsh}}
+    Write-Host "Serving API docs at http://127.0.0.1:8000 ..."
+    uv run --no-project --with mkdocs --with mkdocs-material --with "mkdocstrings[python]" mkdocs serve
+
 @package-resource:
     Write-Host "Packaging kotonebot-resource..."
     @python -m build -s kotonebot-resource

@@ -102,8 +102,7 @@ class KotoneBot:
         middlewares: List[TaskMiddleware] | None = None,
     ):
         """
-        :param device_factory: 一个函数，接收 config 字典，返回 Device 对象
-        :param config: 配置字典
+        :param device_factory: 一个函数，返回 Device 对象
         :param middlewares: 中间件列表（按顺序执行）
         """
         self.device_factory = device_factory

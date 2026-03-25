@@ -40,7 +40,9 @@ class EditorMetadata:
     用于切换到此工具的快捷键，可以为单按键。
     """
     icon: str | None = None
-    """展示在编辑器上的 icon 名称。"""
+    """展示在编辑器上的 icon 名称。
+    可于 https://blueprintjs.com/docs/#icons/icons-list 查询。
+    """
     """
     主属性 key（例如 rect / anchor / image）。
     """

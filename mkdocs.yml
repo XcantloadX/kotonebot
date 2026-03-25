@@ -1,0 +1,103 @@
+site_name: kotonebot docs
+site_description: API reference for kotonebot
+repo_url: https://github.com/XcantloadX/kotonebot
+repo_name: XcantloadX/kotonebot
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+
+plugins:
+  - search
+  - autorefs
+  - mkdocstrings:
+      handlers:
+        python:
+          inventories:
+            - https://docs.python.org/3/objects.inv
+            - https://www.mkdocs.org/objects.inv
+            - https://jinja.palletsprojects.com/en/stable/objects.inv
+          paths: [.]
+          options:
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            members_order: source
+            inherited_members: true
+            show_signature_annotations: true
+            separate_signature: true
+            docstring_style: sphinx
+            parameter_headings: true
+            summary: true
+            show_symbol_type_toc: true
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - 首页: index.md
+  - 教程:
+      - 教程总览: tutorials/index.md
+  - 开发:
+      - 开发指南: DEVELOPMENT.md
+  - API:
+      - API 总览: api/index.md
+      - 顶层:
+          - 顶层导出: api/kotonebot.md
+          - util: api/util.md
+          - errors: api/errors.md
+      - Primitives:
+          - geometry: api/primitives-geometry.md
+          - visual: api/primitives-visual.md
+      - Backend:
+          - image: api/backend-image.md
+          - ocr: api/backend-ocr.md
+          - loop: api/backend-loop.md
+          - bot: api/backend-bot.md
+          - color: api/backend-color.md
+          - core: api/backend-core.md
+          - preprocessor: api/backend-preprocessor.md
+          - dispatch: api/backend-dispatch.md
+          - flow_controller: api/backend-flow_controller.md
+          - context:
+              - context: api/backend-context-context.md
+              - task_action: api/backend-context-task_action.md
+          - debug:
+              - entry: api/backend-debug-entry.md
+              - server: api/backend-debug-server.md
+              - vars: api/backend-debug-vars.md
+      - Client:
+          - device: api/client-device.md
+          - input: api/client-input.md
+          - protocol: api/client-protocol.md
+          - scaler: api/client-scaler.md
+          - registration: api/client-registration.md
+          - fast_screenshot: api/client-fast_screenshot.md
+          - host:
+              - protocol: api/client-host-protocol.md
+              - adb_common: api/client-host-adb_common.md
+              - custom: api/client-host-custom.md
+              - leidian_host: api/client-host-leidian_host.md
+              - mumu12_host: api/client-host-mumu12_host.md
+              - physical_android_host: api/client-host-physical_android_host.md
+              - windows_common: api/client-host-windows_common.md
+          - implements:
+              - adb: api/client-implements-adb.md
+              - uiautomator2: api/client-implements-uiautomator2.md
+              - remote_windows: api/client-implements-remote_windows.md
+              - nemu_ipc:
+                  - nemu_ipc: api/client-implements-nemu_ipc-nemu_ipc.md
+              - windows:
+                  - windows: api/client-implements-windows-windows.md
+      - Core:
+          - bot:
+              - bot: api/core-bot-bot.md

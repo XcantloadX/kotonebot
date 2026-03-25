@@ -845,10 +845,6 @@ def init_context(
     """
     初始化 Context 模块。
 
-    :param config_path: 配置文件路径。
-    :param config_type: 配置数据类类型。
-        配置数据类必须继承自 pydantic 的 `BaseModel`。
-        默认为 `dict[str, Any]`，即普通的 JSON 数据，不包含任何类型信息。
     :param force:  是否强制重新初始化。
         若为 `True`，则忽略已存在的 Context 实例，并重新创建一个新的实例。
     :param target_device: 目标设备
