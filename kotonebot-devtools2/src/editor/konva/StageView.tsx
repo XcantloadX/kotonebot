@@ -501,10 +501,6 @@ export const StageView: React.FC = () => {
                   const primaryProp = prefab?.primary_prop;
                   if (primaryProp && key !== primaryProp && !isSelected) return null;
 
-                  // If currently picking this property's geometry, hide the existing shape
-                  const isBeingPicked = mode.kind === 'picking' && mode.definitionId === id && mode.propKey === key;
-                  if (isBeingPicked) return null;
-
                   if (val.kind === 'rect' || val.kind === 'image') {
                     return (
                       <DefinitionRect
