@@ -195,7 +195,8 @@
     "variantInherit": "变体继承",
     "none": "无",
     "false": "假",
-    "true": "真"
+    "true": "真",
+    "resizePanel": "调整面板宽度"
   },
   "fileDialog": {
     "failedToOpenPath": "打开路径失败",

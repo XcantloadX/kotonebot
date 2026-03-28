@@ -18,6 +18,7 @@ import { installHostBridge, isSingleTabMode } from './host/hostBridge';
 import { registerHostHandlers } from './host/hostHandlers';
 import { installDocumentStateSync } from './host/documentStateSync';
 import { Tabs, Tab } from '@blueprintjs/core';
+import { useResize } from '../ui/hooks/useResize';
 
 export const EditorApp: React.FC = () => {
   const { t } = useTranslation();
@@ -31,6 +32,15 @@ export const EditorApp: React.FC = () => {
   const setProblemsVisible = useSettingsStore((s) => s.setProblemsVisible);
   const problemsHeight = useSettingsStore((s) => s.problemsHeight);
   const setProblemsHeight = useSettingsStore((s) => s.setProblemsHeight);
+  const rightPanelWidth = useSettingsStore((s) => s.rightPanelWidth);
+  const setRightPanelWidth = useSettingsStore((s) => s.setRightPanelWidth);
+  const { handleMouseDown: handleRightPanelResize } = useResize({
+    direction: 'horizontal',
+    minSize: 200,
+    size: rightPanelWidth,
+    onSizeChange: setRightPanelWidth,
+    enabled: true,
+  });
   const commandContext = React.useMemo(
     () => ({
       ui: {},
@@ -110,11 +120,18 @@ export const EditorApp: React.FC = () => {
           ) : null}
         </div>
 
-        <div style={{ width: 300, background: '#e1e8ed', borderLeft: '1px solid #c5d2db', display: 'flex', flexDirection: 'column', padding: '0 10px' }}>
-          <Tabs id="right-panel-tabs" defaultSelectedTabId="properties">
-            <Tab id="properties" title={t('tabs.properties')} panel={<RightProperties />} />
-            <Tab id="hierarchy" title={t('tabs.hierarchy')} panel={<HierarchyPanel />} />
-          </Tabs>
+        <div style={{ display: 'flex', background: '#e1e8ed', borderLeft: '1px solid #c5d2db' }}>
+          <div
+            onMouseDown={handleRightPanelResize}
+            style={{ width: 4, cursor: 'col-resize', background: '#d2dce5' }}
+            title={t('rightPanel.resizePanel')}
+          />
+          <div style={{ width: rightPanelWidth, display: 'flex', flexDirection: 'column', padding: '0 10px' }}>
+            <Tabs id="right-panel-tabs" defaultSelectedTabId="properties">
+              <Tab id="properties" title={t('tabs.properties')} panel={<RightProperties />} />
+              <Tab id="hierarchy" title={t('tabs.hierarchy')} panel={<HierarchyPanel />} />
+            </Tabs>
+          </div>
         </div>
       </div>
       <FocusSpotlightOverlay />

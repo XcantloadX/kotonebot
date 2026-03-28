@@ -195,7 +195,8 @@
     "variantInherit": "Variant Inherit",
     "none": "None",
     "false": "False",
-    "true": "True"
+    "true": "True",
+    "resizePanel": "Resize panel"
   },
   "fileDialog": {
     "failedToOpenPath": "Failed to open path",

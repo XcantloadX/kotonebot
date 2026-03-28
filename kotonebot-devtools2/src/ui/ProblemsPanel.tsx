@@ -5,6 +5,7 @@ import { DiagnosticItem } from "../model/symbolIndex";
 import { useSymbolIndexStore } from "../editor/symbolIndexStore";
 import { COMMAND_ID, executeCommand } from "../editor/commands";
 import { useSettingsStore } from "../editor/settings";
+import { useResize } from "./hooks/useResize";
 
 interface ProblemsPanelProps {
   visible: boolean;
@@ -57,6 +58,14 @@ export const ProblemsPanel: React.FC<ProblemsPanelProps> = ({
   const query = useSettingsStore((s) => s.problemsQuery);
   const setQuery = useSettingsStore((s) => s.setProblemsQuery);
   const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null);
+
+  const { handleMouseDown: startResize } = useResize({
+    direction: 'vertical',
+    minSize: MIN_PANEL_HEIGHT,
+    size: height,
+    onSizeChange: onHeightChange,
+    enabled: visible,
+  });
 
   const flatItems = useMemo<FlatDiagnosticItem[]>(() => {
     const rows: FlatDiagnosticItem[] = [];
@@ -126,27 +135,6 @@ export const ProblemsPanel: React.FC<ProblemsPanelProps> = ({
     }
     return map;
   }, [symbols]);
-
-  const startResize = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!visible) {
-      return;
-    }
-    e.preventDefault();
-    const startY = e.clientY;
-    const startHeight = height;
-    const maxHeight = Math.floor(window.innerHeight * 0.6);
-    const onMove = (ev: MouseEvent) => {
-      const delta = startY - ev.clientY;
-      const next = Math.max(MIN_PANEL_HEIGHT, Math.min(maxHeight, startHeight + delta));
-      onHeightChange(next);
-    };
-    const onUp = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  };
 
   const renderSeverityIcon = (severity: DiagnosticItem["severity"]) => {
     if (severity === "error") {

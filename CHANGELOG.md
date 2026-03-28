@@ -1,8 +1,4 @@
 # 更新日志
-## v0.12.0
-Library:
-1. [feat] 优化跨平台体验。现在在非 Windows 平台上导入 Windows-Only 的模块不会立刻报错，而是等到调用/实例化时才抛出异常。
-
 ## v0.11.0
 Library:
 1. [refactor] **BREAKING** 为了便于扩展，Prefab 的方法参数从 kwargs 迁移到 Query 入口（`q(...)`），统一 TemplateMatch/OCR 的参数覆盖与谓词过滤写法。旧/新写法对比：
@@ -35,10 +31,12 @@ Library:
 	device.input.touch.touch_down()
    ```
 3. [refactor] **BREAKING** `Device` 的组件装配统一收敛到 `setup(...)`。直接写入私有字段（如 `device._screenshot`、`device._touch`、`device._multitouch`）不再保证可用，可能导致 `device.input` 未初始化并在点击/滑动时出错。请迁移到 `device.setup(...)`。
+4. [feat] 优化跨平台体验。现在在非 Windows 平台上导入 Windows-Only 的模块不会立刻报错，而是等到调用/实例化时才抛出异常。
 
 Devtool:
 1. [fix] 修复 ChoiceProp 无法正常展示的问题。
 2. [feat] 新增「层级」Tab，在对象发生重叠的时候可以通过层级选中某个对象。
+3. [feat] 右侧属性面板支持调整宽度
 
 ## v0.10.0
 Library:
