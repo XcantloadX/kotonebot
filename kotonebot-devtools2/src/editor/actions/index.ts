@@ -10,6 +10,7 @@ import {
   deleteSelectedDefinition,
   duplicateSelectedDefinition,
   pasteDefinitionFromClipboard,
+  selectDefinition,
 } from "./definition";
 import { openImageWithMeta, openImagesWithChecks } from "./image";
 import { jumpToDiagnostic, jumpToSymbol } from "./navigation";
@@ -72,6 +73,7 @@ const navigationActions = {
 };
 
 const definitionActions = {
+  select: selectDefinition,
   copySelected: copySelectedDefinition,
   cutSelected: cutSelectedDefinition,
   deleteSelected: deleteSelectedDefinition,

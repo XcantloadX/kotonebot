@@ -8,6 +8,7 @@ import { TabBar } from '../ui/TabBar';
 import { useSymbolIndexStore } from './symbolIndexStore';
 import { TopMenuBar } from '../ui/TopMenuBar';
 import { ProblemsPanel } from '../ui/ProblemsPanel';
+import { HierarchyPanel } from '../ui/HierarchyPanel';
 import { useSettingsStore } from './settings';
 import { FocusSpotlightOverlay } from './FocusSpotlightOverlay';
 import { COMMAND_ID, executeCommand } from './commands';
@@ -15,6 +16,7 @@ import { useShortcut, useShortcutScope } from '../shortcuts/shortcutManager';
 import { installHostBridge, isSingleTabMode } from './host/hostBridge';
 import { registerHostHandlers } from './host/hostHandlers';
 import { installDocumentStateSync } from './host/documentStateSync';
+import { Tabs, Tab } from '@blueprintjs/core';
 
 export const EditorApp: React.FC = () => {
   // host mode: 当 editor 以嵌入模式在 VSCode 扩展里执行时
@@ -106,9 +108,11 @@ export const EditorApp: React.FC = () => {
           ) : null}
         </div>
 
-        <div style={{ width: 300, background: '#e1e8ed', borderLeft: '1px solid #c5d2db', padding: 10, overflowY: 'auto' }}>
-          <h3 style={{ color: '#182026', margin: '0 0 10px 0' }}>Properties</h3>
-          <RightProperties />
+        <div style={{ width: 300, background: '#e1e8ed', borderLeft: '1px solid #c5d2db', display: 'flex', flexDirection: 'column', padding: '0 10px' }}>
+          <Tabs id="right-panel-tabs" defaultSelectedTabId="properties">
+            <Tab id="properties" title="Properties" panel={<RightProperties />} />
+            <Tab id="hierarchy" title="Hierarchy" panel={<HierarchyPanel />} />
+          </Tabs>
         </div>
       </div>
       <FocusSpotlightOverlay />

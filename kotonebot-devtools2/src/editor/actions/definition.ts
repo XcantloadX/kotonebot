@@ -84,6 +84,14 @@ export async function cutSelectedDefinition(): Promise<void> {
   setMode({ kind: "idle" });
 }
 
+export async function selectDefinition(definitionId: string | null): Promise<void> {
+  const { setSelection, setMode } = useAppStore.getState();
+  setSelection(definitionId);
+  if (definitionId === null) {
+    setMode({ kind: "idle" });
+  }
+}
+
 export async function pasteDefinitionFromClipboard(): Promise<void> {
   const { definitionClipboard, activeDocumentId, documents, updateMeta, setSelection } = useAppStore.getState();
   if (!definitionClipboard) {

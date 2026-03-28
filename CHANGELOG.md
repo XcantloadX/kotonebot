@@ -34,6 +34,7 @@ Library:
 
 Devtool:
 1. [fix] 修复 ChoiceProp 无法正常展示的问题。
+2. [feat] 新增「层级」Tab，在对象发生重叠的时候可以通过层级选中某个对象。
 
 ## v0.10.0
 Library:

@@ -247,7 +247,7 @@ export const RightProperties: React.FC = () => {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 20, overflowY: 'auto', flex: 1 }}>
       <Card compact>
           <H5>{definition.type} {definition.prefab_id ? `(${definition.prefab_id})` : ''}</H5>
           <div style={{ fontSize: 12, color: '#8a9ba8', wordBreak: 'break-all' }}>ID: {defId}</div>
