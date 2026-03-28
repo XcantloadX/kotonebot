@@ -170,7 +170,7 @@ export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, 
                             <div style={{ display: 'flex', flexDirection: 'column', width: 90 }}>
                                 <div style={{ fontSize: 11, color: '#8a9ba8', marginBottom: 4 }}>X</div>
                                 <InputGroup
-                                    type="number"
+                                    size="small"
                                     value={(rectVal?.x ?? 0).toString()}
                                     onChange={e => onChange({ ...(rectVal || {}), x: toNumber(e.target.value) })}
                                 />
@@ -178,7 +178,7 @@ export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, 
                             <div style={{ display: 'flex', flexDirection: 'column', width: 90 }}>
                                 <div style={{ fontSize: 11, color: '#8a9ba8', marginBottom: 4 }}>Y</div>
                                 <InputGroup
-                                    type="number"
+                                    size="small"
                                     value={(rectVal?.y ?? 0).toString()}
                                     onChange={e => onChange({ ...(rectVal || {}), y: toNumber(e.target.value) })}
                                 />
@@ -194,7 +194,7 @@ export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, 
                             <div style={{ display: 'flex', flexDirection: 'column', width: 72 }}>
                                 <div style={{ fontSize: 11, color: '#8a9ba8', marginBottom: 4 }}>x1</div>
                                 <InputGroup
-                                    type="number"
+                                    size="small"
                                     value={(rectVal?.x1 ?? 0).toString()}
                                     onChange={e => onChange({ ...(rectVal || {}), x1: toNumber(e.target.value) })}
                                 />
@@ -202,7 +202,7 @@ export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, 
                             <div style={{ display: 'flex', flexDirection: 'column', width: 72 }}>
                                 <div style={{ fontSize: 11, color: '#8a9ba8', marginBottom: 4 }}>y1</div>
                                 <InputGroup
-                                    type="number"
+                                    size="small"
                                     value={(rectVal?.y1 ?? 0).toString()}
                                     onChange={e => onChange({ ...(rectVal || {}), y1: toNumber(e.target.value) })}
                                 />
@@ -210,7 +210,7 @@ export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, 
                             <div style={{ display: 'flex', flexDirection: 'column', width: 72 }}>
                                 <div style={{ fontSize: 11, color: '#8a9ba8', marginBottom: 4 }}>x2</div>
                                 <InputGroup
-                                    type="number"
+                                    size="small"
                                     value={(rectVal?.x2 ?? 0).toString()}
                                     onChange={e => onChange({ ...(rectVal || {}), x2: toNumber(e.target.value) })}
                                 />
@@ -218,7 +218,7 @@ export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, 
                             <div style={{ display: 'flex', flexDirection: 'column', width: 72 }}>
                                 <div style={{ fontSize: 11, color: '#8a9ba8', marginBottom: 4 }}>y2</div>
                                 <InputGroup
-                                    type="number"
+                                    size="small"
                                     value={(rectVal?.y2 ?? 0).toString()}
                                     onChange={e => onChange({ ...(rectVal || {}), y2: toNumber(e.target.value) })}
                                 />
