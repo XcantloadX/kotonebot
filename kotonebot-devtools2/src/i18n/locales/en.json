@@ -190,7 +190,8 @@
   },
   "rightProperties": {
     "displayName": "Display Name",
-    "nameClassPath": "Name (Class Path)",
+    "nameClassPath": "Name",
+    "nameClassPathHelp": "The class path of the object, used for code generation.",
     "variantInherit": "Variant Inherit",
     "none": "None",
     "false": "False",

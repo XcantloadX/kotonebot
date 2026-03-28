@@ -1,5 +1,6 @@
 import React from "react";
-import { Classes, Icon, Tooltip } from "@blueprintjs/core";
+import { Classes, Tooltip } from "@blueprintjs/core";
+import { HelpIcon } from "./HelpIcon";
 
 interface OverridableFieldProps {
   /** 当前字段是否已配置。`true` 为实心圆点，`false` 为空心圆点。 */
@@ -64,17 +65,15 @@ export const OverridableField: React.FC<OverridableFieldProps> = ({
               {renderDot(false)}
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <span>不配置</span>
-                <Tooltip
+                <HelpIcon
                   content="将使用框架或代码中配置的默认值"
-                  position="right"
-                  interactionKind="hover-target"
-                  hoverOpenDelay={0}
-                  hoverCloseDelay={40}
-                >
-                  <span style={{ display: "inline-flex", alignItems: "center", cursor: "help" }}>
-                    <Icon icon="help" size={12} />
-                  </span>
-                </Tooltip>
+                  size={12}
+                  tooltipProps={{
+                    "interactionKind": "hover-target",
+                    "hoverOpenDelay": 0,
+                    "hoverCloseDelay": 40,
+                  }}
+                  />
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

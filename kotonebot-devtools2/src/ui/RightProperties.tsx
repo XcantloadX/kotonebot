@@ -10,6 +10,7 @@ import { getEditorForType } from './properties/PropertyEditorRegistry';
 import { OverridableField } from './components/OverridableField';
 import { SegmentedControl, SegmentedOption } from './components/SegmentedControl';
 import { toaster } from './toaster';
+import { HelpIcon } from './components/HelpIcon';
 
 type VariantInheritValue = boolean | null;
 
@@ -160,7 +161,10 @@ export const RightProperties: React.FC = () => {
 
   // Common fields
   editors.push(
-      <FormGroup key="common-name" label={t('rightProperties.nameClassPath')}>
+      <FormGroup
+        key="common-name"
+        label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }} ><span>{t('rightProperties.nameClassPath')}</span><HelpIcon content={t('rightProperties.nameClassPathHelp')} /></span>}
+      >
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <InputGroup
               value={nameDraft}

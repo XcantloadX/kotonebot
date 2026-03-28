@@ -1,7 +1,8 @@
 import React from 'react';
-import { FormGroup, InputGroup, Switch, Button, Tooltip, Icon, HTMLSelect } from '@blueprintjs/core';
+import { FormGroup, InputGroup, Switch, Button, HTMLSelect } from '@blueprintjs/core';
 import { PropValue } from '../../model/metaV2';
 import { EditorPropSchema } from '../../model/prefabSchema';
+import { HelpIcon } from '../components/HelpIcon';
 
 export interface PropertyEditorProps {
     propKey: string;
@@ -16,13 +17,7 @@ const PropertyLabel: React.FC<{ schema?: EditorPropSchema; propKey?: string }> =
     return (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <span>{text}</span>
-            {schema?.description && (
-                <Tooltip content={schema.description} position="right">
-                    <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-                        <Icon icon="help" size={14} style={{ color: '#2b6f9e' }} />
-                    </span>
-                </Tooltip>
-            )}
+            {schema?.description && <HelpIcon content={schema.description} />}
         </span>
     );
 };

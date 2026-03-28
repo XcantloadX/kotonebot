@@ -190,7 +190,8 @@
   },
   "rightProperties": {
     "displayName": "显示名称",
-    "nameClassPath": "名称 (类路径)",
+    "nameClassPath": "名称",
+    "nameClassPathHelp": "对象的类路径，将会用在代码生成中",
     "variantInherit": "变体继承",
     "none": "无",
     "false": "假",
