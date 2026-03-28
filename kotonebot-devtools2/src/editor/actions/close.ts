@@ -1,5 +1,6 @@
 import { messageBox } from "../../ui/messageBox";
 import { useAppStore } from "../state";
+import i18n from "../../i18n";
 
 export async function closeDocumentWithChecks(id: string): Promise<boolean> {
   const current = useAppStore.getState();
@@ -13,12 +14,12 @@ export async function closeDocumentWithChecks(id: string): Promise<boolean> {
   }
 
   const action = await messageBox.show<"save" | "dont-save" | "cancel">({
-    title: "Unsaved changes",
-    content: `File "${id.split(/[/\\]/).pop()}" has unsaved changes. Save before closing?`,
+    title: i18n.t('document.unsavedChanges'),
+    content: i18n.t('document.saveChangesPrompt', { fileName: id.split(/[/\\]/).pop() }),
     buttons: [
-      { value: "save", text: "Save", intent: "primary" },
-      { value: "dont-save", text: "Don't Save" },
-      { value: "cancel", text: "Cancel" },
+      { value: "save", text: i18n.t('menuItem.save'), intent: "primary" },
+      { value: "dont-save", text: i18n.t('document.dontSave') },
+      { value: "cancel", text: i18n.t('dialog.cancel') },
     ],
     dismissValue: "cancel",
     canEscapeKeyClose: true,

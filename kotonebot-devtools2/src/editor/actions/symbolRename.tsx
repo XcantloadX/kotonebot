@@ -6,6 +6,7 @@ import { toaster } from "../../ui/toaster";
 import { useAppStore } from "../state";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { SERVER_COMMAND_ID } from "../commands/serverIds";
+import i18n from "../../i18n";
 
 /** 单个受影响符号目标。 */
 interface RenameSymbolTarget {
@@ -187,10 +188,10 @@ export async function renameSymbolNameForActiveDefinition(definitionId: string, 
     newName,
   });
   const confirmed = await messageBox.confirm_cancel({
-    title: "Confirm Symbol Rename",
+    title: i18n.t('symbol.confirmRename'),
     content: buildRenameConfirmContent(precheck),
-    confirmText: "Rename",
-    cancelText: "Cancel",
+    confirmText: i18n.t('variant.rename'),
+    cancelText: i18n.t('dialog.cancel'),
     confirmIntent: "primary",
     cancelIntent: "none",
   });

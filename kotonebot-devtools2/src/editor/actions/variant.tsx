@@ -12,6 +12,7 @@ import { toaster } from "../../ui/toaster";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { useAppStore } from "../state";
 import { openImageWithMeta } from "./image";
+import i18n from "../../i18n";
 
 export async function loadProjectVariants(): Promise<string[]> {
   const info = await getProjectInfo();
@@ -28,15 +29,15 @@ export async function pickVariantForActiveDocument(
     throw new Error("No active meta document");
   }
   if (projectVariants.length === 0) {
-    toaster.show({ message: "No selectable variants configured", intent: "warning" });
+    toaster.show({ message: i18n.t('variant.noVariantsConfigured'), intent: "warning" });
     return null;
   }
   return quickPick.select({
-    title: "Select Variant",
-    placeholder: "Type variant name",
+    title: i18n.t('variant.selectVariant'),
+    placeholder: i18n.t('variant.typeVariantName'),
     options: projectVariants,
     defaultValue: projectVariants[0],
-    emptyText: "No variant match",
+    emptyText: i18n.t('variant.noVariantMatch'),
   });
 }
 
@@ -66,10 +67,10 @@ export async function selectVariantImageForActiveDocument(
       throw e;
     }
     const confirmed = await messageBox.confirm_cancel({
-      title: "Overwrite Existing Meta?",
-      content: "Target meta already exists. Overwrite all definitions? Existing data will be lost.",
-      confirmText: "Overwrite",
-      cancelText: "Cancel",
+      title: i18n.t('variant.overwriteExistingMeta'),
+      content: i18n.t('variant.targetMetaExists'),
+      confirmText: i18n.t('variant.overwrite'),
+      cancelText: i18n.t('dialog.cancel'),
       confirmIntent: "danger",
       cancelIntent: "none",
     });
@@ -85,7 +86,7 @@ export async function selectVariantImageForActiveDocument(
   }
   await useSymbolIndexStore.getState().patchMetaPath(`${targetImagePath}.json`);
   await openImageWithMeta(targetImagePath);
-  toaster.show({ message: `Variant document created: ${variant}`, intent: "success" });
+  toaster.show({ message: i18n.t('variant.variantDocumentCreated', { variant }), intent: "success" });
 }
 
 export async function importVariantImageForActiveDocument(
@@ -101,7 +102,7 @@ export async function importVariantImageForActiveDocument(
     throw new Error("No import file selected");
   }
   if (files.length > 1) {
-    toaster.show({ message: "Only one file can be imported at a time", intent: "danger" });
+    toaster.show({ message: i18n.t('variant.onlyOneFileImport'), intent: "danger" });
     return false;
   }
 
@@ -114,10 +115,10 @@ export async function importVariantImageForActiveDocument(
     });
     const copiedDefinitions = precheck.copiedDefinitions.map((definition) => definition.name);
     const confirmed = await messageBox.confirm_cancel({
-      title: "Confirm Import Target",
+      title: i18n.t('variant.confirmImportTarget'),
       content: (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 760 }}>
-          <div style={{ fontWeight: 600 }}>Import variant image to</div>
+          <div style={{ fontWeight: 600 }}>{i18n.t('variant.importVariantImageTo')}</div>
           <div
             style={{
               fontFamily: "Consolas, 'Courier New', monospace",
@@ -132,7 +133,7 @@ export async function importVariantImageForActiveDocument(
             {precheck.targetImagePath}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>Will Copy ({copiedDefinitions.length})</div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>{i18n.t('variant.willCopy')} ({copiedDefinitions.length})</div>
             <div
               style={{
                 maxHeight: 150,
@@ -152,11 +153,11 @@ export async function importVariantImageForActiveDocument(
                     {name}
                   </div>
                 ))
-                : "None"}
+                : i18n.t('variant.none')}
             </div>
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>Skipped ({precheck.skippedDefinitions.length})</div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>{i18n.t('variant.skipped')} ({precheck.skippedDefinitions.length})</div>
             <div
               style={{
                 maxHeight: 220,
@@ -177,13 +178,13 @@ export async function importVariantImageForActiveDocument(
                     <span style={{ color: "#5c7080" }}>{" : "}{definition.reason}</span>
                   </div>
                 ))
-                : "None"}
+                : i18n.t('variant.none')}
             </div>
           </div>
         </div>
       ),
-      confirmText: "Import",
-      cancelText: "Cancel",
+      confirmText: i18n.t('variant.import'),
+      cancelText: i18n.t('dialog.cancel'),
       confirmIntent: "primary",
       cancelIntent: "none",
     });
@@ -192,10 +193,10 @@ export async function importVariantImageForActiveDocument(
     }
     if (copiedDefinitions.length === 0) {
       const continueWithNoCopy = await messageBox.confirm_cancel({
-        title: "No Definitions To Copy",
-        content: "No definitions will be copied. Continue import anyway?",
-        confirmText: "Continue",
-        cancelText: "Cancel",
+        title: i18n.t('variant.noDefinitionsToCopy'),
+        content: i18n.t('variant.noDefinitionsWillBeCopied'),
+        confirmText: i18n.t('variant.continue'),
+        cancelText: i18n.t('dialog.cancel'),
         confirmIntent: "warning",
         cancelIntent: "none",
       });
@@ -208,17 +209,17 @@ export async function importVariantImageForActiveDocument(
     let deleteExistingTarget = false;
     if (targetExists) {
       const deleteConfirmed = await messageBox.confirm_cancel({
-        title: "Target Image Already Exists",
+        title: i18n.t('variant.targetImageExists'),
         content: (
           <div>
-            <div>Target already exists:</div>
+            <div>{i18n.t('variant.targetAlreadyExists')}</div>
             <div>{precheck.targetImagePath}</div>
             <div>{precheck.targetMetaPath}</div>
-            <div style={{ marginTop: 8 }}>Delete target image and target image document before import?</div>
+            <div style={{ marginTop: 8 }}>{i18n.t('variant.deleteTargetBeforeImport')}</div>
           </div>
         ),
-        confirmText: "Delete and Import",
-        cancelText: "Cancel",
+        confirmText: i18n.t('variant.confirmDeleteAndImport'),
+        cancelText: i18n.t('dialog.cancel'),
         confirmIntent: "danger",
         cancelIntent: "none",
       });
@@ -278,12 +279,11 @@ export async function copySelectedPrefabToVariantForActiveDocument(
   });
 
   const confirmed = await messageBox.confirm_cancel({
-    title: "Confirm Copy Target",
+    title: i18n.t('variant.confirmCopyTarget'),
     content: (
       <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 760 }}>
         <div style={{ fontWeight: 600 }}>
-          Copy prefab <span style={{ color: "#106ba3" }}>{precheck.sourceDefinitionName}</span> to variant{" "}
-          <span style={{ color: "#106ba3" }}>{targetVariant}</span>
+          {i18n.t('variant.copyPrefabToVariant', { name: precheck.sourceDefinitionName, variant: targetVariant })}
         </div>
         <div
           style={{
@@ -301,8 +301,8 @@ export async function copySelectedPrefabToVariantForActiveDocument(
         </div>
       </div>
     ),
-    confirmText: "Copy",
-    cancelText: "Cancel",
+    confirmText: i18n.t('variant.copy'),
+    cancelText: i18n.t('dialog.cancel'),
     confirmIntent: "primary",
     cancelIntent: "none",
   });
@@ -313,10 +313,10 @@ export async function copySelectedPrefabToVariantForActiveDocument(
   let forceOverwrite = false;
   if (precheck.targetDefinitionExists) {
     const overwriteConfirmed = await messageBox.confirm_cancel({
-      title: "Overwrite Existing Prefab?",
-      content: `Target variant document already has definition '${precheck.sourceDefinitionId}'. Overwrite it?`,
-      confirmText: "Overwrite",
-      cancelText: "Cancel",
+      title: i18n.t('variant.overwriteExistingPrefab'),
+      content: i18n.t('variant.targetVariantHasDefinition', { definitionId: precheck.sourceDefinitionId }),
+      confirmText: i18n.t('variant.overwrite'),
+      cancelText: i18n.t('dialog.cancel'),
       confirmIntent: "danger",
       cancelIntent: "none",
     });
@@ -337,7 +337,7 @@ export async function copySelectedPrefabToVariantForActiveDocument(
   await useSymbolIndexStore.getState().patchMetaPath(result.targetMetaPath);
   await openImageWithMeta(result.targetImagePath);
   toaster.show({
-    message: `Copied prefab '${result.definitionName}' to variant '${targetVariant}'`,
+    message: i18n.t('variant.copiedPrefab', { name: result.definitionName, variant: targetVariant }),
     intent: "success",
   });
 }

@@ -1,10 +1,12 @@
 import React, { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "../editor/state";
 import { SideToolBar, Tool } from "./SideToolBar";
 import { toaster } from "./toaster";
 import { useShortcuts } from "../shortcuts/shortcutManager";
 
 export const LeftToolBar: React.FC = () => {
+  const { t } = useTranslation();
   const {
     activeDocumentId,
     documents,
@@ -43,7 +45,7 @@ export const LeftToolBar: React.FC = () => {
       }
     }
 
-    toaster.show({ message: `No primary prop defined for prefab '${schema.name}'`, intent: "danger" });
+    toaster.show({ message: t('error.noPrimaryProp', { name: schema.name }), intent: "danger" });
   }, [activeMeta, prefabSchema, setMode]);
 
   const prefabShortcutBindings = useMemo(() => {
@@ -110,7 +112,7 @@ export const LeftToolBar: React.FC = () => {
     {
       id: "select",
       icon: "select",
-      title: "选择",
+      title: t('toolbar.select'),
       selectable: true,
       onClick: () => setActiveTool("select"),
     },
@@ -120,10 +122,11 @@ export const LeftToolBar: React.FC = () => {
   let hasPrefabTools = false;
   if (prefabSchema) {
     Object.values(prefabSchema.prefabs).forEach((p) => {
+      const shortcut = p.shortcut || 'no shortcut';
       tools.push({
         id: `prefab-${p.id}`,
         icon: p.icon as any,
-        title: `${p.name} (${p.shortcut || "no shortcut"})`,
+        title: `${p.name} (${shortcut})`,
         selectable: true,
         onClick: () => createPrefab(p.id),
         disabled: !activeMeta,
@@ -139,7 +142,7 @@ export const LeftToolBar: React.FC = () => {
   tools.push({
     id: "new-template",
     icon: "media",
-    title: "简单模板",
+    title: t('toolbar.template'),
     selectable: true,
     onClick: () => {
       setActiveResourceType("template");
@@ -150,7 +153,7 @@ export const LeftToolBar: React.FC = () => {
   tools.push({
     id: "new-hint-box",
     icon: "selection",
-    title: "简单 Hint Box",
+    title: t('toolbar.hintBox'),
     selectable: true,
     onClick: () => {
       setActiveResourceType("hint-box");
@@ -161,7 +164,7 @@ export const LeftToolBar: React.FC = () => {
   tools.push({
     id: "new-hint-point",
     icon: "locate",
-    title: "简单 Hint Point",
+    title: t('toolbar.hintPoint'),
     selectable: true,
     onClick: () => {
       setActiveResourceType("hint-point");

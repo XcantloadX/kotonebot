@@ -11,6 +11,7 @@ import {
   Position,
   InputGroup,
 } from "@blueprintjs/core";
+import { useTranslation } from "react-i18next";
 import ClearableInputGroup from "@/ui/components/ClearableInputGroup";
 import { toaster } from "../../toaster";
 import { listDir, getProjectInfo, FileItem, getImageUrl } from "../../../api/fs";
@@ -143,6 +144,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
   multiSelect = true,
   rightPanel,
 }) => {
+  const { t } = useTranslation();
   const [currentPath, setCurrentPath] = useState<string>(".");
   const [backStack, setBackStack] = useState<string[]>([]);
   const [forwardStack, setForwardStack] = useState<string[]>([]);
@@ -302,7 +304,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
       setCurrentPath(normalized);
       setCurrentPathInput(normalized);
     } catch (err: any) {
-      const msg = err && err.message ? err.message : "Failed to open path";
+      const msg = err && err.message ? err.message : t('fileDialog.failedToOpenPath');
       toaster.show({ message: `Cannot open path: ${msg}`, intent: "danger" });
       setCurrentPathInput(currentPath.replace(/\\/g, "/"));
     } finally {
@@ -454,7 +456,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
         })),
       );
     } catch (err: any) {
-      const msg = err && err.message ? err.message : "Failed to open path";
+      const msg = err && err.message ? err.message : t('fileDialog.failedToOpenPath');
       toaster.show({ message: `Cannot open path: ${msg}`, intent: "danger" });
       setTreeViewNodes((prev) =>
         updateNodeById(prev, String(node.id), (current) => ({
@@ -591,7 +593,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
             <ClearableInputGroup
               small
               leftIcon="search"
-              placeholder="Search"
+              placeholder={t('fileDialog.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
               style={{ width: 260 }}
@@ -612,7 +614,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
               position={Position.BOTTOM}
               content={
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: 8 }}>
-                  <span style={{ fontSize: 12 }}>Size</span>
+                  <span style={{ fontSize: 12 }}>{t('fileDialog.size')}</span>
                   <input
                     type="range"
                     min={64}
@@ -644,10 +646,10 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
       </div>
       <div className={Classes.DIALOG_FOOTER}>
         <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-          <div style={{ marginRight: "auto" }}>{selectedPaths.size} files selected</div>
-          <Button onClick={onClose}>Cancel</Button>
+          <div style={{ marginRight: "auto" }}>{selectedPaths.size} {t('fileDialog.filesSelected')}</div>
+          <Button onClick={onClose}>{t('dialog.cancel')}</Button>
           <Button intent="primary" onClick={() => void handleOpen()} disabled={selectedPaths.size === 0}>
-            Open
+            {t('fileDialog.open')}
           </Button>
         </div>
       </div>

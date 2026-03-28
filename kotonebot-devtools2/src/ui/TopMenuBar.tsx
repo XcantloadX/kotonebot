@@ -1,11 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IconName, InputGroup, Menu, MenuItem } from "@blueprintjs/core";
+import { IconName, InputGroup, Menu, MenuItem, HTMLSelect } from "@blueprintjs/core";
+import { useTranslation } from "react-i18next";
 import { editorActions } from "../editor/actions";
 import { COMMAND_ID, executeCommand, useCommandStatuses } from "../editor/commands";
 import { useAppStore } from "../editor/state";
 import { FileOpenDialog } from "./components/FileOpenDialog/FileOpenDialog";
 import { FileOpenOrImportDialog } from "./components/FileOpenDialog/FileOpenOrImportDialog";
 import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
+import { useLocaleStore } from "../i18n/localeStore";
+import { SUPPORTED_LANGUAGES } from "../i18n";
 
 type MenuKey = "file" | "edit" | "variant" | null;
 type MenuId = Exclude<MenuKey, null>;
@@ -19,6 +22,8 @@ interface MenuDefinitionItem {
 }
 
 export const TopMenuBar: React.FC = () => {
+  const { t } = useTranslation();
+  const { language, setLanguage } = useLocaleStore();
   const { activeDocumentId, documents } = useAppStore();
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const fileButtonRef = useRef<HTMLButtonElement>(null);
@@ -34,8 +39,8 @@ export const TopMenuBar: React.FC = () => {
     variant: null,
   });
   const variantDialogTitle = variantDialogState.variant
-    ? `Select target image for variant ${variantDialogState.variant}`
-    : "Select target image for variant";
+    ? t('dialog.selectTargetImage') + ` ${variantDialogState.variant}`
+    : t('dialog.selectTargetImage');
   const modalOpen = isImageDialogOpen || variantDialogState.isOpen;
 
   useShortcutScope("menu", openMenu !== null);
@@ -102,8 +107,8 @@ export const TopMenuBar: React.FC = () => {
   const canRedo = statuses[COMMAND_ID.EDIT_REDO].enabled;
   const undoLabel = canUndo && activeDoc ? activeDoc.history.entries[activeDoc.history.cursor - 1].label : "";
   const redoLabel = canRedo && activeDoc ? activeDoc.history.entries[activeDoc.history.cursor].label : "";
-  const undoMenuText = canUndo ? `Undo: ${undoLabel}` : "Undo";
-  const redoMenuText = canRedo ? `Redo: ${redoLabel}` : "Redo";
+  const undoMenuText = canUndo ? `${t('menuItem.undo')}: ${undoLabel}` : t('menuItem.undo');
+  const redoMenuText = canRedo ? `${t('menuItem.redo')}: ${redoLabel}` : t('menuItem.redo');
 
   const handleSelectImages = useCallback(
     async (paths: string[]) => {
@@ -162,8 +167,8 @@ export const TopMenuBar: React.FC = () => {
       file: [
         {
           icon: "folder-open",
-          text: "Open Image...",
-          label: "Ctrl+O",
+          text: t('menuItem.openImage'),
+          label: t('shortcut.ctrlO'),
           onClick: () => {
             setOpenMenu(null);
             void executeCommand(COMMAND_ID.FILE_OPEN_IMAGE, commandContext, undefined);
@@ -171,8 +176,8 @@ export const TopMenuBar: React.FC = () => {
         },
         {
           icon: "floppy-disk",
-          text: "Save",
-          label: "Ctrl+S",
+          text: t('menuItem.save'),
+          label: t('shortcut.ctrlS'),
           disabled: !canSave,
           onClick: () => {
             setOpenMenu(null);
@@ -181,8 +186,8 @@ export const TopMenuBar: React.FC = () => {
         },
         {
           icon: "floppy-disk",
-          text: "Save All",
-          label: "Ctrl+Shift+S",
+          text: t('menuItem.saveAll'),
+          label: t('shortcut.ctrlShiftS'),
           disabled: !canSaveAll,
           onClick: () => {
             setOpenMenu(null);
@@ -191,7 +196,7 @@ export const TopMenuBar: React.FC = () => {
         },
         {
           icon: "edit",
-          text: "Rename...",
+          text: t('menuItem.rename'),
           disabled: !canRenameDocument,
           onClick: () => {
             setOpenMenu(null);
@@ -200,8 +205,8 @@ export const TopMenuBar: React.FC = () => {
         },
         {
           icon: "cross",
-          text: "Close Document",
-          label: "Ctrl+2",
+          text: t('menuItem.closeDocument'),
+          label: t('shortcut.ctrl2'),
           disabled: !statuses[COMMAND_ID.FILE_CLOSE_ACTIVE].enabled,
           onClick: () => {
             setOpenMenu(null);
@@ -210,8 +215,8 @@ export const TopMenuBar: React.FC = () => {
         },
         {
           icon: "small-cross",
-          text: "Close All Document",
-          label: "Ctrl+Shift+2",
+          text: t('menuItem.closeAllDocuments'),
+          label: t('shortcut.ctrlShift2'),
           disabled: !statuses[COMMAND_ID.FILE_CLOSE_ALL].enabled,
           onClick: () => {
             setOpenMenu(null);
@@ -223,7 +228,7 @@ export const TopMenuBar: React.FC = () => {
         {
           icon: "undo",
           text: undoMenuText,
-          label: "Ctrl+Z",
+          label: t('shortcut.ctrlZ'),
           disabled: !canUndo,
           onClick: () => {
             setOpenMenu(null);
@@ -233,7 +238,7 @@ export const TopMenuBar: React.FC = () => {
         {
           icon: "redo",
           text: redoMenuText,
-          label: "Ctrl+Shift+Z",
+          label: t('shortcut.ctrlShiftZ'),
           disabled: !canRedo,
           onClick: () => {
             setOpenMenu(null);
@@ -244,8 +249,8 @@ export const TopMenuBar: React.FC = () => {
       variant: [
         {
           icon: "duplicate",
-          text: "New Variant Image Document...",
-          label: "Ctrl+Alt+N",
+          text: t('menuItem.newVariantImage'),
+          label: t('shortcut.ctrlAltN'),
           disabled: !canCreateVariantDocument,
           onClick: () => {
             setOpenMenu(null);
@@ -254,7 +259,7 @@ export const TopMenuBar: React.FC = () => {
         },
         {
           icon: "duplicate",
-          text: "Copy Selected Prefab to Variant",
+          text: t('menuItem.copyToVariant'),
           disabled: !canCopySelectedPrefabToVariant,
           onClick: () => {
             setOpenMenu(null);
@@ -276,6 +281,7 @@ export const TopMenuBar: React.FC = () => {
       documents,
       redoMenuText,
       undoMenuText,
+      t,
     ]
   );
 
@@ -475,7 +481,7 @@ export const TopMenuBar: React.FC = () => {
           onClick={() => toggleMenu("file")}
           onMouseEnter={() => switchMenuOnHover("file")}
         >
-          File
+          {t('menu.file')}
         </button>
         <button
           ref={editButtonRef}
@@ -484,7 +490,7 @@ export const TopMenuBar: React.FC = () => {
           onClick={() => toggleMenu("edit")}
           onMouseEnter={() => switchMenuOnHover("edit")}
         >
-          Edit
+          {t('menu.edit')}
         </button>
         <button
           ref={variantButtonRef}
@@ -493,7 +499,7 @@ export const TopMenuBar: React.FC = () => {
           onClick={() => toggleMenu("variant")}
           onMouseEnter={() => switchMenuOnHover("variant")}
         >
-          Variant
+          {t('menu.variant')}
         </button>
       </div>
       <div
@@ -506,11 +512,19 @@ export const TopMenuBar: React.FC = () => {
           leftIcon="search"
           value=""
           readOnly
-          placeholder="Search commands and symbols"
-          rightElement={<div style={{ padding: "6px 10px", color: "#5c7080", fontSize: 12 }}>Ctrl+Shift+P</div>}
+          placeholder={t('placeholder.searchCommands')}
+          rightElement={<div style={{ padding: "6px 10px", color: "#5c7080", fontSize: 12 }}>{t('shortcut.ctrlShiftP')}</div>}
         />
       </div>
-      <div />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+        <HTMLSelect
+          minimal
+          value={language}
+          onChange={(e) => setLanguage(e.target.value as typeof language)}
+          options={SUPPORTED_LANGUAGES.map((lang: string) => ({ value: lang, label: lang === 'zh-CN' ? '中文' : 'English' }))}
+          style={{ height: 24, fontSize: 12 }}
+        />
+      </div>
       {openMenu ? (
         <div
           ref={menuPanelRef}
@@ -534,7 +548,7 @@ export const TopMenuBar: React.FC = () => {
         isOpen={isImageDialogOpen}
         onClose={closeImageDialog}
         onSelect={handleSelectImages}
-        title="Open Image"
+        title={t('dialog.openImage')}
         filter={(name) => name.endsWith(".png")}
       />
       <FileOpenOrImportDialog

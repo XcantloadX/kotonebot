@@ -2,6 +2,7 @@ import { messageBox } from "../../ui/messageBox";
 import { useAppStore } from "../state";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { openImageWithMeta } from "./image";
+import i18n from "../../i18n";
 
 interface VariantSymbolRef {
   imagePath: string;
@@ -95,12 +96,12 @@ export async function promptAndRenameVariantsForDefinition(definitionId: string)
   }
 
   const action = await messageBox.show<"auto" | "keep" | "undo">({
-    title: "Sync Variant Names",
-    content: `Detected a Name change from "${oldName}" to "${newName}" with ${variantSymbols.length} related variant(s).`,
+    title: i18n.t('variantRename.syncVariantNames'),
+    content: i18n.t('variantRename.detectedNameChange', { oldName, newName, count: variantSymbols.length }),
     buttons: [
-      { value: "auto", text: "Auto Update", intent: "primary" },
-      { value: "keep", text: "Keep As Is" },
-      { value: "undo", text: "Undo Change" },
+      { value: "auto", text: i18n.t('variantRename.autoUpdate'), intent: "primary" },
+      { value: "keep", text: i18n.t('variantRename.keepAsIs') },
+      { value: "undo", text: i18n.t('variantRename.undoChange') },
     ],
     dismissValue: "keep",
     canEscapeKeyClose: true,

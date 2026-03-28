@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button, Icon, InputGroup } from "@blueprintjs/core";
+import { useTranslation } from "react-i18next";
 import { DiagnosticItem } from "../model/symbolIndex";
 import { useSymbolIndexStore } from "../editor/symbolIndexStore";
 import { COMMAND_ID, executeCommand } from "../editor/commands";
@@ -42,6 +43,7 @@ export const ProblemsPanel: React.FC<ProblemsPanelProps> = ({
   onClose,
   onHeightChange,
 }) => {
+  const { t } = useTranslation();
   const commandContext = useMemo(() => ({ ui: {} }), []);
   const {
     diagnosticsByFile,
@@ -174,9 +176,9 @@ export const ProblemsPanel: React.FC<ProblemsPanelProps> = ({
           minimal
           icon={visible ? "chevron-down" : "chevron-right"}
           onClick={onToggleVisible}
-          title={visible ? "Collapse Problems" : "Expand Problems"}
+          title={visible ? t('problems.collapse') : t('problems.expand')}
         />
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#182026" }}>Problems</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#182026" }}>{t('problems.title')}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#5c7080", fontSize: 12 }}>
           <span>{diagnosticStats.total}</span>
           <span style={{ color: "#db3737" }}>E:{diagnosticStats.error}</span>
@@ -188,11 +190,11 @@ export const ProblemsPanel: React.FC<ProblemsPanelProps> = ({
             small
             minimal
             icon="refresh"
-            title="Refresh diagnostics"
+            title={t('problems.refresh')}
             disabled={!initialized}
             onClick={() => void refetchDiagnostics()}
           />
-          <Button small minimal icon="cross" title="Close Problems" onClick={onClose} />
+          <Button small minimal icon="cross" title={t('problems.close')} onClick={onClose} />
         </div>
       </div>
 
@@ -201,24 +203,24 @@ export const ProblemsPanel: React.FC<ProblemsPanelProps> = ({
           <div
             onMouseDown={startResize}
             style={{ height: 4, cursor: "row-resize", background: "#d2dce5" }}
-            title="Resize panel"
+            title={t('problems.resizePanel')}
           />
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderBottom: "1px solid #d8e1e8" }}>
             <InputGroup
               leftIcon="filter"
-              placeholder="Filter by text"
+              placeholder={t('problems.filter')}
               value={query}
               onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
               small
             />
-            <Button small active={severityFilter === "all"} onClick={() => setSeverityFilter("all")}>All</Button>
-            <Button small active={severityFilter === "error"} onClick={() => setSeverityFilter("error")}>Error</Button>
-            <Button small active={severityFilter === "warning"} onClick={() => setSeverityFilter("warning")}>Warning</Button>
-            <Button small active={severityFilter === "info"} onClick={() => setSeverityFilter("info")}>Info</Button>
+            <Button small active={severityFilter === "all"} onClick={() => setSeverityFilter("all")}>{t('problems.all')}</Button>
+            <Button small active={severityFilter === "error"} onClick={() => setSeverityFilter("error")}>{t('problems.error')}</Button>
+            <Button small active={severityFilter === "warning"} onClick={() => setSeverityFilter("warning")}>{t('problems.warning')}</Button>
+            <Button small active={severityFilter === "info"} onClick={() => setSeverityFilter("info")}>{t('problems.info')}</Button>
           </div>
           <div style={{ flex: 1, overflow: "auto", background: "#f5f8fa" }}>
             {filteredItems.length === 0 ? (
-              <div style={{ padding: 12, color: "#738694", fontSize: 13 }}>No problems</div>
+              <div style={{ padding: 12, color: "#738694", fontSize: 13 }}>{t('status.noProblems')}</div>
             ) : (
               filteredItems.map((row) => {
                 const isSelected = selectedProblemId === row.id;

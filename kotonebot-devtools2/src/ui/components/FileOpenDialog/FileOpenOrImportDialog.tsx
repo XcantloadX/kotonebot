@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Dialog } from "@blueprintjs/core";
+import { useTranslation } from "react-i18next";
 import { FileOpenDialogBaseProps, FileOpenDialogContent } from "./FileOpenDialogContent";
 
 export interface FileOpenOrImportDialogProps extends FileOpenDialogBaseProps {
@@ -11,10 +12,11 @@ export const FileOpenOrImportDialog: React.FC<FileOpenOrImportDialogProps> = ({
   onClose,
   onSelect,
   onImportDrop,
-  title = "Open File",
+  title,
   filter,
   multiSelect = true,
 }) => {
+  const { t } = useTranslation();
   const [isDragActive, setIsDragActive] = useState(false);
 
   const importFromFiles = useCallback(
@@ -110,14 +112,14 @@ export const FileOpenOrImportDialog: React.FC<FileOpenOrImportDialogProps> = ({
     >
       <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
         <span className="bp5-icon bp5-icon-import" style={{ fontSize: 36 }} />
-        <div style={{ fontSize: 14, fontWeight: 500 }}>Drag files here to import</div>
-        <div style={{ fontSize: 12 }}>or press Ctrl+V to import from clipboard</div>
+        <div style={{ fontSize: 14, fontWeight: 500 }}>{t('fileDialog.dragFilesHere')}</div>
+        <div style={{ fontSize: 12 }}>{t('fileDialog.orPressCtrlV')}</div>
       </div>
     </div>
   );
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} title={title} style={{ width: 1240 }}>
+    <Dialog isOpen={isOpen} onClose={onClose} title={title ?? t('fileDialog.openFile')} style={{ width: 1240 }}>
       <FileOpenDialogContent
         isOpen={isOpen}
         onClose={onClose}

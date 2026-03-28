@@ -3,6 +3,7 @@ import { toaster } from "../../ui/toaster";
 import { messageBox } from "../../ui/messageBox";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { useAppStore } from "../state";
+import i18n from "../../i18n";
 
 export async function promptAndRenameActiveDocument(): Promise<void> {
   const current = useAppStore.getState();
@@ -19,11 +20,11 @@ export async function promptAndRenameActiveDocument(): Promise<void> {
   }
 
   const input = await messageBox.prompt({
-    title: "Rename Document",
-    content: `Current path:\n${activeId}`,
+    title: i18n.t('document.rename'),
+    content: `${i18n.t('document.currentPath')}:\n${activeId}`,
     defaultValue: activeId,
-    placeholder: "Enter new image path",
-    confirmText: "Rename",
+    placeholder: i18n.t('document.enterNewPath'),
+    confirmText: i18n.t('variant.rename'),
   });
   if (input === null) {
     return;
@@ -44,7 +45,7 @@ export async function promptAndRenameActiveDocument(): Promise<void> {
   const precheck = await precheckRenameDocument(activeId, nextPath);
   if (precheck.hasConflicts) {
     await messageBox.ok({
-      title: "Rename Blocked",
+      title: i18n.t('document.renameBlocked'),
       content: precheck.conflicts.join("\n"),
     });
     return;
@@ -54,11 +55,11 @@ export async function promptAndRenameActiveDocument(): Promise<void> {
   }
 
   const confirmed = await messageBox.confirm_cancel({
-    title: "Confirm Rename Preview",
+    title: i18n.t('document.confirmRenamePreview'),
     content: (
       <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 900 }}>
         <div style={{ fontWeight: 600 }}>
-          Planned Renames ({precheck.fileRenames.length})
+          {i18n.t('document.plannedRenames')} ({precheck.fileRenames.length})
         </div>
         <div
           style={{
@@ -125,8 +126,8 @@ export async function promptAndRenameActiveDocument(): Promise<void> {
         </div>
       </div>
     ),
-    confirmText: "Rename",
-    cancelText: "Cancel",
+    confirmText: i18n.t('variant.rename'),
+    cancelText: i18n.t('dialog.cancel'),
     confirmIntent: "primary",
     cancelIntent: "none",
   });
@@ -164,5 +165,5 @@ export async function promptAndRenameActiveDocument(): Promise<void> {
     useAppStore.getState().renameDocuments(openedRenames);
   }
   await useSymbolIndexStore.getState().refetch();
-  toaster.show({ message: `已重命名 ${result.renamedDocumentCount} 个文档`, intent: "success" as any });
+  toaster.show({ message: i18n.t('document.renamedCount', { count: result.renamedDocumentCount }), intent: "success" as any });
 }

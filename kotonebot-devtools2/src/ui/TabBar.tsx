@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useHorizontalScroll } from './hooks/useHorizontalScroll';
 import { Icon, Tooltip, Menu, MenuItem } from '@blueprintjs/core';
+import { useTranslation } from 'react-i18next';
 import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { useAppStore } from '../editor/state';
 
@@ -11,6 +12,7 @@ const TAB_FONT = '600 13px system-ui';
 
 
 export const TabBar: React.FC = () => {
+    const { t } = useTranslation();
     const { documents, activeDocumentId, setActiveDocument } = useAppStore();
     const scrollRef = useHorizontalScroll();
     const commandContext = useMemo(() => ({ ui: {} }), []);
@@ -149,17 +151,17 @@ export const TabBar: React.FC = () => {
                     onMouseDown={(e) => e.stopPropagation()}
                 >
                     <Menu>
-                        <MenuItem text="Close" onClick={() => {
+                        <MenuItem text={t('menuItem.closeDocument')} onClick={() => {
                             const id = contextMenu.docId;
                             void executeCommand(COMMAND_ID.DOCUMENT_CLOSE, commandContext, { id });
                             setContextMenu(null);
                         }} />
-                        <MenuItem text="Close All" onClick={() => {
+                        <MenuItem text={t('menuItem.closeAllDocuments')} onClick={() => {
                             const ids = Object.keys(documents);
                             void executeCommand(COMMAND_ID.DOCUMENT_CLOSE_MANY, commandContext, { ids });
                             setContextMenu(null);
                         }} />
-                        <MenuItem text="Close Others" onClick={() => {
+                        <MenuItem text={t('tabBar.closeOthers')} onClick={() => {
                             const id = contextMenu.docId;
                             const ids = Object.keys(documents).filter(i => i !== id);
                             void executeCommand(COMMAND_ID.DOCUMENT_CLOSE_MANY, commandContext, { ids });

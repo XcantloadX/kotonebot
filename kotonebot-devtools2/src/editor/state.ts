@@ -6,6 +6,7 @@ import { PrefabSchema } from '../model/prefabSchema';
 import { writeText } from '../api/fs';
 import { toaster } from '../ui/toaster';
 import { useSymbolIndexStore } from './symbolIndexStore';
+import i18n from '../i18n';
 
 enablePatches();
 
@@ -510,7 +511,7 @@ export const useAppStore = create<AppState>()(
           }
         });
       } catch (e: any) {
-        toaster.show({ message: `保存失败: ${e?.message ?? String(e)}`, intent: 'danger' as any });
+        toaster.show({ message: i18n.t('error.saveFailed', { message: e?.message ?? String(e) }), intent: 'danger' as any });
         throw e;
       }
     },
@@ -538,7 +539,7 @@ export const useAppStore = create<AppState>()(
         }
         return savedCount;
       } catch (e: any) {
-        toaster.show({ message: `保存失败: ${e?.message ?? String(e)}`, intent: 'danger' as any });
+        toaster.show({ message: i18n.t('error.saveFailed', { message: e?.message ?? String(e) }), intent: 'danger' as any });
         throw e;
       }
     }

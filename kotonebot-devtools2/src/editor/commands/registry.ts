@@ -16,6 +16,9 @@ import {
   hasAnyDocument,
 } from "./selectors";
 import type { EditorCommandArgsMap, EditorCommandContext, EditorCommandDefinition, EditorCommandId, NoArgCommandId } from "./types";
+import i18n from "../../i18n";
+
+const t = (key: string) => i18n.t(key);
 
 /** 读取命令依赖的 UI 回调；缺失时直接抛错。 */
 function requireUiHandler<K extends keyof EditorCommandContext["ui"]>(
@@ -33,7 +36,7 @@ function requireUiHandler<K extends keyof EditorCommandContext["ui"]>(
 const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   [COMMAND_ID.APP_OPEN_COMMAND_PALETTE]: {
     id: COMMAND_ID.APP_OPEN_COMMAND_PALETTE,
-    title: "Open Command Palette",
+    title: t('commands.openCommandPalette'),
     keywords: ["command", "palette"],
     showInPalette: false,
     run: async () => {
@@ -43,7 +46,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL]: {
     id: COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL,
-    title: "Toggle Problems Panel",
+    title: t('commands.toggleProblemsPanel'),
     keywords: ["problems", "diagnostic", "panel"],
     showInPalette: true,
     run: async () => {
@@ -53,7 +56,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.FILE_OPEN_IMAGE]: {
     id: COMMAND_ID.FILE_OPEN_IMAGE,
-    title: "Open Image...",
+    title: t('menuItem.openImage'),
     keywords: ["open", "image", "file"],
     showInPalette: true,
     requiredUi: ["openImageDialog"],
@@ -63,7 +66,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.FILE_SAVE]: {
     id: COMMAND_ID.FILE_SAVE,
-    title: "Save",
+    title: t('menuItem.save'),
     keywords: ["save"],
     showInPalette: true,
     when: () => canSaveActiveDocument(),
@@ -73,7 +76,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.FILE_SAVE_ALL]: {
     id: COMMAND_ID.FILE_SAVE_ALL,
-    title: "Save All",
+    title: t('menuItem.saveAll'),
     keywords: ["save", "all"],
     showInPalette: true,
     when: () => canSaveAnyDocument(),
@@ -83,7 +86,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.FILE_RENAME]: {
     id: COMMAND_ID.FILE_RENAME,
-    title: "Rename Document...",
+    title: t('commands.renameDocument'),
     keywords: ["rename", "document"],
     showInPalette: true,
     when: () => canRenameActiveDocument(),
@@ -93,7 +96,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.FILE_CLOSE_ACTIVE]: {
     id: COMMAND_ID.FILE_CLOSE_ACTIVE,
-    title: "Close Document",
+    title: t('menuItem.closeDocument'),
     keywords: ["close", "document"],
     showInPalette: true,
     when: () => !!getActiveDocumentId(),
@@ -103,7 +106,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.FILE_CLOSE_ALL]: {
     id: COMMAND_ID.FILE_CLOSE_ALL,
-    title: "Close All Documents",
+    title: t('menuItem.closeAllDocuments'),
     keywords: ["close", "all", "document"],
     showInPalette: true,
     when: () => hasAnyDocument(),
@@ -113,7 +116,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.EDIT_UNDO]: {
     id: COMMAND_ID.EDIT_UNDO,
-    title: "Undo",
+    title: t('menuItem.undo'),
     keywords: ["undo", "history"],
     showInPalette: true,
     when: () => canUndoInActiveDocument(),
@@ -123,7 +126,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.EDIT_REDO]: {
     id: COMMAND_ID.EDIT_REDO,
-    title: "Redo",
+    title: t('menuItem.redo'),
     keywords: ["redo", "history"],
     showInPalette: true,
     when: () => canRedoInActiveDocument(),
@@ -133,7 +136,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.DEFINITION_DUPLICATE_SELECTED]: {
     id: COMMAND_ID.DEFINITION_DUPLICATE_SELECTED,
-    title: "Duplicate Selected Definition",
+    title: t('commands.duplicateDefinition'),
     keywords: ["definition", "duplicate", "copy"],
     showInPalette: false,
     when: () => canOperateOnSelectedDefinitionInActiveDocument(),
@@ -143,7 +146,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.DEFINITION_COPY_SELECTED]: {
     id: COMMAND_ID.DEFINITION_COPY_SELECTED,
-    title: "Copy Selected Definition",
+    title: t('commands.copyDefinition'),
     keywords: ["definition", "copy", "clipboard"],
     showInPalette: false,
     when: () => canOperateOnSelectedDefinitionInActiveDocument(),
@@ -153,7 +156,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.DEFINITION_CUT_SELECTED]: {
     id: COMMAND_ID.DEFINITION_CUT_SELECTED,
-    title: "Cut Selected Definition",
+    title: t('commands.cutDefinition'),
     keywords: ["definition", "cut", "clipboard"],
     showInPalette: false,
     when: () => canOperateOnSelectedDefinitionInActiveDocument(),
@@ -163,7 +166,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.DEFINITION_DELETE_SELECTED]: {
     id: COMMAND_ID.DEFINITION_DELETE_SELECTED,
-    title: "Delete Selected Definition",
+    title: t('commands.deleteDefinition'),
     keywords: ["definition", "delete", "remove"],
     showInPalette: false,
     when: () => canOperateOnSelectedDefinitionInActiveDocument(),
@@ -173,7 +176,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.DEFINITION_PASTE_FROM_CLIPBOARD]: {
     id: COMMAND_ID.DEFINITION_PASTE_FROM_CLIPBOARD,
-    title: "Paste Definition From Clipboard",
+    title: t('commands.pasteDefinition'),
     keywords: ["definition", "paste", "clipboard"],
     showInPalette: false,
     when: () => canPasteDefinitionFromClipboardInActiveDocument(),
@@ -183,7 +186,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.VARIANT_NEW_DOCUMENT]: {
     id: COMMAND_ID.VARIANT_NEW_DOCUMENT,
-    title: "New Variant Image Document...",
+    title: t('menuItem.newVariantImage'),
     keywords: ["variant", "new", "document"],
     showInPalette: true,
     requiredUi: ["openVariantDialog"],
@@ -194,7 +197,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB]: {
     id: COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB,
-    title: "Copy Selected Prefab to Variant",
+    title: t('menuItem.copyToVariant'),
     keywords: ["variant", "copy", "prefab"],
     showInPalette: true,
     when: () => canCopySelectedPrefabToVariantForActiveDocument(),
@@ -204,7 +207,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.VARIANT_RENAME_VARIANTS_FOR_DEFINITION]: {
     id: COMMAND_ID.VARIANT_RENAME_VARIANTS_FOR_DEFINITION,
-    title: "Rename Variants for Definition",
+    title: t('commands.renameVariants'),
     keywords: ["variant", "rename", "definition"],
     showInPalette: false,
     run: async (_, args) => {
@@ -213,7 +216,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.SYMBOL_RENAME_FOR_DEFINITION]: {
     id: COMMAND_ID.SYMBOL_RENAME_FOR_DEFINITION,
-    title: "Rename Symbol for Definition",
+    title: t('commands.renameSymbol'),
     keywords: ["symbol", "rename", "definition"],
     showInPalette: false,
     run: async (_, args) => {
@@ -222,7 +225,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.DOCUMENT_CLOSE]: {
     id: COMMAND_ID.DOCUMENT_CLOSE,
-    title: "Close Document",
+    title: t('menuItem.closeDocument'),
     keywords: ["close", "document"],
     showInPalette: false,
     run: async (_, args) => {
@@ -231,7 +234,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.DOCUMENT_CLOSE_MANY]: {
     id: COMMAND_ID.DOCUMENT_CLOSE_MANY,
-    title: "Close Documents",
+    title: t('commands.closeDocuments'),
     keywords: ["close", "documents"],
     showInPalette: false,
     run: async (_, args) => {
@@ -240,7 +243,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.NAVIGATION_JUMP_TO_SYMBOL]: {
     id: COMMAND_ID.NAVIGATION_JUMP_TO_SYMBOL,
-    title: "Jump To Symbol",
+    title: t('commands.jumpToSymbol'),
     keywords: ["jump", "symbol", "navigate"],
     showInPalette: false,
     run: async (_, args) => {
@@ -249,7 +252,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
   },
   [COMMAND_ID.NAVIGATION_JUMP_TO_DIAGNOSTIC]: {
     id: COMMAND_ID.NAVIGATION_JUMP_TO_DIAGNOSTIC,
-    title: "Jump To Diagnostic",
+    title: t('commands.jumpToDiagnostic'),
     keywords: ["jump", "diagnostic", "problem", "navigate"],
     showInPalette: false,
     run: async (_, args) => {

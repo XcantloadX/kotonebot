@@ -1,0 +1,209 @@
+{
+  "app": {
+    "name": "KotoneBot DevTools"
+  },
+  "menu": {
+    "file": "File",
+    "edit": "Edit",
+    "variant": "Variant"
+  },
+  "menuItem": {
+    "openImage": "Open Image...",
+    "save": "Save",
+    "saveAll": "Save All",
+    "rename": "Rename...",
+    "closeDocument": "Close Document",
+    "closeAllDocuments": "Close All Documents",
+    "undo": "Undo",
+    "redo": "Redo",
+    "newVariantImage": "New Variant Image Document...",
+    "copyToVariant": "Copy Selected Prefab to Variant"
+  },
+  "toolbar": {
+    "select": "Select",
+    "template": "Simple Template",
+    "hintBox": "Simple Hint Box",
+    "hintPoint": "Simple Hint Point"
+  },
+  "contextMenu": {
+    "duplicate": "Create Duplicate",
+    "copy": "Copy",
+    "cut": "Cut",
+    "delete": "Delete",
+    "copyToVariant": "Copy to Variant"
+  },
+  "status": {
+    "noActiveDocument": "No active document",
+    "noObjects": "No objects",
+    "noProblems": "No problems",
+    "saved": "Saved",
+    "noImageLoaded": "No image loaded",
+    "noSelection": "No selection",
+    "definitionNotFound": "Definition not found"
+  },
+  "problems": {
+    "title": "Problems",
+    "collapse": "Collapse Problems",
+    "expand": "Expand Problems",
+    "refresh": "Refresh diagnostics",
+    "close": "Close Problems",
+    "filter": "Filter by text",
+    "all": "All",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Info",
+    "resizePanel": "Resize panel"
+  },
+  "dialog": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "openImage": "Open Image",
+    "selectTargetImage": "Select target image for variant"
+  },
+  "placeholder": {
+    "searchCommands": "Search commands and symbols"
+  },
+  "shortcut": {
+    "ctrlO": "Ctrl+O",
+    "ctrlS": "Ctrl+S",
+    "ctrlShiftS": "Ctrl+Shift+S",
+    "ctrlZ": "Ctrl+Z",
+    "ctrlShiftZ": "Ctrl+Shift+Z",
+    "ctrl2": "Ctrl+2",
+    "ctrlShift2": "Ctrl+Shift+2",
+    "ctrlAltN": "Ctrl+Alt+N",
+    "ctrlShiftP": "Ctrl+Shift+P"
+  },
+  "error": {
+    "saveFailed": "Save failed: {{message}}",
+    "noPrimaryProp": "No primary prop defined for prefab '{{name}}'"
+  },
+  "commandPalette": {
+    "title": "Command Palette",
+    "placeholder": "Type command name, or # to search symbols",
+    "empty": "No match"
+  },
+  "commands": {
+    "openCommandPalette": "Open Command Palette",
+    "toggleProblemsPanel": "Toggle Problems Panel",
+    "renameDocument": "Rename Document...",
+    "duplicateDefinition": "Duplicate Selected Definition",
+    "copyDefinition": "Copy Selected Definition",
+    "cutDefinition": "Cut Selected Definition",
+    "deleteDefinition": "Delete Selected Definition",
+    "pasteDefinition": "Paste Definition From Clipboard",
+    "renameVariants": "Rename Variants for Definition",
+    "renameSymbol": "Rename Symbol for Definition",
+    "closeDocuments": "Close Documents",
+    "jumpToSymbol": "Jump To Symbol",
+    "jumpToDiagnostic": "Jump To Diagnostic"
+  },
+  "variant": {
+    "selectVariant": "Select Variant",
+    "typeVariantName": "Type variant name",
+    "noVariantsConfigured": "No selectable variants configured",
+    "noVariantMatch": "No variant match",
+    "confirmImportTarget": "Confirm Import Target",
+    "importVariantImageTo": "Import variant image to",
+    "willCopy": "Will Copy",
+    "skipped": "Skipped",
+    "none": "None",
+    "import": "Import",
+    "confirmDeleteAndImport": "Delete and Import",
+    "noDefinitionsToCopy": "No Definitions To Copy",
+    "noDefinitionsWillBeCopied": "No definitions will be copied. Continue import anyway?",
+    "continue": "Continue",
+    "targetImageExists": "Target Image Already Exists",
+    "targetAlreadyExists": "Target already exists:",
+    "targetImagePath": "Target image path",
+    "targetMetaPath": "Target meta path",
+    "deleteTargetBeforeImport": "Delete target image and target image document before import?",
+    "confirmCopyTarget": "Confirm Copy Target",
+    "copyPrefabToVariant": "Copy prefab {{name}} to variant {{variant}}",
+    "overwriteExistingPrefab": "Overwrite Existing Prefab?",
+    "targetVariantHasDefinition": "Target variant document already has definition '{{definitionId}}'. Overwrite it?",
+    "overwrite": "Overwrite",
+    "overwriteExistingMeta": "Overwrite Existing Meta?",
+    "targetMetaExists": "Target meta already exists. Overwrite all definitions? Existing data will be lost.",
+    "onlyOneFileImport": "Only one file can be imported at a time",
+    "copiedPrefab": "Copied prefab '{{name}}' to variant '{{variant}}'",
+    "variantDocumentCreated": "Variant document created: {{variant}}",
+    "rename": "Rename",
+    "renameVariantNames": "Rename variant names"
+  },
+  "definition": {
+    "delete": "Delete definition",
+    "cut": "Cut definition"
+  },
+  "symbol": {
+    "confirmRename": "Confirm Symbol Rename"
+  },
+  "document": {
+    "confirmRenamePreview": "Confirm Rename Preview",
+    "saveChanges": "Save changes before closing?",
+    "unsavedChanges": "Unsaved Changes",
+    "saveChangesPrompt": "File \"{{fileName}}\" has unsaved changes. Save before closing?",
+    "dontSave": "Don't Save",
+    "rename": "Rename Document",
+    "renameBlocked": "Rename Blocked",
+    "currentPath": "Current path",
+    "enterNewPath": "Enter new image path",
+    "plannedRenames": "Planned Renames",
+    "renamedCount": "Renamed {{count}} documents"
+  },
+  "resize": {
+    "geometry": "Resize geometry"
+  },
+  "image": {
+    "legacyMetaFormat": "Legacy Meta Format",
+    "detectedLegacyFormat": "Detected legacy or unknown meta format:\n{{path}}\n\nStart fresh with V2 definitions?",
+    "startFreshV2": "Start Fresh V2"
+  },
+  "variantRename": {
+    "syncVariantNames": "Sync Variant Names",
+    "autoUpdate": "Auto Update",
+    "keepAsIs": "Keep As Is",
+    "undoChange": "Undo Change",
+    "undoNameEdit": "Undo name edit",
+    "detectedNameChange": "Detected a Name change from \"{{oldName}}\" to \"{{newName}}\" with {{count}} related variant(s)."
+  },
+  "fileDialog": {
+    "failedToOpenPath": "Failed to open path",
+    "search": "Search"
+  },
+  "tabs": {
+    "properties": "Properties",
+    "hierarchy": "Hierarchy"
+  },
+  "quickPick": {
+    "noMatch": "No match",
+    "typeToFilter": "Type to filter",
+    "loading": "Loading..."
+  },
+  "tabBar": {
+    "close": "Close",
+    "closeAll": "Close All",
+    "closeOthers": "Close Others"
+  },
+  "rightProperties": {
+    "displayName": "Display Name",
+    "nameClassPath": "Name (Class Path)",
+    "variantInherit": "Variant Inherit",
+    "none": "None",
+    "false": "False",
+    "true": "True"
+  },
+  "fileDialog": {
+    "failedToOpenPath": "Failed to open path",
+    "search": "Search",
+    "openFile": "Open File",
+    "dragFilesHere": "Drag files here to import",
+    "orPressCtrlV": "or press Ctrl+V to import from clipboard",
+    "size": "Size",
+    "filesSelected": "files selected",
+    "open": "Open"
+  }
+}

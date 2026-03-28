@@ -2,6 +2,7 @@ import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Stage, Layer, Image as KonvaImage, Rect, Circle, Line } from 'react-konva';
 import { Menu, MenuItem } from '@blueprintjs/core';
 import useImage from 'use-image';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../state';
 import { useSymbolIndexStore } from '../symbolIndexStore';
 import { DefinitionV2 } from '../../model/metaV2';
@@ -20,6 +21,7 @@ import { useShortcuts } from '../../shortcuts/shortcutManager';
 import { COMMAND_ID, executeCommand } from '../commands';
 
 export const StageView: React.FC = () => {
+  const { t } = useTranslation();
   const {
     activeDocumentId,
     documents,
@@ -522,13 +524,13 @@ export const StageView: React.FC = () => {
                             const p = d.props[propKey || ''];
                             d.props[propKey || ''] = { kind: val.kind, ...(p as any || {}), ...(rect as any) };
                           }, {
-                            label: "Resize geometry",
+                            label: t('resize.geometry'),
                             mergeKey: `resize:${defId}:${propKey || ""}`,
                           });
                         }}
                         onResizeStart={(defId, propKey) => {
                           beginMetaTransaction({
-                            label: "Resize geometry",
+                            label: t('resize.geometry'),
                             mergeKey: `resize:${defId}:${propKey || ""}`,
                           });
                         }}
@@ -649,7 +651,7 @@ export const StageView: React.FC = () => {
             />
             <MenuItem
               icon="duplicate"
-              text="Copy Selected Prefab to Variant"
+              text={t('contextMenu.copyToVariant')}
               disabled={!canCopySelectedPrefabToVariant}
               onClick={() => {
                 void executeCommand(COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB, commandContext, undefined);

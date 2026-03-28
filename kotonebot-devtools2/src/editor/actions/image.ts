@@ -2,6 +2,7 @@ import { readText } from "../../api/fs";
 import { messageBox } from "../../ui/messageBox";
 import { useAppStore } from "../state";
 import { requestHost, shouldUseSingleTabHostOpen } from "../host/hostBridge";
+import i18n from "../../i18n";
 
 const REQUEST_HOST_OPEN_META_DOCUMENT = "kotonebot.host.openMetaDocument";
 
@@ -60,10 +61,10 @@ export async function openImagesWithChecks(paths: string[]): Promise<void> {
         continue;
       }
       const shouldStartFreshV2 = await messageBox.yes_no({
-        title: "Legacy Meta Format",
-        content: `Detected legacy or unknown meta format:\n${metaPath}\n\nStart fresh with V2 definitions?`,
-        yesText: "Start Fresh V2",
-        noText: "Cancel",
+        title: i18n.t('image.legacyMetaFormat'),
+        content: i18n.t('image.detectedLegacyFormat', { path: metaPath }),
+        yesText: i18n.t('image.startFreshV2'),
+        noText: i18n.t('dialog.cancel'),
         yesIntent: "warning",
       });
       if (shouldStartFreshV2) {

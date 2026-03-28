@@ -1,0 +1,209 @@
+{
+  "app": {
+    "name": "KotoneBot DevTools"
+  },
+  "menu": {
+    "file": "文件",
+    "edit": "编辑",
+    "variant": "变体"
+  },
+  "menuItem": {
+    "openImage": "打开图片...",
+    "save": "保存",
+    "saveAll": "全部保存",
+    "rename": "重命名...",
+    "closeDocument": "关闭文档",
+    "closeAllDocuments": "关闭所有文档",
+    "undo": "撤销",
+    "redo": "重做",
+    "newVariantImage": "新建变体图片文档...",
+    "copyToVariant": "复制选中的 Prefab 到变体"
+  },
+  "toolbar": {
+    "select": "选择",
+    "template": "简单模板",
+    "hintBox": "简单 Hint Box",
+    "hintPoint": "简单 Hint Point"
+  },
+  "contextMenu": {
+    "duplicate": "创建副本",
+    "copy": "复制",
+    "cut": "剪切",
+    "delete": "删除",
+    "copyToVariant": "复制到变体"
+  },
+  "status": {
+    "noActiveDocument": "无活动文档",
+    "noObjects": "无对象",
+    "noProblems": "无问题",
+    "saved": "已保存",
+    "noImageLoaded": "未加载图片",
+    "noSelection": "未选择",
+    "definitionNotFound": "未找到定义"
+  },
+  "problems": {
+    "title": "问题",
+    "collapse": "折叠问题",
+    "expand": "展开问题",
+    "refresh": "刷新诊断",
+    "close": "关闭问题面板",
+    "filter": "按文本筛选",
+    "all": "全部",
+    "error": "错误",
+    "warning": "警告",
+    "info": "信息",
+    "resizePanel": "调整面板大小"
+  },
+  "dialog": {
+    "confirm": "确认",
+    "cancel": "取消",
+    "ok": "确定",
+    "yes": "是",
+    "no": "否",
+    "openImage": "打开图片",
+    "selectTargetImage": "选择变体的目标图片"
+  },
+  "placeholder": {
+    "searchCommands": "搜索命令和符号"
+  },
+  "shortcut": {
+    "ctrlO": "Ctrl+O",
+    "ctrlS": "Ctrl+S",
+    "ctrlShiftS": "Ctrl+Shift+S",
+    "ctrlZ": "Ctrl+Z",
+    "ctrlShiftZ": "Ctrl+Shift+Z",
+    "ctrl2": "Ctrl+2",
+    "ctrlShift2": "Ctrl+Shift+2",
+    "ctrlAltN": "Ctrl+Alt+N",
+    "ctrlShiftP": "Ctrl+Shift+P"
+  },
+  "error": {
+    "saveFailed": "保存失败: {{message}}",
+    "noPrimaryProp": "未定义 Prefab '{{name}}' 的主要属性"
+  },
+  "commandPalette": {
+    "title": "命令面板",
+    "placeholder": "输入命令名称，或 # 搜索符号",
+    "empty": "无匹配"
+  },
+  "commands": {
+    "openCommandPalette": "打开命令面板",
+    "toggleProblemsPanel": "切换问题面板",
+    "renameDocument": "重命名文档...",
+    "duplicateDefinition": "复制选中的定义",
+    "copyDefinition": "复制选中的定义",
+    "cutDefinition": "剪切选中的定义",
+    "deleteDefinition": "删除选中的定义",
+    "pasteDefinition": "从剪贴板粘贴定义",
+    "renameVariants": "重命名定义的变体",
+    "renameSymbol": "重命名定义的符号",
+    "closeDocuments": "关闭文档",
+    "jumpToSymbol": "跳转到符号",
+    "jumpToDiagnostic": "跳转到诊断"
+  },
+  "variant": {
+    "selectVariant": "选择变体",
+    "typeVariantName": "输入变体名称",
+    "noVariantsConfigured": "未配置可选变体",
+    "noVariantMatch": "无匹配变体",
+    "confirmImportTarget": "确认导入目标",
+    "importVariantImageTo": "导入变体图片到",
+    "willCopy": "将复制",
+    "skipped": "跳过",
+    "none": "无",
+    "import": "导入",
+    "confirmDeleteAndImport": "删除并导入",
+    "noDefinitionsToCopy": "无定义可复制",
+    "noDefinitionsWillBeCopied": "没有定义会被复制。是否继续导入？",
+    "continue": "继续",
+    "targetImageExists": "目标图片已存在",
+    "targetAlreadyExists": "目标已存在：",
+    "targetImagePath": "目标图片路径",
+    "targetMetaPath": "目标元数据路径",
+    "deleteTargetBeforeImport": "导入前删除目标图片和目标图片文档？",
+    "confirmCopyTarget": "确认复制目标",
+    "copyPrefabToVariant": "复制预制体 {{name}} 到变体 {{variant}}",
+    "overwriteExistingPrefab": "覆盖现有预制体？",
+    "targetVariantHasDefinition": "目标变体文档已存在定义 '{{definitionId}}'。是否覆盖？",
+    "overwrite": "覆盖",
+    "overwriteExistingMeta": "覆盖现有元数据？",
+    "targetMetaExists": "目标元数据已存在。覆盖所有定义？现有数据将丢失。",
+    "onlyOneFileImport": "一次只能导入一个文件",
+    "copiedPrefab": "已复制预制体 '{{name}}' 到变体 '{{variant}}'",
+    "variantDocumentCreated": "已创建变体文档：{{variant}}",
+    "rename": "重命名",
+    "renameVariantNames": "重命名变体名称"
+  },
+  "definition": {
+    "delete": "删除定义",
+    "cut": "剪切定义"
+  },
+  "symbol": {
+    "confirmRename": "确认符号重命名"
+  },
+  "document": {
+    "confirmRenamePreview": "确认重命名预览",
+    "saveChanges": "关闭前是否保存更改？",
+    "unsavedChanges": "未保存的更改",
+    "saveChangesPrompt": "文件 \"{{fileName}}\" 有未保存的更改。关闭前保存？",
+    "dontSave": "不保存",
+    "rename": "重命名文档",
+    "renameBlocked": "重命名被阻止",
+    "currentPath": "当前路径",
+    "enterNewPath": "输入新图片路径",
+    "plannedRenames": "计划重命名",
+    "renamedCount": "已重命名 {{count}} 个文档"
+  },
+  "resize": {
+    "geometry": "调整几何"
+  },
+  "image": {
+    "legacyMetaFormat": "旧版元数据格式",
+    "detectedLegacyFormat": "检测到旧版或未知元数据格式：\n{{path}}\n\n是否使用 V2 定义重新开始？",
+    "startFreshV2": "重新开始 V2"
+  },
+  "variantRename": {
+    "syncVariantNames": "同步变体名称",
+    "autoUpdate": "自动更新",
+    "keepAsIs": "保持原样",
+    "undoChange": "撤销更改",
+    "undoNameEdit": "撤销名称编辑",
+    "detectedNameChange": "检测到从 \"{{oldName}}\" 到 \"{{newName}}\" 的名称更改，涉及 {{count}} 个相关变体。"
+  },
+  "fileDialog": {
+    "failedToOpenPath": "打开路径失败",
+    "search": "搜索"
+  },
+  "tabs": {
+    "properties": "属性",
+    "hierarchy": "层级"
+  },
+  "quickPick": {
+    "noMatch": "无匹配",
+    "typeToFilter": "输入筛选",
+    "loading": "加载中..."
+  },
+  "tabBar": {
+    "close": "关闭",
+    "closeAll": "关闭全部",
+    "closeOthers": "关闭其他"
+  },
+  "rightProperties": {
+    "displayName": "显示名称",
+    "nameClassPath": "名称 (类路径)",
+    "variantInherit": "变体继承",
+    "none": "无",
+    "false": "假",
+    "true": "真"
+  },
+  "fileDialog": {
+    "failedToOpenPath": "打开路径失败",
+    "search": "搜索",
+    "openFile": "打开文件",
+    "dragFilesHere": "拖拽文件到此处导入",
+    "orPressCtrlV": "或按 Ctrl+V 从剪贴板导入",
+    "size": "大小",
+    "filesSelected": "个文件已选择",
+    "open": "打开"
+  }
+}

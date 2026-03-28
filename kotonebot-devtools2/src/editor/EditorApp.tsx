@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from './state';
 import { getPrefabSchema } from '../api/prefabs';
 import { StageView } from './konva/StageView';
@@ -19,6 +20,7 @@ import { installDocumentStateSync } from './host/documentStateSync';
 import { Tabs, Tab } from '@blueprintjs/core';
 
 export const EditorApp: React.FC = () => {
+  const { t } = useTranslation();
   // host mode: 当 editor 以嵌入模式在 VSCode 扩展里执行时
   const isHostMode = window.parent !== window;
   // single tab mode: 禁用多标签页功能，将标签页管理托管给 host（如 VSCode 扩展）
@@ -93,7 +95,7 @@ export const EditorApp: React.FC = () => {
               <StageView />
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#5c7080' }}>
-                No image loaded
+                {t('status.noImageLoaded')}
               </div>
             )}
           </div>
@@ -110,8 +112,8 @@ export const EditorApp: React.FC = () => {
 
         <div style={{ width: 300, background: '#e1e8ed', borderLeft: '1px solid #c5d2db', display: 'flex', flexDirection: 'column', padding: '0 10px' }}>
           <Tabs id="right-panel-tabs" defaultSelectedTabId="properties">
-            <Tab id="properties" title="Properties" panel={<RightProperties />} />
-            <Tab id="hierarchy" title="Hierarchy" panel={<HierarchyPanel />} />
+            <Tab id="properties" title={t('tabs.properties')} panel={<RightProperties />} />
+            <Tab id="hierarchy" title={t('tabs.hierarchy')} panel={<HierarchyPanel />} />
           </Tabs>
         </div>
       </div>

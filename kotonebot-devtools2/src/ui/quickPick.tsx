@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { InputGroup, Spinner } from "@blueprintjs/core";
 import { useShortcutScope } from "../shortcuts/shortcutManager";
+import i18n from "../i18n";
 
 /** Quick Pick 列表项定义。 */
 export interface QuickPickItem<TValue> {
@@ -162,7 +163,7 @@ export const QuickPickProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       title: options.title,
       placeholder: options.placeholder,
       initialQuery: "",
-      emptyText: options.emptyText ?? "No match",
+      emptyText: options.emptyText ?? i18n.t('quickPick.noMatch'),
       items: options.options.map((it) => ({
         id: it,
         label: it,
@@ -336,7 +337,7 @@ export const QuickPickProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 autoFocus
                 leftIcon="search"
                 value={query}
-                placeholder={current.options.placeholder ?? "Type to filter"}
+                placeholder={current.options.placeholder ?? i18n.t('quickPick.typeToFilter')}
                 onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
                 onKeyDown={(e) => {
                   // 键盘优先：在面板内完成导航与确认，避免焦点跳出。
@@ -378,13 +379,13 @@ export const QuickPickProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             </div>
             <div style={{ maxHeight: 420, overflowY: "auto" }}>
               {loading ? (
-                <div style={{ padding: 14, color: "#5c7080", display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 12, color: "#5c7080" }}>
                   <Spinner size={16} />
-                  Loading...
+                  {i18n.t('quickPick.loading')}
                 </div>
               ) : null}
               {!loading && items.length === 0 ? (
-                <div style={{ padding: 12, color: "#5c7080" }}>{current.options.emptyText ?? "No match"}</div>
+                <div style={{ padding: 12, color: "#5c7080" }}>{current.options.emptyText ?? i18n.t('quickPick.noMatch')}</div>
               ) : null}
               {!loading
                 ? items.map((item, index) => {

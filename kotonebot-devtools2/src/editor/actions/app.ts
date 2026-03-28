@@ -4,6 +4,7 @@ import { COMMAND_ID, executeCommand, getPaletteCommands, getCommandStatus } from
 import type { EditorCommandContext, EditorCommandDefinition, NoArgCommandId } from "../commands";
 import { useAppStore } from "../state";
 import { useSymbolIndexStore } from "../symbolIndexStore";
+import i18n from "../../i18n";
 
 /** 命令面板中“命令项”返回值。 */
 interface CommandPaletteCommandValue {
@@ -103,9 +104,9 @@ function rankCommand(command: EditorCommandDefinition<NoArgCommandId>, query: st
 export async function openCommandPalette(): Promise<void> {
   const commandContext: EditorCommandContext = { ui: {} };
   const selected = await quickPick.show<CommandPaletteValue>({
-    title: "Command Palette",
-    placeholder: "Type command name, or # to search symbols",
-    emptyText: "No match",
+    title: i18n.t('commandPalette.title'),
+    placeholder: i18n.t('commandPalette.placeholder'),
+    emptyText: i18n.t('commandPalette.empty'),
     canOutsideClickClose: true,
     canEscapeKeyClose: true,
     getItems: (query) => {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { FormGroup, InputGroup, Button, H5, Card, Tooltip } from '@blueprintjs/core';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../editor/state';
 import { PropValue } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
@@ -12,13 +13,14 @@ import { toaster } from './toaster';
 
 type VariantInheritValue = boolean | null;
 
-const VARIANT_INHERIT_OPTIONS: readonly SegmentedOption<VariantInheritValue>[] = [
-  { label: 'None', value: null },
-  { label: 'False', value: false },
-  { label: 'True', value: true },
-];
-
 export const RightProperties: React.FC = () => {
+  const { t } = useTranslation();
+
+  const VARIANT_INHERIT_OPTIONS: readonly SegmentedOption<VariantInheritValue>[] = [
+    { label: t('rightProperties.none'), value: null },
+    { label: t('rightProperties.false'), value: false },
+    { label: t('rightProperties.true'), value: true },
+  ];
   const commandContext = React.useMemo(() => ({ ui: {} }), []);
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
   const symbols = useSymbolIndexStore(s => s.symbols);
@@ -34,11 +36,11 @@ export const RightProperties: React.FC = () => {
   }, [activeMeta?.path, defId, definition?.name]);
 
   if (!activeMeta || !selection || !defId) {
-    return <div style={{ padding: 10, color: '#8a9ba8' }}>No selection</div>;
+    return <div style={{ padding: 10, color: '#8a9ba8' }}>{t('status.noSelection')}</div>;
   }
 
   if (!definition) {
-      return <div style={{ padding: 10, color: '#8a9ba8' }}>Definition not found</div>;
+      return <div style={{ padding: 10, color: '#8a9ba8' }}>{t('status.definitionNotFound')}</div>;
   }
 
   const isVariantPrefab = definition.type === "prefab" && !!definition.variant;
@@ -158,7 +160,7 @@ export const RightProperties: React.FC = () => {
 
   // Common fields
   editors.push(
-      <FormGroup key="common-name" label="Name (Class Path)">
+      <FormGroup key="common-name" label={t('rightProperties.nameClassPath')}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <InputGroup
               value={nameDraft}
@@ -196,7 +198,7 @@ export const RightProperties: React.FC = () => {
       </FormGroup>
   );
   editors.push(
-      <FormGroup key="common-display" label="Display Name">
+      <FormGroup key="common-display" label={t('rightProperties.displayName')}>
           <InputGroup value={definition.displayName || ''} onChange={e => handleChange('displayName', e.target.value)} />
       </FormGroup>
   );
@@ -260,7 +262,7 @@ export const RightProperties: React.FC = () => {
                 <div style={{ marginTop: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{  color: '#5c7080', whiteSpace: 'nowrap' }}>
-                      Variant Inherit
+                      {t('rightProperties.variantInherit')}
                     </div>
                     <SegmentedControl
                       options={VARIANT_INHERIT_OPTIONS}

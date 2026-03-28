@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { Icon, Menu, MenuItem } from '@blueprintjs/core';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../editor/state';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import { COMMAND_ID, executeCommand } from '../editor/commands';
@@ -20,6 +21,7 @@ function getTypeIcon(def: DefinitionV2, prefabSchema: ReturnType<typeof useAppSt
 }
 
 export const HierarchyPanel: React.FC = () => {
+  const { t } = useTranslation();
   const activeDocumentId = useAppStore((s) => s.activeDocumentId);
   const documents = useAppStore((s) => s.documents);
   const setSelection = useAppStore((s) => s.setSelection);
@@ -78,7 +80,7 @@ export const HierarchyPanel: React.FC = () => {
   if (!activeDocumentId) {
     return (
       <div style={{ padding: 16, color: '#5c7080', fontSize: 13, textAlign: 'center' }}>
-        No active document
+        {t('status.noActiveDocument')}
       </div>
     );
   }
@@ -86,7 +88,7 @@ export const HierarchyPanel: React.FC = () => {
   if (definitions.length === 0) {
     return (
       <div style={{ padding: 16, color: '#5c7080', fontSize: 13, textAlign: 'center' }}>
-        No objects
+        {t('status.noObjects')}
       </div>
     );
   }
@@ -161,7 +163,7 @@ export const HierarchyPanel: React.FC = () => {
           <Menu>
             <MenuItem
               icon="duplicate"
-              text="创建副本"
+              text={t('contextMenu.duplicate')}
               onClick={() => {
                 void executeCommand(COMMAND_ID.DEFINITION_DUPLICATE_SELECTED, commandContext, undefined);
                 closeContextMenu();
@@ -169,7 +171,7 @@ export const HierarchyPanel: React.FC = () => {
             />
             <MenuItem
               icon="duplicate"
-              text="复制"
+              text={t('contextMenu.copy')}
               onClick={() => {
                 void executeCommand(COMMAND_ID.DEFINITION_COPY_SELECTED, commandContext, undefined);
                 closeContextMenu();
@@ -177,7 +179,7 @@ export const HierarchyPanel: React.FC = () => {
             />
             <MenuItem
               icon="cut"
-              text="剪切"
+              text={t('contextMenu.cut')}
               onClick={() => {
                 void executeCommand(COMMAND_ID.DEFINITION_CUT_SELECTED, commandContext, undefined);
                 closeContextMenu();
@@ -185,7 +187,7 @@ export const HierarchyPanel: React.FC = () => {
             />
             <MenuItem
               icon="trash"
-              text="删除"
+              text={t('contextMenu.delete')}
               intent="danger"
               onClick={() => {
                 void executeCommand(COMMAND_ID.DEFINITION_DELETE_SELECTED, commandContext, undefined);
@@ -194,7 +196,7 @@ export const HierarchyPanel: React.FC = () => {
             />
             <MenuItem
               icon="duplicate"
-              text="Copy Selected Prefab to Variant"
+              text={t('contextMenu.copyToVariant')}
               disabled={!canCopySelectedPrefabToVariant}
               onClick={() => {
                 void executeCommand(COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB, commandContext, undefined);

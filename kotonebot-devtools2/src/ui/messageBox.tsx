@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { Button, Classes, Dialog, HTMLSelect, InputGroup, Intent } from "@blueprintjs/core";
+import i18n from "../i18n";
 
 export interface MessageBoxButton<TValue extends string = string> {
   value: TValue;
@@ -153,8 +154,8 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         title: options.title,
         content: options.content,
         buttons: [
-          { value: "yes", text: options.yesText ?? "Yes", intent: options.yesIntent ?? "primary" },
-          { value: "no", text: options.noText ?? "No", intent: options.noIntent ?? "none" },
+          { value: "yes", text: options.yesText ?? i18n.t('dialog.yes'), intent: options.yesIntent ?? "primary" },
+          { value: "no", text: options.noText ?? i18n.t('dialog.no'), intent: options.noIntent ?? "none" },
         ],
       });
       return result === "yes";
@@ -170,12 +171,12 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         buttons: [
           {
             value: "confirm",
-            text: options.confirmText ?? "Confirm",
+            text: options.confirmText ?? i18n.t('dialog.confirm'),
             intent: options.confirmIntent ?? "primary",
           },
           {
             value: "cancel",
-            text: options.cancelText ?? "Cancel",
+            text: options.cancelText ?? i18n.t('dialog.cancel'),
             intent: options.cancelIntent ?? "none",
           },
         ],
@@ -190,7 +191,7 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       await show<"ok">({
         title: options.title,
         content: options.content,
-        buttons: [{ value: "ok", text: options.okText ?? "OK", intent: options.okIntent ?? "primary" }],
+        buttons: [{ value: "ok", text: options.okText ?? i18n.t('dialog.ok'), intent: options.okIntent ?? "primary" }],
       });
     },
     [show]
@@ -217,12 +218,12 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         buttons: [
           {
             value: "confirm",
-            text: options.confirmText ?? "Confirm",
+            text: options.confirmText ?? i18n.t('dialog.confirm'),
             intent: options.confirmIntent ?? "primary",
           },
           {
             value: "cancel",
-            text: options.cancelText ?? "Cancel",
+            text: options.cancelText ?? i18n.t('dialog.cancel'),
             intent: options.cancelIntent ?? "none",
           },
         ],
@@ -265,12 +266,12 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         buttons: [
           {
             value: "confirm",
-            text: options.confirmText ?? "Confirm",
+            text: options.confirmText ?? i18n.t('dialog.confirm'),
             intent: options.confirmIntent ?? "primary",
           },
           {
             value: "cancel",
-            text: options.cancelText ?? "Cancel",
+            text: options.cancelText ?? i18n.t('dialog.cancel'),
             intent: options.cancelIntent ?? "none",
           },
         ],
