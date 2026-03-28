@@ -289,16 +289,6 @@ export const RightProperties: React.FC = () => {
               ))}
             </div>
           ) : null}
-          <Button 
-            icon="trash" 
-            intent="danger" 
-            minimal 
-            small 
-            style={{ position: 'absolute', top: 5, right: 5 }} 
-            onClick={() => {
-                void executeCommand(COMMAND_ID.DEFINITION_DELETE_SELECTED, commandContext, undefined);
-            }}
-          />
       </Card>
       
       <div style={{ display: 'flex', flexDirection: 'column' }}>
