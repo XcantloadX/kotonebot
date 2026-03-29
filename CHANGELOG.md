@@ -1,16 +1,25 @@
 # 更新日志
 ## v0.12.0
+Library:
+1. [feat] 优化跨平台体验。现在在非 Windows 平台上导入 Windows-Only 的模块不会立刻报错，而是等到调用/实例化时才抛出异常。
+
 Devtool:
-1. [feat] **BREAKING** Meta schema 从 `version: 2` 升级到 `version: 3`。`variant_inherit` 已移除，替换为 base prefab 的按 variant 三态策略 `variant_policy`（`inherit` / `require` / `exclude`）。
-2. [feat] **BREAKING** Variant 解析与校验行为更新：
-	- `inherit`：未声明 variant 定义时回退到 base。
-	- `require`：未声明 variant 定义时报错。
-	- `exclude`：该 variant 下禁止出现该 prefab，若存在显式定义则报错。
-3. [feat] 新增迁移脚本 `tools/migrate_meta_v2_to_v3.py`，支持 dry-run、落盘写入、备份与报告输出。
-	```bash
-	python tools/migrate_meta_v2_to_v3.py --root ./resources
-	python tools/migrate_meta_v2_to_v3.py --root ./resources --write --backup .bak --report migration_report.json
-	```
+1. [feat] 右侧属性面板支持调整宽度
+2. [feat] 新增「层级」Tab，在对象发生重叠的时候可以通过层级选中某个对象。
+3. [feat] **BREAKING** variant 策略升级，变为 `inherit` / `require` / `exclude` 三态策略，可为每个 variant 单独配置。同时 schema 版本号升级为 3。
+
+> Meta schema 从 `version: 2` 升级到 `version: 3`。`variant_inherit` 已移除，替换为 base prefab 的按 variant 三态策略 `variant_policy`（`inherit` / `require` / `exclude`）。
+> 
+> **BREAKING** Variant 解析与校验行为更新：
+> - `inherit`：未声明 variant 定义时回退到 base。
+> - `require`：未声明 variant 定义时报错。
+> - `exclude`：该 variant 下禁止出现该 prefab，若存在显式定义则报错。
+> 
+> 新增迁移脚本 `tools/migrate_meta_v2_to_v3.py`，支持 dry-run、落盘写入、备份与报告输出。
+> ```bash
+> python tools/migrate_meta_v2_to_v3.py --root ./resources
+> python tools/migrate_meta_v2_to_v3.py --root ./resources --write --backup .bak > --report migration_report.json
+> ```
 
 ## v0.11.0
 Library:
@@ -44,12 +53,9 @@ Library:
 	device.input.touch.touch_down()
    ```
 3. [refactor] **BREAKING** `Device` 的组件装配统一收敛到 `setup(...)`。直接写入私有字段（如 `device._screenshot`、`device._touch`、`device._multitouch`）不再保证可用，可能导致 `device.input` 未初始化并在点击/滑动时出错。请迁移到 `device.setup(...)`。
-4. [feat] 优化跨平台体验。现在在非 Windows 平台上导入 Windows-Only 的模块不会立刻报错，而是等到调用/实例化时才抛出异常。
 
 Devtool:
 1. [fix] 修复 ChoiceProp 无法正常展示的问题。
-2. [feat] 新增「层级」Tab，在对象发生重叠的时候可以通过层级选中某个对象。
-3. [feat] 右侧属性面板支持调整宽度
 
 ## v0.10.0
 Library:
