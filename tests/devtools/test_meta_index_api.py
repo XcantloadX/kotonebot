@@ -6,13 +6,11 @@ from tempfile import TemporaryDirectory
 
 from kotonebot.devtools.diagnostics.codes import (
     INDEX_DEF_PARSE_ERROR,
-    INDEX_VARIANT_INHERIT_DISABLED,
     INDEX_VARIANT_INVALID,
 )
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.web.server.rest_api import (
     CloneVariantToImageRequest,
-    PreviewVariantImportPathRequest,
     UpdateIndexRequest,
     create_rest_router,
 )
@@ -67,7 +65,7 @@ def test_meta_index_snapshot_and_diagnostics():
         write_json(
             meta_path,
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "ok": {
                         "type": "template",
@@ -112,7 +110,7 @@ def test_meta_index_incremental_update():
         write_json(
             meta_path,
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "before": {
                         "type": "template",
@@ -133,7 +131,7 @@ def test_meta_index_incremental_update():
         write_json(
             meta_path,
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "after": {
                         "type": "template",
@@ -163,7 +161,7 @@ def test_meta_index_symbol_contains_variant():
         write_json(
             meta_path,
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "base": {
                         "type": "prefab",
@@ -196,7 +194,7 @@ def test_meta_index_variant_missing_base_diagnostic():
         write_json(
             meta_path,
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "en": {
                         "type": "prefab",
@@ -215,137 +213,6 @@ def test_meta_index_variant_missing_base_diagnostic():
         assert INDEX_VARIANT_INVALID.code in all_codes
 
 
-def test_meta_index_variant_inherit_warning_when_variant_configured():
-    with TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path, variant_variants=["en"], variant_base="base")
-        meta_path = resources / "button.png.json"
-        write_json(
-            meta_path,
-            {
-                "version": 2,
-                "definitions": {
-                    "base": {
-                        "type": "prefab",
-                        "name": "ui.button",
-                        "props": {},
-                    },
-                },
-            },
-        )
-
-        get_meta_diagnostics = _route_endpoint(router, "/api/meta/diagnostics", "GET")
-        payload = _json_body(asyncio.run(get_meta_diagnostics()))
-        diagnostics_by_file = payload["data"]["diagnosticsByFile"]
-        diag_key_map = {_norm_path(k): k for k in diagnostics_by_file.keys()}
-        resolved_meta = _norm_path(meta_path.as_posix())
-        assert resolved_meta in diag_key_map
-        entries = diagnostics_by_file[diag_key_map[resolved_meta]]
-        warning = next((item for item in entries if item["code"] == INDEX_VARIANT_INHERIT_DISABLED.code), None)
-        assert warning is not None
-        assert warning["severity"] == "warning"
-
-
-def test_meta_index_variant_inherit_no_warning_when_enabled_or_variant_not_configured():
-    with TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path, variant_variants=["en"], variant_base="base")
-        enabled_meta = resources / "enabled.png.json"
-        write_json(
-            enabled_meta,
-            {
-                "version": 2,
-                "definitions": {
-                    "base": {
-                        "type": "prefab",
-                        "name": "ui.button.enabled",
-                        "variant_inherit": True,
-                        "props": {},
-                    },
-                },
-            },
-        )
-        plain_meta = resources / "plain.png.json"
-        write_json(
-            plain_meta,
-            {
-                "version": 2,
-                "definitions": {
-                    "base": {
-                        "type": "prefab",
-                        "name": "ui.button.plain",
-                        "props": {},
-                    },
-                },
-            },
-        )
-
-        get_meta_diagnostics = _route_endpoint(router, "/api/meta/diagnostics", "GET")
-        configured_payload = _json_body(asyncio.run(get_meta_diagnostics()))
-        configured_entries = [
-            item
-            for entries in configured_payload["data"]["diagnosticsByFile"].values()
-            for item in entries
-            if item["code"] == INDEX_VARIANT_INHERIT_DISABLED.code
-        ]
-        assert len(configured_entries) == 1
-
-    with TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path, variant_variants=["en"], variant_base="base")
-        explicit_false_meta = resources / "explicit_false.png.json"
-        write_json(
-            explicit_false_meta,
-            {
-                "version": 2,
-                "definitions": {
-                    "base": {
-                        "type": "prefab",
-                        "name": "ui.button.false",
-                        "variant_inherit": False,
-                        "props": {},
-                    },
-                },
-            },
-        )
-
-        get_meta_diagnostics = _route_endpoint(router, "/api/meta/diagnostics", "GET")
-        payload = _json_body(asyncio.run(get_meta_diagnostics()))
-        entries = [
-            item
-            for file_entries in payload["data"]["diagnosticsByFile"].values()
-            for item in file_entries
-        ]
-        assert all(item["code"] != INDEX_VARIANT_INHERIT_DISABLED.code for item in entries)
-
-    with TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path)
-        meta_path = resources / "button.png.json"
-        write_json(
-            meta_path,
-            {
-                "version": 2,
-                "definitions": {
-                    "base": {
-                        "type": "prefab",
-                        "name": "ui.button",
-                        "props": {},
-                    },
-                },
-            },
-        )
-
-        get_meta_diagnostics = _route_endpoint(router, "/api/meta/diagnostics", "GET")
-        payload = _json_body(asyncio.run(get_meta_diagnostics()))
-        entries = [
-            item
-            for file_entries in payload["data"]["diagnosticsByFile"].values()
-            for item in file_entries
-        ]
-        assert all(item["code"] != INDEX_VARIANT_INHERIT_DISABLED.code for item in entries)
-
-
 def test_meta_variant_clone_to_image():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
@@ -358,7 +225,7 @@ def test_meta_variant_clone_to_image():
         write_json(
             source_meta,
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "base": {
                         "type": "prefab",
@@ -397,32 +264,6 @@ def test_meta_variant_clone_to_image():
         assert "tpl" not in data["definitions"]
         assert data["definitions"]["base"]["variant"] == "en"
         assert data["definitions"]["base"]["props"] == {}
-
-
-def test_meta_variant_import_preview_path():
-    with TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        resources, router = _prepare_project(
-            tmp_path,
-            variant_variants=["en"],
-            variant_base="base",
-            variant_path_pattern="nest",
-        )
-        base_image = write_min_png(resources / "ui" / "home" / "button.png")
-        preview_api = _route_endpoint(router, "/api/meta/variant/import/preview_path", "POST")
-        payload = _json_body(
-            asyncio.run(
-                preview_api(
-                    body=PreviewVariantImportPathRequest(
-                        baseImagePath=base_image.as_posix(),
-                        variant="en",
-                    )
-                )
-            )
-        )
-        assert payload["success"] is True
-        expected_target = resources / "en" / "ui" / "home" / "button.png"
-        assert _norm_path(payload["data"]["targetImagePath"]) == _norm_path(expected_target.as_posix())
 
 
 def test_meta_variant_import_image_writes_target_file():
@@ -466,7 +307,7 @@ def test_meta_variant_import_image_replaces_existing_target_when_requested():
         target_image_path = resources / "ui" / "home" / "button_en.png"
         write_min_png(target_image_path)
         target_meta_path = Path(target_image_path.as_posix() + ".json")
-        write_json(target_meta_path, {"version": 2, "definitions": {"old": {"type": "template", "name": "old", "props": {}}}})
+        write_json(target_meta_path, {"version": 3, "definitions": {"old": {"type": "template", "name": "old", "props": {}}}})
 
         import_api = _route_endpoint(router, "/api/meta/variant/import_image", "POST")
 
@@ -501,72 +342,3 @@ def test_meta_variant_import_image_replaces_existing_target_when_requested():
         assert not target_meta_path.exists()
 
 
-def test_meta_variant_import_preview_path_custom_pattern():
-    with TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        resources, router = _prepare_project(
-            tmp_path,
-            variant_variants=["en"],
-            variant_base="base",
-            variant_path_pattern="pattern: {file_dir}/{variant_name}/{file_name_ext}",
-        )
-        base_image = write_min_png(resources / "ui" / "home" / "button.png")
-        preview_api = _route_endpoint(router, "/api/meta/variant/import/preview_path", "POST")
-        payload = _json_body(
-            asyncio.run(
-                preview_api(
-                    body=PreviewVariantImportPathRequest(
-                        baseImagePath=base_image.as_posix(),
-                        variant="en",
-                    )
-                )
-            )
-        )
-        assert payload["success"] is True
-        expected_target = resources / "ui" / "home" / "en" / "button.png"
-        assert _norm_path(payload["data"]["targetImagePath"]) == _norm_path(expected_target.as_posix())
-
-
-def test_meta_variant_import_preview_requires_variant_path():
-    with TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path, variant_variants=["en"], variant_base="base")
-        base_image = write_min_png(resources / "button.png")
-        preview_api = _route_endpoint(router, "/api/meta/variant/import/preview_path", "POST")
-        payload = _json_body(
-            asyncio.run(
-                preview_api(
-                    body=PreviewVariantImportPathRequest(
-                        baseImagePath=base_image.as_posix(),
-                        variant="en",
-                    )
-                )
-            )
-        )
-        assert payload["success"] is False
-        assert "variant.path_pattern" in payload["message"]
-
-
-def test_meta_variant_import_preview_rejects_non_base_variant_prefixed_path():
-    with TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        resources, router = _prepare_project(
-            tmp_path,
-            variant_variants=["en"],
-            variant_base="jp",
-            variant_path_pattern="nest",
-        )
-        base_image = write_min_png(resources / "en" / "ui" / "home" / "button.png")
-        preview_api = _route_endpoint(router, "/api/meta/variant/import/preview_path", "POST")
-        payload = _json_body(
-            asyncio.run(
-                preview_api(
-                    body=PreviewVariantImportPathRequest(
-                        baseImagePath=base_image.as_posix(),
-                        variant="en",
-                    )
-                )
-            )
-        )
-        assert payload["success"] is False
-        assert "must use variant.base prefix" in payload["message"]

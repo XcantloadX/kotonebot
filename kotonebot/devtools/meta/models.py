@@ -1,9 +1,12 @@
-from typing import Any, Literal
+from typing import Any, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class DefinitionV2Model(BaseModel):
+VariantPolicy: TypeAlias = Literal["inherit", "require", "exclude"]
+
+
+class DefinitionV3Model(BaseModel):
     model_config = ConfigDict(extra="ignore", strict=True)
 
     type: str | None = None
@@ -12,12 +15,16 @@ class DefinitionV2Model(BaseModel):
     description: str | None = None
     prefab_id: str | None = None
     variant: str | None = None
-    variant_inherit: bool | None = None
+    variant_policy: dict[str, VariantPolicy] | None = None
     props: dict[str, Any] | None = None
 
 
-class MetaV2Model(BaseModel):
+class MetaV3Model(BaseModel):
     model_config = ConfigDict(extra="ignore", strict=True)
 
-    version: Literal[2]
-    definitions: dict[str, DefinitionV2Model]
+    version: Literal[3]
+    definitions: dict[str, DefinitionV3Model]
+
+
+DefinitionModel: TypeAlias = DefinitionV3Model
+MetaModel: TypeAlias = MetaV3Model

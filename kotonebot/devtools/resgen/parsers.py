@@ -7,7 +7,7 @@ from typing import List, Dict, Any, cast
 from pydantic import BaseModel, Field
 from kotonebot.devtools.meta import (
     Diagnostic,
-    MetaV2Model,
+    MetaV3Model,
     ResolvedPrefabVariants,
     build_variant_projection_for_resgen,
     parse_meta_file,
@@ -183,20 +183,17 @@ class KotoneV1Parser(SchemaParser):
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             info = detect_and_validate_meta_schema(data)
-            if info.format == "v2":
+            if info.format == "v3":
                 parse_meta_file(Path(file_path))
-            # 支持 simple 与 v2 两种格式
-            return info.format in ("simple", "v2")
+            # 支持 simple 与 v3 两种格式
+            return info.format in ("simple", "v3")
         except (json.JSONDecodeError, OSError, MetaValidationError):
             return False
         except ValueError:
             return False
 
     def parse(self, file_path: str, context: Dict[str, Any]) -> List[ResourceNode]:
-        """
-        解析 V2 格式的 meta。
-        Context 需要包含: 'output_img_dir' (图片输出目录)
-        """
+        """解析版本化 meta（v3）。Context 需要包含: 'output_img_dir'。"""
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         schema_info = detect_and_validate_meta_schema(data)
@@ -209,13 +206,13 @@ class KotoneV1Parser(SchemaParser):
                 raise MetaValidationError("Simple meta missing 'definition' object")
             return self._parse_simple_definition(definition, png_file, output_dir, context)
 
-        if schema_info.format == "v2":
-            v2_data = parse_meta_file(Path(file_path))
-            return self._parse_v2_schema(v2_data, file_path, png_file, output_dir, context)
+        if schema_info.format == "v3":
+            v3_data = parse_meta_file(Path(file_path))
+            return self._parse_v3_schema(v3_data, file_path, png_file, output_dir, context)
 
         raise MetaValidationError(f"KotoneV1Parser cannot parse meta format: {schema_info.format}")
 
-    def _parse_v2_schema(self, data: MetaV2Model, meta_path: str, png_file: str, output_dir: str, context: Dict[str, Any]) -> List[ResourceNode]:
+    def _parse_v3_schema(self, data: MetaV3Model, meta_path: str, png_file: str, output_dir: str, context: Dict[str, Any]) -> List[ResourceNode]:
         resources: List[ResourceNode] = []
         definitions = data.definitions
         normalized_meta_path = _normalize_meta_path(meta_path)
@@ -369,9 +366,13 @@ class KotoneV1Parser(SchemaParser):
                     variant_keys = list(resource_variants)
                     if include_base_variant:
                         variant_keys = [raw_base_variant, *variant_keys]
+                    base_policy = variant_group.base.definition.variant_policy or {}
                     for variant in variant_keys:
                         merged_key = "" if variant == raw_base_variant else variant
                         if merged_key not in variant_group.merged:
+                            # In v3, exclude means this variant intentionally has no merged output.
+                            if merged_key != "" and base_policy.get(variant) == "exclude":
+                                continue
                             raise ValueError(f"missing merged variant '{variant}' for prefab '{name}'")
                         merged_definition = variant_group.merged[merged_key]
                         variant_ref = variant_group.variants.get(merged_key)

@@ -54,7 +54,7 @@ def _norm_path(path: str) -> str:
 
 def _write_png_with_meta(path: Path) -> None:
     write_min_png(path)
-    write_json(Path(path.as_posix() + ".json"), {"version": 2, "definitions": {}})
+    write_json(Path(path.as_posix() + ".json"), {"version": 3, "definitions": {}})
 
 
 def test_rename_document_precheck_nest_includes_related_variants():

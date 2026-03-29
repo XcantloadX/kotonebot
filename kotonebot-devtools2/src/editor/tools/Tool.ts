@@ -1,14 +1,14 @@
 import { KonvaEventObject } from 'konva/lib/Node';
 import { Vector2d } from 'konva/lib/types';
-import { MetaV2, ResourceType } from '../../model/metaV2';
+import { MetaModel, ResourceType } from '../../model/metaV2';
 import { PrefabSchema } from '../../model/prefabSchema';
 
 export interface ToolContext {
-  activeMeta: { path: string; data: MetaV2 } | null;
+  activeMeta: { path: string; data: MetaModel } | null;
   prefabSchema: PrefabSchema | null;
   activeResourceType: ResourceType;
   updateMeta: (
-    updater: (draft: MetaV2) => void,
+    updater: (draft: MetaModel) => void,
     options?: { label?: string; mergeKey?: string; forceNewEntry?: boolean }
   ) => void;
   setSelection: (id: string | null) => void;

@@ -16,7 +16,7 @@ class TestProject(unittest.TestCase):
             with in_cwd(tmp_path):
                 project = Project(conf_path=str(conf_path))
 
-            self.assertEqual(project.conf.editor.resource_path, str(resource_dir.absolute()))
+            self.assertEqual(Path(project.conf.editor.resource_path).resolve(), resource_dir.resolve())
 
     def test_load_with_missing_resource_path_raises(self):
         with TemporaryDirectory() as tmp:

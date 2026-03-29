@@ -23,24 +23,6 @@ META_VARIANT_INVALID: Final[DiagnosticCodeDef] = DiagnosticCodeDef(
     severity="error",
     summary="Meta variant declaration is invalid.",
 )
-# 项目已启用 variant，但 base prefab 未显式声明 variant_inherit（隐式等同 False）。
-META_VARIANT_INHERIT_DISABLED: Final[DiagnosticCodeDef] = DiagnosticCodeDef(
-    code="KBT-W-META-0201",
-    severity="warning",
-    summary="Base prefab has implicit variant_inherit=False while project variant is configured.",
-)
-# 项目未启用 variant，但 prefab 显式设置了 variant_inherit（该配置当前无效）。
-META_VARIANT_INHERIT_UNUSED: Final[DiagnosticCodeDef] = DiagnosticCodeDef(
-    code="KBT-W-META-0202",
-    severity="warning",
-    summary="variant_inherit is set but project variant is not configured.",
-)
-# base prefab 声明 variant_inherit=False 时，缺少项目要求的某些 variant 文档。
-META_VARIANT_INHERIT_MISSING_VARIANTS: Final[DiagnosticCodeDef] = DiagnosticCodeDef(
-    code="KBT-E-META-0102",
-    severity="error",
-    summary="variant_inherit=False requires all configured variant documents.",
-)
 # 索引阶段：definition_id 非法（为空或类型错误）。
 INDEX_DEF_ID_INVALID: Final[DiagnosticCodeDef] = DiagnosticCodeDef(
     code="KBT-E-IDX-0001",
@@ -65,38 +47,14 @@ INDEX_VARIANT_INVALID: Final[DiagnosticCodeDef] = DiagnosticCodeDef(
     severity="error",
     summary="Variant validation failed during indexing.",
 )
-# 索引阶段：项目启用 variant 时，base prefab 未显式声明 variant_inherit。
-INDEX_VARIANT_INHERIT_DISABLED: Final[DiagnosticCodeDef] = DiagnosticCodeDef(
-    code="KBT-W-IDX-0201",
-    severity="warning",
-    summary="Variant inheritance is disabled during indexing.",
-)
-# 索引阶段：项目未启用 variant，但出现了 variant_inherit 显式配置。
-INDEX_VARIANT_INHERIT_UNUSED: Final[DiagnosticCodeDef] = DiagnosticCodeDef(
-    code="KBT-W-IDX-0202",
-    severity="warning",
-    summary="variant_inherit is set but project variant is not configured during indexing.",
-)
-# 索引阶段：variant_inherit=False 时缺少必需的 variant 文档。
-INDEX_VARIANT_INHERIT_MISSING_VARIANTS: Final[DiagnosticCodeDef] = DiagnosticCodeDef(
-    code="KBT-E-IDX-0102",
-    severity="error",
-    summary="variant_inherit=False requires all configured variant documents during indexing.",
-)
 
 ALL_CODES: Final[tuple[DiagnosticCodeDef, ...]] = (
     META_FILE_PARSE_ERROR,
     META_VARIANT_INVALID,
-    META_VARIANT_INHERIT_DISABLED,
-    META_VARIANT_INHERIT_UNUSED,
-    META_VARIANT_INHERIT_MISSING_VARIANTS,
     INDEX_DEF_ID_INVALID,
     INDEX_DEF_PARSE_ERROR,
     INDEX_FILE_PARSE_ERROR,
     INDEX_VARIANT_INVALID,
-    INDEX_VARIANT_INHERIT_DISABLED,
-    INDEX_VARIANT_INHERIT_UNUSED,
-    INDEX_VARIANT_INHERIT_MISSING_VARIANTS,
 )
 
 REGISTRY: Final[dict[str, DiagnosticCodeDef]] = {item.code: item for item in ALL_CODES}

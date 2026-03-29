@@ -8,7 +8,7 @@ class MetaValidationError(ValueError):
     """Raised when a meta JSON file does not conform to expected schema."""
 
 
-MetaFormat = Literal["simple", "complex", "v2"]
+MetaFormat = Literal["simple", "complex", "v3"]
 
 
 class MetaSchemaInfo(BaseModel):
@@ -31,11 +31,11 @@ def _ensure_bool_or_none(value: Any, field_name: str) -> bool | None:
 
 
 def detect_and_validate_meta_schema(data: Dict[str, Any]) -> MetaSchemaInfo:
-    """Detect whether meta JSON is in simple/complex/V2 format and validate structure.
+    """Detect whether meta JSON is in simple/complex/v3 format and validate structure.
 
     Rules:
-    - Meta V2 format:
-      * Top-level `version` MUST be 2.
+        - Meta v3 format:
+            * Top-level `version` MUST be 3.
       * MUST contain `definitions` (object).
       * MUST NOT contain `annotations`.
     - Simple format (V1):
@@ -51,25 +51,25 @@ def detect_and_validate_meta_schema(data: Dict[str, Any]) -> MetaSchemaInfo:
     if not isinstance(data, dict):
         raise MetaValidationError("Meta JSON root must be an object.")
 
-    # --- Meta V2 branch (versioned schema, no annotations) ---
+    # --- Meta v3 branch (versioned schema, no annotations) ---
     version = data.get("version")
     if version is not None:
-        if version != 2:
+        if version != 3:
             raise MetaValidationError(f"Unsupported meta version: {version!r}")
 
         has_definitions = "definitions" in data
         has_annotations = "annotations" in data
 
         if not has_definitions:
-            raise MetaValidationError("Meta V2 must contain field 'definitions'.")
+            raise MetaValidationError("Meta v3 must contain field 'definitions'.")
         if has_annotations:
-            raise MetaValidationError("Meta V2 must not contain field 'annotations'.")
+            raise MetaValidationError("Meta v3 must not contain field 'annotations'.")
 
         definitions = data["definitions"]
         if not isinstance(definitions, dict):
             raise MetaValidationError("Field 'definitions' must be an object (mapping).")
 
-        return MetaSchemaInfo(format="v2", is_simple_flag=None)
+        return MetaSchemaInfo(format="v3", is_simple_flag=None)
 
     raw_flag = data.get("isSimple")
     is_simple_flag = _ensure_bool_or_none(raw_flag, "isSimple")

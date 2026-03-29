@@ -26,7 +26,7 @@ def test_workspace_service_meta_refetch_and_update():
         write_json(
             meta_path,
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "ok": {
                         "type": "template",

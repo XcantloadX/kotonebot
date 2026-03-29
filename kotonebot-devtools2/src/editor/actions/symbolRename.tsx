@@ -151,7 +151,7 @@ async function reloadAffectedOpenDocuments(affectedMetaPathSet: Set<string>): Pr
     }
     const content = await readText(doc.meta.path);
     const data = JSON.parse(content);
-    if (data.version !== 2) {
+    if (data.version !== 3) {
       throw new Error(`Unsupported meta version: ${data.version}`);
     }
     useAppStore.getState().setActiveMeta(doc.id, data);

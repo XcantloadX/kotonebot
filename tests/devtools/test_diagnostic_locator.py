@@ -10,12 +10,12 @@ def test_build_corpus_produces_definition_and_field_ranges():
         meta_path.write_text(
             (
                 '{\n'
-                '  "version": 2,\n'
+                '  "version": 3,\n'
                 '  "definitions": {\n'
                 '    "btn": {\n'
                 '      "type": "prefab",\n'
                 '      "name": "ui.btn",\n'
-                '      "variant_inherit": false,\n'
+                '      "variant_policy": {"en": "require"},\n'
                 '      "props": {}\n'
                 "    }\n"
                 "  }\n"
@@ -29,7 +29,7 @@ def test_build_corpus_produces_definition_and_field_ranges():
         assert len(corpus.docs) == 1
         doc = corpus.docs[0]
         definition_range = doc.ranges.of_definition("btn")
-        field_range = doc.ranges.of_field("btn", "variant_inherit")
+        field_range = doc.ranges.of_field("btn", "variant_policy")
         assert definition_range.line == 4
         assert field_range.line == 7
         assert field_range.end_column > field_range.column

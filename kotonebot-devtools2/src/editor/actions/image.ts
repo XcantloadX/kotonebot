@@ -40,7 +40,7 @@ export async function openImageWithMeta(path: string, options?: OpenImageWithMet
   const metaPath = `${path}.json`;
   const content = await readText(metaPath);
   const data = JSON.parse(content);
-  if (data.version !== 2) {
+  if (data.version !== 3) {
     throw new Error(`Unsupported meta version: ${data.version}`);
   }
   setActiveMeta(path, data);
@@ -56,22 +56,22 @@ export async function openImagesWithChecks(paths: string[]): Promise<void> {
     try {
       const content = await readText(metaPath);
       const data = JSON.parse(content);
-      if (data.version === 2) {
+      if (data.version === 3) {
         setActiveMeta(path, data);
         continue;
       }
-      const shouldStartFreshV2 = await messageBox.yes_no({
+      const shouldStartFreshV3 = await messageBox.yes_no({
         title: i18n.t('image.legacyMetaFormat'),
         content: i18n.t('image.detectedLegacyFormat', { path: metaPath }),
-        yesText: i18n.t('image.startFreshV2'),
+        yesText: i18n.t('image.startFreshV3'),
         noText: i18n.t('dialog.cancel'),
         yesIntent: "warning",
       });
-      if (shouldStartFreshV2) {
-        setActiveMeta(path, { version: 2, definitions: {} });
+      if (shouldStartFreshV3) {
+        setActiveMeta(path, { version: 3, definitions: {} });
       }
     } catch {
-      setActiveMeta(path, { version: 2, definitions: {} });
+      setActiveMeta(path, { version: 3, definitions: {} });
     }
   }
 }

@@ -29,7 +29,7 @@ def test_parse_meta_file():
         path.write_text(
             json.dumps(
                 {
-                    "version": 2,
+                    "version": 3,
                     "definitions": {
                         "x": {
                             "type": "template",
@@ -47,7 +47,7 @@ def test_parse_meta_file():
             encoding="utf-8",
         )
         data = parse_meta_file(path)
-        assert data.version == 2
+        assert data.version == 3
         assert "x" in data.definitions
         assert data.definitions["p"].variant == "en"
 

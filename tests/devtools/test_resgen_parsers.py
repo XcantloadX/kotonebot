@@ -356,7 +356,7 @@ class TestKotoneV2Parser(unittest.TestCase):
     def test_v2_template_image_slice_naming(self):
         """ImageProp 应导出 <definitionId>_<propKey>.png 命名的切片。"""
         data = {
-            "version": 2,
+            "version": 3,
             "definitions": {
                 "def1": {
                     "type": "template",
@@ -398,13 +398,17 @@ class TestKotoneV2Parser(unittest.TestCase):
 
     def test_v2_prefab_variant_merge(self):
         data = {
-            "version": 2,
+            "version": 3,
             "definitions": {
                 "base": {
                     "type": "prefab",
                     "name": "ui.button",
                     "prefab_id": "TemplateMatchPrefab",
                     "displayName": "Base",
+                    "variant_policy": {
+                        "en": "inherit",
+                        "jp": "inherit",
+                    },
                     "props": {
                         "templateImage": {"kind": "image", "x1": 1, "y1": 2, "x2": 10, "y2": 20},
                         "region": {"kind": "rect", "x1": 5, "y1": 6, "x2": 70, "y2": 80},
@@ -412,7 +416,7 @@ class TestKotoneV2Parser(unittest.TestCase):
                         "threshold": 0.8,
                     },
                 },
-                "en": {
+                "variant_en": {
                     "type": "prefab",
                     "name": "ui.button",
                     "variant": "en",
@@ -446,19 +450,23 @@ class TestKotoneV2Parser(unittest.TestCase):
 
     def test_v2_prefab_variant_merge_without_base_variant_key(self):
         data = {
-            "version": 2,
+            "version": 3,
             "definitions": {
                 "base": {
                     "type": "prefab",
                     "name": "ui.button",
                     "prefab_id": "TemplateMatchPrefab",
                     "displayName": "Base",
+                    "variant_policy": {
+                        "en": "inherit",
+                        "jp": "inherit",
+                    },
                     "props": {
                         "templateImage": {"kind": "image", "x1": 1, "y1": 2, "x2": 10, "y2": 20},
                         "threshold": 0.8,
                     },
                 },
-                "en": {
+                "variant_en": {
                     "type": "prefab",
                     "name": "ui.button",
                     "variant": "en",

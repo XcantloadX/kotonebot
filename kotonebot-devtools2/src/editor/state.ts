@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { Patch, applyPatches, current, enablePatches, produceWithPatches } from 'immer';
-import { DefinitionV2, MetaV2, ResourceType } from '../model/metaV2';
+import { DefinitionModel, MetaModel, ResourceType } from '../model/metaV2';
 import { PrefabSchema } from '../model/prefabSchema';
 import { writeText } from '../api/fs';
 import { toaster } from '../ui/toaster';
@@ -23,7 +23,7 @@ export type InteractionMode =
 export interface DocumentState {
   id: string; // Usually the image path
   image: { path: string; width: number; height: number; url: string };
-  meta: { path: string; data: MetaV2 } | null;
+  meta: { path: string; data: MetaModel } | null;
   
   selection: { definitionId: string } | null;
   mode: InteractionMode;
@@ -72,7 +72,7 @@ export interface FocusSpotlightState {
 
 export interface DefinitionClipboard {
   sourceDefinitionId: string;
-  definition: DefinitionV2;
+  definition: DefinitionModel;
 }
 
 interface AppState {
@@ -101,8 +101,8 @@ interface AppState {
   // Active Document Actions
   setSelection: (definitionId: string | null) => void;
   setMode: (mode: InteractionMode) => void;
-  setActiveMeta: (docId: string, data: MetaV2) => void;
-  updateMeta: (updater: (draft: MetaV2) => void, options?: UpdateMetaOptions) => void;
+  setActiveMeta: (docId: string, data: MetaModel) => void;
+  updateMeta: (updater: (draft: MetaModel) => void, options?: UpdateMetaOptions) => void;
   beginMetaTransaction: (options: { label: string; mergeKey?: string }) => void;
   commitMetaTransaction: () => void;
   cancelMetaTransaction: () => void;
@@ -452,7 +452,7 @@ export const useAppStore = create<AppState>()(
           throw new Error("Cannot cancel transaction: active document has no meta");
         }
         if (transaction.inversePatches.length > 0) {
-          doc.meta.data = applyPatches(current(doc.meta.data), transaction.inversePatches) as MetaV2;
+          doc.meta.data = applyPatches(current(doc.meta.data), transaction.inversePatches) as MetaModel;
         }
         doc.dirty = doc.history.saveCursor !== doc.history.cursor;
       }
@@ -469,7 +469,7 @@ export const useAppStore = create<AppState>()(
             }
             if (doc.history.cursor > 0) {
                 const entry = doc.history.entries[doc.history.cursor - 1];
-                doc.meta.data = applyPatches(current(doc.meta.data), entry.inversePatches) as MetaV2;
+                doc.meta.data = applyPatches(current(doc.meta.data), entry.inversePatches) as MetaModel;
                 doc.history.cursor -= 1;
                 doc.dirty = doc.history.saveCursor !== doc.history.cursor;
             }
@@ -487,7 +487,7 @@ export const useAppStore = create<AppState>()(
             }
             if (doc.history.cursor < doc.history.entries.length) {
                 const entry = doc.history.entries[doc.history.cursor];
-                doc.meta.data = applyPatches(current(doc.meta.data), entry.patches) as MetaV2;
+                doc.meta.data = applyPatches(current(doc.meta.data), entry.patches) as MetaModel;
                 doc.history.cursor += 1;
                 doc.dirty = doc.history.saveCursor !== doc.history.cursor;
             }

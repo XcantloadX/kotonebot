@@ -70,7 +70,7 @@ def test_server_symbol_tree_groups_name_and_variant():
             tmp_path / "resources",
             "base.png",
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "id1": {
                         "type": "prefab",
@@ -113,7 +113,7 @@ def test_server_rename_symbol_precheck_collects_all_name_matches():
             tmp_path / "resources",
             "base.png",
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "id_base": {
                         "type": "prefab",
@@ -127,7 +127,7 @@ def test_server_rename_symbol_precheck_collects_all_name_matches():
             tmp_path / "resources",
             "en.png",
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "id_en": {
                         "type": "prefab",
@@ -164,7 +164,7 @@ def test_server_rename_symbol_execute_updates_all_name_matches():
             tmp_path / "resources",
             "base.png",
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "id_base": {
                         "type": "prefab",
@@ -178,7 +178,7 @@ def test_server_rename_symbol_execute_updates_all_name_matches():
             tmp_path / "resources",
             "en.png",
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "id_en": {
                         "type": "prefab",

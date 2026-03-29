@@ -8,19 +8,23 @@ export type NumberValue = number;
 export type StringValue = string;
 
 export type PropValue = RectValue | PointValue | ImageValue | BoolValue | NumberValue | StringValue;
+export type VariantPolicy = "inherit" | "require" | "exclude";
 
-export interface DefinitionV2 {
+export interface DefinitionV3 {
   type: ResourceType;
   name?: string;
   variant?: string;
-  variant_inherit?: boolean | null;
+  variant_policy?: Record<string, VariantPolicy>;
   displayName?: string;
   description?: string;
   prefab_id?: string;
   props: Record<string, PropValue>;
 }
 
-export interface MetaV2 {
-  version: 2;
-  definitions: Record<string, DefinitionV2>;
+export interface MetaV3 {
+  version: 3;
+  definitions: Record<string, DefinitionV3>;
 }
+
+export type DefinitionModel = DefinitionV3;
+export type MetaModel = MetaV3;

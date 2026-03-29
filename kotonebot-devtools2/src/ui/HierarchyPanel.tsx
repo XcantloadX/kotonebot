@@ -5,9 +5,9 @@ import { useAppStore } from '../editor/state';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { editorActions } from '../editor/actions';
-import { DefinitionV2 } from '../model/metaV2';
+import { DefinitionModel } from '../model/metaV2';
 
-function getTypeIcon(def: DefinitionV2, prefabSchema: ReturnType<typeof useAppStore.getState>['prefabSchema']): string {
+function getTypeIcon(def: DefinitionModel, prefabSchema: ReturnType<typeof useAppStore.getState>['prefabSchema']): string {
   if (def.type === 'prefab' && def.prefab_id && prefabSchema) {
     const schema = prefabSchema.prefabs[def.prefab_id];
     if (schema?.icon) return schema.icon;

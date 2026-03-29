@@ -34,7 +34,7 @@ async function ensureDocumentWithMeta(imagePath: string, metaPath: string): Prom
   if (!activeDoc?.meta || activeDoc.meta.path !== metaPath) {
     const content = await readText(metaPath);
     const data = JSON.parse(content);
-    if (data.version !== 2) {
+    if (data.version !== 3) {
       throw new Error(`Unsupported meta version: ${data.version}`);
     }
     setActiveMeta(imagePath, data);

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from ..diagnostics.codes import META_FILE_PARSE_ERROR
 from ..diagnostics.models import Diagnostic
-from .models import DefinitionV2Model, MetaV2Model
+from .models import DefinitionModel, MetaModel
 from .parser import MetaValidationError, parse_meta_text
 
 
@@ -38,7 +38,7 @@ class MetaRangeMap(BaseModel):
 class ParsedMetaDoc(BaseModel):
     meta_path: str
     image_path: str
-    data: MetaV2Model
+    data: MetaModel
     ranges: MetaRangeMap
 
 
@@ -46,8 +46,8 @@ class MetaCorpus(BaseModel):
     docs: list[ParsedMetaDoc] = Field(default_factory=list)
 
     @property
-    def definition_refs(self) -> list[tuple[str, str, DefinitionV2Model]]:
-        refs: list[tuple[str, str, DefinitionV2Model]] = []
+    def definition_refs(self) -> list[tuple[str, str, DefinitionModel]]:
+        refs: list[tuple[str, str, DefinitionModel]] = []
         for doc in self.docs:
             for definition_id, definition in doc.data.definitions.items():
                 refs.append((doc.meta_path, definition_id, definition))
@@ -101,7 +101,7 @@ def build_corpus_from_meta_paths(meta_paths: list[str]) -> tuple[MetaCorpus, lis
     return MetaCorpus(docs=docs), diagnostics
 
 
-def _build_source_index(*, text: str, data: MetaV2Model) -> MetaRangeMap:
+def _build_source_index(*, text: str, data: MetaModel) -> MetaRangeMap:
     line_offsets = _line_offsets(text)
     definitions_token = json.dumps("definitions", ensure_ascii=False)
     definitions_offset = _find_key(text=text, token=definitions_token, start=0)

@@ -1,7 +1,13 @@
 from .corpus import MetaCorpus, ParsedMetaDoc, build_corpus_from_meta_paths
 from ..diagnostics.models import Diagnostic, Severity
 from .graph import DefinitionKey, ResolvedDefinition, ResolvedDocsGraph, build_docs_graph
-from .models import DefinitionV2Model, MetaV2Model
+from .models import (
+    DefinitionModel,
+    DefinitionV3Model,
+    MetaModel,
+    MetaV3Model,
+    VariantPolicy,
+)
 from .parser import parse_meta_file
 from .pipeline import build_meta_state
 from .projections import IndexingProjection, build_indexing_projection, build_variant_projection_for_resgen
@@ -28,9 +34,12 @@ __all__ = [
     "build_corpus_from_meta_paths",
     "build_docs_graph",
     "build_meta_state",
-    "DefinitionV2Model",
+    "DefinitionModel",
+    "DefinitionV3Model",
     "MetaFileRef",
-    "MetaV2Model",
+    "MetaModel",
+    "MetaV3Model",
+    "VariantPolicy",
     "parse_meta_file",
     "scan_meta_files",
     "validate_meta_corpus",

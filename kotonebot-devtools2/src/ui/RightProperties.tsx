@@ -1,8 +1,9 @@
 import React from 'react';
 import { FormGroup, InputGroup, Button, H5, Card, Tooltip } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
+import { getProjectInfo } from '../api/fs';
 import { useAppStore } from '../editor/state';
-import { PropValue } from '../model/metaV2';
+import { PropValue, VariantPolicy } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
 import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
@@ -12,20 +13,19 @@ import { SegmentedControl, SegmentedOption } from './components/SegmentedControl
 import { toaster } from './toaster';
 import { HelpIcon } from './components/HelpIcon';
 
-type VariantInheritValue = boolean | null;
-
 export const RightProperties: React.FC = () => {
   const { t } = useTranslation();
 
-  const VARIANT_INHERIT_OPTIONS: readonly SegmentedOption<VariantInheritValue>[] = [
-    { label: t('rightProperties.none'), value: null },
-    { label: t('rightProperties.false'), value: false },
-    { label: t('rightProperties.true'), value: true },
+  const VARIANT_POLICY_OPTIONS: readonly SegmentedOption<VariantPolicy>[] = [
+    { label: t('rightProperties.variantPolicyInherit'), value: 'inherit' },
+    { label: t('rightProperties.variantPolicyRequire'), value: 'require' },
+    { label: t('rightProperties.variantPolicyExclude'), value: 'exclude' },
   ];
   const commandContext = React.useMemo(() => ({ ui: {} }), []);
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
   const symbols = useSymbolIndexStore(s => s.symbols);
   const [nameDraft, setNameDraft] = React.useState<string>('');
+  const [projectVariants, setProjectVariants] = React.useState<string[]>([]);
 
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const activeMeta = activeDoc?.meta;
@@ -35,6 +35,26 @@ export const RightProperties: React.FC = () => {
   React.useEffect(() => {
     setNameDraft(definition?.name || '');
   }, [activeMeta?.path, defId, definition?.name]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const info = await getProjectInfo();
+        if (!mounted) {
+          return;
+        }
+        setProjectVariants(info.variant?.variants ?? []);
+      } catch {
+        if (mounted) {
+          setProjectVariants([]);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   if (!activeMeta || !selection || !defId) {
     return <div style={{ padding: 10, color: '#8a9ba8' }}>{t('status.noSelection')}</div>;
@@ -49,11 +69,7 @@ export const RightProperties: React.FC = () => {
   const trimmedNameDraft = nameDraft.trim();
   const hasPendingNameChange = !isVariantPrefab && trimmedNameDraft !== currentName;
   const canSubmitNameChange = hasPendingNameChange && trimmedNameDraft !== "";
-  const variantInheritValue: VariantInheritValue = definition.variant_inherit === true
-    ? true
-    : definition.variant_inherit === false
-      ? false
-      : null;
+  const variantPolicyByVariant: Record<string, VariantPolicy> = (definition as any).variant_policy ?? {};
   const sameNamePrefabSymbols = definition.type === "prefab" && definition.name
     ? symbols
       .filter(s => s.type === "prefab" && s.name === definition.name)
@@ -67,7 +83,7 @@ export const RightProperties: React.FC = () => {
 
   const handleChange = (key: string, value: any) => {
       updateMeta(draft => {
-          if (key === 'name' || key === 'displayName' || key === 'description' || key === 'variant_inherit') {
+        if (key === 'name' || key === 'displayName' || key === 'description' || key === 'variant_policy') {
               (draft.definitions[defId] as any)[key] = value;
           } else {
               if (value === undefined) {
@@ -80,6 +96,14 @@ export const RightProperties: React.FC = () => {
           label: key === 'name' || key === 'displayName' || key === 'description' ? `Edit ${key}` : `Edit prop ${key}`,
           mergeKey: `prop:${defId}:${key}`,
       });
+  };
+
+  const handleVariantPolicyChange = (variant: string, policy: VariantPolicy) => {
+    const nextPolicy: Record<string, VariantPolicy> = {
+      ...variantPolicyByVariant,
+      [variant]: policy,
+    };
+    handleChange('variant_policy', nextPolicy);
   };
 
   const handleEditGeometry = (propKey: string, kind: "rect" | "point" | "image") => {
@@ -264,17 +288,32 @@ export const RightProperties: React.FC = () => {
               </div>
               {!definition.variant ? (
                 <div style={{ marginTop: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{  color: '#5c7080', whiteSpace: 'nowrap' }}>
-                      {t('rightProperties.variantInherit')}
-                    </div>
-                    <SegmentedControl
-                      options={VARIANT_INHERIT_OPTIONS}
-                      value={variantInheritValue}
-                      onChange={(value) => handleChange('variant_inherit', value)}
-                      small
-                    />
+                  <div style={{ color: '#5c7080', marginBottom: 6 }}>
+                    {t('rightProperties.variantPolicy')}
                   </div>
+                  {projectVariants.length === 0 ? (
+                    <div style={{ color: '#8a9ba8', fontSize: 12 }}>
+                      {t('variant.noVariantsConfigured')}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {projectVariants
+                        .filter((variant) => variant !== definition.variant)
+                        .map((variant) => (
+                          <div key={variant} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ color: '#5c7080', minWidth: 80, whiteSpace: 'nowrap' }}>
+                              {variant}
+                            </div>
+                            <SegmentedControl
+                              options={VARIANT_POLICY_OPTIONS}
+                              value={variantPolicyByVariant[variant] ?? 'require'}
+                              onChange={(value) => handleVariantPolicyChange(variant, value)}
+                              small
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
               ) : null}
             </>

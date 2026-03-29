@@ -5,7 +5,7 @@
  * 3）磁盘上的 meta 文件。
  */
 import { readText } from "../api/fs";
-import { DefinitionV2 } from "../model/metaV2";
+import { DefinitionModel } from "../model/metaV2";
 import { SymbolLite } from "../model/symbolIndex";
 import { DocumentState } from "./state";
 
@@ -16,7 +16,7 @@ interface ResolveBasePrefabOptions {
 }
 
 export interface ResolveBasePrefabResult {
-  byName: Record<string, DefinitionV2>;
+  byName: Record<string, DefinitionModel>;
   missingNames: string[];
 }
 
@@ -26,7 +26,7 @@ export async function resolveBasePrefabsByName(options: ResolveBasePrefabOptions
     return { byName: {}, missingNames: [] };
   }
 
-  const byName: Record<string, DefinitionV2> = {};
+  const byName: Record<string, DefinitionModel> = {};
   for (const doc of Object.values(options.documents)) {
     if (!doc.meta) {
       continue;
@@ -60,7 +60,7 @@ export async function resolveBasePrefabsByName(options: ResolveBasePrefabOptions
       loadedMetaCache[baseSymbol.metaPath] = JSON.parse(text);
     }
     const baseMeta = loadedMetaCache[baseSymbol.metaPath];
-    if (!baseMeta || baseMeta.version !== 2 || !baseMeta.definitions) {
+    if (!baseMeta || baseMeta.version !== 3 || !baseMeta.definitions) {
       missingNames.push(name);
       continue;
     }
@@ -70,7 +70,7 @@ export async function resolveBasePrefabsByName(options: ResolveBasePrefabOptions
       missingNames.push(name);
       continue;
     }
-    byName[name] = baseDefinition as DefinitionV2;
+    byName[name] = baseDefinition as DefinitionModel;
   }
 
   return { byName, missingNames };

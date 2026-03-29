@@ -159,8 +159,8 @@
   },
   "image": {
     "legacyMetaFormat": "旧版元数据格式",
-    "detectedLegacyFormat": "检测到旧版或未知元数据格式：\n{{path}}\n\n是否使用 V2 定义重新开始？",
-    "startFreshV2": "重新开始 V2"
+    "detectedLegacyFormat": "检测到旧版或未知元数据格式：\n{{path}}\n\n是否使用 V3 定义重新开始？",
+    "startFreshV3": "重新开始 V3"
   },
   "variantRename": {
     "syncVariantNames": "同步变体名称",
@@ -193,6 +193,10 @@
     "nameClassPath": "名称",
     "nameClassPathHelp": "对象的类路径，将会用在代码生成中",
     "variantInherit": "变体继承",
+    "variantPolicy": "变体策略",
+    "variantPolicyInherit": "沿用",
+    "variantPolicyRequire": "必填",
+    "variantPolicyExclude": "排除",
     "none": "无",
     "false": "假",
     "true": "真",

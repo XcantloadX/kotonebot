@@ -4,8 +4,7 @@ from pathlib import Path
 from rich.console import Console
 
 from kotonebot.devtools.diagnostics.codes import (
-    META_VARIANT_INHERIT_DISABLED,
-    META_VARIANT_INHERIT_MISSING_VARIANTS,
+    META_VARIANT_INVALID,
 )
 from kotonebot.devtools.diagnostics.models import Diagnostic
 from kotonebot.devtools.resgen.diagnostics import print_diagnostics_report
@@ -15,24 +14,24 @@ def test_print_diagnostics_report_compiler_style_output(tmp_path: Path):
     meta_path = (tmp_path / "resources" / "ui" / "button.png.json").resolve()
     diagnostics = [
         Diagnostic(
-            code=META_VARIANT_INHERIT_DISABLED.code,
-            severity="warning",
-            message="base prefab has implicit variant_inherit=False while project variant is configured: ui.button",
+            code=META_VARIANT_INVALID.code,
+            severity="error",
+            message="base prefab requires variant_policy in meta v3: ui.button",
             meta_path=meta_path.as_posix(),
             definition_id="base",
-            field_path="definitions.base.variant_inherit",
+            field_path="definitions.base.variant_policy",
             line=1,
             column=1,
             end_line=1,
             end_column=2,
         ),
         Diagnostic(
-            code=META_VARIANT_INHERIT_MISSING_VARIANTS.code,
+            code=META_VARIANT_INVALID.code,
             severity="error",
-            message="variant_inherit=False requires all configured variants to exist: ui.button; missing=en",
+            message="variant_policy=require requires explicit variant definition: ui.button#en",
             meta_path=meta_path.as_posix(),
             definition_id="base",
-            field_path="definitions.base.variant_inherit",
+            field_path="definitions.base.variant_policy",
             line=1,
             column=1,
             end_line=1,
@@ -49,13 +48,12 @@ def test_print_diagnostics_report_compiler_style_output(tmp_path: Path):
     )
     output = stream.getvalue()
 
-    assert summary.error_count == 1
-    assert summary.warning_count == 1
-    assert "warning[KBT-W-META-0201]:" in output
-    assert "error[KBT-E-META-0102]:" in output
+    assert summary.error_count == 2
+    assert summary.warning_count == 0
+    assert output.count("error[KBT-E-META-0101]:") == 2
     assert "  --> resources/ui/button.png.json::base" in output
-    assert "   = field: definitions.base.variant_inherit" in output
-    assert "error: aborting due to 1 previous error(s); 1 warning(s), 0 info message(s) emitted" in output
+    assert "   = field: definitions.base.variant_policy" in output
+    assert "error: aborting due to 2 previous error(s); 0 warning(s), 0 info message(s) emitted" in output
 
 
 def test_print_diagnostics_report_empty_output():
@@ -72,12 +70,12 @@ def test_print_diagnostics_report_continue_output_when_not_abort(tmp_path: Path)
     meta_path = (tmp_path / "resources" / "ui" / "button.png.json").resolve()
     diagnostics = [
         Diagnostic(
-            code=META_VARIANT_INHERIT_MISSING_VARIANTS.code,
+            code=META_VARIANT_INVALID.code,
             severity="error",
-            message="variant_inherit=False requires all configured variants to exist: ui.button; missing=en",
+            message="variant_policy=require requires explicit variant definition: ui.button#en",
             meta_path=meta_path.as_posix(),
             definition_id="base",
-            field_path="definitions.base.variant_inherit",
+            field_path="definitions.base.variant_policy",
             line=1,
             column=1,
             end_line=1,

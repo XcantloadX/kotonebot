@@ -56,7 +56,7 @@ def test_copy_selected_prefab_to_variant_precheck_and_execute():
         write_json(
             source_meta,
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "btn": {
                         "type": "prefab",
@@ -119,7 +119,7 @@ def test_copy_selected_prefab_to_variant_requires_overwrite_flag():
         write_json(
             source_meta,
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "btn": {
                         "type": "prefab",
@@ -132,7 +132,7 @@ def test_copy_selected_prefab_to_variant_requires_overwrite_flag():
         write_json(
             target_meta,
             {
-                "version": 2,
+                "version": 3,
                 "definitions": {
                     "btn": {
                         "type": "prefab",

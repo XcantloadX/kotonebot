@@ -1,12 +1,12 @@
 import { v4 as uuidv4 } from "uuid";
-import type { DefinitionV2 } from "../../model/metaV2";
+import type { DefinitionModel } from "../../model/metaV2";
 import { useAppStore } from "../state";
 
-function deepCloneDefinition(definition: DefinitionV2): DefinitionV2 {
-  return JSON.parse(JSON.stringify(definition)) as DefinitionV2;
+function deepCloneDefinition(definition: DefinitionModel): DefinitionModel {
+  return JSON.parse(JSON.stringify(definition)) as DefinitionModel;
 }
 
-function getActiveDefinitionOrThrow(): { definitionId: string; definition: DefinitionV2 } {
+function getActiveDefinitionOrThrow(): { definitionId: string; definition: DefinitionModel } {
   const { activeDocumentId, documents } = useAppStore.getState();
   if (!activeDocumentId) {
     throw new Error("No active document");

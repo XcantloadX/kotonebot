@@ -18,7 +18,7 @@ from kotonebot.devtools.indexing.document_index_view import (
     RenameDocumentPrecheckResultModel,
 )
 from kotonebot.devtools.indexing.resource_index_store import ResourceIndexStore
-from kotonebot.devtools.meta import DefinitionV2Model, merge_prefab_definition, parse_meta_file
+from kotonebot.devtools.meta import DefinitionV3Model, merge_prefab_definition, parse_meta_file
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.project.scanner import scan_prefabs
 
@@ -173,8 +173,8 @@ class RestApiLogic:
     def _build_prefab_variant_definition(
         self,
         *,
-        definition: DefinitionV2Model,
-        base_by_name: dict[str, DefinitionV2Model],
+        definition: DefinitionV3Model,
+        base_by_name: dict[str, DefinitionV3Model],
         target_variant: str,
     ) -> dict[str, Any]:
         if definition.name is None:
@@ -283,11 +283,9 @@ class RestApiLogic:
         target_image_override: Any | None = None,
     ) -> dict[str, Any]:
         source_meta = parse_meta_file(source_meta_path)
-        source_image = self._read_image(source_image_path)
+        source_image: Any | None = None
         target_image = target_image_override
-        if target_image is None and target_image_path is not None and target_image_path.exists():
-            target_image = self._read_image(target_image_path)
-        base_by_name: dict[str, DefinitionV2Model] = {}
+        base_by_name: dict[str, DefinitionV3Model] = {}
         for definition in source_meta.definitions.values():
             if definition.type != "prefab":
                 continue
@@ -321,22 +319,27 @@ class RestApiLogic:
             full_definition = definition if definition.variant is None else merge_prefab_definition(base_definition, definition)
             full_props = full_definition.props or {}
             template_prop = full_props.get("template")
-            if target_image is not None and isinstance(template_prop, dict) and template_prop.get("kind") == "image":
-                similarity_score = self._template_similarity_score(
-                    definition_id=definition_id,
-                    template_prop=template_prop,
-                    source_image=source_image,
-                    target_image=target_image,
-                )
-                if similarity_score >= 0.95:
-                    skipped_definitions.append(
-                        {
-                            "definitionId": definition_id,
-                            "name": definition_name,
-                            "reason": f"same content (score={similarity_score:.4f} >= 0.95)",
-                        }
+            if isinstance(template_prop, dict) and template_prop.get("kind") == "image":
+                if target_image is None and target_image_path is not None and target_image_path.exists():
+                    target_image = self._read_image(target_image_path)
+                if target_image is not None:
+                    if source_image is None:
+                        source_image = self._read_image(source_image_path)
+                    similarity_score = self._template_similarity_score(
+                        definition_id=definition_id,
+                        template_prop=template_prop,
+                        source_image=source_image,
+                        target_image=target_image,
                     )
-                    continue
+                    if similarity_score >= 0.95:
+                        skipped_definitions.append(
+                            {
+                                "definitionId": definition_id,
+                                "name": definition_name,
+                                "reason": f"same content (score={similarity_score:.4f} >= 0.95)",
+                            }
+                        )
+                        continue
             definition_dump = self._build_prefab_variant_definition(
                 definition=definition,
                 base_by_name=base_by_name,

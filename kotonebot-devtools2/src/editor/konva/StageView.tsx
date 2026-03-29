@@ -5,7 +5,7 @@ import useImage from 'use-image';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../state';
 import { useSymbolIndexStore } from '../symbolIndexStore';
-import { DefinitionV2 } from '../../model/metaV2';
+import { DefinitionModel } from '../../model/metaV2';
 import { toaster } from '../../ui/toaster';
 import { KonvaEventObject } from 'konva/lib/Node';
 import { ToolContext } from '../tools/Tool';
@@ -70,7 +70,7 @@ export const StageView: React.FC = () => {
   const [panOrigin, setPanOrigin] = useState<{ viewX: number, viewY: number, pointerX: number, pointerY: number } | null>(null);
   // right mouse button state for panning
   const [isRightMouseDown, setIsRightMouseDown] = useState(false);
-  const [baseDefinitionsByName, setBaseDefinitionsByName] = useState<Record<string, DefinitionV2>>({});
+  const [baseDefinitionsByName, setBaseDefinitionsByName] = useState<Record<string, DefinitionModel>>({});
   const [baseDefsReady, setBaseDefsReady] = useState(true);
   const missingBaseToastKeyRef = useRef<string>("");
 
@@ -134,7 +134,7 @@ export const StageView: React.FC = () => {
 
   const renderDefinitions = useMemo(() => {
     if (!activeMeta) return null;
-    const out: Record<string, DefinitionV2> = {};
+    const out: Record<string, DefinitionModel> = {};
     for (const [defId, def] of Object.entries(activeMeta.data.definitions)) {
       if (def.type === "prefab" && def.variant && def.name) {
         const baseDef = baseDefinitionsByName[def.name];

@@ -11,13 +11,7 @@ from ...diagnostics.codes import (
     INDEX_DEF_ID_INVALID,
     INDEX_DEF_PARSE_ERROR,
     INDEX_FILE_PARSE_ERROR,
-    INDEX_VARIANT_INHERIT_DISABLED,
-    INDEX_VARIANT_INHERIT_MISSING_VARIANTS,
-    INDEX_VARIANT_INHERIT_UNUSED,
     INDEX_VARIANT_INVALID,
-    META_VARIANT_INHERIT_DISABLED,
-    META_VARIANT_INHERIT_MISSING_VARIANTS,
-    META_VARIANT_INHERIT_UNUSED,
 )
 from ...diagnostics.models import Diagnostic
 from ..corpus import ParsedMetaDoc, build_corpus_from_meta_paths
@@ -201,7 +195,7 @@ def _project_symbols_for_doc(
         image_path=doc.image_path,
         meta_path=doc.meta_path,
         mtime_ns=mtime_ns,
-        meta_version=2,
+        meta_version=doc.data.version,
         definition_ids=sorted([symbol.definition_id for symbol in symbols]),
     )
     return indexed_file, symbols, diagnostics
@@ -258,16 +252,9 @@ def build_indexing_projection(
         variant_configured=variant_configured,
     )
     for diag in variant_diagnostics:
-        code = INDEX_VARIANT_INVALID.code
-        if diag.code == META_VARIANT_INHERIT_DISABLED.code:
-            code = INDEX_VARIANT_INHERIT_DISABLED.code
-        elif diag.code == META_VARIANT_INHERIT_UNUSED.code:
-            code = INDEX_VARIANT_INHERIT_UNUSED.code
-        elif diag.code == META_VARIANT_INHERIT_MISSING_VARIANTS.code:
-            code = INDEX_VARIANT_INHERIT_MISSING_VARIANTS.code
         diagnostics.setdefault(diag.meta_path, []).append(
             Diagnostic(
-                code=code,
+                code=INDEX_VARIANT_INVALID.code,
                 severity=diag.severity,
                 message=diag.message,
                 meta_path=diag.meta_path,

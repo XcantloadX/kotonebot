@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from kotonebot.devtools.diagnostics.codes import META_VARIANT_INHERIT_MISSING_VARIANTS
+from kotonebot.devtools.diagnostics.codes import META_VARIANT_INVALID
 from kotonebot.devtools.diagnostics.models import Diagnostic
 from kotonebot.devtools.resgen import StandardGenerator
 from kotonebot.devtools.resgen.parsers import ResgenProjectContext
@@ -49,13 +49,15 @@ class TestResgenRunner(unittest.TestCase):
                 resources,
                 "ui/button.png",
                 {
-                    "version": 2,
+                    "version": 3,
                     "definitions": {
                         "base": {
                             "type": "prefab",
                             "name": "ui.button",
                             "prefab_id": "TemplateMatchPrefab",
-                            "variant_inherit": False,
+                            "variant_policy": {
+                                "en": "require",
+                            },
                             "props": {
                                 "templateImage": {"kind": "image", "x1": 0, "y1": 0, "x2": 1, "y2": 1},
                             },
@@ -99,7 +101,7 @@ class TestResgenRunner(unittest.TestCase):
                 default_variant="",
                 diagnostics=[
                     Diagnostic(
-                        code=META_VARIANT_INHERIT_MISSING_VARIANTS.code,
+                        code=META_VARIANT_INVALID.code,
                         severity="error",
                         message="synthetic error",
                         meta_path=(resources / "dummy.png.json").as_posix(),

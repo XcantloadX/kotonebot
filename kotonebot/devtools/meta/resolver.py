@@ -1,12 +1,12 @@
 from pydantic import BaseModel
 
-from .models import DefinitionV2Model
+from .models import DefinitionModel, DefinitionV3Model, VariantPolicy
 
 
 class DefinitionRef(BaseModel):
     meta_path: str
     definition_id: str
-    definition: DefinitionV2Model
+    definition: DefinitionModel
     line: int
     column: int
     end_line: int
@@ -17,10 +17,16 @@ class ResolvedPrefabVariants(BaseModel):
     name: str
     base: DefinitionRef
     variants: dict[str, DefinitionRef]
-    merged: dict[str, DefinitionV2Model]
+    merged: dict[str, DefinitionModel]
 
 
-def merge_prefab_definition(base: DefinitionV2Model, override: DefinitionV2Model) -> DefinitionV2Model:
+def _policy_for_variant(base: DefinitionModel, variant: str) -> VariantPolicy:
+    if base.variant_policy is None:
+        return "require"
+    return base.variant_policy.get(variant, "require")
+
+
+def merge_prefab_definition(base: DefinitionModel, override: DefinitionModel) -> DefinitionModel:
     if base.type != "prefab" or override.type != "prefab":
         raise ValueError("merge_prefab_definition requires prefab definitions")
     if base.name != override.name:
@@ -31,14 +37,14 @@ def merge_prefab_definition(base: DefinitionV2Model, override: DefinitionV2Model
     merged_props = dict(base_props)
     merged_props.update(override_props)
 
-    return DefinitionV2Model(
+    return DefinitionV3Model(
         type="prefab",
         name=override.name,
         displayName=override.display_name if override.display_name is not None else base.display_name,
         description=override.description if override.description is not None else base.description,
         prefab_id=override.prefab_id if override.prefab_id is not None else base.prefab_id,
         variant=override.variant,
-        variant_inherit=override.variant_inherit if override.variant_inherit is not None else base.variant_inherit,
+        variant_policy=override.variant_policy if override.variant_policy is not None else base.variant_policy,
         props=merged_props,
     )
 
@@ -69,10 +75,11 @@ def resolve_prefab_variant_groups(
     resolved: dict[str, ResolvedPrefabVariants] = {}
     for name, group in groups.items():
         variant_keys = [k for k in group.keys() if k is not None]
-        if not variant_keys:
-            continue
-
         base = group.get(None)
+        if not variant_keys:
+            if base is None:
+                continue
+
         if base is None:
             raise ValueError(f"variant prefab requires base definition: {name}")
         if base.definition.type != "prefab":
@@ -85,16 +92,21 @@ def resolve_prefab_variant_groups(
                 raise ValueError(f"variant prefab must be prefab: {name}#{variant}")
             typed_variants[variant] = ref
 
-        merged: dict[str, DefinitionV2Model] = {}
+        merged: dict[str, DefinitionModel] = {}
         merged[""] = base.definition
         expected_variants = resource_variants if resource_variants is not None else list(typed_variants.keys())
         for variant in expected_variants:
             if variant in typed_variants:
                 merged[variant] = merge_prefab_definition(base.definition, typed_variants[variant].definition)
             else:
+                policy = _policy_for_variant(base.definition, variant)
+                if policy == "exclude":
+                    continue
+                if policy == "require":
+                    continue
                 merged[variant] = merge_prefab_definition(
                     base.definition,
-                    DefinitionV2Model(
+                    DefinitionV3Model(
                         type="prefab",
                         name=base.definition.name,
                         variant=variant,

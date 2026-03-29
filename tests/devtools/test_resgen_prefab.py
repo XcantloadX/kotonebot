@@ -27,7 +27,7 @@ class TestPrefabParser(unittest.TestCase):
 
     def test_parse_valid_prefab_v2(self):
         data = {
-            "version": 2,
+            "version": 3,
             "definitions": {
                 "def1": {
                     "name": "ui.MyPrefab",

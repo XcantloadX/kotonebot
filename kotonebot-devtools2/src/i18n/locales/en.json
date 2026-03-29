@@ -159,8 +159,8 @@
   },
   "image": {
     "legacyMetaFormat": "Legacy Meta Format",
-    "detectedLegacyFormat": "Detected legacy or unknown meta format:\n{{path}}\n\nStart fresh with V2 definitions?",
-    "startFreshV2": "Start Fresh V2"
+    "detectedLegacyFormat": "Detected legacy or unknown meta format:\n{{path}}\n\nStart fresh with V3 definitions?",
+    "startFreshV3": "Start Fresh V3"
   },
   "variantRename": {
     "syncVariantNames": "Sync Variant Names",
@@ -193,6 +193,10 @@
     "nameClassPath": "Name",
     "nameClassPathHelp": "The class path of the object, used for code generation.",
     "variantInherit": "Variant Inherit",
+    "variantPolicy": "Variant Policy",
+    "variantPolicyInherit": "Inherit",
+    "variantPolicyRequire": "Require",
+    "variantPolicyExclude": "Exclude",
     "none": "None",
     "false": "False",
     "true": "True",

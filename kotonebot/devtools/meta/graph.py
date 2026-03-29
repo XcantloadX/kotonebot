@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
 from .corpus import MetaCorpus
-from .models import DefinitionV2Model
+from .models import DefinitionModel
 from .resolver import ResolvedPrefabVariants
 
 
@@ -13,8 +13,8 @@ class ResolvedDefinition(BaseModel):
     meta_path: str
     image_path: str
     definition_id: str
-    definition: DefinitionV2Model
-    merged_definition: DefinitionV2Model
+    definition: DefinitionModel
+    merged_definition: DefinitionModel
     base_ref: DefinitionKey | None = None
     variant_refs: list[DefinitionKey] = Field(default_factory=list)
 

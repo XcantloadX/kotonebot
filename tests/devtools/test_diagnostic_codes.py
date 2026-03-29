@@ -20,11 +20,12 @@ def test_diagnostic_registry_has_summary():
 
 
 def test_diagnostic_severity_must_match_code_registry():
-    warning_code = next(code for code, code_def in REGISTRY.items() if code_def.severity == "warning")
+    sample_code, sample_def = next(iter(REGISTRY.items()))
+    wrong_severity = "error" if sample_def.severity != "error" else "warning"
     with pytest.raises(ValueError):
         Diagnostic(
-            code=warning_code,
-            severity="error",
+            code=sample_code,
+            severity=wrong_severity,
             message="x",
             meta_path="a.png.json",
             line=1,

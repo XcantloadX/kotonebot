@@ -1,4 +1,17 @@
 # 更新日志
+## v0.12.0
+Devtool:
+1. [feat] **BREAKING** Meta schema 从 `version: 2` 升级到 `version: 3`。`variant_inherit` 已移除，替换为 base prefab 的按 variant 三态策略 `variant_policy`（`inherit` / `require` / `exclude`）。
+2. [feat] **BREAKING** Variant 解析与校验行为更新：
+	- `inherit`：未声明 variant 定义时回退到 base。
+	- `require`：未声明 variant 定义时报错。
+	- `exclude`：该 variant 下禁止出现该 prefab，若存在显式定义则报错。
+3. [feat] 新增迁移脚本 `tools/migrate_meta_v2_to_v3.py`，支持 dry-run、落盘写入、备份与报告输出。
+	```bash
+	python tools/migrate_meta_v2_to_v3.py --root ./resources
+	python tools/migrate_meta_v2_to_v3.py --root ./resources --write --backup .bak --report migration_report.json
+	```
+
 ## v0.11.0
 Library:
 1. [refactor] **BREAKING** 为了便于扩展，Prefab 的方法参数从 kwargs 迁移到 Query 入口（`q(...)`），统一 TemplateMatch/OCR 的参数覆盖与谓词过滤写法。旧/新写法对比：
