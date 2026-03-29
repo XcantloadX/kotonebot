@@ -126,7 +126,7 @@ export const EditorApp: React.FC = () => {
             style={{ width: 4, cursor: 'col-resize', background: '#d2dce5' }}
             title={t('rightPanel.resizePanel')}
           />
-          <div style={{ width: rightPanelWidth, display: 'flex', flexDirection: 'column', padding: '0 10px' }}>
+          <div style={{ width: rightPanelWidth, display: 'flex', flexDirection: 'column', padding: '0 10px', minHeight: 0 }}>
             <Tabs id="right-panel-tabs" defaultSelectedTabId="properties">
               <Tab id="properties" title={t('tabs.properties')} panel={<RightProperties />} />
               <Tab id="hierarchy" title={t('tabs.hierarchy')} panel={<HierarchyPanel />} />

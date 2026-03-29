@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormGroup, InputGroup, Button, H5, Card, Tooltip } from '@blueprintjs/core';
+import { FormGroup, InputGroup, Button, Tooltip } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
 import { getProjectInfo } from '../api/fs';
 import { useAppStore } from '../editor/state';
@@ -184,6 +184,42 @@ export const RightProperties: React.FC = () => {
   const editors: React.ReactNode[] = [];
 
   // Common fields
+
+  if (definition.type === "prefab" && projectVariants.length > 0) {
+    editors.push(
+      <FormGroup key="meta-variant" label="变体">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {projectVariants
+            .filter((variant) => variant !== definition.variant)
+            .map((variant) => {
+              const symbol = sameNamePrefabSymbols.find(s => (s.variant || "base") === variant);
+              return (
+                <div key={variant} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{  minWidth: 80, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {symbol ? (
+                      <Button
+                        small
+                        minimal
+                        icon="share"
+                        onClick={() => void executeCommand(COMMAND_ID.NAVIGATION_JUMP_TO_SYMBOL, commandContext, { symbol })}
+                      />
+                    ) : null}
+                    {variant}
+                  </div>
+                  <SegmentedControl
+                    options={VARIANT_POLICY_OPTIONS}
+                    value={variantPolicyByVariant[variant] ?? 'require'}
+                    onChange={(value) => handleVariantPolicyChange(variant, value)}
+                    small
+                  />
+                </div>
+              );
+            })}
+        </div>
+      </FormGroup>
+    );
+  }
+
   editors.push(
       <FormGroup
         key="common-name"
@@ -231,6 +267,17 @@ export const RightProperties: React.FC = () => {
       </FormGroup>
   );
 
+  // editors.push(
+  //   <FormGroup key="meta-type" label="类型">
+  //     <InputGroup readOnly value={definition.type + (definition.prefab_id ? ` (${definition.prefab_id})` : '')} />
+  //   </FormGroup>
+  // );
+  // editors.push(
+  //   <FormGroup key="meta-id" label="ID">
+  //     <InputGroup readOnly value={defId} />
+  //   </FormGroup>
+  // );
+
   // Prefab props
   if (definition.type === 'prefab' && definition.prefab_id && prefabSchema) {
       const schema = prefabSchema.prefabs[definition.prefab_id];
@@ -276,64 +323,10 @@ export const RightProperties: React.FC = () => {
       }
   });
 
+
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 20, overflowY: 'auto', flex: 1 }}>
-      <Card compact>
-          <H5>{definition.type} {definition.prefab_id ? `(${definition.prefab_id})` : ''}</H5>
-          <div style={{ fontSize: 12, color: '#8a9ba8', wordBreak: 'break-all' }}>ID: {defId}</div>
-          {definition.type === "prefab" ? (
-            <>
-              <div style={{ marginTop: 4, fontSize: 12, color: '#5c7080' }}>
-                当前 Variant: {definition.variant || "base"}
-              </div>
-              {!definition.variant ? (
-                <div style={{ marginTop: 6 }}>
-                  <div style={{ color: '#5c7080', marginBottom: 6 }}>
-                    {t('rightProperties.variantPolicy')}
-                  </div>
-                  {projectVariants.length === 0 ? (
-                    <div style={{ color: '#8a9ba8', fontSize: 12 }}>
-                      {t('variant.noVariantsConfigured')}
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {projectVariants
-                        .filter((variant) => variant !== definition.variant)
-                        .map((variant) => (
-                          <div key={variant} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ color: '#5c7080', minWidth: 80, whiteSpace: 'nowrap' }}>
-                              {variant}
-                            </div>
-                            <SegmentedControl
-                              options={VARIANT_POLICY_OPTIONS}
-                              value={variantPolicyByVariant[variant] ?? 'require'}
-                              onChange={(value) => handleVariantPolicyChange(variant, value)}
-                              small
-                            />
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </>
-          ) : null}
-          {sameNamePrefabSymbols.length > 0 ? (
-            <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {sameNamePrefabSymbols.map((symbol) => (
-                <Button
-                  key={symbol.symbolKey}
-                  small
-                  minimal
-                  icon="share"
-                  text={symbol.variant || "base"}
-                  onClick={() => void executeCommand(COMMAND_ID.NAVIGATION_JUMP_TO_SYMBOL, commandContext, { symbol })}
-                />
-              ))}
-            </div>
-          ) : null}
-      </Card>
-      
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 20 }}>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
           {editors}
       </div>
