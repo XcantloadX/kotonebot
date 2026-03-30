@@ -30,7 +30,6 @@ from .backend.color import (
     hsv_to_rgb
 )
 from .backend.ocr import (
-    fuzz,
     regex,
     contains,
     equals,

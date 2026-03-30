@@ -1,4 +1,8 @@
 # 更新日志
+## v0.13.0
+Library:
+1. [feat] **BREAKING** 移除 fuzz OCR 文本匹配算法，以及 thefuzz 库的依赖。
+
 ## v0.12.0
 Library:
 1. [feat] 优化跨平台体验。现在在非 Windows 平台上导入 Windows-Only 的模块不会立刻报错，而是等到调用/实例化时才抛出异常。

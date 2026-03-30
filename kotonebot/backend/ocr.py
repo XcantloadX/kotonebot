@@ -11,7 +11,6 @@ from typing import Callable, TYPE_CHECKING
 import cv2
 import numpy as np
 from cv2.typing import MatLike
-from thefuzz import fuzz as _fuzz
 if TYPE_CHECKING:
     from rapidocr_onnxruntime import RapidOCR
 
@@ -141,13 +140,6 @@ class TextComparator:
     
     def __repr__(self) -> str:
         return f'{self.name}("{self.text}")'
-
-@deprecated("即将移除")
-@lru_cache(maxsize=1000)
-def fuzz(text: str) -> TextComparator:
-    """返回 fuzzy 算法的字符串匹配函数。"""
-    func = lambda s: _fuzz.ratio(s, text) > 90
-    return TextComparator("fuzzy", text, func)
 
 @lru_cache(maxsize=1000)
 def regex(regex: str) -> TextComparator:
