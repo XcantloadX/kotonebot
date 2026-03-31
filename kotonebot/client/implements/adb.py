@@ -1,6 +1,7 @@
 import logging
 from typing import cast
 from typing_extensions import override
+import re
 
 import cv2
 import numpy as np
@@ -66,14 +67,19 @@ class AdbImpl(AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver):
     
     @property
     def screen_size(self) -> tuple[int, int]:
-        ret = cast(str, self.adb.shell("wm size")).strip('Physical size: ')
-        spiltted = tuple(map(int, ret.split("x")))
+        output = self.adb.shell("wm size")
+        logger.debug('wm size output: %s', output)
+        text = cast(str, output)
+        m = re.search(r'(\d+)\s*[xX×]\s*(\d+)', text)
+        if not m:
+            raise ValueError(f"Invalid screen size: {text}")
+        spiltted = (int(m.group(1)), int(m.group(2)))
         # 检测当前方向
         orientation = self.detect_orientation()
         landscape = orientation == 'landscape'
         spiltted = tuple(sorted(spiltted, reverse=landscape))
         if len(spiltted) != 2:
-            raise ValueError(f"Invalid screen size: {ret}")
+            raise ValueError(f"Invalid screen size: {text}")
         return spiltted
 
     def screenshot(self) -> MatLike:
