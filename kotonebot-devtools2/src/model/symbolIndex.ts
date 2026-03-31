@@ -30,6 +30,35 @@ export interface SymbolSnapshotLite {
   };
 }
 
+export interface ProjectSymbolTreeGroupNode {
+  kind: "group";
+  label: string;
+  children: ProjectSymbolTreeNode[];
+}
+
+export interface ProjectSymbolTreeSymbolNode {
+  kind: "symbol";
+  label: string;
+  fullName: string;
+  displayName: string | null;
+  children: ProjectSymbolTreeVariantNode[];
+}
+
+export interface ProjectSymbolTreeVariantNode {
+  kind: "variant";
+  label: string;
+  children: ProjectSymbolTreeVariantTarget[];
+}
+
+export interface ProjectSymbolTreeVariantTarget {
+  metaPath: string;
+  imagePath: string;
+  definitionId: string;
+  variant?: string | null;
+}
+
+export type ProjectSymbolTreeNode = ProjectSymbolTreeGroupNode | ProjectSymbolTreeSymbolNode;
+
 export interface DiagnosticItem {
   code: string;
   severity: "error" | "warning" | "info";

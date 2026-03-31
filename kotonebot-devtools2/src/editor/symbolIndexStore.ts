@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { getMetaDiagnostics, getMetaIndex, updateMetaIndex } from "../api/metaIndex";
-import { DiagnosticItem, SymbolLite } from "../model/symbolIndex";
+import { getMetaDiagnostics, getMetaIndex, getProjectSymbolTree, updateMetaIndex } from "../api/metaIndex";
+import { DiagnosticItem, ProjectSymbolTreeNode, SymbolLite } from "../model/symbolIndex";
 
 interface DiagnosticStats {
   total: number;
@@ -13,6 +13,7 @@ interface SymbolIndexState {
   indexVersion: number;
   contentHash: string;
   symbols: SymbolLite[];
+  projectSymbolTree: ProjectSymbolTreeNode[];
   diagnosticsByFile: Record<string, DiagnosticItem[]>;
   diagnosticStats: DiagnosticStats;
   recentSymbolKeys: string[];
@@ -20,6 +21,7 @@ interface SymbolIndexState {
   initialize: () => Promise<void>;
   refetch: () => Promise<void>;
   refetchDiagnostics: () => Promise<void>;
+  refetchProjectSymbolTree: () => Promise<void>;
   patchMetaPath: (metaPath: string) => Promise<void>;
   markUsed: (symbolKey: string) => void;
 }
@@ -30,6 +32,7 @@ export const useSymbolIndexStore = create<SymbolIndexState>((set, get) => ({
   indexVersion: 0,
   contentHash: "",
   symbols: [],
+  projectSymbolTree: [],
   diagnosticsByFile: {},
   diagnosticStats: { total: 0, error: 0, warning: 0, info: 0 },
   recentSymbolKeys: [],
@@ -39,14 +42,16 @@ export const useSymbolIndexStore = create<SymbolIndexState>((set, get) => ({
     if (get().initialized) {
       return;
     }
-    const [indexData, diagnosticsData] = await Promise.all([
+    const [indexData, diagnosticsData, projectSymbolTree] = await Promise.all([
       getMetaIndex(),
       getMetaDiagnostics(),
+      getProjectSymbolTree(),
     ]);
     set({
       indexVersion: indexData.indexVersion,
       contentHash: indexData.contentHash,
       symbols: indexData.symbols,
+      projectSymbolTree,
       diagnosticsByFile: diagnosticsData.diagnosticsByFile,
       diagnosticStats: diagnosticsData.stats,
       initialized: true,
@@ -54,14 +59,16 @@ export const useSymbolIndexStore = create<SymbolIndexState>((set, get) => ({
   },
 
   refetch: async () => {
-    const [indexData, diagnosticsData] = await Promise.all([
+    const [indexData, diagnosticsData, projectSymbolTree] = await Promise.all([
       getMetaIndex(),
       getMetaDiagnostics(),
+      getProjectSymbolTree(),
     ]);
     set({
       indexVersion: indexData.indexVersion,
       contentHash: indexData.contentHash,
       symbols: indexData.symbols,
+      projectSymbolTree,
       diagnosticsByFile: diagnosticsData.diagnosticsByFile,
       diagnosticStats: diagnosticsData.stats,
       initialized: true,
@@ -74,6 +81,11 @@ export const useSymbolIndexStore = create<SymbolIndexState>((set, get) => ({
       diagnosticsByFile: diagnosticsData.diagnosticsByFile,
       diagnosticStats: diagnosticsData.stats,
     });
+  },
+
+  refetchProjectSymbolTree: async () => {
+    const projectSymbolTree = await getProjectSymbolTree();
+    set({ projectSymbolTree });
   },
 
   patchMetaPath: async (metaPath: string) => {
@@ -98,7 +110,7 @@ export const useSymbolIndexStore = create<SymbolIndexState>((set, get) => ({
       symbols: [...kept, ...update.upsertedSymbols],
       initialized: true,
     });
-    await get().refetchDiagnostics();
+    await Promise.all([get().refetchDiagnostics(), get().refetchProjectSymbolTree()]);
   },
 
   markUsed: (symbolKey: string) =>

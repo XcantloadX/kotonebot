@@ -342,3 +342,64 @@ def test_meta_variant_import_image_replaces_existing_target_when_requested():
         assert not target_meta_path.exists()
 
 
+def test_project_symbol_tree_groups_symbols_by_name_segments():
+    with TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        resources, router = _prepare_project(tmp_path, variant_variants=["jp"], variant_base="base")
+        meta_path = resources / "scene.png.json"
+        write_json(
+            meta_path,
+            {
+                "version": 3,
+                "definitions": {
+                    "base_btn": {
+                        "type": "prefab",
+                        "name": "ui.button.confirm",
+                        "props": {},
+                    },
+                    "jp_btn": {
+                        "type": "prefab",
+                        "name": "ui.button.confirm",
+                        "variant": "jp",
+                        "props": {},
+                    },
+                    "tip": {
+                        "type": "template",
+                        "name": "ui.dialog.tip",
+                        "props": {"point": {"kind": "point", "x": 1, "y": 2}},
+                    },
+                },
+            },
+        )
+
+        get_symbol_tree = _route_endpoint(router, "/api/project/symbol_tree", "GET")
+        payload = _json_body(asyncio.run(get_symbol_tree()))
+        assert payload["success"] is True
+
+        roots = payload["data"]
+        ui_group = next(node for node in roots if node["kind"] == "group" and node["label"] == "ui")
+        button_group = next(node for node in ui_group["children"] if node["kind"] == "group" and node["label"] == "button")
+        dialog_group = next(node for node in ui_group["children"] if node["kind"] == "group" and node["label"] == "dialog")
+
+        confirm_symbol = next(
+            node for node in button_group["children"]
+            if node["kind"] == "symbol" and node["fullName"] == "ui.button.confirm"
+        )
+        variants = {node["label"]: node for node in confirm_symbol["children"]}
+        assert "base" in variants
+        assert "jp" in variants
+
+        base_file = variants["base"]["children"][0]
+        jp_file = variants["jp"]["children"][0]
+        assert base_file["metaPath"].endswith("scene.png.json")
+        assert base_file["definitionId"] == "base_btn"
+        assert jp_file["definitionId"] == "jp_btn"
+
+        tip_symbol = next(
+            node for node in dialog_group["children"]
+            if node["kind"] == "symbol" and node["fullName"] == "ui.dialog.tip"
+        )
+        tip_variants = {node["label"]: node for node in tip_symbol["children"]}
+        assert "base" in tip_variants
+
+

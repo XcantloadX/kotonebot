@@ -8,6 +8,43 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root {
+  --kb-scrollbar-size: 10px;
+  --kb-scrollbar-track: #d8e1e8;
+  --kb-scrollbar-thumb: #8ea1b3;
+  --kb-scrollbar-thumb-hover: #73899e;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--kb-scrollbar-thumb) var(--kb-scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: var(--kb-scrollbar-size);
+  height: var(--kb-scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--kb-scrollbar-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #96a8b9 0%, var(--kb-scrollbar-thumb) 100%);
+  border-radius: 999px;
+  border: 2px solid var(--kb-scrollbar-track);
+  min-height: 24px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #879caf 0%, var(--kb-scrollbar-thumb-hover) 100%);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .kb-message-box-portal .bp5-overlay,
 .kb-message-box-portal .bp5-overlay-content,
 .kb-message-box-portal .bp5-overlay-backdrop {
@@ -23,4 +60,24 @@ body {
 
 .kb-overridable-tooltip .bp5-popover-arrow-fill {
   fill: #f5f8fa;
+}
+
+.kb-right-tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.kb-right-tabs > .bp5-tab-list {
+  flex: 0 0 auto;
+}
+
+.kb-right-tabs-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 0 !important;
+  overflow: hidden;
 }

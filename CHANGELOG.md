@@ -5,6 +5,7 @@ Library:
 
 Devtool：
 1. [feat] 新增最近打开文件功能
+2. [feat] 新增符号树视图，可以查看整个项目的符号
 
 ## v0.12.0
 Library:

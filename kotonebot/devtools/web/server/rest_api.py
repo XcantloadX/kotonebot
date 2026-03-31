@@ -89,6 +89,14 @@ def create_rest_router(project: Project) -> APIRouter:
             logging.exception("Error while handling /project/root")
             return _err(str(e))
 
+    @router.get("/project/symbol_tree")
+    async def get_project_symbol_tree():
+        try:
+            return _ok(logic.get_project_symbol_tree())
+        except Exception as e:
+            logging.exception("Error while handling /project/symbol_tree")
+            return _err(str(e))
+
     @router.get("/fs/list_dir")
     async def list_dir(path: str = Query(..., description="Path relative to project root or absolute path")):
         try:

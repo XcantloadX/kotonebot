@@ -178,7 +178,8 @@
   },
   "tabs": {
     "properties": "Properties",
-    "hierarchy": "Hierarchy"
+    "hierarchy": "Hierarchy",
+    "project": "Project"
   },
   "quickPick": {
     "noMatch": "No match",
@@ -203,6 +204,15 @@
     "false": "False",
     "true": "True",
     "resizePanel": "Resize panel"
+  },
+  "projectPanel": {
+    "refresh": "Refresh",
+    "refreshFailed": "Failed to refresh project symbols",
+    "empty": "No project symbols",
+    "variantLabel": "Variant: {{variant}}",
+    "variantLabelWithCount": "Variant: {{variant}} ({{count}})",
+    "variantHasMultipleTargets": "This variant has multiple definitions; jumped to active document or the first result",
+    "symbolNotFound": "Symbol is stale, please refresh"
   },
   "fileDialog": {
     "failedToOpenPath": "Failed to open path",

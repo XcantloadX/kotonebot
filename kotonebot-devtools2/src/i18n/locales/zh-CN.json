@@ -178,7 +178,8 @@
   },
   "tabs": {
     "properties": "属性",
-    "hierarchy": "层级"
+    "hierarchy": "层级",
+    "project": "项目"
   },
   "quickPick": {
     "noMatch": "无匹配",
@@ -203,6 +204,15 @@
     "false": "假",
     "true": "真",
     "resizePanel": "调整面板宽度"
+  },
+  "projectPanel": {
+    "refresh": "刷新",
+    "refreshFailed": "刷新项目符号失败",
+    "empty": "暂无项目符号",
+    "variantLabel": "变体: {{variant}}",
+    "variantLabelWithCount": "变体: {{variant}} ({{count}})",
+    "variantHasMultipleTargets": "该变体存在多个定义，已优先跳转当前文档或第一个结果",
+    "symbolNotFound": "符号已过期，请先刷新"
   },
   "fileDialog": {
     "failedToOpenPath": "打开路径失败",

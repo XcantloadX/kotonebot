@@ -10,6 +10,7 @@ import { useSymbolIndexStore } from './symbolIndexStore';
 import { TopMenuBar } from '../ui/TopMenuBar';
 import { ProblemsPanel } from '../ui/ProblemsPanel';
 import { HierarchyPanel } from '../ui/HierarchyPanel';
+import { ProjectPanel } from '../ui/ProjectPanel';
 import { useSettingsStore } from './settings';
 import { FocusSpotlightOverlay } from './FocusSpotlightOverlay';
 import { COMMAND_ID, executeCommand } from './commands';
@@ -135,9 +136,10 @@ export const EditorApp: React.FC = () => {
             title={t('rightPanel.resizePanel')}
           />
           <div style={{ width: rightPanelWidth, display: 'flex', flexDirection: 'column', padding: '0 10px', minHeight: 0 }}>
-            <Tabs id="right-panel-tabs" defaultSelectedTabId="properties">
-              <Tab id="properties" title={t('tabs.properties')} panel={<RightProperties />} />
-              <Tab id="hierarchy" title={t('tabs.hierarchy')} panel={<HierarchyPanel />} />
+            <Tabs id="right-panel-tabs" className="kb-right-tabs" defaultSelectedTabId="properties">
+              <Tab id="properties" title={t('tabs.properties')} panelClassName="kb-right-tabs-panel" panel={<RightProperties />} />
+              <Tab id="hierarchy" title={t('tabs.hierarchy')} panelClassName="kb-right-tabs-panel" panel={<HierarchyPanel />} />
+              <Tab id="project" title={t('tabs.project')} panelClassName="kb-right-tabs-panel" panel={<ProjectPanel />} />
             </Tabs>
           </div>
         </div>

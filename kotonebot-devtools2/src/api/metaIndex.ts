@@ -1,5 +1,5 @@
 import { fetchJson } from "./client";
-import { MetaDiagnosticsSnapshot, SymbolSnapshotLite, SymbolUpdateResult } from "../model/symbolIndex";
+import { MetaDiagnosticsSnapshot, ProjectSymbolTreeNode, SymbolSnapshotLite, SymbolUpdateResult } from "../model/symbolIndex";
 
 export async function getMetaIndex(): Promise<SymbolSnapshotLite> {
   return fetchJson<SymbolSnapshotLite>("/api/meta/index");
@@ -15,6 +15,10 @@ export async function updateMetaIndex(metaPath: string): Promise<SymbolUpdateRes
 
 export async function getMetaDiagnostics(): Promise<MetaDiagnosticsSnapshot> {
   return fetchJson<MetaDiagnosticsSnapshot>("/api/meta/diagnostics");
+}
+
+export async function getProjectSymbolTree(): Promise<ProjectSymbolTreeNode[]> {
+  return fetchJson<ProjectSymbolTreeNode[]>("/api/project/symbol_tree");
 }
 
 export interface CloneVariantToImagePayload {

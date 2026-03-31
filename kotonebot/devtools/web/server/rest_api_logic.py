@@ -509,6 +509,99 @@ class RestApiLogic:
 
     def get_meta_index(self) -> Any:
         return self.workspace.get_meta_index()
+    
+    def get_project_symbol_tree(self) -> list[dict[str, Any]]:
+        self.symbol_index_view.ensure_ready()
+        symbols = list(self.symbol_index_view.snapshot.symbols.values())
+        root: dict[str, Any] = {"kind": "group", "label": "__root__", "children": []}
+        group_map: dict[str, dict[str, Any]] = {"": root}
+        
+        for symbol in symbols:
+            if symbol.name.strip() == "":
+                continue
+            parts = symbol.name.split(".")
+            if len(parts) == 0 or any(part.strip() == "" for part in parts):
+                continue
+            
+            current_path = ""
+            current_group = root
+            for segment in parts[:-1]:
+                current_path = segment if current_path == "" else f"{current_path}.{segment}"
+                next_group = group_map.get(current_path)
+                if next_group is None:
+                    next_group = {"kind": "group", "label": segment, "children": []}
+                    group_map[current_path] = next_group
+                    current_group["children"].append(next_group)
+                current_group = next_group
+            
+            leaf_label = parts[-1]
+            full_name = ".".join(parts)
+            symbol_node = None
+            for node in current_group["children"]:
+                if node["kind"] == "symbol" and node["fullName"] == full_name:
+                    symbol_node = node
+                    break
+            
+            if symbol_node is None:
+                symbol_node = {
+                    "kind": "symbol",
+                    "label": leaf_label,
+                    "fullName": full_name,
+                    "displayName": symbol.display_name,
+                    "children": [],
+                }
+                current_group["children"].append(symbol_node)
+            elif symbol_node["displayName"] is None and symbol.display_name is not None:
+                symbol_node["displayName"] = symbol.display_name
+            
+            variant_label = "base" if symbol.variant is None else symbol.variant
+            variant_node = None
+            for node in symbol_node["children"]:
+                if node["label"] == variant_label:
+                    variant_node = node
+                    break
+            if variant_node is None:
+                variant_node = {"kind": "variant", "label": variant_label, "children": []}
+                symbol_node["children"].append(variant_node)
+            
+            already_exists = any(
+                item["metaPath"] == symbol.meta_path and item["definitionId"] == symbol.definition_id
+                for item in variant_node["children"]
+            )
+            if not already_exists:
+                variant_node["children"].append(
+                    {
+                        "kind": "file",
+                        "label": Path(symbol.meta_path).name,
+                        "metaPath": symbol.meta_path,
+                        "imagePath": symbol.image_path,
+                        "definitionId": symbol.definition_id,
+                        "variant": symbol.variant,
+                    }
+                )
+        
+        def sort_nodes(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            groups: list[dict[str, Any]] = []
+            symbol_nodes: list[dict[str, Any]] = []
+            for node in nodes:
+                kind = node["kind"]
+                if kind == "group":
+                    node["children"] = sort_nodes(node["children"])
+                    groups.append(node)
+                    continue
+                if kind == "symbol":
+                    node["children"].sort(key=lambda item: item["label"])
+                    for variant in node["children"]:
+                        variant["children"].sort(key=lambda item: item["metaPath"])
+                    symbol_nodes.append(node)
+                    continue
+                raise ValueError(f"Unexpected root node kind: {kind}")
+            
+            groups.sort(key=lambda item: item["label"])
+            symbol_nodes.sort(key=lambda item: item["fullName"])
+            return [*groups, *symbol_nodes]
+        
+        return sort_nodes(root["children"])
 
     def update_meta_index(self, meta_path: str) -> Any:
         return self.workspace.update_meta_index(meta_path)
