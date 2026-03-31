@@ -14,8 +14,9 @@ import {
 import { useTranslation } from "react-i18next";
 import ClearableInputGroup from "@/ui/components/ClearableInputGroup";
 import { toaster } from "../../toaster";
-import { listDir, getProjectInfo, FileItem, getImageUrl } from "../../../api/fs";
+import { listDir, FileItem, getImageUrl } from "../../../api/fs";
 import { useSettingsStore } from "../../../editor/settings";
+import { useProjectInfoStore } from "../../../app/projectInfoStore";
 
 export interface FileOpenDialogBaseProps {
   isOpen: boolean;
@@ -161,6 +162,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
   const setPersistedThumbSize = useSettingsStore((s) => s.setFileDialogThumbSize);
   const [thumbSize, setThumbSize] = useState<number>(persistedThumbSize);
   const [treeViewNodes, setTreeViewNodes] = useState<TreeNodeInfo<DialogTreeNodeData>[]>([]);
+  const projectResourcePath = useProjectInfoStore((state) => state.data?.editor?.resource_path ?? null);
 
   const visibleItems = items.filter((item) => {
     if (item.isDirectory) {
@@ -272,9 +274,8 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
     if (isOpen) {
       (async () => {
         try {
-          const info = await getProjectInfo();
-          if (info && info.editor && info.editor.resource_path) {
-            const initial = info.editor.resource_path.replace(/\\/g, "/");
+          if (projectResourcePath) {
+            const initial = projectResourcePath.replace(/\\/g, "/");
             tryChangePath(initial, false);
           } else {
             tryChangePath(currentPath, false);
@@ -289,7 +290,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
       setBackStack([]);
       setForwardStack([]);
     }
-  }, [isOpen]);
+  }, [isOpen, projectResourcePath]);
 
   const tryChangePath = async (newPath: string, addToHistory: boolean = true) => {
     const normalized = (newPath || ".").replace(/\\/g, "/");

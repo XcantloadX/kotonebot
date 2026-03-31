@@ -8,6 +8,19 @@ export interface FileItem {
   thumbnailUrl?: string;
 }
 
+export interface ProjectInfo {
+  resource_root: string;
+  variant?: {
+    variants?: string[];
+    base?: string;
+    path_pattern?: string;
+  };
+  editor?: {
+    resource_path?: string;
+    prefabs_module?: string;
+  };
+}
+
 export async function listDir(path: string): Promise<FileItem[]> {
   const res = await fetchJson<{ items: FileItem[] }>(`/api/fs/list_dir?path=${encodeURIComponent(path)}`);
   return res.items;
@@ -90,6 +103,6 @@ export function getImageUrl(path: string): string {
   return `/api/image?path=${encodeURIComponent(path)}`;
 }
 
-export async function getProjectInfo(): Promise<{ resource_root: string; variant?: { variants?: string[]; base?: string; path_pattern?: string }; editor?: { resource_path?: string; prefabs_module?: string } }> {
+export async function getProjectInfo(): Promise<ProjectInfo> {
   return fetchJson(`/api/project/root`);
 }

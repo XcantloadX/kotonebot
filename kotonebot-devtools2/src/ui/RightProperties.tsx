@@ -1,7 +1,6 @@
 import React from 'react';
 import { FormGroup, InputGroup, Button, Tooltip } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
-import { getProjectInfo } from '../api/fs';
 import { useAppStore } from '../editor/state';
 import { PropValue, VariantPolicy } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
@@ -12,6 +11,7 @@ import { OverridableField } from './components/OverridableField';
 import { SegmentedControl, SegmentedOption } from './components/SegmentedControl';
 import { toaster } from './toaster';
 import { HelpIcon } from './components/HelpIcon';
+import { useProjectInfoStore } from '../app/projectInfoStore';
 
 export const RightProperties: React.FC = () => {
   const { t } = useTranslation();
@@ -25,7 +25,7 @@ export const RightProperties: React.FC = () => {
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
   const symbols = useSymbolIndexStore(s => s.symbols);
   const [nameDraft, setNameDraft] = React.useState<string>('');
-  const [projectVariants, setProjectVariants] = React.useState<string[]>([]);
+  const projectVariants = useProjectInfoStore((state) => state.data?.variant?.variants ?? []);
 
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const activeMeta = activeDoc?.meta;
@@ -35,26 +35,6 @@ export const RightProperties: React.FC = () => {
   React.useEffect(() => {
     setNameDraft(definition?.name || '');
   }, [activeMeta?.path, defId, definition?.name]);
-
-  React.useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      try {
-        const info = await getProjectInfo();
-        if (!mounted) {
-          return;
-        }
-        setProjectVariants(info.variant?.variants ?? []);
-      } catch {
-        if (mounted) {
-          setProjectVariants([]);
-        }
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   if (!activeMeta || !selection || !defId) {
     return <div style={{ padding: 10, color: '#8a9ba8' }}>{t('status.noSelection')}</div>;

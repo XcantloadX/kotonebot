@@ -18,7 +18,6 @@ async function requestHostOpenMetaDocument(metaPath: string): Promise<void> {
 
 async function trackRecentOpen(imagePath: string, source: RecentOpenSource): Promise<void> {
   const recentStore = useRecentOpenStore.getState();
-  await recentStore.ensureWorkspace();
   recentStore.addRecent({
     imagePath,
     metaPath: `${imagePath}.json`,

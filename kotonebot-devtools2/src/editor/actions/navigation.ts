@@ -42,7 +42,6 @@ async function ensureDocumentWithMeta(imagePath: string, metaPath: string): Prom
   }
 
   const recentStore = useRecentOpenStore.getState();
-  await recentStore.ensureWorkspace();
   recentStore.addRecent({ imagePath, metaPath, source: "symbol" });
   return true;
 }

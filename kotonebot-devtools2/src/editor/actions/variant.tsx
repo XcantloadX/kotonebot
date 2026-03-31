@@ -1,4 +1,3 @@
-import { getProjectInfo } from "../../api/fs";
 import {
   cloneVariantToImage,
   copySelectedPrefabToVariant as copySelectedPrefabToVariantApi,
@@ -12,11 +11,11 @@ import { toaster } from "../../ui/toaster";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { useAppStore } from "../state";
 import { openImageWithMeta } from "./image";
+import { useProjectInfoStore } from "../../app/projectInfoStore";
 import i18n from "../../i18n";
 
 export async function loadProjectVariants(): Promise<string[]> {
-  const info = await getProjectInfo();
-  const variants = info.variant?.variants ?? [];
+  const variants = useProjectInfoStore.getState().data?.variant?.variants ?? [];
   return variants;
 }
 
