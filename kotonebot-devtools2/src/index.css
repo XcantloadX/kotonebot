@@ -62,7 +62,91 @@ body {
   fill: #f5f8fa;
 }
 
-.kb-right-tabs {
+/* ===================== Panel Container ===================== */
+.kb-panel-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.kb-panel-tabbar {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex-shrink: 0;
+  background: #dce5ed;
+  border-bottom: 1px solid #c5d2db;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  user-select: none;
+  min-height: 32px;
+  padding: 0 4px;
+  gap: 2px;
+}
+
+.kb-panel-tabbar::-webkit-scrollbar {
+  display: none;
+}
+
+.kb-panel-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #5c7080;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  border-radius: 3px 3px 0 0;
+  transition: background 0.1s, color 0.1s;
+  position: relative;
+}
+
+.kb-panel-tab:hover {
+  background: #cdd8e3;
+  color: #1f2933;
+}
+
+.kb-panel-tab--active {
+  color: #1f2933;
+  border-bottom-color: #137cbd;
+  background: #f5f8fa;
+}
+
+.kb-panel-tab-insert-indicator {
+  width: 2px;
+  min-width: 2px;
+  background: #137cbd;
+  border-radius: 1px;
+  align-self: stretch;
+  margin: 4px 0;
+  flex-shrink: 0;
+}
+
+.kb-panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.kb-panel-view {
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.kb-panel-empty {
+  flex: 1;
+  padding: 8px;
+}
+
   display: flex;
   flex-direction: column;
   flex: 1;

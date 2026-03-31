@@ -174,7 +174,13 @@
   },
   "fileDialog": {
     "failedToOpenPath": "打开路径失败",
-    "search": "搜索"
+    "search": "搜索",
+    "openFile": "打开文件",
+    "dragFilesHere": "拖拽文件到此处导入",
+    "orPressCtrlV": "或按 Ctrl+V 从剪贴板导入",
+    "size": "大小",
+    "filesSelected": "个文件已选择",
+    "open": "打开"
   },
   "tabs": {
     "properties": "属性",
@@ -214,14 +220,10 @@
     "variantHasMultipleTargets": "该变体存在多个定义，已优先跳转当前文档或第一个结果",
     "symbolNotFound": "符号已过期，请先刷新"
   },
-  "fileDialog": {
-    "failedToOpenPath": "打开路径失败",
-    "search": "搜索",
-    "openFile": "打开文件",
-    "dragFilesHere": "拖拽文件到此处导入",
-    "orPressCtrlV": "或按 Ctrl+V 从剪贴板导入",
-    "size": "大小",
-    "filesSelected": "个文件已选择",
-    "open": "打开"
+  "rightPanel": {
+    "resizePanel": "调整面板大小"
+  },
+  "leftPanel": {
+    "resizePanel": "调整面板大小"
   }
 }

@@ -18,10 +18,11 @@ import { useShortcut, useShortcutScope } from '../shortcuts/shortcutManager';
 import { installHostBridge, isSingleTabMode } from './host/hostBridge';
 import { registerHostHandlers } from './host/hostHandlers';
 import { installDocumentStateSync } from './host/documentStateSync';
-import { Tabs, Tab } from '@blueprintjs/core';
 import { useResize } from '../ui/hooks/useResize';
 import { useRecentOpenStore } from './recentOpenStore';
 import { useProjectInfoStore } from '../app/projectInfoStore';
+import { PanelContainer, PanelView } from '../ui/PanelContainer';
+import { usePanelStore } from './panelStore';
 
 export const EditorApp: React.FC = () => {
   const { t } = useTranslation();
@@ -39,6 +40,11 @@ export const EditorApp: React.FC = () => {
   const setProblemsHeight = useSettingsStore((s) => s.setProblemsHeight);
   const rightPanelWidth = useSettingsStore((s) => s.rightPanelWidth);
   const setRightPanelWidth = useSettingsStore((s) => s.setRightPanelWidth);
+  const leftPanelWidth = useSettingsStore((s) => s.leftPanelWidth);
+  const setLeftPanelWidth = useSettingsStore((s) => s.setLeftPanelWidth);
+  const leftTabIds = usePanelStore((s) => s.getTabsForPanel('left'));
+  const hasLeftPanel = leftTabIds.length > 0;
+
   const { handleMouseDown: handleRightPanelResize } = useResize({
     direction: 'horizontal',
     minSize: 200,
@@ -46,11 +52,43 @@ export const EditorApp: React.FC = () => {
     onSizeChange: setRightPanelWidth,
     enabled: true,
   });
+
+  const { handleMouseDown: handleLeftPanelResize } = useResize({
+    direction: 'horizontal',
+    minSize: 160,
+    size: leftPanelWidth,
+    onSizeChange: setLeftPanelWidth,
+    enabled: true,
+    reverse: true,
+  });
+
   const commandContext = React.useMemo(
     () => ({
       ui: {},
     }),
     [],
+  );
+
+  // All available panel views
+  const panelViews: Record<string, PanelView> = React.useMemo(
+    () => ({
+      properties: {
+        id: 'properties',
+        title: t('tabs.properties'),
+        content: <RightProperties />,
+      },
+      hierarchy: {
+        id: 'hierarchy',
+        title: t('tabs.hierarchy'),
+        content: <HierarchyPanel />,
+      },
+      project: {
+        id: 'project',
+        title: t('tabs.project'),
+        content: <ProjectPanel />,
+      },
+    }),
+    [t],
   );
 
   useEffect(() => {
@@ -103,6 +141,21 @@ export const EditorApp: React.FC = () => {
         <TopMenuBar />
       ) : null}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Left panel tab container – leftmost */}
+        {hasLeftPanel && (
+          <div style={{ display: 'flex', background: '#e1e8ed', borderRight: '1px solid #c5d2db' }}>
+            <div style={{ width: leftPanelWidth, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <PanelContainer panelId="left" views={panelViews} />
+            </div>
+            <div
+              onMouseDown={handleLeftPanelResize}
+              style={{ width: 4, cursor: 'col-resize', background: '#d2dce5', flexShrink: 0 }}
+              title={t('leftPanel.resizePanel')}
+            />
+          </div>
+        )}
+
+        {/* Tools bar */}
         <div style={{ width: 60, background: '#e1e8ed', borderRight: '1px solid #c5d2db', padding: '10px 5px' }}>
           <LeftToolBar />
         </div>
@@ -129,18 +182,15 @@ export const EditorApp: React.FC = () => {
           ) : null}
         </div>
 
+        {/* Right panel */}
         <div style={{ display: 'flex', background: '#e1e8ed', borderLeft: '1px solid #c5d2db' }}>
           <div
             onMouseDown={handleRightPanelResize}
             style={{ width: 4, cursor: 'col-resize', background: '#d2dce5' }}
             title={t('rightPanel.resizePanel')}
           />
-          <div style={{ width: rightPanelWidth, display: 'flex', flexDirection: 'column', padding: '0 10px', minHeight: 0 }}>
-            <Tabs id="right-panel-tabs" className="kb-right-tabs" defaultSelectedTabId="properties">
-              <Tab id="properties" title={t('tabs.properties')} panelClassName="kb-right-tabs-panel" panel={<RightProperties />} />
-              <Tab id="hierarchy" title={t('tabs.hierarchy')} panelClassName="kb-right-tabs-panel" panel={<HierarchyPanel />} />
-              <Tab id="project" title={t('tabs.project')} panelClassName="kb-right-tabs-panel" panel={<ProjectPanel />} />
-            </Tabs>
+          <div style={{ width: rightPanelWidth, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <PanelContainer panelId="right" views={panelViews} />
           </div>
         </div>
       </div>

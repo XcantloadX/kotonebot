@@ -174,7 +174,13 @@
   },
   "fileDialog": {
     "failedToOpenPath": "Failed to open path",
-    "search": "Search"
+    "search": "Search",
+    "openFile": "Open File",
+    "dragFilesHere": "Drag files here to import",
+    "orPressCtrlV": "or press Ctrl+V to import from clipboard",
+    "size": "Size",
+    "filesSelected": "files selected",
+    "open": "Open"
   },
   "tabs": {
     "properties": "Properties",
@@ -214,14 +220,10 @@
     "variantHasMultipleTargets": "This variant has multiple definitions; jumped to active document or the first result",
     "symbolNotFound": "Symbol is stale, please refresh"
   },
-  "fileDialog": {
-    "failedToOpenPath": "Failed to open path",
-    "search": "Search",
-    "openFile": "Open File",
-    "dragFilesHere": "Drag files here to import",
-    "orPressCtrlV": "or press Ctrl+V to import from clipboard",
-    "size": "Size",
-    "filesSelected": "files selected",
-    "open": "Open"
+  "rightPanel": {
+    "resizePanel": "Resize panel"
+  },
+  "leftPanel": {
+    "resizePanel": "Resize panel"
   }
 }

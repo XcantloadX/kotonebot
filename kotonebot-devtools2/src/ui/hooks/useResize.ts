@@ -9,6 +9,8 @@ export interface UseResizeOptions {
   size: number;
   onSizeChange: (size: number) => void;
   enabled?: boolean;
+  /** When true, dragging in the positive direction increases size (for left/top panels). */
+  reverse?: boolean;
 }
 
 export interface ResizeHandleProps {
@@ -26,7 +28,7 @@ export function useResize(options: UseResizeOptions) {
       if (!enabled) return;
       e.preventDefault();
 
-      const { direction, minSize, maxSize, size, onSizeChange } = optionsRef.current;
+      const { direction, minSize, maxSize, size, onSizeChange, reverse } = optionsRef.current;
       const startPos = direction === 'horizontal' ? e.clientX : e.clientY;
       const startSize = size;
 
@@ -38,7 +40,8 @@ export function useResize(options: UseResizeOptions) {
 
       const onMove = (ev: MouseEvent) => {
         const currentPos = direction === 'horizontal' ? ev.clientX : ev.clientY;
-        const delta = direction === 'horizontal' ? startPos - currentPos : startPos - currentPos;
+        const rawDelta = currentPos - startPos;
+        const delta = reverse ? rawDelta : -rawDelta;
         const next = Math.max(minSize, Math.min(resolveMaxSize(), startSize + delta));
         onSizeChange(next);
       };

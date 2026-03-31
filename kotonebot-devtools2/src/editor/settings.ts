@@ -12,6 +12,7 @@ interface SettingsState {
   problemsSeverityFilter: ProblemsSeverityFilter;
   problemsQuery: string;
   rightPanelWidth: number;
+  leftPanelWidth: number;
   setFileDialogViewMode: (mode: FileDialogViewMode) => void;
   setFileDialogThumbSize: (size: number) => void;
   setProblemsVisible: (visible: boolean) => void;
@@ -19,6 +20,7 @@ interface SettingsState {
   setProblemsSeverityFilter: (filter: ProblemsSeverityFilter) => void;
   setProblemsQuery: (query: string) => void;
   setRightPanelWidth: (width: number) => void;
+  setLeftPanelWidth: (width: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -31,6 +33,7 @@ export const useSettingsStore = create<SettingsState>()(
       problemsSeverityFilter: "all",
       problemsQuery: "",
       rightPanelWidth: 300,
+      leftPanelWidth: 240,
       setFileDialogViewMode: (mode) => set({ fileDialogViewMode: mode }),
       setFileDialogThumbSize: (size) => set({ fileDialogThumbSize: size }),
       setProblemsVisible: (visible) => set({ problemsVisible: visible }),
@@ -38,6 +41,7 @@ export const useSettingsStore = create<SettingsState>()(
       setProblemsSeverityFilter: (filter) => set({ problemsSeverityFilter: filter }),
       setProblemsQuery: (query) => set({ problemsQuery: query }),
       setRightPanelWidth: (width) => set({ rightPanelWidth: width }),
+      setLeftPanelWidth: (width) => set({ leftPanelWidth: width }),
     }),
     {
       name: "kotonebot-devtools2-settings",
