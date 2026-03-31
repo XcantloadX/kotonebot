@@ -12,6 +12,7 @@ import { SegmentedControl, SegmentedOption } from './components/SegmentedControl
 import { toaster } from './toaster';
 import { HelpIcon } from './components/HelpIcon';
 import { useProjectInfoStore } from '../app/projectInfoStore';
+import { AutoCompleteInput } from './components/AutoCompleteInput';
 
 export const RightProperties: React.FC = () => {
   const { t } = useTranslation();
@@ -32,6 +33,14 @@ export const RightProperties: React.FC = () => {
   const selection = activeDoc?.selection;
   const defId = selection?.definitionId ?? null;
   const definition = activeMeta && defId ? activeMeta.data.definitions[defId] : null;
+
+  const nameSuggestions = React.useMemo(() => {
+    const seen = new Set<string>();
+    for (const s of symbols) {
+      if (s.name) seen.add(s.name);
+    }
+    return Array.from(seen).sort();
+  }, [symbols]);
   React.useEffect(() => {
     setNameDraft(definition?.name || '');
   }, [activeMeta?.path, defId, definition?.name]);
@@ -206,10 +215,11 @@ export const RightProperties: React.FC = () => {
         label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }} ><span>{t('rightProperties.nameClassPath')}</span><HelpIcon content={t('rightProperties.nameClassPathHelp')} /></span>}
       >
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <InputGroup
+            <AutoCompleteInput
               value={nameDraft}
               readOnly={isVariantPrefab}
-              onChange={e => setNameDraft(e.target.value)}
+              onChange={(v) => setNameDraft(v)}
+              suggestions={nameSuggestions}
               fill
             />
             {hasPendingNameChange ? (
