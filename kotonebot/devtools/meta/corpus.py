@@ -151,9 +151,12 @@ def _build_source_index(*, text: str, data: MetaModel) -> MetaRangeMap:
 def _locate_validation_error(*, text: str, field_path: str | None) -> SourceRange:
     line_offsets = _line_offsets(text)
     if field_path is None or field_path.strip() == "":
-        raise ValueError("Validation error field path is empty")
+        return SourceRange(line=1, column=1, end_line=1, end_column=1)
     token = json.dumps(field_path.split(".")[0], ensure_ascii=False)
-    offset = _find_key(text=text, token=token, start=0)
+    try:
+        offset = _find_key(text=text, token=token, start=0)
+    except ValueError:
+        return SourceRange(line=1, column=1, end_line=1, end_column=1)
     return _range_from_offsets(
         line_offsets=line_offsets,
         start=offset,
