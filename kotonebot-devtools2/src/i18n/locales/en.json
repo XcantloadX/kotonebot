@@ -9,6 +9,8 @@
   },
   "menuItem": {
     "openImage": "Open Image...",
+    "openRecent": "Open Recent",
+    "clearRecent": "Clear Recent",
     "save": "Save",
     "saveAll": "Save All",
     "rename": "Rename...",

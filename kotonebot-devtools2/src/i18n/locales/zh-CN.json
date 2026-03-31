@@ -9,6 +9,8 @@
   },
   "menuItem": {
     "openImage": "打开图片...",
+    "openRecent": "最近打开",
+    "clearRecent": "清空最近打开",
     "save": "保存",
     "saveAll": "全部保存",
     "rename": "重命名...",

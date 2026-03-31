@@ -19,6 +19,7 @@ import { registerHostHandlers } from './host/hostHandlers';
 import { installDocumentStateSync } from './host/documentStateSync';
 import { Tabs, Tab } from '@blueprintjs/core';
 import { useResize } from '../ui/hooks/useResize';
+import { useRecentOpenStore } from './recentOpenStore';
 
 export const EditorApp: React.FC = () => {
   const { t } = useTranslation();
@@ -28,6 +29,7 @@ export const EditorApp: React.FC = () => {
   const singleTabMode = isSingleTabMode();
   const { setPrefabSchema, activeDocumentId } = useAppStore();
   const { initialize } = useSymbolIndexStore();
+  const ensureRecentWorkspace = useRecentOpenStore((s) => s.ensureWorkspace);
   const problemsVisible = useSettingsStore((s) => s.problemsVisible);
   const setProblemsVisible = useSettingsStore((s) => s.setProblemsVisible);
   const problemsHeight = useSettingsStore((s) => s.problemsHeight);
@@ -55,6 +57,10 @@ export const EditorApp: React.FC = () => {
   useEffect(() => {
     initialize().catch(console.error);
   }, [initialize]);
+
+  useEffect(() => {
+    ensureRecentWorkspace().catch(console.error);
+  }, [ensureRecentWorkspace]);
 
   useEffect(() => {
     const disposeHandlers = registerHostHandlers();

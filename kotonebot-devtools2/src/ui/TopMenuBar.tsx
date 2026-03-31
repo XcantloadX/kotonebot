@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IconName, InputGroup, Menu, MenuItem, HTMLSelect } from "@blueprintjs/core";
+import { IconName, InputGroup, Menu, MenuItem, HTMLSelect, MenuDivider } from "@blueprintjs/core";
 import { useTranslation } from "react-i18next";
 import { editorActions } from "../editor/actions";
 import { COMMAND_ID, executeCommand, useCommandStatuses } from "../editor/commands";
@@ -9,6 +9,8 @@ import { FileOpenOrImportDialog } from "./components/FileOpenDialog/FileOpenOrIm
 import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
 import { useLocaleStore } from "../i18n/localeStore";
 import { SUPPORTED_LANGUAGES } from "../i18n";
+import { useRecentOpenStore } from "../editor/recentOpenStore";
+import { shallow } from "zustand/shallow";
 
 type MenuKey = "file" | "edit" | "variant" | null;
 type MenuId = Exclude<MenuKey, null>;
@@ -18,6 +20,8 @@ interface MenuDefinitionItem {
   text: string;
   label?: string;
   disabled?: boolean;
+  children?: React.ReactNode;
+  popoverProps?: { matchTargetWidth?: boolean };
   onClick: () => void;
 }
 
@@ -26,6 +30,15 @@ export const TopMenuBar: React.FC = () => {
   const { language, setLanguage } = useLocaleStore();
   const { activeDocumentId, documents } = useAppStore();
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
+  const { clearRecentInWorkspace, currentWorkspaceKey, itemsByWorkspace } = useRecentOpenStore(
+    (state) => ({
+      clearRecentInWorkspace: state.clearCurrentWorkspace,
+      currentWorkspaceKey: state.currentWorkspaceKey,
+      itemsByWorkspace: state.itemsByWorkspace,
+    }),
+    shallow,
+  );
+  const recentItems = itemsByWorkspace[currentWorkspaceKey] ?? [];
   const fileButtonRef = useRef<HTMLButtonElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const variantButtonRef = useRef<HTMLButtonElement>(null);
@@ -175,6 +188,41 @@ export const TopMenuBar: React.FC = () => {
           },
         },
         {
+          icon: "history",
+          text: t('menuItem.openRecent'),
+          children: (
+            <>
+              {recentItems.slice(0, 12).map((item) => (
+                <MenuItem
+                  key={`recent-${item.metaPath}`}
+                  text={item.imagePath}
+                  style={{ maxWidth: "none" }}
+                  onClick={() => {
+                    setOpenMenu(null);
+                    void editorActions.image.openWithMeta(item.imagePath, { allowHostDelegate: true, source: "other" });
+                  }}
+                />
+              ))}
+              <MenuDivider />
+              <MenuItem
+                icon="trash"
+                text={t('menuItem.clearRecent')}
+                disabled={recentItems.length === 0}
+                onClick={() => {
+                  clearRecentInWorkspace();
+                  setOpenMenu(null);
+                }}
+              />
+            </>
+          ),
+          // Keep submenu width unconstrained by target width.
+          popoverProps: {
+            matchTargetWidth: false,
+          },
+          onClick: () => {
+          },
+        },
+        {
           icon: "floppy-disk",
           text: t('menuItem.save'),
           label: t('shortcut.ctrlS'),
@@ -276,9 +324,11 @@ export const TopMenuBar: React.FC = () => {
       canRenameDocument,
       canSave,
       canSaveAll,
+      clearRecentInWorkspace,
       canUndo,
       commandContext,
       documents,
+      recentItems,
       redoMenuText,
       undoMenuText,
       t,
@@ -452,6 +502,8 @@ export const TopMenuBar: React.FC = () => {
             text={item.text}
             label={item.label}
             disabled={item.disabled}
+            children={item.children}
+            popoverProps={item.popoverProps}
             onClick={item.onClick}
           />
         ))}

@@ -3,6 +3,7 @@ import { DiagnosticItem, SymbolLite } from "../../model/symbolIndex";
 import { useAppStore } from "../state";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { requestHost, shouldUseSingleTabHostOpen } from "../host/hostBridge";
+import { useRecentOpenStore } from "../recentOpenStore";
 
 const REQUEST_HOST_OPEN_META_DOCUMENT = "kotonebot.host.openMetaDocument";
 
@@ -39,6 +40,10 @@ async function ensureDocumentWithMeta(imagePath: string, metaPath: string): Prom
     }
     setActiveMeta(imagePath, data);
   }
+
+  const recentStore = useRecentOpenStore.getState();
+  await recentStore.ensureWorkspace();
+  recentStore.addRecent({ imagePath, metaPath, source: "symbol" });
   return true;
 }
 
