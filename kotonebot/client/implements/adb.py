@@ -1,20 +1,22 @@
 import logging
-from typing import cast
-from typing_extensions import override
 import re
+from dataclasses import dataclass
+from typing import cast
 
 import cv2
 import numpy as np
 from cv2.typing import MatLike
+from typing_extensions import override
+
 try:
     from adbutils._device import AdbDevice as AdbUtilsDevice
+    from adbutils.errors import AdbError
 except ImportError as _e:
     from kotonebot.errors import MissingDependencyError
     raise MissingDependencyError(_e, 'android')
 
 from ..protocol import AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver
 from ..registration import ImplConfig
-from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +27,36 @@ class AdbImplConfig(ImplConfig):
     connect: bool = True
     disconnect: bool = True
     device_serial: str | None = None
+    display_id: int | None = None
     timeout: float = 180
 
 class AdbImpl(AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver):
-    def __init__(self, adb_connection: AdbUtilsDevice):
+    def __init__(self, adb_connection: AdbUtilsDevice, display_id: int | None = None):
         self.adb = adb_connection
+        self.display_id = display_id
+
+    def _display_context(self) -> str:
+        if self.display_id is None:
+            return 'default display'
+        return f'display_id={self.display_id}'
+    
+    def _format_message(self, message: str) -> str:
+        if self.display_id is None:
+            return message
+        return f'{message} ({self._display_context()})'
+
+    def _build_input(self, command: str, *args: int | str, source: str | None = None) -> list[str]:
+        cmdargs = ['input']
+        if source is not None:
+            cmdargs.append(source)
+        if self.display_id is not None:
+            # AOSP shell syntax is: input [<source>] [-d DISPLAY_ID] <command> [<arg>...].
+            # Source:
+            # https://android.googlesource.com/platform/frameworks/base/+/master/services/core/java/com/android/server/input/InputShellCommand.java
+            cmdargs.extend(['-d', str(self.display_id)])
+        cmdargs.append(command)
+        cmdargs.extend(str(arg) for arg in args)
+        return cmdargs
 
     @override
     def launch_app(self, package_name: str) -> None:
@@ -67,28 +94,39 @@ class AdbImpl(AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver):
     
     @property
     def screen_size(self) -> tuple[int, int]:
-        output = self.adb.shell("wm size")
-        logger.debug('wm size output: %s', output)
+        cmdargs = ['wm', 'size']
+        if self.display_id is not None:
+            # AOSP supports querying a specific display with "wm size -d DISPLAY_ID".
+            # Source:
+            # https://android.googlesource.com/platform/frameworks/base/+/master/services/core/java/com/android/server/wm/WindowManagerShellCommand.java
+            cmdargs.extend(['-d', str(self.display_id)])    
+        output = self.adb.shell(cmdargs)
+        logger.debug('wm size output for %s: %s', self._display_context(), output)
         text = cast(str, output)
         m = re.search(r'(\d+)\s*[xX×]\s*(\d+)', text)
         if not m:
-            raise ValueError(f"Invalid screen size: {text}")
+            raise ValueError(self._format_message(f"Invalid screen size: {text}"))
         spiltted = (int(m.group(1)), int(m.group(2)))
         # 检测当前方向
         orientation = self.detect_orientation()
         landscape = orientation == 'landscape'
         spiltted = tuple(sorted(spiltted, reverse=landscape))
         if len(spiltted) != 2:
-            raise ValueError(f"Invalid screen size: {text}")
+            raise ValueError(self._format_message(f"Invalid screen size: {text}"))
         return spiltted
 
     def screenshot(self) -> MatLike:
-        return cv2.cvtColor(np.array(self.adb.screenshot()), cv2.COLOR_RGB2BGR)
+        # adbutils already converts the display index into the SurfaceFlinger display ID
+        # required by "screencap -d".
+        # Source:
+        # https://android.googlesource.com/platform/frameworks/base/+/master/cmds/screencap/screencap.cpp
+        image = self.adb.screenshot(display_id=self.display_id, error_ok=False)
+        return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     def click(self, x: int, y: int) -> None:
-        self.adb.shell(f"input tap {x} {y}")
+        self.adb.shell(self._build_input('tap', x, y))
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float | None = None) -> None:
         if duration is not None:
             logger.warning("Swipe duration is not supported with AdbDevice. Ignoring duration.")
-        self.adb.shell(f"input touchscreen swipe {x1} {y1} {x2} {y2}")
+        self.adb.shell(self._build_input('swipe', x1, y1, x2, y2, source='touchscreen'))

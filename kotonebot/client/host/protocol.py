@@ -20,6 +20,7 @@ def copy_type(_: _T) -> Callable[[Any], _T]:
 class AdbHostConfig:
     """由外部为基于 ADB 的主机提供的配置。"""
     timeout: float = 180
+    display_id: int | None = None
 
 @dataclass
 class WindowsHostConfig:
