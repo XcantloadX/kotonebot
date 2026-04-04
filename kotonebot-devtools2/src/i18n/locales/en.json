@@ -19,6 +19,8 @@
     "undo": "Undo",
     "redo": "Redo",
     "newVariantImage": "New Variant Image Document...",
+    "newVariantFromClipboard": "New from Clipboard",
+    "newVariantFromDevice": "New from Device...",
     "copyToVariant": "Copy Selected Prefab to Variant"
   },
   "toolbar": {
@@ -172,10 +174,6 @@
     "undoNameEdit": "Undo name edit",
     "detectedNameChange": "Detected a Name change from \"{{oldName}}\" to \"{{newName}}\" with {{count}} related variant(s)."
   },
-  "fileDialog": {
-    "failedToOpenPath": "Failed to open path",
-    "search": "Search"
-  },
   "tabs": {
     "properties": "Properties",
     "hierarchy": "Hierarchy",
@@ -222,6 +220,23 @@
     "orPressCtrlV": "or press Ctrl+V to import from clipboard",
     "size": "Size",
     "filesSelected": "files selected",
-    "open": "Open"
+    "open": "Open",
+    "captureFromDevice": "Capture from Device",
+    "refreshScreenshot": "Refresh Screenshot",
+    "useThisImage": "Use This Image"
+  },
+  "deviceCapture": {
+    "title": "Capture from Device",
+    "selectDevice": "Select Device",
+    "noDevices": "No devices found",
+    "refreshDevices": "Refresh Devices",
+    "displayId": "Display ID",
+    "displayIdPlaceholder": "Optional",
+    "capturing": "Capturing...",
+    "captureError": "Capture failed: {{error}}",
+    "adbNotInstalled": "adbutils not installed. Please run: pip install adbutils",
+    "deviceNotAvailable": "Device is not available",
+    "preview": "Preview",
+    "clipboardEmpty": "No image found in clipboard"
   }
 }

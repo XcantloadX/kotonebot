@@ -19,6 +19,16 @@ class Project:
 
         self.load()
     
+    @property
+    def allowed_roots(self) -> list[Path]:
+        """
+        返回允许访问的根目录列表。
+
+        用于 Devtool 访问文件系统时的安全检查，确保只能访问项目相关的目录。
+        """
+        resource_root = Path(self.conf.editor.resource_path).resolve() if self.conf.editor and self.conf.editor.resource_path else self.pyproject_root
+        return [resource_root, self.pyproject_root / ".kotonebot"]
+    
     def load(self) -> None:
         """
         载入项目的配置文件。

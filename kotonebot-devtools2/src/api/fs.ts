@@ -103,6 +103,15 @@ export function getImageUrl(path: string): string {
   return `/api/image?path=${encodeURIComponent(path)}`;
 }
 
+export async function fetchImageAsFile(path: string, filename: string): Promise<File> {
+  const response = await fetch(getImageUrl(path));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status}`);
+  }
+  const blob = await response.blob();
+  return new File([blob], filename, { type: blob.type || "image/png" });
+}
+
 export async function getProjectInfo(): Promise<ProjectInfo> {
   return fetchJson(`/api/project/root`);
 }

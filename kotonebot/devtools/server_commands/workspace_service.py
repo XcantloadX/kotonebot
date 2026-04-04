@@ -50,6 +50,7 @@ from kotonebot.devtools.indexing.symbol_index_view import SymbolIndexView
 from kotonebot.devtools.meta import DefinitionV3Model, merge_prefab_definition, parse_meta_file
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.project.scanner import scan_prefabs
+from kotonebot.devtools.path_utils import get_safe_path
 
 
 class WorkspaceService:
@@ -259,7 +260,7 @@ class WorkspaceService:
         new_name: str,
     ) -> RenameSymbolPrecheckResult:
         self.symbol_index_view.ensure_ready()
-        normalized_meta_path = self._normalize_path_key(str(self._get_safe_path(source_meta_path)))
+        normalized_meta_path = self._normalize_path_key(str(get_safe_path(source_meta_path, self.project)))
         requested_name = new_name.strip()
         if requested_name == "":
             raise ValueError("newName cannot be empty")
@@ -338,7 +339,7 @@ class WorkspaceService:
                 existing.append(item.definitionId)
 
         for meta_path, definition_ids in grouped_definition_ids.items():
-            safe_meta_path = self._get_safe_path(meta_path)
+            safe_meta_path = get_safe_path(meta_path, self.project)
             payload = json.loads(safe_meta_path.read_text(encoding="utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError(f"Invalid meta payload: {meta_path}")
@@ -380,8 +381,8 @@ class WorkspaceService:
         force_overwrite: bool,
     ) -> dict[str, Any]:
         variant_name = self._assert_variant_declared(variant)
-        source_meta = self._get_safe_path(source_meta_path)
-        target_image = self._get_safe_path(target_image_path)
+        source_meta = get_safe_path(source_meta_path, self.project)
+        target_image = get_safe_path(target_image_path, self.project)
         if not source_meta.exists():
             raise ValueError(f"Source meta not found: {source_meta}")
         if not target_image.exists():
@@ -412,8 +413,8 @@ class WorkspaceService:
         uploaded_image_data: bytes,
     ) -> dict[str, Any]:
         variant_name = self._assert_variant_declared(variant)
-        source_meta = self._get_safe_path(source_meta_path)
-        base_image = self._get_safe_path(base_image_path)
+        source_meta = get_safe_path(source_meta_path, self.project)
+        base_image = get_safe_path(base_image_path, self.project)
         if not source_meta.exists():
             raise ValueError(f"Source meta not found: {source_meta}")
         if not base_image.exists():
@@ -448,7 +449,7 @@ class WorkspaceService:
         delete_existing_target: bool,
     ) -> dict[str, Any]:
         variant_name = self._assert_variant_declared(variant)
-        base_image = self._get_safe_path(base_image_path)
+        base_image = get_safe_path(base_image_path, self.project)
         if not base_image.exists():
             raise ValueError(f"Base image not found: {base_image}")
         if not self._is_image_file(base_image):
@@ -478,8 +479,8 @@ class WorkspaceService:
         variant: str,
     ) -> dict[str, Any]:
         variant_name = self._assert_variant_declared(variant)
-        source_meta = self._get_safe_path(source_meta_path)
-        base_image = self._get_safe_path(base_image_path)
+        source_meta = get_safe_path(source_meta_path, self.project)
+        base_image = get_safe_path(base_image_path, self.project)
         if not source_meta.exists():
             raise ValueError(f"Source meta not found: {source_meta}")
         if not base_image.exists():
@@ -542,7 +543,7 @@ class WorkspaceService:
             base_image_path=base_image_path,
             variant=variant,
         )
-        target_meta_path = self._get_safe_path(precheck["targetMetaPath"])
+        target_meta_path = get_safe_path(precheck["targetMetaPath"], self.project)
         target_definition = precheck["targetDefinition"]
         if not precheck["targetImageExists"]:
             raise ValueError(f"Target image not found: {precheck['targetImagePath']}")
@@ -600,17 +601,6 @@ class WorkspaceService:
                 if temp.exists():
                     os.replace(temp, source)
             raise
-
-    def _get_safe_path(self, path_str: str) -> Path:
-        path = Path(path_str)
-        if not path.is_absolute():
-            path = self.project_root / path
-        resolved = path.resolve()
-        try:
-            resolved.relative_to(self.project_root)
-        except Exception as exc:
-            raise ValueError(f"Invalid path: {exc}") from exc
-        return resolved
 
     def _is_image_file(self, path: Path) -> bool:
         return path.suffix.lower() in self.image_suffixes
@@ -672,7 +662,7 @@ class WorkspaceService:
             raise ValueError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
         if rendered == "":
             raise ValueError("variant.path_pattern resolved to empty path")
-        target_image_path = self._get_safe_path(rendered)
+        target_image_path = get_safe_path(rendered, self.project)
         if target_image_path.suffix.lower() not in self.image_suffixes:
             raise ValueError(f"target image extension is not supported: {target_image_path.suffix}")
         return target_image_path

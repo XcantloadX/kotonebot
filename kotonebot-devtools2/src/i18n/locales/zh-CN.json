@@ -19,6 +19,8 @@
     "undo": "撤销",
     "redo": "重做",
     "newVariantImage": "新建变体图片文档...",
+    "newVariantFromClipboard": "从剪贴板新建",
+    "newVariantFromDevice": "从设备画面新建...",
     "copyToVariant": "复制选中的 Prefab 到变体"
   },
   "toolbar": {
@@ -172,10 +174,6 @@
     "undoNameEdit": "撤销名称编辑",
     "detectedNameChange": "检测到从 \"{{oldName}}\" 到 \"{{newName}}\" 的名称更改，涉及 {{count}} 个相关变体。"
   },
-  "fileDialog": {
-    "failedToOpenPath": "打开路径失败",
-    "search": "搜索"
-  },
   "tabs": {
     "properties": "属性",
     "hierarchy": "层级",
@@ -222,6 +220,23 @@
     "orPressCtrlV": "或按 Ctrl+V 从剪贴板导入",
     "size": "大小",
     "filesSelected": "个文件已选择",
-    "open": "打开"
+    "open": "打开",
+    "captureFromDevice": "从设备截取",
+    "refreshScreenshot": "刷新画面",
+    "useThisImage": "使用此画面"
+  },
+  "deviceCapture": {
+    "title": "从设备截取",
+    "selectDevice": "选择设备",
+    "noDevices": "未找到设备",
+    "refreshDevices": "刷新设备列表",
+    "displayId": "显示器 ID",
+    "displayIdPlaceholder": "可选",
+    "capturing": "正在截取...",
+    "captureError": "截取失败: {{error}}",
+    "adbNotInstalled": "未安装 adbutils，请运行: pip install adbutils",
+    "deviceNotAvailable": "设备不可用",
+    "preview": "预览",
+    "clipboardEmpty": "剪贴板中未找到图片"
   }
 }

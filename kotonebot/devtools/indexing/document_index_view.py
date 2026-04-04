@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from kotonebot.devtools.project.project import Project
+from kotonebot.devtools.path_utils import get_safe_path
 from .resource_index_store import ResourceIndexStore
 
 
@@ -121,17 +122,7 @@ class DocumentIndexView:
         self._snapshot = DocumentIndexSnapshot(documents_by_image=documents_by_image, groups=groups)
         self._ready = True
 
-    def _get_safe_path(self, path_str: str) -> Path:
-        """将输入路径归一化为资源根目录内的绝对路径。"""
-        path = Path(path_str)
-        if not path.is_absolute():
-            path = self.resource_root / path
-        resolved = path.resolve()
-        try:
-            resolved.relative_to(self.resource_root)
-        except Exception as exc:
-            raise ValueError(f"Invalid path: {exc}") from exc
-        return resolved
+
 
     def _get_variant_config(self) -> tuple[list[str], str, str] | None:
         """读取并校验 variant 配置。"""
@@ -350,7 +341,7 @@ class DocumentIndexView:
         """将组内成员映射到目标重命名后的图片路径。"""
         variant_config = self._get_variant_config()
         if variant_config is None:
-            return self._get_safe_path(target_descriptor.image_path)
+            return get_safe_path(target_descriptor.image_path, self.project)
         _, base_variant, _ = variant_config
         if member.strategy == "nest":
             file_name_ext = f"{target_descriptor.file_name}.{target_descriptor.file_ext}"
@@ -358,7 +349,7 @@ class DocumentIndexView:
                 if member.variant is None:
                     raise ValueError("variant member requires variant name")
                 rel = f"{member.variant}/{target_descriptor.file_dir}/{file_name_ext}" if target_descriptor.file_dir else f"{member.variant}/{file_name_ext}"
-                return self._get_safe_path(rel)
+                return get_safe_path(rel, self.project)
             if source_descriptor.role == "base":
                 scoped_base = target_descriptor.scoped_base
             else:
@@ -367,7 +358,7 @@ class DocumentIndexView:
                 rel = f"{base_variant}/{target_descriptor.file_dir}/{file_name_ext}" if target_descriptor.file_dir else f"{base_variant}/{file_name_ext}"
             else:
                 rel = f"{target_descriptor.file_dir}/{file_name_ext}" if target_descriptor.file_dir else file_name_ext
-            return self._get_safe_path(rel)
+            return get_safe_path(rel, self.project)
         if member.strategy == "flat":
             if member.role == "variant":
                 if member.variant is None:
@@ -376,7 +367,7 @@ class DocumentIndexView:
             else:
                 file_name_ext = f"{target_descriptor.file_name}.{target_descriptor.file_ext}"
             rel = f"{target_descriptor.file_dir}/{file_name_ext}" if target_descriptor.file_dir else file_name_ext
-            return self._get_safe_path(rel)
+            return get_safe_path(rel, self.project)
         if member.strategy == "pattern":
             if member.template is None:
                 raise ValueError("pattern member requires template")
@@ -398,16 +389,16 @@ class DocumentIndexView:
             ).strip()
             if rendered == "":
                 raise ValueError("variant.path_pattern resolved to empty path")
-            return self._get_safe_path(rendered)
+            return get_safe_path(rendered, self.project)
         if member.strategy == "none":
-            return self._get_safe_path(target_descriptor.image_path)
+            return get_safe_path(target_descriptor.image_path, self.project)
         raise ValueError(f"Unsupported strategy: {member.strategy}")
 
     def precheck_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentPrecheckResultModel:
         """执行文档重命名预检并返回计划与冲突。"""
         self.build_full()
-        source_image = self._get_safe_path(source_image_path)
-        target_image = self._get_safe_path(target_image_path)
+        source_image = get_safe_path(source_image_path, self.project)
+        target_image = get_safe_path(target_image_path, self.project)
         if source_image.suffix.lower() not in self.image_suffixes:
             raise ValueError(f"Source path is not an image: {source_image}")
         if target_image.suffix.lower() not in self.image_suffixes:

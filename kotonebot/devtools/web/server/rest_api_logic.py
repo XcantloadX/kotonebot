@@ -3,6 +3,7 @@ import logging
 import os
 import string
 import uuid
+import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
@@ -21,6 +22,7 @@ from kotonebot.devtools.indexing.resource_index_store import ResourceIndexStore
 from kotonebot.devtools.meta import DefinitionV3Model, merge_prefab_definition, parse_meta_file
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.project.scanner import scan_prefabs
+from kotonebot.devtools.path_utils import get_safe_path
 
 
 class RestApiLogic:
@@ -29,6 +31,7 @@ class RestApiLogic:
         self.project = project
         self._prefabs_cache: Optional[dict[str, Any]] = None
         self.project_root = self.workspace.project_root
+        self.pyproject_root = project.pyproject_root
         self.resource_index_store = self.workspace.resource_index_store
         self.symbol_index_view = self.workspace.symbol_index_view
         self.document_index_view = self.workspace.document_index_view
@@ -92,18 +95,7 @@ class RestApiLogic:
             cv2.imwrite(str(cache_path), resized)
         return cache_path
 
-    def _get_safe_path(self, path_str: str) -> Path:
-        p = Path(path_str)
-        if not p.is_absolute():
-            p = self.project_root / p
-
-        try:
-            p = p.resolve()
-            p.relative_to(self.project_root)
-        except Exception as e:
-            raise ValueError(f"Invalid path: {e}")
-
-        return p
+    
 
     def _assert_variant_declared(self, variant: str) -> str:
         variant_name = variant.strip()
@@ -165,7 +157,7 @@ class RestApiLogic:
 
         if rendered == "":
             raise ValueError("variant.path_pattern resolved to empty path")
-        target_image_path = self._get_safe_path(rendered)
+        target_image_path = get_safe_path(rendered, self.project)
         if target_image_path.suffix.lower() not in self.image_suffixes:
             raise ValueError(f"target image extension is not supported: {target_image_path.suffix}")
         return target_image_path
@@ -365,7 +357,7 @@ class RestApiLogic:
         return self.workspace.get_project_root_data()
 
     def list_dir(self, path: str) -> dict[str, Any]:
-        safe_path = self._get_safe_path(path)
+        safe_path = get_safe_path(path, self.project)
         if not safe_path.exists():
             raise ValueError("Path not found")
         if not safe_path.is_dir():
@@ -393,7 +385,7 @@ class RestApiLogic:
         return {"items": items}
 
     def read_text(self, path: str) -> dict[str, Any]:
-        safe_path = self._get_safe_path(path)
+        safe_path = get_safe_path(path, self.project)
         if not safe_path.exists():
             raise ValueError("File not found")
         if not safe_path.is_file():
@@ -402,7 +394,7 @@ class RestApiLogic:
         return {"content": content}
 
     def write_text(self, path: str, content: str) -> dict[str, Any]:
-        safe_path = self._get_safe_path(path)
+        safe_path = get_safe_path(path, self.project)
         if not safe_path.parent.exists():
             raise ValueError("Parent directory does not exist")
         temp_path = safe_path.with_suffix(safe_path.suffix + ".tmp")
@@ -412,8 +404,8 @@ class RestApiLogic:
 
     def rename_path(self, source_path: str, target_path: str) -> dict[str, Any]:
         """重命名单个文件路径。"""
-        safe_source = self._get_safe_path(source_path)
-        safe_target = self._get_safe_path(target_path)
+        safe_source = get_safe_path(source_path, self.project)
+        safe_target = get_safe_path(target_path, self.project)
         if not safe_source.exists():
             raise ValueError(f"Source path not found: {safe_source}")
         if not safe_source.is_file():
@@ -461,7 +453,7 @@ class RestApiLogic:
         )
 
     def get_image_path(self, path: str) -> Path:
-        safe_path = self._get_safe_path(path)
+        safe_path = get_safe_path(path, self.project)
         if not safe_path.exists():
             raise FileNotFoundError("Image not found")
         if not self._is_image_file(safe_path):
@@ -469,7 +461,7 @@ class RestApiLogic:
         return safe_path
 
     def get_image_thumbnail_path(self, path: str, size: int) -> Path:
-        safe_path = self._get_safe_path(path)
+        safe_path = get_safe_path(path, self.project)
         if not safe_path.exists():
             raise FileNotFoundError("Image not found")
         if not self._is_image_file(safe_path):
@@ -486,7 +478,7 @@ class RestApiLogic:
         x2: float | None,
         y2: float | None,
     ) -> Path:
-        safe_path = self._get_safe_path(path)
+        safe_path = get_safe_path(path, self.project)
         if not safe_path.exists():
             raise FileNotFoundError("Image not found")
         if not self._is_image_file(safe_path):
@@ -691,3 +683,66 @@ class RestApiLogic:
 
     def get_health(self) -> dict[str, str]:
         return {"status": "ok", "service": "kotonebot-devtools"}
+
+    def list_adb_devices(self) -> dict[str, Any]:
+        try:
+            from adbutils import adb
+        except ImportError:
+            return {"devices": [], "error": "adbutils not installed. Please install it with: pip install adbutils"}
+        
+        devices = []
+        for d in adb.device_list():
+            serial = d.serial
+            state = d.get_state()
+            name = f"{serial} ({state})"
+            devices.append({
+                "serial": serial,
+                "state": state,
+                "name": name,
+            })
+        return {"devices": devices}
+
+    def capture_device_screenshot(self, *, serial: str, display_id: int | None = None) -> dict[str, Any]:
+        try:
+            from adbutils import adb, AdbDevice
+            from adbutils.errors import AdbError
+        except ImportError:
+            return {"error": "adbutils not installed. Please install it with: pip install adbutils", "success": False}
+        
+        try:
+            device: AdbDevice | None = None
+            for d in adb.device_list():
+                if d.serial == serial:
+                    device = d
+                    break
+            
+            if device is None:
+                return {"error": f"Device '{serial}' not found", "success": False}
+            
+            state = device.get_state()
+            if state != "device":
+                return {"error": f"Device '{serial}' is not available (state: {state})", "success": False}
+            
+            image = device.screenshot(display_id=display_id, error_ok=False)
+            bgr_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+            
+            temp_dir = self.project.pyproject_root / ".kotonebot" / "cache" / "device_captures"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            
+            import time
+            timestamp = int(time.time() * 1000)
+            filename = f"capture_{serial.replace(':', '_')}_{timestamp}.png"
+            temp_path = temp_dir / filename
+            
+            cv2.imwrite(str(temp_path), bgr_image)
+            
+            return {
+                "success": True,
+                "imagePath": str(temp_path),
+                "imageUrl": f"/api/image?path={temp_path}",
+            }
+        except AdbError as e:
+            return {"error": f"ADB error: {str(e)}", "success": False}
+        except Exception as e:
+            logging.exception("Error capturing device screenshot")
+            return {"error": str(e), "success": False}

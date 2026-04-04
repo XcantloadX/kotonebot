@@ -321,6 +321,22 @@ def create_rest_router(project: Project) -> APIRouter:
     async def health_check():
         return _ok(logic.get_health())
 
+    @router.get("/device/adb/list")
+    async def list_adb_devices():
+        try:
+            return _ok(logic.list_adb_devices())
+        except Exception as e:
+            logging.exception("Error while handling /device/adb/list")
+            return _err(str(e))
+
+    @router.get("/device/adb/screenshot")
+    async def capture_adb_screenshot(serial: str = Query(...), displayId: int | None = Query(None)):
+        try:
+            return _ok(logic.capture_device_screenshot(serial=serial, display_id=displayId))
+        except Exception as e:
+            logging.exception("Error while handling /device/adb/screenshot")
+            return _err(str(e))
+
     @router.get("/server/commands")
     async def get_server_commands():
         try:

@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Dialog } from "@blueprintjs/core";
+import { Dialog, Button } from "@blueprintjs/core";
 import { useTranslation } from "react-i18next";
 import { FileOpenDialogBaseProps, FileOpenDialogContent } from "./FileOpenDialogContent";
+import { DeviceCaptureDialog } from "./DeviceCaptureDialog";
 
 export interface FileOpenOrImportDialogProps extends FileOpenDialogBaseProps {
   onImportDrop: (files: File[]) => boolean | Promise<boolean>;
+  showDeviceCapture?: boolean;
 }
 
 export const FileOpenOrImportDialog: React.FC<FileOpenOrImportDialogProps> = ({
@@ -15,9 +17,11 @@ export const FileOpenOrImportDialog: React.FC<FileOpenOrImportDialogProps> = ({
   title,
   filter,
   multiSelect = true,
+  showDeviceCapture = false,
 }) => {
   const { t } = useTranslation();
   const [isDragActive, setIsDragActive] = useState(false);
+  const [isDeviceCaptureOpen, setIsDeviceCaptureOpen] = useState(false);
 
   const importFromFiles = useCallback(
     async (files: FileList) => {
@@ -77,6 +81,17 @@ export const FileOpenOrImportDialog: React.FC<FileOpenOrImportDialogProps> = ({
     setIsDragActive(false);
   };
 
+  const handleDeviceCaptureImport = useCallback(
+    async (files: File[]) => {
+      const shouldClose = await onImportDrop(files);
+      if (shouldClose) {
+        setIsDeviceCaptureOpen(false);
+      }
+      return shouldClose;
+    },
+    [onImportDrop]
+  );
+
   const renderImportPanel = () => (
     <div
       onDragEnter={(event) => {
@@ -114,20 +129,37 @@ export const FileOpenOrImportDialog: React.FC<FileOpenOrImportDialogProps> = ({
         <span className="bp5-icon bp5-icon-import" style={{ fontSize: 36 }} />
         <div style={{ fontSize: 14, fontWeight: 500 }}>{t('fileDialog.dragFilesHere')}</div>
         <div style={{ fontSize: 12 }}>{t('fileDialog.orPressCtrlV')}</div>
+        {showDeviceCapture && (
+          <Button
+            intent="primary"
+            icon="camera"
+            onClick={() => setIsDeviceCaptureOpen(true)}
+            style={{ marginTop: 8 }}
+          >
+            {t('fileDialog.captureFromDevice')}
+          </Button>
+        )}
       </div>
     </div>
   );
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} title={title ?? t('fileDialog.openFile')} style={{ width: 1240 }}>
-      <FileOpenDialogContent
-        isOpen={isOpen}
-        onClose={onClose}
-        onSelect={onSelect}
-        filter={filter}
-        multiSelect={multiSelect}
-        rightPanel={renderImportPanel()}
+    <>
+      <Dialog isOpen={isOpen} onClose={onClose} title={title ?? t('fileDialog.openFile')} style={{ width: 1240 }}>
+        <FileOpenDialogContent
+          isOpen={isOpen}
+          onClose={onClose}
+          onSelect={onSelect}
+          filter={filter}
+          multiSelect={multiSelect}
+          rightPanel={renderImportPanel()}
+        />
+      </Dialog>
+      <DeviceCaptureDialog
+        isOpen={isDeviceCaptureOpen}
+        onClose={() => setIsDeviceCaptureOpen(false)}
+        onImport={handleDeviceCaptureImport}
       />
-    </Dialog>
+    </>
   );
 };

@@ -6,6 +6,8 @@ import { COMMAND_ID, executeCommand, useCommandStatuses } from "../editor/comman
 import { useAppStore } from "../editor/state";
 import { FileOpenDialog } from "./components/FileOpenDialog/FileOpenDialog";
 import { FileOpenOrImportDialog } from "./components/FileOpenDialog/FileOpenOrImportDialog";
+import { DeviceCaptureDialog } from "./components/FileOpenDialog/DeviceCaptureDialog";
+import { toaster } from "./toaster";
 import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
 import { useLocaleStore } from "../i18n/localeStore";
 import { SUPPORTED_LANGUAGES } from "../i18n";
@@ -15,15 +17,21 @@ import { shallow } from "zustand/shallow";
 type MenuKey = "file" | "edit" | "variant" | null;
 type MenuId = Exclude<MenuKey, null>;
 
-interface MenuDefinitionItem {
-  icon: IconName;
+interface MenuItemDefinition {
+  icon?: IconName;
   text: string;
   label?: string;
   disabled?: boolean;
   children?: React.ReactNode;
   popoverProps?: { matchTargetWidth?: boolean };
-  onClick: () => void;
+  onClick?: () => void;
 }
+
+interface MenuDividerDefinition {
+  divider: true;
+}
+
+type MenuDefinitionItem = MenuItemDefinition | MenuDividerDefinition;
 
 export const TopMenuBar: React.FC = () => {
   const { t } = useTranslation();
@@ -51,10 +59,14 @@ export const TopMenuBar: React.FC = () => {
     isOpen: false,
     variant: null,
   });
+  const [deviceCaptureState, setDeviceCaptureState] = useState<{ isOpen: boolean; variant: string | null }>({
+    isOpen: false,
+    variant: null,
+  });
   const variantDialogTitle = variantDialogState.variant
     ? t('dialog.selectTargetImage') + ` ${variantDialogState.variant}`
     : t('dialog.selectTargetImage');
-  const modalOpen = isImageDialogOpen || variantDialogState.isOpen;
+  const modalOpen = isImageDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen;
 
   useShortcutScope("menu", openMenu !== null);
   useShortcutScope("modal", modalOpen);
@@ -157,6 +169,47 @@ export const TopMenuBar: React.FC = () => {
     },
     [variantDialogState.variant]
   );
+
+  const handleDeviceCaptureImport = useCallback(
+    async (files: File[]) => {
+      const variant = deviceCaptureState.variant;
+      if (!variant) {
+        throw new Error("No variant selected for device capture");
+      }
+      const shouldClose = await editorActions.variant.importImageForActive(files, variant);
+      if (shouldClose) {
+        setDeviceCaptureState({ isOpen: false, variant: null });
+      }
+      return shouldClose;
+    },
+    [deviceCaptureState.variant]
+  );
+
+  const handleNewVariantFromClipboard = useCallback(async () => {
+    const variant = await editorActions.variant.pickForActive(projectVariants);
+    if (variant === null) {
+      return;
+    }
+    const clipboardData = await navigator.clipboard.read();
+    for (const item of clipboardData) {
+      const imageType = item.types.find(type => type.startsWith("image/"));
+      if (imageType) {
+        const blob = await item.getType(imageType);
+        const file = new File([blob], "clipboard.png", { type: imageType });
+        await editorActions.variant.importImageForActive([file], variant);
+        return;
+      }
+    }
+    toaster.show({ message: t('deviceCapture.clipboardEmpty'), intent: "warning" });
+  }, [projectVariants, t]);
+
+  const handleNewVariantFromDevice = useCallback(async () => {
+    const variant = await editorActions.variant.pickForActive(projectVariants);
+    if (variant === null) {
+      return;
+    }
+    setDeviceCaptureState({ isOpen: true, variant });
+  }, [projectVariants]);
 
   const triggerStyle = useMemo<React.CSSProperties>(
     () => ({
@@ -306,6 +359,23 @@ export const TopMenuBar: React.FC = () => {
           },
         },
         {
+          text: t('menuItem.newVariantFromClipboard'),
+          disabled: !canCreateVariantDocument,
+          onClick: () => {
+            setOpenMenu(null);
+            void handleNewVariantFromClipboard();
+          },
+        },
+        {
+          text: t('menuItem.newVariantFromDevice'),
+          disabled: !canCreateVariantDocument,
+          onClick: () => {
+            setOpenMenu(null);
+            void handleNewVariantFromDevice();
+          },
+        },
+        { divider: true },
+        {
           icon: "duplicate",
           text: t('menuItem.copyToVariant'),
           disabled: !canCopySelectedPrefabToVariant,
@@ -328,6 +398,8 @@ export const TopMenuBar: React.FC = () => {
       canUndo,
       commandContext,
       documents,
+      handleNewVariantFromClipboard,
+      handleNewVariantFromDevice,
       recentItems,
       redoMenuText,
       undoMenuText,
@@ -495,18 +567,23 @@ export const TopMenuBar: React.FC = () => {
     }
     return (
       <Menu>
-        {menuDefinitions[openMenu].map((item) => (
-          <MenuItem
-            key={`${openMenu}-${item.text}`}
-            icon={item.icon}
-            text={item.text}
-            label={item.label}
-            disabled={item.disabled}
-            children={item.children}
-            popoverProps={item.popoverProps}
-            onClick={item.onClick}
-          />
-        ))}
+        {menuDefinitions[openMenu].map((item, index) => {
+          if ("divider" in item) {
+            return <MenuDivider key={`${openMenu}-divider-${index}`} />;
+          }
+          return (
+            <MenuItem
+              key={`${openMenu}-${item.text}-${index}`}
+              icon={item.icon ?? "blank"}
+              text={item.text}
+              label={item.label}
+              disabled={item.disabled}
+              children={item.children}
+              popoverProps={item.popoverProps}
+              onClick={item.onClick}
+            />
+          );
+        })}
       </Menu>
     );
   };
@@ -611,6 +688,12 @@ export const TopMenuBar: React.FC = () => {
         title={variantDialogTitle}
         filter={(name) => name.endsWith(".png")}
         multiSelect={false}
+        showDeviceCapture={false}
+      />
+      <DeviceCaptureDialog
+        isOpen={deviceCaptureState.isOpen}
+        onClose={() => setDeviceCaptureState({ isOpen: false, variant: null })}
+        onImport={handleDeviceCaptureImport}
       />
     </div>
   );
