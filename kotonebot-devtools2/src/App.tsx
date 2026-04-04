@@ -2,15 +2,20 @@ import { EditorApp } from './editor/EditorApp';
 import { MessageBoxProvider } from './ui/messageBox';
 import { ShortcutProvider } from './shortcuts/shortcutManager';
 import { QuickPickProvider } from './ui/quickPick';
-import { ProjectInfoBootstrapper } from './app/ProjectInfoBootstrapper';
+import { useProjectInfoReady } from './app/ProjectInfoBootstrapper';
 
 function App() {
+  const isReady = useProjectInfoReady();
+
+  if (!isReady) {
+    return null;
+  }
+
   return (
     <div className="">
       <ShortcutProvider>
         <QuickPickProvider>
           <MessageBoxProvider>
-            <ProjectInfoBootstrapper />
             <EditorApp />
           </MessageBoxProvider>
         </QuickPickProvider>
