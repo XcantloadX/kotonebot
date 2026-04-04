@@ -400,6 +400,11 @@ class WorkspaceService:
             target_image_path=target_image,
         )
         target_definitions = plan["targetDefinitions"]
+        self._ensure_source_base_variant_policy(
+            source_meta_path=source_meta,
+            target_variant=variant_name,
+            source_definition_ids=list(target_definitions.keys()),
+        )
         payload = {"version": 3, "definitions": target_definitions}
         target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return {"targetMetaPath": target_meta_path.as_posix(), "definitionCount": len(target_definitions)}
@@ -558,6 +563,11 @@ class WorkspaceService:
         if source_definition_id in target_definitions and not force_overwrite:
             raise ValueError(f"Target definition already exists: {source_definition_id}")
         target_definitions[source_definition_id] = target_definition
+        self._ensure_source_base_variant_policy(
+            source_meta_path=get_safe_path(source_meta_path, self.project),
+            target_variant=self._assert_variant_declared(variant),
+            source_definition_ids=[source_definition_id],
+        )
         payload = {"version": 3, "definitions": target_definitions}
         target_meta_path.parent.mkdir(parents=True, exist_ok=True)
         target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -695,6 +705,59 @@ class WorkspaceService:
         if full.prefab_id != base.prefab_id:
             output["prefab_id"] = full.prefab_id
         return output
+
+    def _ensure_source_base_variant_policy(
+        self,
+        *,
+        source_meta_path: Path,
+        target_variant: str,
+        source_definition_ids: list[str],
+    ) -> None:
+        payload = json.loads(source_meta_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict) or payload.get("version") != 3:
+            return
+        definitions = payload.get("definitions")
+        if not isinstance(definitions, dict):
+            return
+
+        base_by_name: dict[str, dict[str, Any]] = {}
+        for definition in definitions.values():
+            if not isinstance(definition, dict):
+                continue
+            if definition.get("type") != "prefab":
+                continue
+            name = definition.get("name")
+            if not isinstance(name, str) or name.strip() == "":
+                continue
+            if definition.get("variant") is None and name not in base_by_name:
+                base_by_name[name] = definition
+
+        touched_names: set[str] = set()
+        for definition_id in source_definition_ids:
+            source_definition = definitions.get(definition_id)
+            if not isinstance(source_definition, dict):
+                continue
+            if source_definition.get("type") != "prefab":
+                continue
+            name = source_definition.get("name")
+            if isinstance(name, str) and name.strip() != "":
+                touched_names.add(name)
+
+        changed = False
+        for name in touched_names:
+            base = base_by_name.get(name)
+            if base is None:
+                continue
+            policy = base.get("variant_policy")
+            if not isinstance(policy, dict):
+                policy = {}
+                base["variant_policy"] = policy
+            if target_variant not in policy:
+                policy[target_variant] = "require"
+                changed = True
+
+        if changed:
+            source_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def _read_image(self, path: Path) -> Any:
         image = cv2.imread(str(path))
