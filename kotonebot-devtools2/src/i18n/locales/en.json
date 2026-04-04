@@ -21,6 +21,8 @@
     "newVariantImage": "New Variant Image Document...",
     "newVariantFromClipboard": "New from Clipboard",
     "newVariantFromDevice": "New from Device...",
+    "rememberVariantChoice": "Remember Variant Choice",
+    "alwaysAsk": "Always Ask",
     "copyToVariant": "Copy Selected Prefab to Variant"
   },
   "toolbar": {

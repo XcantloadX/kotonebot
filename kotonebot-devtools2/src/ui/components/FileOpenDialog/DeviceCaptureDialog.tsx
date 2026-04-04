@@ -85,7 +85,7 @@ export const DeviceCaptureDialog: React.FC<DeviceCaptureDialogProps> = ({
     }
   }, [isOpen, loadDevices]);
 
-  useShortcuts(isOpen ? {
+  useShortcuts(isOpen ? [{
     id: "device-capture-use-image",
     combo: "enter",
     scope: "modal",
@@ -93,7 +93,7 @@ export const DeviceCaptureDialog: React.FC<DeviceCaptureDialogProps> = ({
     onKeyDown: () => {
       void handleUseImage();
     },
-  } : []);
+  }] : []);
 
   useEffect(() => {
     if (

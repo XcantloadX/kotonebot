@@ -63,6 +63,7 @@ export const TopMenuBar: React.FC = () => {
     isOpen: false,
     variant: null,
   });
+  const [rememberedVariant, setRememberedVariant] = useState<string | null>(null);
   const variantDialogTitle = variantDialogState.variant
     ? t('dialog.selectTargetImage') + ` ${variantDialogState.variant}`
     : t('dialog.selectTargetImage');
@@ -94,12 +95,12 @@ export const TopMenuBar: React.FC = () => {
   }, []);
 
   const openVariantDialog = useCallback(async () => {
-    const variant = await editorActions.variant.pickForActive(projectVariants);
+    const variant = rememberedVariant ?? await editorActions.variant.pickForActive(projectVariants);
     if (variant === null) {
       return;
     }
     setVariantDialogState({ isOpen: true, variant });
-  }, [projectVariants]);
+  }, [projectVariants, rememberedVariant]);
 
   const commandContext = useMemo(
     () => ({
@@ -186,7 +187,7 @@ export const TopMenuBar: React.FC = () => {
   );
 
   const handleNewVariantFromClipboard = useCallback(async () => {
-    const variant = await editorActions.variant.pickForActive(projectVariants);
+    const variant = rememberedVariant ?? await editorActions.variant.pickForActive(projectVariants);
     if (variant === null) {
       return;
     }
@@ -201,15 +202,15 @@ export const TopMenuBar: React.FC = () => {
       }
     }
     toaster.show({ message: t('deviceCapture.clipboardEmpty'), intent: "warning" });
-  }, [projectVariants, t]);
+  }, [projectVariants, rememberedVariant, t]);
 
   const handleNewVariantFromDevice = useCallback(async () => {
-    const variant = await editorActions.variant.pickForActive(projectVariants);
+    const variant = rememberedVariant ?? await editorActions.variant.pickForActive(projectVariants);
     if (variant === null) {
       return;
     }
     setDeviceCaptureState({ isOpen: true, variant });
-  }, [projectVariants]);
+  }, [projectVariants, rememberedVariant]);
 
   const triggerStyle = useMemo<React.CSSProperties>(
     () => ({
@@ -374,6 +375,36 @@ export const TopMenuBar: React.FC = () => {
             void handleNewVariantFromDevice();
           },
         },
+        {
+          text: t('menuItem.rememberVariantChoice'),
+          disabled: !canCreateVariantDocument,
+          children: (
+            <>
+              <MenuItem
+                icon={rememberedVariant === null ? "small-tick" : "blank"}
+                text={t('menuItem.alwaysAsk')}
+                onClick={() => {
+                  setRememberedVariant(null);
+                  setOpenMenu(null);
+                }}
+              />
+              {projectVariants.map((v) => (
+                <MenuItem
+                  key={v}
+                  icon={rememberedVariant === v ? "small-tick" : "blank"}
+                  text={v}
+                  onClick={() => {
+                    setRememberedVariant(v);
+                    setOpenMenu(null);
+                  }}
+                />
+              ))}
+            </>
+          ),
+          popoverProps: {
+            matchTargetWidth: false,
+          },
+        },
         { divider: true },
         {
           icon: "duplicate",
@@ -400,8 +431,10 @@ export const TopMenuBar: React.FC = () => {
       documents,
       handleNewVariantFromClipboard,
       handleNewVariantFromDevice,
+      projectVariants,
       recentItems,
       redoMenuText,
+      rememberedVariant,
       undoMenuText,
       t,
     ]

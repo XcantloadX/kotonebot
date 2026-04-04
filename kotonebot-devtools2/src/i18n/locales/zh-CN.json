@@ -21,6 +21,8 @@
     "newVariantImage": "新建变体图片文档...",
     "newVariantFromClipboard": "从剪贴板新建",
     "newVariantFromDevice": "从设备画面新建...",
+    "rememberVariantChoice": "记住变体选择",
+    "alwaysAsk": "每次询问",
     "copyToVariant": "复制选中的 Prefab 到变体"
   },
   "toolbar": {
