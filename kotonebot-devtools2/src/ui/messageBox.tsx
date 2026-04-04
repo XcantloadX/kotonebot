@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { Button, Classes, Dialog, HTMLSelect, InputGroup, Intent } from "@blueprintjs/core";
+import { Classes, Dialog, HTMLSelect, InputGroup, Intent } from "@blueprintjs/core";
 import i18n from "../i18n";
 import { useShortcuts } from "../shortcuts/shortcutManager";
+import { ShortcutButton } from "./components/ShortcutButton";
 
 export interface MessageBoxButton<TValue extends string = string> {
   value: TValue;
@@ -370,14 +371,21 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         <div className={Classes.DIALOG_FOOTER}>
           <div className={Classes.DIALOG_FOOTER_ACTIONS}>
             {current?.options.buttons.map((button) => (
-              <Button
+              <ShortcutButton
                 key={button.value}
                 intent={button.intent}
                 disabled={button.disabled}
+                shortcutText={
+                  binaryShortcutTargets && button.value === binaryShortcutTargets.confirm.value
+                    ? "Enter"
+                    : binaryShortcutTargets && button.value === binaryShortcutTargets.cancel.value
+                      ? "Esc"
+                      : undefined
+                }
                 onClick={() => settleCurrent(button.value)}
               >
                 {button.text}
-              </Button>
+              </ShortcutButton>
             ))}
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { listAdbDevices, captureAdbScreenshot, AdbDevice } from "../../../api/device";
 import { fetchImageAsFile } from "../../../api/fs";
 import { useShortcut } from "../../../shortcuts/shortcutManager";
+import { ShortcutButton } from "../ShortcutButton";
 
 export interface DeviceCaptureDialogProps {
   isOpen: boolean;
@@ -93,6 +94,16 @@ export const DeviceCaptureDialog: React.FC<DeviceCaptureDialogProps> = ({
     when: () => isOpen && !!capturedImagePath,
     onKeyDown: () => {
       void handleUseImage();
+    },
+  });
+
+  useShortcut({
+    id: `device-capture-cancel-${shortcutInstanceId}`,
+    combo: "escape",
+    scope: "modal",
+    when: () => isOpen,
+    onKeyDown: () => {
+      onClose();
     },
   });
 
@@ -213,26 +224,17 @@ export const DeviceCaptureDialog: React.FC<DeviceCaptureDialogProps> = ({
         </div>
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 16px", borderTop: "1px solid #d1d8e0" }}>
-        <Button onClick={onClose}>{t("dialog.cancel")}</Button>
-        <Button
+        <ShortcutButton onClick={onClose} shortcutText="Esc">
+          {t("dialog.cancel")}
+        </ShortcutButton>
+        <ShortcutButton
           intent="primary"
           onClick={handleUseImage}
           disabled={!capturedImagePath}
+          shortcutText={capturedImagePath ? "Enter" : undefined}
         >
           {t("fileDialog.useThisImage")}
-          {capturedImagePath && (
-            <span style={{
-              marginLeft: 8,
-              padding: "2px 6px",
-              background: "rgba(255,255,255,0.2)",
-              borderRadius: 3,
-              fontSize: 11,
-              fontFamily: "monospace",
-            }}>
-              Enter
-            </span>
-          )}
-        </Button>
+        </ShortcutButton>
       </div>
     </Dialog>
   );

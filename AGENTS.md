@@ -80,6 +80,22 @@ useShortcutScope("modal", modalOpen);
 
 #### 常见模式
 
+**带快捷键角标的按钮**
+
+对话框中如果按钮存在明确快捷键（例如 Enter / Esc），优先使用 `ShortcutButton` 显示角标，避免在业务组件里重复手写样式。
+
+```tsx
+import { ShortcutButton } from "../ui/components/ShortcutButton";
+
+<ShortcutButton
+  intent="primary"
+  onClick={handleConfirm}
+  shortcutText="Enter"
+>
+  {t("dialog.confirm")}
+</ShortcutButton>
+```
+
 **对话框内快捷键**
 
 ```tsx
@@ -115,6 +131,6 @@ useShortcut({
 #### 注意事项
 
 1. **id 必须唯一**：重复的 id 会抛出错误
-2. **combo 冲突**：同一作用域内相同 combo 会抛出错误
+2. **combo 冲突**：`editor` / `menu` / `palette` 仍保持严格冲突校验；`modal` 允许多个可见弹窗共存，由后注册的绑定在运行时优先生效
 3. **when 函数**：使用 `() => condition` 而非 `condition`，确保响应式更新
 4. **输入框兼容**：默认在输入框内不触发，需要时设置 `allowInInput: true`
