@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Button, Dialog, HTMLSelect, InputGroup, Spinner, NonIdealState } from "@blueprintjs/core";
 import { useTranslation } from "react-i18next";
 import { listAdbDevices, captureAdbScreenshot, AdbDevice } from "../../../api/device";
 import { fetchImageAsFile } from "../../../api/fs";
-import { useShortcuts } from "../../../shortcuts/shortcutManager";
+import { useShortcut } from "../../../shortcuts/shortcutManager";
 
 export interface DeviceCaptureDialogProps {
   isOpen: boolean;
@@ -25,6 +25,7 @@ export const DeviceCaptureDialog: React.FC<DeviceCaptureDialogProps> = ({
   const [capturedImagePath, setCapturedImagePath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hasAutoCaptured = useRef(false);
+  const shortcutInstanceId = useId();
 
   const loadDevices = useCallback(async () => {
     setIsLoadingDevices(true);
@@ -85,15 +86,15 @@ export const DeviceCaptureDialog: React.FC<DeviceCaptureDialogProps> = ({
     }
   }, [isOpen, loadDevices]);
 
-  useShortcuts(isOpen ? [{
-    id: "device-capture-use-image",
+  useShortcut({
+    id: `device-capture-use-image-${shortcutInstanceId}`,
     combo: "enter",
     scope: "modal",
     when: () => isOpen && !!capturedImagePath,
     onKeyDown: () => {
       void handleUseImage();
     },
-  }] : []);
+  });
 
   useEffect(() => {
     if (

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { Button, Classes, Dialog, HTMLSelect, InputGroup, Intent } from "@blueprintjs/core";
 import i18n from "../i18n";
+import { useShortcuts } from "../shortcuts/shortcutManager";
 
 export interface MessageBoxButton<TValue extends string = string> {
   value: TValue;
@@ -119,6 +120,23 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [queue, setQueue] = useState<PendingMessageBoxRequest[]>([]);
   const current = queue[0] ?? null;
 
+  const binaryShortcutTargets = useMemo(() => {
+    if (!current || current.options.buttons.length !== 2) {
+      return null;
+    }
+    const [confirmButton, cancelButton] = current.options.buttons;
+    const isSupportedPair =
+      (confirmButton.value === "yes" && cancelButton.value === "no") ||
+      (confirmButton.value === "confirm" && cancelButton.value === "cancel");
+    if (!isSupportedPair) {
+      return null;
+    }
+    return {
+      confirm: confirmButton,
+      cancel: cancelButton,
+    };
+  }, [current]);
+
   const settleCurrent = useCallback((value: string) => {
     setQueue((prev) => {
       const [head, ...rest] = prev;
@@ -129,6 +147,33 @@ export const MessageBoxProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return rest;
     });
   }, []);
+
+  useShortcuts(
+    current && binaryShortcutTargets
+      ? [
+          {
+            id: "message-box.confirm-by-enter",
+            scope: "modal",
+            combo: "enter",
+            allowInInput: true,
+            when: () => !!current && !binaryShortcutTargets.confirm.disabled,
+            onKeyDown: () => {
+              settleCurrent(binaryShortcutTargets.confirm.value);
+            },
+          },
+          {
+            id: "message-box.cancel-by-escape",
+            scope: "modal",
+            combo: "escape",
+            allowInInput: true,
+            when: () => !!current && !binaryShortcutTargets.cancel.disabled,
+            onKeyDown: () => {
+              settleCurrent(binaryShortcutTargets.cancel.value);
+            },
+          },
+        ]
+      : [],
+  );
 
   const show = useCallback(
     <TValue extends string = string>(options: MessageBoxOptions<TValue>): Promise<TValue> => {

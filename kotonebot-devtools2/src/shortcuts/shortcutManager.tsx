@@ -240,6 +240,7 @@ export const ShortcutProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     for (const phase of phases) {
       const conflictKey = toConflictKey(binding.scope, phase, parsed);
+      const allowModalCoexistence = binding.scope === "modal";
       for (const registered of bindingsRef.current.values()) {
         if (registered.binding.id === binding.id) {
           continue;
@@ -255,7 +256,7 @@ export const ShortcutProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           continue;
         }
         const otherConflictKey = toConflictKey(registered.binding.scope, phase, registered.parsed);
-        if (otherConflictKey === conflictKey) {
+        if (otherConflictKey === conflictKey && !allowModalCoexistence) {
           throw new Error(
             `Shortcut conflict in scope '${binding.scope}' for combo '${binding.combo}' (${phase}): '${binding.id}' and '${registered.binding.id}'`,
           );
