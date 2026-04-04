@@ -8,6 +8,7 @@ from adbutils.errors import AdbError
 from kotonebot.client.host.adb_common import CommonAdbCreateDeviceMixin
 from kotonebot.client.host.protocol import AdbHostConfig
 from kotonebot.client.implements.adb import AdbImpl
+from kotonebot.client.implements.scrcpy import ScrcpyConfig
 
 
 class FakeAdbInstance(CommonAdbCreateDeviceMixin):
@@ -104,6 +105,29 @@ class TestCommonAdbCreateDeviceMixin(unittest.TestCase):
 
         mock_adb_impl.assert_called_once_with(connection, display_id=7)
         device.setup.assert_called_once_with(screenshot=impl, touch=impl, commands=impl)
+        self.assertIs(result, device)
+
+    def test_create_device_builds_scrcpy_impl_from_scrcpy_config(self):
+        instance = FakeAdbInstance()
+        config = ScrcpyConfig(timeout=5, server_jar_path='scrcpy-server-v3.3.1.jar', server_version='3.3.1')
+        connection = object()
+        device = MagicMock()
+        impl = MagicMock()
+
+        with (
+            patch('kotonebot.client.host.adb_common.connect_adb', return_value=connection),
+            patch('kotonebot.client.host.adb_common.AndroidDevice', return_value=device),
+            patch('kotonebot.client.implements.scrcpy.ScrcpyImpl', return_value=impl) as mock_scrcpy_impl,
+        ):
+            result = instance.create_device('scrcpy', config)
+
+        mock_scrcpy_impl.assert_called_once_with(connection, config)
+        device.setup.assert_called_once_with(
+            screenshot=impl,
+            touch=impl,
+            multitouch=impl,
+            commands=impl,
+        )
         self.assertIs(result, device)
 
 

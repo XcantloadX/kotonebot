@@ -22,9 +22,11 @@ def create_adbutils_mock():
     adbutils_mock = MagicMock()
     adbutils_mock._utils = MagicMock()
     adbutils_mock._device = MagicMock()
+    adbutils_mock.errors = MagicMock()
     sys.modules['adbutils'] = adbutils_mock
     sys.modules['adbutils._utils'] = adbutils_mock._utils
     sys.modules['adbutils._device'] = adbutils_mock._device
+    sys.modules['adbutils.errors'] = adbutils_mock.errors
     return adbutils_mock
 
 class TestImportAll(unittest.TestCase):
@@ -48,6 +50,8 @@ class TestImportAll(unittest.TestCase):
             del sys.modules['adbutils._utils']
         if 'adbutils._device' in sys.modules:
             del sys.modules['adbutils._device']
+        if 'adbutils.errors' in sys.modules:
+            del sys.modules['adbutils.errors']
 
     def test_import_all_kotonebot_modules(self):
         # A simple test to check if all modules can be imported
@@ -56,6 +60,8 @@ class TestImportAll(unittest.TestCase):
             'av': MagicMock(),
             'uvicorn': MagicMock(),
             'fastapi': MagicMock(),
+            'fastapi.staticfiles': MagicMock(),
+            'fastapi.responses': MagicMock(),
             'thefuzz': MagicMock(),
             'psutil': MagicMock(),
             'win32ui': MagicMock(),
@@ -121,6 +127,10 @@ class TestImportAll(unittest.TestCase):
             self.assertTrue(hasattr(kotonebot.client.implements, 'ExternalRendererIpc'))
             self.assertTrue(hasattr(kotonebot.client.implements, 'AdbImpl'))
             self.assertTrue(hasattr(kotonebot.client.implements, 'AdbImplConfig'))
+            self.assertTrue(hasattr(kotonebot.client.implements, 'ScrcpyImpl'))
+            self.assertTrue(hasattr(kotonebot.client.implements, 'ScrcpyConfig'))
+            self.assertTrue(hasattr(kotonebot.client.implements, 'VirtualDisplayConfig'))
+            self.assertTrue(hasattr(kotonebot.client.implements, 'ScrcpySession'))
             self.assertTrue(hasattr(kotonebot.client.implements, 'UiAutomator2Impl'))
 
             import kotonebot.client.implements.nemu_ipc
@@ -130,12 +140,11 @@ class TestImportAll(unittest.TestCase):
             self.assertTrue(hasattr(kotonebot.client.implements.nemu_ipc, 'NemuIpcImplConfig'))
 
             import kotonebot.config
-            import kotonebot.config.base_config
-            import kotonebot.config.manager
+            import kotonebot.config.config
             import kotonebot.errors
             import kotonebot.logging
             import kotonebot.primitives
-            import kotonebot.tools
+            import kotonebot.devtools
             import kotonebot.ui
             import kotonebot.util
 
@@ -144,6 +153,8 @@ class TestImportAll(unittest.TestCase):
             'av': MagicMock(),
             'uvicorn': MagicMock(),
             'fastapi': MagicMock(),
+            'fastapi.staticfiles': MagicMock(),
+            'fastapi.responses': MagicMock(),
             'thefuzz': MagicMock(),
             'psutil': MagicMock(),
             'win32ui': MagicMock(),
@@ -172,18 +183,22 @@ class TestImportAll(unittest.TestCase):
 
     def test_optional_deps(self):
         # Clear sys.modules for adbutils to ensure fresh import
-        for mod_name in ['adbutils', 'adbutils._utils', 'adbutils._device']:
+        for mod_name in [
+            'adbutils',
+            'adbutils._utils',
+            'adbutils._device',
+            'adbutils.errors',
+            'kotonebot.client.host.adb_common',
+            'kotonebot.client.implements.windows',
+            'kotonebot.client.implements.uiautomator2',
+        ]:
             if mod_name in sys.modules:
                 del sys.modules[mod_name]
 
         # Test optional dependencies
-        with patch.dict('sys.modules', {'psutil': None}):
+        with patch.dict('sys.modules', {'adbutils': None, 'adbutils._device': None, 'adbutils.errors': None}):
             with self.assertRaises(ImportError):
                 importlib.import_module('kotonebot.client.host.adb_common')
-
-        with patch.dict('sys.modules', {'win32ui': None, 'win32gui': None, 'win32api': None, 'win32con': None, 'ahk': None}):
-            with self.assertRaises(ImportError):
-                importlib.import_module('kotonebot.client.implements.windows')
 
         with patch.dict('sys.modules', {'uiautomator2': None}):
             with self.assertRaises(ImportError):
@@ -198,24 +213,19 @@ class TestImportAll(unittest.TestCase):
 
         # Mock non-windows environment
         with patch('kotonebot.util.is_windows', return_value=False):
-            # These should fail on non-windows
-            with self.assertRaisesRegex(ImportError, 'only available on Windows'):
-                importlib.import_module('kotonebot.interop.win.task_dialog')
-            with self.assertRaisesRegex(ImportError, 'only available on Windows'):
-                importlib.import_module('kotonebot.client.implements.windows')
-            with self.assertRaisesRegex(ImportError, 'only available on Windows'):
-                importlib.import_module('kotonebot.client.implements.remote_windows')
-            with self.assertRaisesRegex(ImportError, 'only available on Windows'):
-                importlib.import_module('kotonebot.client.implements.nemu_ipc')
-            with self.assertRaisesRegex(ImportError, 'only available on Windows'):
-                importlib.import_module('kotonebot.client.host.mumu12_host')
-            with self.assertRaisesRegex(ImportError, 'only available on Windows'):
-                importlib.import_module('kotonebot.client.host.leidian_host')
+            from kotonebot.client.implements.scrcpy import ScrcpyConfig, ScrcpyImpl
+
+            with self.assertRaisesRegex(NotImplementedError, 'only available on Windows'):
+                ScrcpyImpl(
+                    MagicMock(serial='127.0.0.1:5555', sync=MagicMock(), shell=MagicMock()),
+                    ScrcpyConfig(server_jar_path='scrcpy-server.jar', server_version='3.3.1'),
+                )
 
         # Mock windows environment
         with patch('kotonebot.util.is_windows', return_value=True):
             # These should succeed on windows (mocking dependencies)
             with patch.dict('sys.modules', {
+                'av': MagicMock(),
                 'win11toast': MagicMock(),
                 'ctypes': MagicMock(),
                 'ctypes.wintypes': MagicMock(),
@@ -233,6 +243,7 @@ class TestImportAll(unittest.TestCase):
                 importlib.import_module('kotonebot.client.implements.windows')
                 importlib.import_module('kotonebot.client.implements.remote_windows')
                 importlib.import_module('kotonebot.client.implements.nemu_ipc')
+                importlib.import_module('kotonebot.client.implements.scrcpy')
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,6 +3,7 @@
 Library:
 1. [feat] **BREAKING** 移除 fuzz OCR 文本匹配算法，以及 thefuzz 库的依赖。
 2. [feat] AdbImpl 支持多显示器，可以指定需要操控的显示器 ID。
+3. [feat] 支持 scrcpy 截图与控制方法
 
 Devtool：
 1. [feat] 新增最近打开文件功能

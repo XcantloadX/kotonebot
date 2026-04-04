@@ -120,7 +120,10 @@ class AdbImpl(AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver):
         # required by "screencap -d".
         # Source:
         # https://android.googlesource.com/platform/frameworks/base/+/master/cmds/screencap/screencap.cpp
-        image = self.adb.screenshot(display_id=self.display_id, error_ok=False)
+        try:
+            image = self.adb.screenshot(display_id=self.display_id, error_ok=False)
+        except AdbError as exc:
+            raise AdbError(self._format_message(str(exc))) from exc
         return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     def click(self, x: int, y: int) -> None:

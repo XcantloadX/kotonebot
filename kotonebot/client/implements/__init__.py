@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .adb import AdbImpl, AdbImplConfig
+    from .scrcpy import ScrcpyImpl, ScrcpyConfig, VirtualDisplayConfig, ScrcpySession
     from .uiautomator2 import UiAutomator2Impl
     from .windows import WindowsImpl, WindowsImplConfig
     from .remote_windows import RemoteWindowsImpl, RemoteWindowsImplConfig, RemoteWindowsServer
@@ -22,6 +23,11 @@ def _require_adb():
     
     from .adb import AdbImpl, AdbImplConfig
 
+def _require_scrcpy():
+    global ScrcpyImpl, ScrcpyConfig, VirtualDisplayConfig, ScrcpySession
+
+    from .scrcpy import ScrcpyImpl, ScrcpyConfig, VirtualDisplayConfig, ScrcpySession
+
 def _require_uiautomator2():
     global UiAutomator2Impl
     
@@ -35,6 +41,9 @@ _IMPORT_NAMES = [
     ]),
     (_require_adb, [
         'AdbImpl', 'AdbImplConfig',
+    ]),
+    (_require_scrcpy, [
+        'ScrcpyImpl', 'ScrcpyConfig', 'VirtualDisplayConfig', 'ScrcpySession',
     ]),
     (_require_uiautomator2, [
         'UiAutomator2Impl'
@@ -59,5 +68,6 @@ __all__ = [
     'NemuIpcImpl', 'NemuIpcImplConfig', 'ExternalRendererIpc',
     # android
     'AdbImpl', 'AdbImplConfig',
+    'ScrcpyImpl', 'ScrcpyConfig', 'VirtualDisplayConfig', 'ScrcpySession',
     'UiAutomator2Impl'
 ]

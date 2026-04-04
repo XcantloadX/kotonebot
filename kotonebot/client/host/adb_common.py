@@ -14,7 +14,7 @@ from kotonebot.client.device import AndroidDevice
 from .protocol import AdbHostConfig, Device
 
 logger = logging.getLogger(__name__)
-AdbRecipes = Literal['adb', 'uiautomator2']
+AdbRecipes = Literal['adb', 'uiautomator2', 'scrcpy']
 
 def is_adb_recipe(recipe: Any) -> TypeGuard[AdbRecipes]:
     return recipe in get_args(AdbRecipes)
@@ -123,6 +123,18 @@ class CommonAdbCreateDeviceMixin(ABC):
                 from kotonebot.client.implements.adb import AdbImpl
                 impl = UiAutomator2Impl(connection)
                 d.setup(screenshot=impl, touch=impl, commands=AdbImpl(connection, display_id=config.display_id))
+            case 'scrcpy':
+                from kotonebot.client.implements.scrcpy import ScrcpyConfig, ScrcpyImpl
+
+                if not isinstance(config, ScrcpyConfig):
+                    raise ValueError(f"Expected ScrcpyConfig for 'scrcpy' recipe, got {type(config)}")
+                impl = ScrcpyImpl(connection, config)
+                d.setup(
+                    screenshot=impl,
+                    touch=impl,
+                    multitouch=impl,
+                    commands=impl,
+                )
             case _:
                 assert_never(f'Unsupported ADB recipe: {recipe}')
         return d

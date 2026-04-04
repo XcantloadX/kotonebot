@@ -30,6 +30,7 @@ dependencies = [
 android = [
     "adbutils>=2.8",
     "uiautomator2>=3.2",
+    "av>=14.0",
 ]
 
 # Windows platform dependencies

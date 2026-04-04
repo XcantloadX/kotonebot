@@ -140,7 +140,7 @@ class Mumu12Host(HostProtocol[MuMu12Recipes]):
 
     @staticmethod
     def recipes() -> 'list[MuMu12Recipes]':
-        return ['adb', 'uiautomator2', 'nemu_ipc']
+        return ['adb', 'uiautomator2', 'scrcpy', 'nemu_ipc']
 
 class Mumu12Instance(CommonAdbCreateDeviceMixin, Instance[MuMu12HostConfig]):
     HostClass: 'type[Mumu12Host]' = Mumu12Host

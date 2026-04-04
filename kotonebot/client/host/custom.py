@@ -108,7 +108,7 @@ class CustomHost(HostProtocol[CustomRecipes]):
 
     @staticmethod
     def recipes() -> 'list[CustomRecipes]':
-        return ['adb', 'uiautomator2']
+        return ['adb', 'uiautomator2', 'scrcpy']
 
 if __name__ == '__main__':
     ins = create(r'C:\Program Files\BlueStacks_nxt\HD-Player.exe', '127.0.0.1', 5555, '**emulator-name**')

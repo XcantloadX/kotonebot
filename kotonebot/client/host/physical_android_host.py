@@ -95,5 +95,5 @@ class PhysicalAndroidHost(HostProtocol[PhysicalAndroidRecipes]):
         return None
 
     @staticmethod
-    def recipes() -> 'list[Literal["adb", "uiautomator2"]]':
-        return ['adb', 'uiautomator2']
+    def recipes() -> 'list[Literal["adb", "uiautomator2", "scrcpy"]]':
+        return ['adb', 'uiautomator2', 'scrcpy']
