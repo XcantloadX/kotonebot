@@ -367,11 +367,16 @@ class KotoneV1Parser(SchemaParser):
                     if include_base_variant:
                         variant_keys = [raw_base_variant, *variant_keys]
                     base_policy = variant_group.base.definition.variant_policy or {}
+                    ignore_error = context.get('ignore_error', False)
                     for variant in variant_keys:
                         merged_key = "" if variant == raw_base_variant else variant
                         if merged_key not in variant_group.merged:
                             # In v3, exclude means this variant intentionally has no merged output.
                             if merged_key != "" and base_policy.get(variant) == "exclude":
+                                continue
+                            if ignore_error:
+                                print(f'WARN: missing merged variant "{variant}" for prefab "{name}"')
+                                # Skip missing variant and continue with next variant
                                 continue
                             raise ValueError(f"missing merged variant '{variant}' for prefab '{name}'")
                         merged_definition = variant_group.merged[merged_key]

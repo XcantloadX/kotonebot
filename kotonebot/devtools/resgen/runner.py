@@ -1,6 +1,7 @@
 import os
 import shutil
 from typing import Callable
+import traceback
 
 from pydantic import BaseModel
 from rich.progress import (
@@ -72,6 +73,7 @@ def generate_resources(
         raise ValueError(f"resgen aborted due to {error_count} error(s)")
 
     context = runtime_context.parser_context
+    context['ignore_error'] = ignore_error
     root_scan_path = context["root_scan_path"]
 
     registry = ParserRegistry()
@@ -87,7 +89,15 @@ def generate_resources(
         for file_path in all_files:
             if file_path.endswith(".png") and os.path.exists(file_path + ".json"):
                 continue
-            parsed_resources = registry.parse_file(file_path, context)
+            try:
+                parsed_resources = registry.parse_file(file_path, context)
+            except Exception:
+                if not ignore_error:
+                    raise
+                else:
+                    trace = traceback.format_exc()
+                    print('WARN: Failed to parse file "{}":\n{}'.format(file_path, trace))
+                    continue
             if not parsed_resources:
                 continue
             parsed_file_count += 1
@@ -113,7 +123,16 @@ def generate_resources(
                 if file_path.endswith(".png") and os.path.exists(file_path + ".json"):
                     progress.advance(task_id)
                     continue
-                parsed_resources = registry.parse_file(file_path, context)
+                try:
+                    parsed_resources = registry.parse_file(file_path, context)
+                except Exception:
+                    if not ignore_error:
+                        raise
+                    else:
+                        trace = traceback.format_exc()
+                        print('WARN: Failed to parse file "{}":\n{}'.format(file_path, trace))
+                        progress.advance(task_id)
+                        continue
                 if parsed_resources:
                     parsed_file_count += 1
                     all_resources.extend(parsed_resources)
