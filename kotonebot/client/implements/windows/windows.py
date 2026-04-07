@@ -137,7 +137,7 @@ class WindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
         saveDC.SelectObject(saveBitMap)
 
         # 截图整个屏幕
-        result = windll.gdi32.BitBlt(saveDC.GetSafeHdc(), 0, 0, w, h, mfcDC.GetSafeHdc(), left, top, 0x00CC0020)
+        result = ctypes.windll.gdi32.BitBlt(saveDC.GetSafeHdc(), 0, 0, w, h, mfcDC.GetSafeHdc(), left, top, 0x00CC0020)
 
         # 将截图转换为OpenCV格式
         bmpinfo = saveBitMap.GetInfo()
