@@ -1,26 +1,136 @@
 import os
-from typing import Any, List, Callable
+from typing import Any, List, Callable, Protocol
 
 from .core import CodeWriter, ClassNode, ResourceNode, ImageAsset, BoxData, RectData, PointData, PrefabData
 from .utils import to_camel_case, unify_path
+
+
+class RenderContext:
+    """渲染时传递给自定义资源渲染器的辅助对象。"""
+
+    def __init__(self, generator: "StandardGenerator", attr: ResourceNode):
+        self.generator = generator
+        self.attr = attr
+
+    @property
+    def writer(self) -> CodeWriter:
+        return self.generator.writer
+
+    def write(self, text: str) -> None:
+        self.writer.write(text)
+
+    def write_empty_line(self) -> None:
+        self.writer.write_empty_line()
+
+    def path_expr(self, original_path: str, default_expr: str) -> str:
+        return self.generator._transform_path(original_path, default_expr)
+
+
+class PathPolicy(Protocol):
+    """生成图片引用的路径表达式策略。"""
+
+    def transform_path(
+        self,
+        original_path: str,
+        default_expr: str,
+        *,
+        generator: "StandardGenerator",
+    ) -> str:
+        ...
+
+
+class DocstringPolicy(Protocol):
+    """文档字符串渲染策略。
+    
+    如果策略处理了输出，返回 True 以跳过默认的文档字符串渲染。
+    """
+
+    def render_docstring(self, attr: ResourceNode, *, generator: "StandardGenerator") -> bool:
+        ...
+
+
+class ResourceRenderer(Protocol):
+    """资源节点的自定义属性渲染器。"""
+
+    id: str
+    render_docstring: bool
+
+    def match(self, attr: ResourceNode, *, generator: "StandardGenerator") -> bool:
+        ...
+
+    def render(self, context: RenderContext) -> None:
+        ...
+
+
+class RendererRegistry:
+    """自定义资源渲染器的注册表。
+    
+    渲染器按注册顺序的逆序进行匹配，这样后注册的渲染器可以覆盖先注册的，
+    而不需要替换所有默认渲染器。
+    """
+
+    def __init__(self):
+        self._renderers: list[ResourceRenderer] = []
+        self._renderer_indexes: dict[str, int] = {}
+
+    def register(self, renderer: ResourceRenderer, *, replace: bool = False) -> None:
+        renderer_id = renderer.id
+        if renderer_id in self._renderer_indexes:
+            if not replace:
+                raise ValueError(f"Renderer '{renderer_id}' already registered")
+            index = self._renderer_indexes[renderer_id]
+            self._renderers[index] = renderer
+            return
+        self._renderer_indexes[renderer_id] = len(self._renderers)
+        self._renderers.append(renderer)
+
+    def resolve(self, attr: ResourceNode, *, generator: "StandardGenerator") -> ResourceRenderer | None:
+        for renderer in reversed(self._renderers):
+            if renderer.match(attr, generator=generator):
+                return renderer
+        return None
 
 class StandardGenerator:
     """标准 Python 生成器基类"""
     
     def __init__(self, production: bool = False, ide_type: str | None = None,
-                 path_transformer: Callable[[str], str] | None = None):
+                 path_transformer: Callable[[str], str] | None = None,
+                 renderer_registry: RendererRegistry | None = None,
+                 path_policy: PathPolicy | None = None,
+                 docstring_policy: DocstringPolicy | None = None):
         self.writer = CodeWriter()
         self.production = production
         self.ide_type = ide_type
         self.path_transformer = path_transformer
+        self.renderer_registry = renderer_registry or RendererRegistry()
+        self.path_policy = path_policy
+        self.docstring_policy = docstring_policy
+
+    def register_renderer(self, renderer: ResourceRenderer, *, replace: bool = False) -> None:
+        self.renderer_registry.register(renderer, replace=replace)
+
+    def _render_with_custom_renderer(self, attr: ResourceNode) -> bool:
+        renderer = self.renderer_registry.resolve(attr, generator=self)
+        if renderer is None:
+            return False
+
+        renderer.render(RenderContext(generator=self, attr=attr))
+        if not self.production and getattr(renderer, "render_docstring", True):
+            self.render_docstring(attr)
+        return True
 
     def _transform_path(self, original_path: str, default_expr: str) -> str:
-        """Return the code expression for the image path.
-
-        If `path_transformer` is provided, call it with the original path and
-        use its return value verbatim as the expression to emit. Otherwise
-        fall back to `default_expr`.
+        """返回图片路径的代码表达式。
+        
+        如果提供了 `path_transformer`，则使用原始路径调用它，
+        并将其返回值原样作为要生成的表达式。否则回退到 `default_expr`。
         """
+        if self.path_policy:
+            return self.path_policy.transform_path(
+                original_path,
+                default_expr,
+                generator=self,
+            )
         if self.path_transformer:
             return self.path_transformer(original_path)
         return default_expr
@@ -63,6 +173,9 @@ class StandardGenerator:
 
     def render_attribute(self, attr: ResourceNode):
         """渲染单个属性。根据 attr.value 的 IR 类型生成对应的代码字符串。"""
+        if self._render_with_custom_renderer(attr):
+            return
+
         val = attr.value
         code_str = ""
 
@@ -96,6 +209,9 @@ class StandardGenerator:
 
     def render_docstring(self, attr: ResourceNode):
         """渲染 Docstring，包含图片标签生成逻辑"""
+        if self.docstring_policy and self.docstring_policy.render_docstring(attr, generator=self):
+            return
+
         w = self.writer
         base_doc = attr.docstring
         
@@ -146,9 +262,19 @@ class EntityGenerator(StandardGenerator):
         production: bool = False,
         ide_type: str | None = None,
         path_transformer: Callable[[str], str] | None = None,
+        renderer_registry: RendererRegistry | None = None,
+        path_policy: PathPolicy | None = None,
+        docstring_policy: DocstringPolicy | None = None,
         default_variant: str = "",
     ):
-        super().__init__(production=production, ide_type=ide_type, path_transformer=path_transformer)
+        super().__init__(
+            production=production,
+            ide_type=ide_type,
+            path_transformer=path_transformer,
+            renderer_registry=renderer_registry,
+            path_policy=path_policy,
+            docstring_policy=docstring_policy,
+        )
         if not isinstance(default_variant, str):
             raise ValueError("default_variant must be str")
         self.default_variant = default_variant
@@ -181,6 +307,9 @@ class EntityGenerator(StandardGenerator):
         核心分发逻辑：
         根据 ResourceNode 携带的 value 类型，决定生成策略。
         """
+        if self._render_with_custom_renderer(attr):
+            return
+
         data = attr.value
 
         if isinstance(data, ImageAsset):

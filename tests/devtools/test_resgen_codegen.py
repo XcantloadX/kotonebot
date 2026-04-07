@@ -2,7 +2,7 @@
 
 import unittest
 
-from kotonebot.devtools.resgen.codegen import EntityGenerator, StandardGenerator
+from kotonebot.devtools.resgen.codegen import EntityGenerator, RenderContext, RendererRegistry, StandardGenerator
 from kotonebot.devtools.resgen.core import ClassNode, ResourceNode
 from kotonebot.devtools.resgen.core import BoxData, ImageAsset, PointData, PrefabData, RectData
 
@@ -502,6 +502,83 @@ class TestEntityGenerator(unittest.TestCase):
         out = gen.generate([node])
         self.assertIn("class MapButton(TemplateMatchPrefab):", out)
         self.assertIn("region = Rect(x=10, y=20, w=190, h=280)", out)
+
+
+class TestGeneratorExtensibility(unittest.TestCase):
+    def test_custom_renderer_can_override_attribute_rendering(self):
+        class CustomRenderer:
+            id = "custom-unknown"
+            render_docstring = False
+
+            def match(self, attr: ResourceNode, *, generator: StandardGenerator) -> bool:
+                return attr.name == "Unknown"
+
+            def render(self, context: RenderContext) -> None:
+                context.write(f"{context.attr.name} = custom_expr()")
+
+        registry = RendererRegistry()
+        registry.register(CustomRenderer())
+
+        gen = StandardGenerator(production=True, renderer_registry=registry)
+        node = ClassNode(
+            name="Root",
+            attributes=[ResourceNode(name="Unknown", type="unknown", value="abc")],
+        )
+
+        out = gen.generate([node])
+        self.assertIn("Unknown = custom_expr()", out)
+        self.assertNotIn("Unknown = abc", out)
+
+    def test_path_policy_overrides_path_transformer(self):
+        class Policy:
+            def transform_path(
+                self,
+                original_path: str,
+                default_expr: str,
+                *,
+                generator: StandardGenerator,
+            ) -> str:
+                _ = default_expr
+                return f'asset_ref("{original_path}")'
+
+        gen = StandardGenerator(
+            production=True,
+            path_transformer=lambda _: 'legacy_transform("ignored")',
+            path_policy=Policy(),
+        )
+
+        attr = ResourceNode(
+            name="Btn",
+            type="template",
+            value=ImageAsset(path="assets/btn.png", rect=None),
+            metadata={"display_name": "Btn"},
+        )
+
+        gen.render_attribute(attr)
+        out = gen.writer.get_content()
+        self.assertIn('file_path=asset_ref("assets/btn.png")', out)
+        self.assertNotIn("legacy_transform", out)
+
+    def test_docstring_policy_can_replace_default_docstring(self):
+        class Policy:
+            def render_docstring(self, attr: ResourceNode, *, generator: StandardGenerator) -> bool:
+                generator.writer.write('"""custom doc"""')
+                return True
+
+        gen = StandardGenerator(production=False, docstring_policy=Policy())
+        attr = ResourceNode(
+            name="Answer",
+            type="unknown",
+            value="42",
+            docstring="Original doc",
+            metadata={"abs_path": "/tmp/a.png"},
+        )
+
+        gen.render_attribute(attr)
+        out = gen.writer.get_content()
+        self.assertIn('"""custom doc"""', out)
+        self.assertNotIn("Original doc", out)
+        self.assertNotIn("<img", out)
 
 
 if __name__ == '__main__':

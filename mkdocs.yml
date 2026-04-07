@@ -47,6 +47,9 @@ nav:
   - 首页: index.md
   - 教程:
       - 教程总览: tutorials/index.md
+      - 资源生成自定义: tutorials/RESOURCE.md
+  - 架构:
+      - 资源生成: architecture/resource-generation.md
   - 开发:
       - 开发指南: DEVELOPMENT.md
   - API:

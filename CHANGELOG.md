@@ -8,6 +8,7 @@ Library:
 Devtool：
 1. [feat] 新增最近打开文件功能
 2. [feat] 新增符号树视图，可以查看整个项目的符号
+3. [feat] 优化扩展 resgen 的自定义能力，现在可以通过 API 自定义某种资源类型的渲染方式
 
 ## v0.12.0
 Library:

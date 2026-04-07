@@ -4,6 +4,12 @@ from .resgen import (
     ClassNode,
     SchemaParser,
     StandardGenerator,
+    EntityGenerator,
+    RenderContext,
+    PathPolicy,
+    DocstringPolicy,
+    ResourceRenderer,
+    RendererRegistry,
     ParserRegistry,
     KotoneV1Parser,
     BasicSpriteParser,
@@ -24,6 +30,12 @@ __all__ = [
 
     # generator
     "StandardGenerator",
+    "EntityGenerator",
+    "RenderContext",
+    "PathPolicy",
+    "DocstringPolicy",
+    "ResourceRenderer",
+    "RendererRegistry",
 
     # parsers
     "ParserRegistry",
