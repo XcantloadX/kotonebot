@@ -1,5 +1,8 @@
 # KotoneBot Development Guide
 
+## Style
+* 在改动或重构时，不可以删除原来用户的注释。除非相关代码已经被移除。如果代码逻辑变动，则需要一并修改注释内容
+
 ## Frontend (kotonebot-devtools2)
 
 ### 快捷键系统
