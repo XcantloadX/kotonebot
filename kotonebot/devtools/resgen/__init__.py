@@ -1,33 +1,40 @@
+from importlib import import_module
+from typing import TYPE_CHECKING
+
+from .codegen import (
+    DocstringPolicy,
+    EntityGenerator,
+    PathPolicy,
+    RenderContext,
+    RendererRegistry,
+    ResourceRenderer,
+    StandardGenerator,
+)
 from .core import (
+    ClassNode,
     CodeWriter,
     ResourceNode,
-    ClassNode,
     SchemaParser,
 )
-from .codegen import (
-    StandardGenerator,
-    EntityGenerator,
-    RenderContext,
-    PathPolicy,
-    DocstringPolicy,
-    ResourceRenderer,
-    RendererRegistry,
-)
 from .parsers import (
-    ParserRegistry,
-    KotoneV1Parser,
     BasicSpriteParser,
-)
-from .runner import (
-    ResgenGenerateResult,
-    generate_resources,
+    KotoneV1Parser,
+    ParserRegistry,
 )
 from .utils import (
+    ImageProcessor,
+    build_class_tree,
     to_camel_case,
     unify_path,
-    build_class_tree,
-    ImageProcessor,
 )
+
+if TYPE_CHECKING:
+    from .runner import ResgenGenerateResult, generate_resources
+
+_RUNNER_EXPORTS = [
+    "ResgenGenerateResult",
+    "generate_resources",
+]
 
 __all__ = [
     # core
@@ -60,3 +67,16 @@ __all__ = [
     "build_class_tree",
     "ImageProcessor",
 ]
+
+
+def __getattr__(name: str):
+    if name in _RUNNER_EXPORTS:
+        module = import_module(".runner", __name__)
+        value = getattr(module, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)
