@@ -84,3 +84,14 @@ class CapabilityNotSupportedError(KotonebotError):
 class DeviceAlreadyStartedError(KotonebotError):
     def __init__(self):
         super().__init__('Device lifecycle is already started.')
+
+
+class DeviceThreadMismatchError(KotonebotError):
+    def __init__(self, action: str, owner_thread: str, current_thread: str):
+        self.action = action
+        self.owner_thread = owner_thread
+        self.current_thread = current_thread
+        super().__init__(
+            f'Device lifecycle {action} must be called from the owner thread. '
+            f'owner={owner_thread}, current={current_thread}.'
+        )

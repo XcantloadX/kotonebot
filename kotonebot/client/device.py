@@ -1,3 +1,4 @@
+import threading
 from typing import Callable, Literal, overload, TYPE_CHECKING
 
 import numpy as np
@@ -15,7 +16,7 @@ from kotonebot.config.config import conf
 from kotonebot.primitives.geometry import Size
 from kotonebot.client.input import InputManager
 from kotonebot.primitives import Rect, Point
-from kotonebot.errors import CapabilityNotSupportedError, DeviceAlreadyStartedError
+from kotonebot.errors import CapabilityNotSupportedError, DeviceAlreadyStartedError, DeviceThreadMismatchError
 from .protocol import ClickableObjectProtocol, Commandable, MultiTouchable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable, Lifecycle
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,8 @@ class Device:
 
         此变量用于标识 components（touchable、screenshotable 等）是否已启动。
         """
+        self._lifecycle_thread: threading.Thread | None = None
+        """当前 Device 生命周期启动时所处的线程。"""
 
     @property
     def scaler(self) -> AbstractScaler:
@@ -206,11 +209,14 @@ class Device:
 
     def start(self) -> None:
         """启动设备并初始化组件。
+        
+        :meth:`start` 与 :meth:`stop` 必须在同一线程中调用，否则会抛出异常。
 
         :raises DeviceAlreadyStartedError: 如果设备生命周期已经启动，则抛出异常。
         """
         if self._lifecycle_started:
             raise DeviceAlreadyStartedError()
+        self._lifecycle_thread = threading.current_thread()
         components = self._lifecycle_components()
         started_components: list[Lifecycle] = []
         try:
@@ -220,6 +226,7 @@ class Device:
         except Exception:
             for component in reversed(started_components):
                 component.stop()
+            self._lifecycle_thread = None
             raise
         self._lifecycle_started = True
 
@@ -227,13 +234,28 @@ class Device:
         """停止设备并清理组件。
 
         如果设备生命周期未启动，则此方法不会执行任何操作。
+
+        :meth:`start` 与 :meth:`stop` 必须在同一线程中调用，否则会抛出异常。
+
+        :raises DeviceThreadMismatchError: 如果当前线程与启动生命周期的线程不匹配，则抛出异常。
         """
         if not self._lifecycle_started:
             return
+        current_thread = threading.current_thread()
+        if self._lifecycle_thread is not current_thread:
+            owner_thread_name = self._lifecycle_thread.name if self._lifecycle_thread is not None else 'unknown'
+            raise DeviceThreadMismatchError(
+                action='stop',
+                owner_thread=owner_thread_name,
+                current_thread=current_thread.name,
+            )
         components = self._lifecycle_components()
-        for component in reversed(components):
-            component.stop()
-        self._lifecycle_started = False
+        try:
+            for component in reversed(components):
+                component.stop()
+        finally:
+            self._lifecycle_started = False
+            self._lifecycle_thread = None
 
     def __log(self, message: str, level: LogLevel | None = None, *args):
         """以指定的日志级别输出日志。
