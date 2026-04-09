@@ -7,6 +7,7 @@ Library:
 4. [fix] 修复 WindowsImpl 缺少 windll 导入的问题。
 5. [feat] **BREAKING** `Device` 类的 `start` 与 `stop` 方法现在会进行线程检查，不可以跨线程调用这两个方法。
 6. [fix] 修复导入 TemplateMatchPrefab 与 OcrPrefab 时会自动导入开发依赖 rich 的问题。
+7. [feat] SendMessageImpl 现在可选开启运行时阻止系统休眠的功能，默认开启。
 
 Devtool：
 1. [feat] 新增最近打开文件功能。

@@ -1,6 +1,7 @@
 # ruff: noqa: E402
 from kotonebot.util import windows_only, require_windows
 
+import ctypes
 import time
 from time import sleep
 from typing_extensions import assert_never
@@ -23,12 +24,15 @@ def _load_deps():
     win32gui = _win32gui
     win32con = _win32con
 
-from ...protocol import Touchable, SimpleInputDriver
+from ...protocol import Touchable, SimpleInputDriver, Lifecycle
 from kotonebot.interop.win.window import Win32Window
 if TYPE_CHECKING:
     from ...device import Device
 
 MouseButton = Literal['left', 'right', 'middle']
+ES_CONTINUOUS = 0x80000000
+ES_SYSTEM_REQUIRED = 0x00000001
+ES_DISPLAY_REQUIRED = 0x00000002
 
 def _make_lparam(x: int, y: int) -> int:
     """
@@ -316,12 +320,49 @@ class SendMessageWrapper:
         return self.drag(x, y, end_x, end_y, button=button, duration=duration)
 
 @windows_only('"WindowsImpl" implementation')
-class SendMessageImpl(Touchable, SimpleInputDriver):
-    def __init__(self, device: 'Device', window_title: str, *, wait_cursor_idle: float = -1) -> None:
+class SendMessageImpl(Touchable, SimpleInputDriver, Lifecycle):
+    def __init__(
+        self,
+        device: 'Device',
+        window_title: str,
+        *,
+        wait_cursor_idle: float = -1,
+        keep_system_awake: bool = True
+    ) -> None:
+        """创建一个 SendMessageImpl 实例。
+
+        :param device: 设备实例。
+        :param window_title: 窗口标题。
+        :param wait_cursor_idle: 光标等待时间。默认为 -1 表示使用默认值。
+        :param keep_system_awake: 运行过程中是否阻止系统休眠，默认为 True。
+        """
         _load_deps()
         self.device = device
         window = Win32Window.require_window('title', window_title)
         self.wrapper = SendMessageWrapper(window, wait_cursor_idle)
+        self._started = False
+        self._keep_system_awake = keep_system_awake
+
+    def _set_execution_state(self, state: int) -> None:
+        result = ctypes.windll.kernel32.SetThreadExecutionState(state)
+        if result == 0:
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def start(self) -> None:
+        if self._started:
+            raise RuntimeError("SendMessageImpl lifecycle is already started.")
+        if self._keep_system_awake:
+            self._set_execution_state(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED)
+        self._started = True
+
+    def stop(self) -> None:
+        if not self._started:
+            return
+        try:
+            if self._keep_system_awake:
+                self._set_execution_state(ES_CONTINUOUS)
+        finally:
+            self._started = False
 
     def click(self, x: int, y: int) -> None:
         self.wrapper.click(x, y, button='left')
