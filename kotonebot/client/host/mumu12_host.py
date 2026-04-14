@@ -250,6 +250,31 @@ class Mumu12V5Host(Mumu12Host):
     InstanceClass: 'Type[Mumu12V5Instance]'
 
     @classmethod
+    def check_app_keptlive(cls, instance_id: str) -> bool:
+        """检查某个实例是否开启了 APP 后台保活功能。
+
+        :param instance_id: 实例 ID。
+        :raises RuntimeError: 当无法解析输出时抛出。
+        """
+        output = cls._invoke_manager(['setting', '-v', str(instance_id), '-k', 'app_keptlive'])
+        # {
+        #     "app_keptlive": "false"
+        # }
+        try:
+            data: dict[str, Any] = json.loads(output)
+            result = data.get('app_keptlive', None)
+            if isinstance(result, str):
+                if result.lower() not in ('true', 'false'):
+                    logger.warning('Unexpected app_keptlive value: %s', repr(result))
+                    return False
+                return result.lower() == 'true'
+            else:
+                logger.warning('Unexpected app_keptlive value: %s', repr(result))
+                return False
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f'Failed to parse output: {e}') from e
+
+    @classmethod
     @lru_cache(maxsize=1)
     def _read_install_path(cls) -> str | None:
         r"""
