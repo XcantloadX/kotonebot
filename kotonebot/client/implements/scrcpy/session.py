@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import secrets
+import shlex
 import socket
-import subprocess
 import threading
 import time
 from collections import deque
 from pathlib import Path
+from typing import IO, Protocol, cast
 
 from adbutils._device import AdbDevice as AdbUtilsDevice
 
@@ -19,6 +22,15 @@ logger = logging.getLogger(__name__)
 
 REMOTE_SERVER_PATH = '/data/local/tmp/kotonebot-scrcpy-server.jar'
 SCRCPY_SOCKET_NAME = 'scrcpy'
+
+class _ShellStreamConnection(Protocol):
+    def makefile(self, mode: str, encoding: str | None = None, newline: str | None = None) -> IO[str]: ...
+
+
+class _ShellStreamLike(Protocol):
+    conn: _ShellStreamConnection
+
+    def close(self) -> None: ...
 
 
 class ScrcpySession:
@@ -40,9 +52,11 @@ class ScrcpySession:
         self._started = False
         self._effective_scid: int | None = None
         self._forward_port: int | None = None
-        self._server_process: subprocess.Popen[str] | None = None
+        self._server_stream: _ShellStreamLike | None = None
         self._stdout_lines: deque[str] = deque(maxlen=64)
         self._stdout_thread: threading.Thread | None = None
+        self._stdout_file: IO[str] | None = None
+        self._server_stream_closed = threading.Event()
         self._attached_display_id: int | None = None
         self._created_new_display = False
 
@@ -81,7 +95,6 @@ class ScrcpySession:
                 self._forward_port = self._setup_forward()
 
                 command = [
-                    *self._adb_command('shell'),
                     f'CLASSPATH={REMOTE_SERVER_PATH}',
                     'app_process',
                     '/',
@@ -89,12 +102,8 @@ class ScrcpySession:
                     self._server_version(),
                     *params,
                 ]
-                self._server_process = subprocess.Popen(
-                    command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                )
+                self._server_stream_closed.clear()
+                self._server_stream = cast(_ShellStreamLike, self.adb.shell(shlex.join(command), stream=True))
                 self._stdout_thread = threading.Thread(target=self._stdout_pump, daemon=True)
                 self._stdout_thread.start()
 
@@ -151,14 +160,19 @@ class ScrcpySession:
                 pass
             self.control = None
 
-        if self._server_process is not None and self._server_process.poll() is None:
-            self._server_process.terminate()
+        if self._stdout_file is not None:
             try:
-                self._server_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self._server_process.kill()
-                self._server_process.wait(timeout=5)
-        self._server_process = None
+                self._stdout_file.close()
+            except OSError:
+                pass
+            self._stdout_file = None
+        if self._server_stream is not None:
+            try:
+                self._server_stream.close()
+            except OSError:
+                pass
+            self._server_stream = None
+        self._server_stream_closed.set()
         self._stdout_thread = None
 
         self._remove_forward()
@@ -193,18 +207,9 @@ class ScrcpySession:
             return SCRCPY_SOCKET_NAME
         return f'{SCRCPY_SOCKET_NAME}_{self._effective_scid:08x}'
 
-    def _adb_command(self, *args: str) -> list[str]:
-        """构造 adb 命令行参数。"""
-        return ['adb', '-s', self.serial, *args]
-
-    def _run_adb_command(self, *args: str) -> subprocess.CompletedProcess[str]:
-        """执行 adb 命令并返回结果。"""
-        return subprocess.run(
-            self._adb_command(*args),
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+    def _shell_text(self, command: str | list[str], **kwargs) -> str:
+        """执行 adb shell 命令并返回文本输出。"""
+        return str(self.adb.shell(command, **kwargs))
 
     def _build_virtual_display_arg(self, config: VirtualDisplayConfig) -> str:
         """构造 virtual_display 参数值。"""
@@ -328,8 +333,7 @@ class ScrcpySession:
 
     def _setup_forward(self) -> int:
         """创建 adb 端口转发。"""
-        result = self._run_adb_command('forward', 'tcp:0', f'localabstract:{self._socket_name()}')
-        port = int(result.stdout.strip())
+        port = int(self.adb.forward_port(f'localabstract:{self._socket_name()}'))
         logger.info('Forwarded tcp:%s -> localabstract:%s for %s', port, self._socket_name(), self.serial)
         return port
 
@@ -337,24 +341,38 @@ class ScrcpySession:
         """移除 adb 端口转发。"""
         if self._forward_port is None:
             return
-        subprocess.run(
-            self._adb_command('forward', '--remove', f'tcp:{self._forward_port}'),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
+        local = f'tcp:{self._forward_port}'
+        try:
+            forward_remove = getattr(self.adb, 'forward_remove', None)
+            if callable(forward_remove):
+                forward_remove(local)
+            else:
+                # Older adbutils versions expose open_transport("killforward:...")
+                # but do not provide the forward_remove convenience wrapper yet.
+                self.adb.open_transport(f'killforward:{local}').close()
+        except Exception:
+            logger.debug('Failed to remove forward tcp:%s on %s', self._forward_port, self.serial, exc_info=True)
         self._forward_port = None
 
     def _stdout_pump(self) -> None:
         """持续收集 scrcpy server 的输出日志。"""
-        process = self._server_process
-        if process is None or process.stdout is None:
+        stream = self._server_stream
+        if stream is None:
             return
-        for line in process.stdout:
-            text = line.rstrip()
-            if text:
-                self._stdout_lines.append(text)
-                logger.debug('[scrcpy-server] %s', text)
+        fileobj = self._stdout_file
+        if fileobj is None:
+            fileobj = stream.conn.makefile('r', encoding='utf-8', newline='')
+            self._stdout_file = fileobj
+        try:
+            for line in fileobj:
+                text = line.rstrip()
+                if text:
+                    self._stdout_lines.append(text)
+                    logger.debug('[scrcpy-server] %s', text)
+        except OSError:
+            logger.debug('scrcpy server output stream closed', exc_info=True)
+        finally:
+            self._server_stream_closed.set()
 
     def _server_output_message(self) -> str:
         """拼接最近的 server 输出。"""
@@ -367,9 +385,9 @@ class ScrcpySession:
         deadline = time.monotonic() + timeout
         needle = f'@{self._socket_name()}'
         while time.monotonic() < deadline:
-            if self._server_process is not None and self._server_process.poll() is not None:
+            if self._server_stream_closed.is_set():
                 raise RuntimeError(f'scrcpy server exited early:\n{self._server_output_message()}')
-            unix_table = self._run_adb_command('shell', 'cat', '/proc/net/unix').stdout
+            unix_table = self._shell_text(['cat', '/proc/net/unix'])
             if needle in unix_table:
                 time.sleep(0.2)
                 return
@@ -389,24 +407,15 @@ class ScrcpySession:
 
     def _iter_scrcpy_server_pids(self) -> list[int]:
         """枚举设备上残留的 scrcpy server 进程。"""
-        result = subprocess.run(
-            self._adb_command('shell', 'ps', '-A'),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            result = subprocess.run(
-                self._adb_command('shell', 'ps'),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        if result.returncode != 0:
-            logger.warning('Failed to enumerate Android processes via adb: %s', result.stderr.strip())
+        try:
+            ps_output = self._shell_text(['ps', '-A'])
+            if not ps_output.strip():
+                ps_output = self._shell_text(['ps'])
+        except Exception as exc:
+            logger.warning('Failed to enumerate Android processes via adb: %s', exc)
             return []
         pids: list[int] = []
-        for line in result.stdout.splitlines():
+        for line in ps_output.splitlines():
             if 'app_process' not in line:
                 continue
             parts = line.split()
@@ -417,8 +426,8 @@ class ScrcpySession:
             except ValueError:
                 continue
             try:
-                cmdline = self._run_adb_command('shell', 'cat', f'/proc/{pid}/cmdline').stdout.replace('\x00', ' ')
-            except subprocess.CalledProcessError:
+                cmdline = self._shell_text(['cat', f'/proc/{pid}/cmdline']).replace('\x00', ' ')
+            except Exception:
                 continue
             if 'com.genymobile.scrcpy.Server' in cmdline:
                 pids.append(pid)
@@ -428,10 +437,8 @@ class ScrcpySession:
         """清理设备上所有 scrcpy server 进程。"""
         for pid in self._iter_scrcpy_server_pids():
             logger.info('Kill residual scrcpy server pid=%s on %s', pid, self.serial)
-            subprocess.run(
-                self._adb_command('shell', 'kill', str(pid)),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=False,
-            )
+            try:
+                self._shell_text(['kill', str(pid)])
+            except Exception:
+                logger.debug('Failed to kill scrcpy server pid=%s on %s', pid, self.serial, exc_info=True)
         time.sleep(0.2)

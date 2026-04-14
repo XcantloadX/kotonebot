@@ -22,6 +22,13 @@ class FakeThread:
         return False
 
 
+class FakeShellStream:
+    def __init__(self, text: str = '') -> None:
+        self.conn = MagicMock()
+        self.conn.makefile.return_value = io.StringIO(text)
+        self.close = MagicMock()
+
+
 class TestLatestFrameStore(unittest.TestCase):
     def test_store_supports_multiple_local_consumers(self):
         store = LatestFrameStore()
@@ -56,6 +63,7 @@ class TestScrcpySession(unittest.TestCase):
         connection = MagicMock()
         connection.serial = '127.0.0.1:5555'
         connection.sync = MagicMock()
+        connection.open_shell = MagicMock(return_value=FakeShellStream())
         return connection
 
     def _config(self, **kwargs) -> ScrcpyConfig:
@@ -65,7 +73,6 @@ class TestScrcpySession(unittest.TestCase):
         session = ScrcpySession(self._connection(), self._config())
 
         with (
-            patch('kotonebot.client.implements.scrcpy.session.subprocess.Popen', return_value=MagicMock(stdout=io.StringIO(''), poll=lambda: None)),
             patch('kotonebot.client.implements.scrcpy.session.threading.Thread', side_effect=lambda *args, **kwargs: FakeThread()),
             patch.object(session, '_push_server'),
             patch.object(session, '_setup_forward', return_value=27183),
@@ -83,7 +90,6 @@ class TestScrcpySession(unittest.TestCase):
         session = ScrcpySession(self._connection(), self._config(scid=123))
 
         with (
-            patch('kotonebot.client.implements.scrcpy.session.subprocess.Popen', return_value=MagicMock(stdout=io.StringIO(''), poll=lambda: None)),
             patch('kotonebot.client.implements.scrcpy.session.threading.Thread', side_effect=lambda *args, **kwargs: FakeThread()),
             patch.object(session, '_push_server'),
             patch.object(session, '_setup_forward', return_value=27183),
@@ -106,7 +112,6 @@ class TestScrcpySession(unittest.TestCase):
         session = ScrcpySession(self._connection(), self._config(cleanup_strategy='aggressive', scid=456))
 
         with (
-            patch('kotonebot.client.implements.scrcpy.session.subprocess.Popen', return_value=MagicMock(stdout=io.StringIO(''), poll=lambda: None)),
             patch('kotonebot.client.implements.scrcpy.session.threading.Thread', side_effect=lambda *args, **kwargs: FakeThread()),
             patch.object(session, '_push_server'),
             patch.object(session, '_setup_forward', return_value=27183),
@@ -124,7 +129,6 @@ class TestScrcpySession(unittest.TestCase):
         session = ScrcpySession(self._connection(), self._config(scid=789))
 
         with (
-            patch('kotonebot.client.implements.scrcpy.session.subprocess.Popen', return_value=MagicMock(stdout=io.StringIO(''), poll=lambda: None)),
             patch('kotonebot.client.implements.scrcpy.session.threading.Thread', side_effect=lambda *args, **kwargs: FakeThread()),
             patch.object(session, '_push_server'),
             patch.object(session, '_setup_forward', return_value=27183),
@@ -148,7 +152,6 @@ class TestScrcpySession(unittest.TestCase):
         fake_control = MagicMock()
 
         with (
-            patch('kotonebot.client.implements.scrcpy.session.subprocess.Popen', return_value=MagicMock(stdout=io.StringIO(''), poll=lambda: None)),
             patch('kotonebot.client.implements.scrcpy.session.threading.Thread', side_effect=lambda *args, **kwargs: FakeThread()),
             patch.object(session, '_push_server'),
             patch.object(session, '_setup_forward', return_value=27183),
@@ -171,7 +174,6 @@ class TestScrcpySession(unittest.TestCase):
 
         with (
             patch('kotonebot.client.implements.scrcpy.session.find_reusable_display', return_value=MagicMock(display_id=7, width=1280, height=720, top_package='com.android.settings')),
-            patch('kotonebot.client.implements.scrcpy.session.subprocess.Popen', return_value=MagicMock(stdout=io.StringIO(''), poll=lambda: None)),
             patch('kotonebot.client.implements.scrcpy.session.threading.Thread', side_effect=lambda *args, **kwargs: FakeThread()),
             patch.object(session, '_push_server'),
             patch.object(session, '_setup_forward', return_value=27183),
