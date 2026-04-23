@@ -93,7 +93,10 @@ class FlowController:
         停止的优先级高于暂停。
         """
         logger.info('Interrupt requested.')
-        self.interrupt_event.set()
+        with self.pause_condition:
+            self.interrupt_event.set()
+            # 唤醒 wait()/sleep() 中阻塞的线程，让它们立刻观察到中断状态。
+            self.pause_condition.notify_all()
     
     def request_pause(self, *, wait_resume: bool = False) -> None:
         """

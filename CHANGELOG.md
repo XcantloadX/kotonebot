@@ -10,6 +10,7 @@ Library:
 7. [feat] SendMessageImpl 现在可选开启运行时阻止系统休眠的功能，默认开启。
 8. [fix] 修复 ScrcpyImpl 会调用 PATH 里的 adb，若系统未安装 adb 从而抛出异常的问题。
 9. [feat] MuMu12V5Host 新增 `check_app_keptlive` 可用于检查是否开启 APP 后台保活模式。
+10. [fix] 修复 FlowController 触发中断无法打断 `sleep` 函数的问题。
 
 Devtool：
 1. [feat] 新增最近打开文件功能。
