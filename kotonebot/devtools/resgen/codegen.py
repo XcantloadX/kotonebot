@@ -396,7 +396,9 @@ class EntityGenerator(StandardGenerator):
                                 w.write(f"template = {template_expr}")
                     w.write_empty_line()
 
-                w.write("_variant_classes = {")
+                inner_class_names = [self._variant_inner_class_name(v) for v in variant_keys]
+                type_union = " | ".join(f"type[{name}]" for name in inner_class_names)
+                w.write(f"_variant_classes: dict[str, {type_union}] = {{")
                 with w.indent():
                     for variant in variant_keys:
                         inner_class_name = self._variant_inner_class_name(variant)
