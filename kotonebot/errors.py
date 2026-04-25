@@ -95,3 +95,18 @@ class DeviceThreadMismatchError(KotonebotError):
             f'Device lifecycle {action} must be called from the owner thread. '
             f'owner={owner_thread}, current={current_thread}.'
         )
+
+
+class MissingResourceVariant(KotonebotError):
+    """当请求的资源变体不存在时抛出。"""
+
+    def __init__(self, variant_name: str, resource_class: str):
+        self.variant_name = variant_name
+        self.resource_class = resource_class
+        super().__init__(str(self))
+
+    def __str__(self) -> str:
+        return f"Unsupported resource variant: {self.variant_name} for {self.resource_class}"
+
+    def __repr__(self) -> str:
+        return f"MissingResourceVariant(variant_name={self.variant_name!r}, resource_class={self.resource_class!r})"

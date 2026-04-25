@@ -5,6 +5,21 @@ from .core import CodeWriter, ClassNode, ResourceNode, ImageAsset, BoxData, Rect
 from .utils import to_camel_case, unify_path
 
 
+class MissingResourceVariant(Exception):
+    """当请求的资源变体不存在时抛出。"""
+
+    def __init__(self, variant_name: str, resource_class: str):
+        self.variant_name = variant_name
+        self.resource_class = resource_class
+        super().__init__(str(self))
+
+    def __str__(self) -> str:
+        return f"Unsupported resource variant: {self.variant_name} for {self.resource_class}"
+
+    def __repr__(self) -> str:
+        return f"MissingResourceVariant(variant_name={self.variant_name!r}, resource_class={self.resource_class!r})"
+
+
 class RenderContext:
     """渲染时传递给自定义资源渲染器的辅助对象。"""
 
@@ -139,7 +154,7 @@ class StandardGenerator:
         self.render_header()
         self.writer.write_empty_line()
         for node in root_nodes:
-            self.render_class(node)
+            self.render_class(node, class_path=node.name)
         return self.writer.get_content()
 
     def render_header(self):
@@ -152,7 +167,7 @@ class StandardGenerator:
         w.write("from kotonebot.backend.core import Image, HintBox, HintPoint")
         w.write("from kotonebot.primitives import ImageSlice, Rect")
 
-    def render_class(self, node: ClassNode):
+    def render_class(self, node: ClassNode, class_path: str = ""):
         """递归渲染类"""
         w = self.writer
         w.write(f"class {node.name}:")
@@ -163,15 +178,16 @@ class StandardGenerator:
 
             # 1. 渲染属性
             for attr in node.attributes:
-                self.render_attribute(attr)
+                self.render_attribute(attr, class_path=class_path)
                 w.write_empty_line()
 
             # 2. 渲染子类
             for child in node.children:
-                self.render_class(child)
+                child_path = f"{class_path}.{child.name}" if class_path else child.name
+                self.render_class(child, class_path=child_path)
                 w.write_empty_line()
 
-    def render_attribute(self, attr: ResourceNode):
+    def render_attribute(self, attr: ResourceNode, class_path: str = ""):
         """渲染单个属性。根据 attr.value 的 IR 类型生成对应的代码字符串。"""
         if self._render_with_custom_renderer(attr):
             return
@@ -289,6 +305,7 @@ class EntityGenerator(StandardGenerator):
         w.write("from kotonebot.core import TemplateMatchPrefab")
         w.write("from kotonebot.primitives import Image, ImageSlice, Point, Rect")
         w.write("from kotonebot.backend.core import HintBox, HintPoint")
+        w.write("from kotonebot.errors import MissingResourceVariant")
         w.write_empty_line()
         w.write(f"current_variant = ContextVar('current_variant', default={self.default_variant!r})")
         w.write_empty_line()
@@ -302,7 +319,7 @@ class EntityGenerator(StandardGenerator):
                 w.write("return self._func(owner)")
         w.write_empty_line()
 
-    def render_attribute(self, attr: ResourceNode):
+    def render_attribute(self, attr: ResourceNode, class_path: str = ""):
         """
         核心分发逻辑：
         根据 ResourceNode 携带的 value 类型，决定生成策略。
@@ -313,21 +330,23 @@ class EntityGenerator(StandardGenerator):
         data = attr.value
 
         if isinstance(data, ImageAsset):
-            self._render_prefab_class(attr, data)
+            self._render_prefab_class(attr, data, class_path=class_path)
         elif isinstance(data, PrefabData):
-            self._render_custom_prefab_class(attr, data)
+            self._render_custom_prefab_class(attr, data, class_path=class_path)
         elif isinstance(data, (BoxData, PointData)):
             self._render_primitive_assignment(attr, data)
         else:
             # 兜底：如果 value 是未知类型或纯字符串，回退到默认赋值
             super().render_attribute(attr)
 
-    def _render_custom_prefab_class(self, node: ResourceNode, data: PrefabData):
+    def _render_custom_prefab_class(self, node: ResourceNode, data: PrefabData, class_path: str = ""):
         """
         渲染自定义基类的 Prefab 嵌套类
         """
         w = self.writer
         class_name = node.name
+        full_class_path = f"{class_path}.{class_name}" if class_path else class_name
+        resource_class_repr = f"<class '{full_class_path}'>"
         if not getattr(data, 'prefab_id', None):
             raise ValueError(f"PrefabData missing prefab_id for node {node.name}")
         base_class = data.prefab_id
@@ -391,7 +410,7 @@ class EntityGenerator(StandardGenerator):
                     w.write("target = cls._variant_classes.get(variant)")
                     w.write("if target is None:")
                     with w.indent():
-                        w.write("raise ValueError(f'Unsupported resource variant: {variant}')")
+                        w.write(f"raise MissingResourceVariant(variant, {resource_class_repr!r})")
                     w.write("return target")
                 w.write_empty_line()
 
@@ -535,7 +554,7 @@ class EntityGenerator(StandardGenerator):
             return "Base"
         return to_camel_case(variant)
 
-    def _render_prefab_class(self, node: ResourceNode, data: ImageAsset):
+    def _render_prefab_class(self, node: ResourceNode, data: ImageAsset, class_path: str = ""):
         """
         渲染 TemplateMatchPrefab 嵌套类
         """

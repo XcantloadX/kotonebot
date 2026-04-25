@@ -1,4 +1,8 @@
 # 更新日志
+## v0.14.0
+Library:
+1. [feat] 优化当访问的变体不存在时，抛出的异常类型与提示信息。
+
 ## v0.13.0
 Library:
 1. [feat] **BREAKING** 移除 fuzz OCR 文本匹配算法，以及 thefuzz 库的依赖。
