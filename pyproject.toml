@@ -5,24 +5,24 @@ backend-path = ["."]
 
 [project]
 name = "kotonebot"
-version = "0.13.0"
+version = "0.13.1"
 description = "Kotonebot is game automation library based on computer vision technology, works for Windows and Android."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     # Image Processing & OCR
-    "opencv-python~=4.10",
-    "rapidocr_onnxruntime~=1.4",
+    "opencv-python>=4.10, <5.0",
+    "rapidocr_onnxruntime>=1.4, <2.0",
     # Configuration
-    "pydantic~=2.10",
+    "pydantic>=2.10, <3.0",
     # Resource
-    "ksaa-res~=0.2",
+    "ksaa-res==0.2",
     # Other
-    "typing-extensions~=4.12",
-    "python-dotenv~=1.0",
-    "onnxruntime~=1.14",
+    "typing-extensions>=4.12",
+    "python-dotenv>=1.0, <2.0",
+    "onnxruntime>=1.14, <2.0",
     "numpy",
-    "mouse>=0.7.1",
+    "mouse>=0.7.1, <0.8",
 ]
 
 [project.optional-dependencies]
