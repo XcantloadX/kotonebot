@@ -105,7 +105,6 @@ class TestImportAll(unittest.TestCase):
             self.assertTrue(hasattr(kotonebot.client.host, 'Instance'))
             self.assertTrue(hasattr(kotonebot.client.host, 'AdbHostConfig'))
             self.assertTrue(hasattr(kotonebot.client.host, 'WindowsHostConfig'))
-            self.assertTrue(hasattr(kotonebot.client.host, 'RemoteWindowsHostConfig'))
             self.assertTrue(hasattr(kotonebot.client.host, 'CustomInstance'))
             self.assertTrue(hasattr(kotonebot.client.host, 'create_custom'))
             self.assertTrue(hasattr(kotonebot.client.host, 'Mumu12Host'))
@@ -119,9 +118,6 @@ class TestImportAll(unittest.TestCase):
             # Test exports from kotonebot.client.implements
             self.assertTrue(hasattr(kotonebot.client.implements, 'WindowsImpl'))
             self.assertTrue(hasattr(kotonebot.client.implements, 'WindowsImplConfig'))
-            self.assertTrue(hasattr(kotonebot.client.implements, 'RemoteWindowsImpl'))
-            self.assertTrue(hasattr(kotonebot.client.implements, 'RemoteWindowsImplConfig'))
-            self.assertTrue(hasattr(kotonebot.client.implements, 'RemoteWindowsServer'))
             self.assertTrue(hasattr(kotonebot.client.implements, 'NemuIpcImpl'))
             self.assertTrue(hasattr(kotonebot.client.implements, 'NemuIpcImplConfig'))
             self.assertTrue(hasattr(kotonebot.client.implements, 'ExternalRendererIpc'))
@@ -241,7 +237,6 @@ class TestImportAll(unittest.TestCase):
             }):
                 importlib.import_module('kotonebot.interop.win.task_dialog')
                 importlib.import_module('kotonebot.client.implements.windows')
-                importlib.import_module('kotonebot.client.implements.remote_windows')
                 importlib.import_module('kotonebot.client.implements.nemu_ipc')
                 importlib.import_module('kotonebot.client.implements.scrcpy')
 

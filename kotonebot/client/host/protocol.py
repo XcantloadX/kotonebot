@@ -28,13 +28,6 @@ class WindowsHostConfig:
     window_title: str
     ahk_exe_path: str
 
-@dataclass
-class RemoteWindowsHostConfig:
-    """由外部为远程 Windows 实现提供配置。"""
-    windows_host_config: WindowsHostConfig
-    host: str
-    port: int
-
 # --- 使用泛型改造 Instance 协议 ---
 T_HostConfig = TypeVar("T_HostConfig")
 

@@ -5,13 +5,13 @@ from typing_extensions import assert_never
 from kotonebot import logging
 from kotonebot.client.device import WindowsDevice
 from kotonebot.util import require_windows
-from .protocol import Device, WindowsHostConfig, RemoteWindowsHostConfig
+from .protocol import Device, WindowsHostConfig
 
 logger = logging.getLogger(__name__)
-WindowsRecipes = Literal['windows', 'remote_windows', 'windows_background']
+WindowsRecipes = Literal['windows', 'windows_background']
 
 # Windows 相关的配置类型联合
-WindowsHostConfigs = WindowsHostConfig | RemoteWindowsHostConfig
+WindowsHostConfigs = WindowsHostConfig
 
 class CommonWindowsCreateDeviceMixin(ABC):
     """
@@ -50,18 +50,6 @@ class CommonWindowsCreateDeviceMixin(ABC):
                     screenshot=PrintWindowImpl(d, config.window_title),
                     touch=SendMessageImpl(d, config.window_title),
                 )
-                return d
-            case 'remote_windows':
-                if not isinstance(config, RemoteWindowsHostConfig):
-                    raise ValueError(f"Expected RemoteWindowsHostConfig for 'remote_windows' recipe, got {type(config)}")
-                from kotonebot.client.implements.remote_windows import RemoteWindowsImpl
-                d = WindowsDevice()
-                impl = RemoteWindowsImpl(
-                    device=d,
-                    host=config.host,
-                    port=config.port
-                )
-                d.setup(screenshot=impl, touch=impl)
                 return d
             case _:
                 assert_never(f'Unsupported Windows recipe: {recipe}')

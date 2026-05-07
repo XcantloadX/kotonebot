@@ -1,4 +1,8 @@
 # 更新日志
+## v0.14.0
+Library:
+1. [feat] **BREAKING** 移除 remote_windows 实现。
+
 ## v0.13.2
 Library:
 1. [fix] 修复了当设备逻辑分辨率被修改时（通过 wm size），AdbImpl.screen_size 总是取得物理分辨率的问题。

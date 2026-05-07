@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from .protocol import HostProtocol, Instance, AdbHostConfig, WindowsHostConfig, RemoteWindowsHostConfig
+from .protocol import HostProtocol, Instance, AdbHostConfig, WindowsHostConfig
 if TYPE_CHECKING:
     from .custom import CustomInstance, create as create_custom
     from .mumu12_host import Mumu12Host, Mumu12Instance, Mumu12V5Host, Mumu12V5Instance
@@ -42,7 +42,7 @@ def __getattr__(name: str):
 
 __all__ = [
     'HostProtocol', 'Instance',
-    'AdbHostConfig', 'WindowsHostConfig', 'RemoteWindowsHostConfig',
+    'AdbHostConfig', 'WindowsHostConfig',
     'CustomInstance', 'create_custom',
     'Mumu12Host', 'Mumu12Instance', 'Mumu12V5Host', 'Mumu12V5Instance',
     'LeidianHost', 'LeidianInstance',
