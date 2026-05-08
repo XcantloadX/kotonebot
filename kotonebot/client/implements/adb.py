@@ -103,10 +103,18 @@ class AdbImpl(AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver):
         output = self.adb.shell(cmdargs)
         logger.debug('wm size output for %s: %s', self._display_context(), output)
         text = cast(str, output)
-        m = re.search(r'(\d+)\s*[xX×]\s*(\d+)', text)
+        m = re.search(r'Override\s+size:\s*(\d+)\s*[xX×]\s*(\d+)', text)
+        size_source = 'override'
+        if not m:
+            m = re.search(r'Physical\s+size:\s*(\d+)\s*[xX×]\s*(\d+)', text)
+            size_source = 'physical'
+        if not m:
+            m = re.search(r'(\d+)\s*[xX×]\s*(\d+)', text)
+            size_source = 'generic'
         if not m:
             raise ValueError(self._format_message(f"Invalid screen size: {text}"))
         spiltted = (int(m.group(1)), int(m.group(2)))
+        logger.debug('wm size picked %s size: %s', size_source, spiltted)
         # 检测当前方向
         orientation = self.detect_orientation()
         landscape = orientation == 'landscape'
