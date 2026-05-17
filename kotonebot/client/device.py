@@ -529,3 +529,8 @@ class WindowsDevice(Device):
     def __init__(self) -> None:
         super().__init__('windows')
         self.commands: WindowsCommandable
+
+
+class MacOSDevice(Device):
+    def __init__(self) -> None:
+        super().__init__('macos')

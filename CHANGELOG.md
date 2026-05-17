@@ -3,6 +3,7 @@
 Library:
 1. [feat] **BREAKING** 移除 remote_windows 实现。
 2. [feat] **BREAKING** 引入 Window 抽象层，统一不同平台的窗口寻找与管理等逻辑。同时新增 macOS 窗口支持。
+3. [feat] 新增 QuartzImpl，支持控制 macOS 窗口。新增 Playcover 类，支持列出、启动、终止 Playcover 程序。
 
 ### 迁移
 
