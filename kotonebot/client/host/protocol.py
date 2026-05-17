@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from kotonebot import logging
 from kotonebot.client import Device, DeviceImpl
+from kotonebot.interop.window import WindowQuery
 
 from kotonebot.util import Countdown, Interval
 
@@ -25,7 +26,7 @@ class AdbHostConfig:
 @dataclass
 class WindowsHostConfig:
     """由外部为 Windows 实现提供配置。"""
-    window_title: str
+    window_query: WindowQuery
     ahk_exe_path: str
 
 # --- 使用泛型改造 Instance 协议 ---

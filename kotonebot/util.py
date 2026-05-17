@@ -5,7 +5,7 @@ import logging
 import platform
 import functools
 from importlib import resources
-from typing import Literal, Callable, TYPE_CHECKING
+from typing import Any, Callable, Literal, ParamSpec, TYPE_CHECKING, TypeVar, overload
 from typing_extensions import deprecated
 
 import cv2
@@ -15,9 +15,17 @@ import numpy as np
 if TYPE_CHECKING:
     from kotonebot.client.protocol import Device
 
+P = ParamSpec('P')
+R = TypeVar('R')
+
 logger = logging.getLogger(__name__)
 _WINDOWS_ONLY_MSG = (
     "This feature is only available on Windows. "
+    f"You are using {platform.system()}.\n"
+    "The requested feature is: {feature_name}\n"
+)
+_MACOS_ONLY_MSG = (
+    "This feature is only available on macOS. "
     f"You are using {platform.system()}.\n"
     "The requested feature is: {feature_name}\n"
 )
@@ -43,26 +51,72 @@ def require_windows(feature_name: str | None = None, class_: type | None = None)
             feature_name += f' ({full_name})'
         raise NotImplementedError(_WINDOWS_ONLY_MSG.format(feature_name=feature_name))
 
-def windows_only(feature_name: str | None = None):
+def require_macos(feature_name: str | None = None, class_: type | None = None) -> None:
+    """要求必须在 macOS 系统上运行，否则抛出 NotImplementedError"""
+    if not is_macos():
+        feature_name = feature_name or 'not specified'
+        if class_:
+            full_name = '.'.join([class_.__module__, class_.__name__])
+            feature_name += f' ({full_name})'
+        raise NotImplementedError(_MACOS_ONLY_MSG.format(feature_name=feature_name))
+
+
+def _platform_only(
+    require_platform: Callable[[str | None, type | None], None],
+    feature_name: str | None = None,
+):
+    def decorator(obj: Any) -> Any:
+        if isinstance(obj, type):
+            orig_init = obj.__init__
+
+            @functools.wraps(orig_init)
+            def __init__(self, *args: Any, **kwargs: Any):
+                require_platform(feature_name, obj)
+                return orig_init(self, *args, **kwargs)
+
+            obj.__init__ = __init__
+            return obj
+
+        @functools.wraps(obj)
+        def wrapper(*args: P.args, **kwargs: P.kwargs):
+            require_platform(feature_name, None)
+            return obj(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+@overload
+def windows_only(feature_name: str | None = None) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
+
+
+@overload
+def windows_only(feature_name: str | None = None) -> Callable[[type[Any]], type[Any]]: ...
+
+
+def windows_only(feature_name: str | None = None) -> Callable[[Any], Any]:
     """
     装饰器：在 Windows 以外平台调用时抛出 NotImplementedError。
     适用于函数和类。对于类，会装饰其 __init__ 方法，确保实例化时检查平台。
     """
-    def decorator(obj):
-        if isinstance(obj, type):
-            orig_init = obj.__init__
-            @functools.wraps(orig_init)
-            def __init__(self, *args, **kwargs):
-                require_windows(feature_name=feature_name, class_=obj)
-                return orig_init(self, *args, **kwargs)
-            obj.__init__ = __init__
-            return obj
-        @functools.wraps(obj)
-        def wrapper(*args, **kwargs):
-            require_windows(feature_name=feature_name)
-            return obj(*args, **kwargs)
-        return wrapper
-    return decorator
+    return _platform_only(require_windows, feature_name)
+
+
+@overload
+def macos_only(feature_name: str | None = None) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
+
+
+@overload
+def macos_only(feature_name: str | None = None) -> Callable[[type[Any]], type[Any]]: ...
+
+
+def macos_only(feature_name: str | None = None) -> Callable[[Any], Any]:
+    """
+    装饰器：在 macOS 以外平台调用时抛出 NotImplementedError。
+    适用于函数和类。对于类，会装饰其 __init__ 方法，确保实例化时检查平台。
+    """
+    return _platform_only(require_macos, feature_name)
 
 
 

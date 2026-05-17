@@ -30,7 +30,8 @@ def _load_deps():
     win32gui = _win32gui
 
 from ...protocol import Screenshotable
-from kotonebot.interop.win.window import Win32Window
+from kotonebot.interop.window import WindowQuery, WindowSession
+from kotonebot.interop.window.windows import WindowsWindow
 if TYPE_CHECKING:
     from ...device import Device
 
@@ -112,21 +113,29 @@ def capture_printwindow(hwnd: int) -> MatLike:
 
 @windows_only('"WindowsImpl" implementation')
 class PrintWindowImpl(Screenshotable):
-    def __init__(self, device: 'Device', window_title: str):
+    def __init__(self, device: 'Device', window_query: WindowQuery):
         _load_deps()
-        self.window = Win32Window.require_window('title', window_title)
+        self._window_session = WindowSession(window_query)
         ctypes.windll.user32.SetProcessDPIAware()
+
+    def _window(self) -> WindowsWindow:
+        w = self._window_session.get_window()
+        if not isinstance(w, WindowsWindow):
+            raise TypeError(f"Expected WindowsWindow, got {type(w).__name__}")
+        return w
 
     def __client_rect(self) -> tuple[int, int, int, int]:
         """获取 Client 区域屏幕坐标"""
-        hwnd = self.window.hwnd
+        hwnd = self._window().hwnd
         client_left, client_top, client_right, client_bottom = win32gui.GetClientRect(hwnd)
         client_left, client_top = win32gui.ClientToScreen(hwnd, (client_left, client_top))
         client_right, client_bottom = win32gui.ClientToScreen(hwnd, (client_right, client_bottom))
         return client_left, client_top, client_right, client_bottom
 
     def detect_orientation(self) -> None | Literal['portrait'] | Literal['landscape']:
-        rect = self.window.get_rect()
+        rect = self._window().get_bounds()
+        if rect is None:
+            return None
         if rect.w > rect.h:
             return 'landscape'
         else:
@@ -140,12 +149,14 @@ class PrintWindowImpl(Screenshotable):
         return w, h
 
     def screenshot(self) -> MatLike:
-        if self.window.is_minimized():
-            self.window.restore()
-        return capture_printwindow(self.window.hwnd)
+        window = self._window()
+        if window.is_minimized():
+            window.restore()
+        return capture_printwindow(window.hwnd)
 
 if __name__ == "__main__":
-    impl = PrintWindowImpl(None, "gakumas")  # type: ignore
+    from kotonebot.interop.window import WindowQuery
+    impl = PrintWindowImpl(None, WindowQuery(title_contains="gakumas"))  # type: ignore
     while True:
         img = impl.screenshot()
         cv2.imshow("screenshot", img)

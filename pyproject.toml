@@ -41,6 +41,11 @@ windows = [
     "psutil>=6.1", # for custom host (kill process)
 ]
 
+macos = [
+    "pyobjc-framework-cocoa>=12.1",
+    "pyobjc-framework-quartz>=12.1",
+]
+
 # Development and debugging dependencies
 dev = [
     "fastapi~=0.115",
@@ -70,7 +75,11 @@ docs = [
 ]
 
 # All optional dependencies
-all = ["kotonebot[android,windows,dev,docs]"]
+all = [
+    "kotonebot[android,windows,dev,docs]; sys_platform == 'win32'",
+    "kotonebot[android,macos,dev,docs]; sys_platform == 'darwin'",
+    "kotonebot[android,dev,docs]; sys_platform == 'linux'",
+]
 
 [project.scripts]
 kbot = "kotonebot.devtools.cli:main"

@@ -35,7 +35,7 @@ class CommonWindowsCreateDeviceMixin(ABC):
                 d = WindowsDevice()
                 impl = WindowsImpl(
                     device=d,
-                    window_title=config.window_title,
+                    window_query=config.window_query,
                     ahk_exe_path=config.ahk_exe_path
                 )
                 d.setup(screenshot=impl, touch=impl)
@@ -47,8 +47,8 @@ class CommonWindowsCreateDeviceMixin(ABC):
                 from kotonebot.client.implements.windows.send_message import SendMessageImpl
                 from kotonebot.client.implements.windows.print_window import PrintWindowImpl
                 d.setup(
-                    screenshot=PrintWindowImpl(d, config.window_title),
-                    touch=SendMessageImpl(d, config.window_title),
+                    screenshot=PrintWindowImpl(d, config.window_query),
+                    touch=SendMessageImpl(d, config.window_query),
                 )
                 return d
             case _:

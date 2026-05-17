@@ -13,6 +13,8 @@ from cv2.typing import MatLike
 from ...device import Device
 from ...protocol import Touchable, Screenshotable, Lifecycle, SimpleInputDriver
 from ...registration import ImplConfig
+from kotonebot.interop.window import WindowQuery, WindowSession
+from kotonebot.interop.window.windows import WindowsWindow
 
 if TYPE_CHECKING:
     import win32ui
@@ -40,15 +42,14 @@ def _load_deps():
 # 1. 定义配置模型
 @dataclass
 class WindowsImplConfig(ImplConfig):
-    window_title: str
+    window_query: WindowQuery
     ahk_exe_path: str
 
 @windows_only('"WindowsImpl" implementation')
 class WindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
-    def __init__(self, device: Device, window_title: str, ahk_exe_path: str):
+    def __init__(self, device: Device, window_query: WindowQuery, ahk_exe_path: str):
         _load_deps()
-        self.__hwnd: int | None = None
-        self.window_title = window_title
+        self._window_session = WindowSession(window_query)
         self.ahk = AHK(executable_path=ahk_exe_path)
         self.device = device
         self._started = False
@@ -91,17 +92,18 @@ class WindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
         if not self._started:
             raise RuntimeError("WindowsImpl lifecycle is not started.")
 
-    @property
-    def hwnd(self) -> int:
-        if self.__hwnd is None:
-            self.__hwnd = win32gui.FindWindow(None, self.window_title)
-            if self.__hwnd is None or self.__hwnd == 0:
-                raise RuntimeError(f'Failed to find window: {self.window_title}')
-        return self.__hwnd
+    def _window(self) -> WindowsWindow:
+        w = self._window_session.get_window()
+        if not isinstance(w, WindowsWindow):
+            raise TypeError(f"Expected WindowsWindow, got {type(w).__name__}")
+        return w
+
+    def _ahk_window_spec(self) -> str:
+        return f"ahk_id {self._window().hwnd}"
 
     def __client_rect(self) -> tuple[int, int, int, int]:
         """获取 Client 区域屏幕坐标"""
-        hwnd = self.hwnd
+        hwnd = self._window().hwnd
         client_left, client_top, client_right, client_bottom = win32gui.GetClientRect(hwnd)
         client_left, client_top = win32gui.ClientToScreen(hwnd, (client_left, client_top))
         client_right, client_bottom = win32gui.ClientToScreen(hwnd, (client_right, client_bottom))
@@ -113,9 +115,10 @@ class WindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
 
     def screenshot(self) -> MatLike:
         self._require_started()
-        if not self.ahk.win_is_active(self.window_title):
-            self.ahk.win_activate(self.window_title)
-        hwnd = self.hwnd
+        window_spec = self._ahk_window_spec()
+        if not self.ahk.win_is_active(window_spec):
+            self.ahk.win_activate(window_spec)
+        hwnd = self._window().hwnd
 
         # TODO: 需要检查下面这些 WinAPI 的返回结果
         # 获取整个窗口的坐标
@@ -168,10 +171,10 @@ class WindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
 
     def detect_orientation(self) -> None | Literal['portrait'] | Literal['landscape']:
         self._require_started()
-        pos = self.ahk.win_get_position(self.window_title)
-        if pos is None:
+        bounds = self._window().get_bounds()
+        if bounds is None:
             return None
-        w, h = pos.width, pos.height
+        w, h = bounds.w, bounds.h
         if w > h:
             return 'landscape'
         else:
@@ -185,14 +188,16 @@ class WindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
             x = 2
         if y == 0:
             y = 2
-        if not self.ahk.win_is_active(self.window_title):
-            self.ahk.win_activate(self.window_title)
+        window_spec = self._ahk_window_spec()
+        if not self.ahk.win_is_active(window_spec):
+            self.ahk.win_activate(window_spec)
         self.ahk.click(x, y)
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float | None = None) -> None:
         self._require_started()
-        if not self.ahk.win_is_active(self.window_title):
-            self.ahk.win_activate(self.window_title)
+        window_spec = self._ahk_window_spec()
+        if not self.ahk.win_is_active(window_spec):
+            self.ahk.win_activate(window_spec)
         # TODO: 这个 speed 的单位是什么？
         self.ahk.mouse_drag(x2, y2, from_position=(x1, y1), coord_mode='Client', speed=10)
 
@@ -201,7 +206,8 @@ if __name__ == '__main__':
     device = Device()
     # 在测试环境中直接使用默认路径
     ahk_path = str(resources.files('kaa.res.bin') / 'AutoHotkey.exe')
-    impl = WindowsImpl(device, window_title='gakumas', ahk_exe_path=ahk_path)
+    from kotonebot.interop.window import WindowQuery
+    impl = WindowsImpl(device, window_query=WindowQuery(title_contains='gakumas'), ahk_exe_path=ahk_path)
     device._screenshot = impl
     device._touch = impl
     device.swipe_scaled(0.5, 0.8, 0.5, 0.2)

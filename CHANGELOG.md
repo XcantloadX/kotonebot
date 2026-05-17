@@ -2,6 +2,61 @@
 ## v0.14.0
 Library:
 1. [feat] **BREAKING** 移除 remote_windows 实现。
+2. [feat] **BREAKING** 引入 Window 抽象层，统一不同平台的窗口寻找与管理等逻辑。同时新增 macOS 窗口支持。
+
+### 迁移
+
+#### 1. 移除 `remote_windows` 实现
+
+`remote_windows` recipe 已移除，请迁移到其他 Windows 实现（如 `windows` 或 `windows_background`）。
+
+#### 2. `window_title` → `window_query`
+
+所有接受 `window_title: str` 参数的地方，现在统一改为接受 `window_query: WindowQuery`。
+
+涉及的类：
+- `WindowsHostConfig`
+- `WindowsImpl`
+- `WindowsImplConfig`
+- `PrintWindowImpl`
+- `SendMessageImpl`
+
+**迁移方式：**
+
+```python
+from kotonebot.interop.window import WindowQuery
+
+# 旧写法
+config = WindowsHostConfig(window_title="gakumas", ahk_exe_path=ahk_path)
+impl = WindowsImpl(device, window_title="gakumas", ahk_exe_path=ahk_path)
+
+# 新写法（标题包含匹配）
+config = WindowsHostConfig(window_query=WindowQuery(title_contains="gakumas"), ahk_exe_path=ahk_path)
+impl = WindowsImpl(device, window_query=WindowQuery(title_contains="gakumas"), ahk_exe_path=ahk_path)
+```
+
+`WindowQuery` 支持多种匹配模式：
+
+| 字段 | 说明 |
+|------|------|
+| `title` | 精确匹配窗口标题 |
+| `title_contains` | 窗口标题包含此字符串 |
+| `title_regex` | 窗口标题匹配正则表达式 |
+| `app_name` | 精确匹配应用程序名称 |
+| `app_name_contains` | 应用程序名称包含此字符串 |
+| `process_id` | 精确匹配进程 ID |
+| `visible_only` | 仅匹配可见窗口（默认 `True`） |
+
+Windows 平台还可使用原生查询条件 `WindowsNativeQuery`：
+
+```python
+from kotonebot.interop.window import WindowQuery, WindowsNativeQuery
+
+# 按窗口类名查找
+query = WindowQuery(native=WindowsNativeQuery(class_name="UnityWndClass"))
+# 按可执行文件路径查找
+query = WindowQuery(native=WindowsNativeQuery(executable="gakumas.exe"))
+```
 
 ## v0.13.2
 Library:

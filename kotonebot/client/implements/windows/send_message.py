@@ -26,6 +26,8 @@ def _load_deps():
 
 from ...protocol import Touchable, SimpleInputDriver, Lifecycle
 from kotonebot.interop.win.window import Win32Window
+from kotonebot.interop.window import WindowQuery, WindowSession
+from kotonebot.interop.window.windows import WindowsWindow
 if TYPE_CHECKING:
     from ...device import Device
 
@@ -324,7 +326,7 @@ class SendMessageImpl(Touchable, SimpleInputDriver, Lifecycle):
     def __init__(
         self,
         device: 'Device',
-        window_title: str,
+        window_query: WindowQuery,
         *,
         wait_cursor_idle: float = -1,
         keep_system_awake: bool = True
@@ -332,16 +334,28 @@ class SendMessageImpl(Touchable, SimpleInputDriver, Lifecycle):
         """创建一个 SendMessageImpl 实例。
 
         :param device: 设备实例。
-        :param window_title: 窗口标题。
+        :param window_query: 窗口查找条件。
         :param wait_cursor_idle: 光标等待时间。默认为 -1 表示使用默认值。
         :param keep_system_awake: 运行过程中是否阻止系统休眠，默认为 True。
         """
         _load_deps()
         self.device = device
-        window = Win32Window.require_window('title', window_title)
-        self.wrapper = SendMessageWrapper(window, wait_cursor_idle)
+        self._window_session = WindowSession(window_query)
+        self._wrapper: SendMessageWrapper | None = None
+        self._last_hwnd: int | None = None
+        self._wait_cursor_idle = wait_cursor_idle
         self._started = False
         self._keep_system_awake = keep_system_awake
+
+    def _require_wrapper(self) -> SendMessageWrapper:
+        w = self._window_session.get_window()
+        if not isinstance(w, WindowsWindow):
+            raise TypeError(f"Expected WindowsWindow, got {type(w).__name__}")
+        hwnd = w.hwnd
+        if self._wrapper is None or self._last_hwnd != hwnd:
+            self._wrapper = SendMessageWrapper(w.win32_window, self._wait_cursor_idle)
+            self._last_hwnd = hwnd
+        return self._wrapper
 
     def _set_execution_state(self, state: int) -> None:
         result = ctypes.windll.kernel32.SetThreadExecutionState(state)
@@ -365,16 +379,17 @@ class SendMessageImpl(Touchable, SimpleInputDriver, Lifecycle):
             self._started = False
 
     def click(self, x: int, y: int) -> None:
-        self.wrapper.click(x, y, button='left')
+        self._require_wrapper().click(x, y, button='left')
     
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float | None = None) -> None:
-        ret = self.wrapper.drag(x1, y1, x2, y2, button='left', duration=duration)
+        ret = self._require_wrapper().drag(x1, y1, x2, y2, button='left', duration=duration)
         if not ret:
             raise RuntimeError('Swipe operation failed')
         
 
 if __name__ == '__main__':
-    # impl = SendMessageImpl(None, window_title='gakumas') # type: ignore
+    # from kotonebot.interop.window import WindowQuery
+    # impl = SendMessageImpl(None, WindowQuery(title_contains='gakumas')) # type: ignore
     # impl.click(0, 0)
 
     while True:
