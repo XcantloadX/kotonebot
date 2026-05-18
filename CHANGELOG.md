@@ -1,17 +1,22 @@
 # 更新日志
+
 ## v0.14.0
 Library:
 1. [feat] **BREAKING** 移除 remote_windows 实现。
 2. [feat] **BREAKING** 引入 Window 抽象层，统一不同平台的窗口寻找与管理等逻辑。同时新增 macOS 窗口支持。
 3. [feat] 新增 QuartzImpl，支持控制 macOS 窗口。新增 Playcover 类，支持列出、启动、终止 Playcover 程序。
+4. [feat] `ContextDevice` 平台专属方法优化。
+	1. 新增 `is_android`、`is_windows`、`is_macos` 属性，用于平台判断。
+	2. 新增 `android()`、`windows()` 方法，返回各自的 Commandable 对象。原来的 `of_android()`、`of_windows()` 废弃。
+
 
 ### 迁移
 
-#### 1. 移除 `remote_windows` 实现
+#### 移除 `remote_windows` 实现
 
 `remote_windows` recipe 已移除，请迁移到其他 Windows 实现（如 `windows` 或 `windows_background`）。
 
-#### 2. `window_title` → `window_query`
+#### `window_title` → `window_query`
 
 所有接受 `window_title: str` 参数的地方，现在统一改为接受 `window_query: WindowQuery`。
 
@@ -57,6 +62,35 @@ from kotonebot.interop.window import WindowQuery, WindowsNativeQuery
 query = WindowQuery(native=WindowsNativeQuery(class_name="UnityWndClass"))
 # 按可执行文件路径查找
 query = WindowQuery(native=WindowsNativeQuery(executable="gakumas.exe"))
+```
+
+#### `of_android()` / `of_windows()` → `android()` / `windows()`
+
+新方法直接返回底层 commands 对象（`AndroidCommandable` / `WindowsCommandable`），
+无需再经过 `.commands` 中间属性，类型检查器也能正确识别。
+
+```python
+# 旧写法
+d = device.of_android()
+d.commands.adb_shell('...')
+d.current_package()
+d.launch_app(pkg)
+
+# 新写法
+device.android().adb_shell('...')
+device.android().current_package()
+device.android().launch_app(pkg)
+```
+
+#### 平台判断
+
+```python
+# 旧写法
+from kotonebot.client.device import AndroidDevice
+isinstance(device._device, AndroidDevice)
+
+# 新写法
+device.is_android
 ```
 
 ## v0.13.2

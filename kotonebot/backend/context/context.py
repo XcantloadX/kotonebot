@@ -19,7 +19,8 @@ from typing_extensions import deprecated
 
 from cv2.typing import MatLike
 
-from kotonebot.client.device import Device, AndroidDevice, WindowsDevice
+from kotonebot.client.device import Device, AndroidDevice, WindowsDevice, MacOSDevice
+from kotonebot.client.protocol import AndroidCommandable, WindowsCommandable
 from kotonebot.client.input import InputManager
 from kotonebot.backend.flow_controller import FlowController
 from kotonebot.util import Interval
@@ -696,18 +697,67 @@ class ContextDevice(Generic[T_Device], Device):
         vars.screenshot_data = img
         return img
 
+    _CONTEXT_DEVICE_ATTRS = frozenset([
+        '_device', 'screenshot',
+        'is_android', 'is_windows', 'is_macos',
+        'android', 'windows',
+        'of_android', 'of_windows',
+    ])
+
     def __getattribute__(self, name: str):
-        if name in ['_device', 'screenshot', 'of_android', 'of_windows']:
+        if name in ContextDevice._CONTEXT_DEVICE_ATTRS:
             return object.__getattribute__(self, name)
         else:
             return getattr(self._device, name)
 
     def __setattr__(self, name: str, value: Any):
-        if name in ['_device', 'screenshot', 'of_android', 'of_windows']:
+        if name in ContextDevice._CONTEXT_DEVICE_ATTRS:
             return object.__setattr__(self, name, value)
         else:
             return setattr(self._device, name, value)
 
+    @property
+    def is_android(self) -> bool:
+        """底层设备是否为 Android 平台。"""
+        return isinstance(self._device, AndroidDevice)
+
+    @property
+    def is_windows(self) -> bool:
+        """底层设备是否为 Windows 平台。"""
+        return isinstance(self._device, WindowsDevice)
+
+    @property
+    def is_macos(self) -> bool:
+        """底层设备是否为 macOS 平台。"""
+        return isinstance(self._device, MacOSDevice)
+
+    def android(self) -> AndroidCommandable:
+        """
+        获取 Android 平台专属命令接口。
+
+        返回底层 commands 对象，类型为 AndroidCommandable，
+        包含 ``adb_shell``、``current_package``、``launch_app``、``install_apk`` 等方法。
+
+        :raises TypeError: 底层设备不是 AndroidDevice 时抛出。
+        """
+        if not isinstance(self._device, AndroidDevice):
+            raise TypeError(f"Expected AndroidDevice, got {type(self._device).__name__}")
+        return self._device.commands
+
+    def windows(self) -> WindowsCommandable:
+        """
+        获取 Windows 平台专属命令接口。
+
+        返回底层 commands 对象，类型为 WindowsCommandable，
+        包含 ``get_foreground_window``、``exec_command`` 等方法。
+
+        :raises TypeError: 底层设备不是 WindowsDevice 时抛出。
+        """
+        if not isinstance(self._device, WindowsDevice):
+            raise TypeError(f"Expected WindowsDevice, got {type(self._device).__name__}")
+        return self._device.commands
+
+    @deprecated('Use device.android() instead.')
     def of_android(self) -> 'ContextDevice | AndroidDevice':
         """
         确保此 ContextDevice 底层为 Android 平台。
@@ -717,6 +767,7 @@ class ContextDevice(Generic[T_Device], Device):
             raise ValueError("Device is not AndroidDevice")
         return self
 
+    @deprecated('Use device.windows() instead.')
     def of_windows(self) -> 'ContextDevice | WindowsDevice':
         """
         确保此 ContextDevice 底层为 Windows 平台。

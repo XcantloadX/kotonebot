@@ -82,6 +82,10 @@ class AdbImpl(AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver):
         """执行 ADB shell 命令"""
         return cast(str, self.adb.shell(cmd))
 
+    def install_apk(self, path: str) -> None:
+        """安装 APK 文件"""
+        self.adb.install(path)
+
     @override
     def detect_orientation(self):
         # 判断方向：https://stackoverflow.com/questions/10040624/check-if-device-is-landscape-via-adb
