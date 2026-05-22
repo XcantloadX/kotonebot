@@ -243,10 +243,40 @@ class QuartzImpl(Screenshotable, MouseDriver, SimpleInputDriver, Touchable, Life
         tb_pts = _title_bar_height_pts(bounds.w, bounds.h)
         return bounds.x1, bounds.y1 + tb_pts, bounds.w, bounds.h - tb_pts
 
+    def _pixel_scale(self) -> float:
+        """返回当前窗口所在屏幕的 DPI 倍数（物理像素 / 逻辑点）。
+
+        通过 ``NSScreen.backingScaleFactor()`` 直接读取。
+        Retina 2x 屏幕返回 2.0，非 Retina 屏幕返回 1.0。
+
+        支持多显示器：根据窗口中心点在所有 ``NSScreen`` 中查找匹配的屏幕，
+        避免将内屏的倍数误用于外接屏上的窗口。找不到匹配屏幕时回退到主屏。
+        """
+        from AppKit import NSScreen  # type: ignore[import]
+        bounds = self._window().get_bounds()
+        if bounds is not None:
+            # 用窗口中心点查找所在屏幕
+            cx = bounds.x1 + bounds.w / 2
+            cy = bounds.y1 + bounds.h / 2
+            for screen in NSScreen.screens():
+                f = screen.frame()
+                if (f.origin.x <= cx <= f.origin.x + f.size.width and
+                        f.origin.y <= cy <= f.origin.y + f.size.height):
+                    return float(screen.backingScaleFactor())
+        # 回退：使用主屏幕倍数
+        main = NSScreen.mainScreen()
+        return float(main.backingScaleFactor()) if main is not None else 1.0
+
     def _to_screen(self, x: int, y: int) -> tuple[float, float]:
-        """将窗口客户区坐标转换为屏幕绝对坐标（内容区域原点为 (0,0)）。"""
+        """将窗口客户区坐标（物理像素）转换为屏幕绝对坐标（逻辑点）。
+
+        ``screen_size`` 及上层框架均以物理像素为单位传入坐标；
+        而 CGEvent 坐标系使用逻辑点，因此需先将像素坐标除以 DPI 倍数
+        还原为逻辑点，再叠加窗口内容区域的左上角逻辑点偏移。
+        """
         cx1, cy1, _, _ = self._content_bounds()
-        return float(cx1 + x), float(cy1 + y)
+        scale = self._pixel_scale()
+        return float(cx1 + x / scale), float(cy1 + y / scale)
 
     def _post(self, event_type: int, x: float, y: float, button_num: int = 0) -> None:
         """向 HID 事件流投递一个鼠标事件。
@@ -267,14 +297,19 @@ class QuartzImpl(Screenshotable, MouseDriver, SimpleInputDriver, Touchable, Life
 
     @property
     def screen_size(self) -> tuple[int, int]:
-        """返回内容区域尺寸（逻辑点）。
+        """返回内容区域尺寸（物理像素）。
 
-        与 :meth:`screenshot` 返回图像的像素尺寸不同，此处遵循平台惯例返回逻辑点，
-        以便坐标传入 :meth:`click` / :meth:`swipe` 时与 CGEvent 坐标系一致。
+        ``kCGWindowBounds`` 返回的是逻辑点（Points），在 Retina 屏幕上
+        与物理像素不一致。此处乘以 DPI 倍数（``_pixel_scale()``）将其
+        换算为物理像素，以便上层 scaler 能正确设置 ``physical_resolution``。
+
+        输入坐标（传入 :meth:`click` / :meth:`swipe` 的 x/y）同样以物理像素
+        为单位，在 :meth:`_to_screen` 中会还原为逻辑点再投递 CGEvent。
         """
         self._require_started()
         _, _, w, h = self._content_bounds()
-        return int(w), int(h)
+        scale = self._pixel_scale()
+        return int(w * scale), int(h * scale)
 
     def detect_orientation(self) -> Literal['portrait', 'landscape'] | None:
         self._require_started()
