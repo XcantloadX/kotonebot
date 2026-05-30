@@ -110,3 +110,8 @@ class MissingResourceVariant(KotonebotError):
 
     def __repr__(self) -> str:
         return f"MissingResourceVariant(variant_name={self.variant_name!r}, resource_class={self.resource_class!r})"
+
+class EmulatorNotFoundError(KotonebotError):
+    def __init__(self, emulator_name: str):
+        self.emulator_name = emulator_name
+        super().__init__(f'Emulator "{emulator_name}" not found. Check if it is installed in your system.')

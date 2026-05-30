@@ -1,4 +1,7 @@
 # 更新日志
+## v0.15.0
+Library:
+1. [feat] **BREAKING** 对于 MuMu 模拟器，当模拟器未安装或未找到时，现在抛出 `EmulatorNotFoundError` 而不是 `RumtimeError` 了。
 
 ## v0.14.0
 Library:

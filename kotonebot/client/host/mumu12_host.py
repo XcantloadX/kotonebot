@@ -11,6 +11,7 @@ from kotonebot.client import Device
 from kotonebot.client.device import AndroidDevice
 from kotonebot.client.implements.adb import AdbImpl
 from kotonebot.client.implements.nemu_ipc import NemuIpcImpl, NemuIpcImplConfig
+from kotonebot.errors import EmulatorNotFoundError
 from kotonebot.util import Countdown, Interval
 from .protocol import HostProtocol, Instance, copy_type, AdbHostConfig
 from .adb_common import AdbRecipes, AdbTargetTcpip, CommonAdbCreateDeviceMixin, connect_adb, is_adb_recipe
@@ -102,7 +103,7 @@ class Mumu12Host(HostProtocol[MuMu12Recipes]):
     def list(cls) -> list[Instance]:
         nemu_path = cls._read_install_path()
         if nemu_path is None:
-            raise RuntimeError("Nemu path not found.")
+            raise EmulatorNotFoundError('MuMu Player 12') from FileNotFoundError(nemu_path)
         output = cls._invoke_manager(['info', '-v', 'all'])
         logger.debug('MuMuManager.exe output: %s', output)
         
