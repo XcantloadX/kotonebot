@@ -1,5 +1,6 @@
 import logging
 import warnings
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing_extensions import deprecated
 from typing import Callable, ParamSpec, TypeVar, overload, Literal, Protocol
@@ -47,7 +48,17 @@ class TaskFuncProtocol(Protocol[P, R]):
 
 task_registry: dict[str, Task] = {}
 action_registry: dict[str, Action] = {}
-current_callstack: list[Task|Action] = []
+_current_callstack_cv: ContextVar[list[Task|Action] | None] = ContextVar('_current_callstack', default=None)
+
+
+def _get_callstack() -> list[Task|Action]:
+    s = _current_callstack_cv.get()
+    if s is None:
+        s = []
+        _current_callstack_cv.set(s)
+    return s
+
+
 
 def _placeholder():
     raise NotImplementedError('Placeholder function')
@@ -92,11 +103,11 @@ def task(
                     self.task = task_def
                 
                 def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
-                    current_callstack.append(task)
+                    _get_callstack().append(task)
                     vars = ContextStackVars.push(screenshot_mode=screenshot_mode)
                     ret = func(*args, **kwargs)
                     ContextStackVars.pop()
-                    current_callstack.pop()
+                    _get_callstack().pop()
                     return ret
             wrapper = TaskWrapper(task)
             task.func = wrapper
@@ -151,11 +162,11 @@ def action(*args, **kwargs):
         func = args[0]
         action = _register(_placeholder, func.__name__, func.__doc__)
         def _wrapper(*args: P.args, **kwargs: P.kwargs):
-            current_callstack.append(action)
+            _get_callstack().append(action)
             vars = ContextStackVars.push()
             ret = func(*args, **kwargs)
             ContextStackVars.pop()
-            current_callstack.pop()
+            _get_callstack().pop()
             return ret
         action.func = _wrapper
         return _wrapper
@@ -175,11 +186,11 @@ def action(*args, **kwargs):
                 return func
             else:
                 def _wrapper(*args: P.args, **kwargs: P.kwargs):
-                    current_callstack.append(action)
+                    _get_callstack().append(action)
                     vars = ContextStackVars.push(screenshot_mode=screenshot_mode)
                     ret = func(*args, **kwargs)
                     ContextStackVars.pop()
-                    current_callstack.pop()
+                    _get_callstack().pop()
                     return ret
                 action.func = _wrapper
                 return _wrapper

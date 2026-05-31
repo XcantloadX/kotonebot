@@ -2,6 +2,7 @@ import re
 import time
 import logging
 import warnings
+from contextvars import ContextVar
 from typing import (
     Callable,
     Optional,
@@ -204,9 +205,11 @@ def check_flow_control():
     """
     vars.flow.check()
 
-class ContextStackVars:
-    stack: list['ContextStackVars'] = []
+# 每个线程/异步任务独立持有自己的 ContextStackVars 栈
+_stack_cv: ContextVar[list['ContextStackVars'] | None] = ContextVar('_context_stack', default=None)
 
+
+class ContextStackVars:
     def __init__(self):
         self.screenshot_mode: ScreenshotMode = 'auto'
         """
@@ -219,6 +222,14 @@ class ContextStackVars:
         * ~~`manual-inherit`~~：
             已废弃。
         """
+
+    @staticmethod
+    def _get_stack() -> list['ContextStackVars']:
+        s = _stack_cv.get()
+        if s is None:
+            s = []
+            _stack_cv.set(s)
+        return s
 
     @property
     def screenshot(self) -> MatLike:
@@ -247,28 +258,27 @@ class ContextStackVars:
 
     @staticmethod
     def push(*, screenshot_mode: ScreenshotMode | None = None) -> 'ContextStackVars':
-        vars = ContextStackVars()
+        frame = ContextStackVars()
         if screenshot_mode is not None:
-            vars.screenshot_mode = screenshot_mode
-        ContextStackVars.stack.append(vars)
-        return vars
+            frame.screenshot_mode = screenshot_mode
+        ContextStackVars._get_stack().append(frame)
+        return frame
 
     @staticmethod
     def pop() -> 'ContextStackVars':
-        last = ContextStackVars.stack.pop()
-        return last
+        return ContextStackVars._get_stack().pop()
 
     @staticmethod
     def current() -> 'ContextStackVars | None':
-        if len(ContextStackVars.stack) == 0:
-            return None
-        return ContextStackVars.stack[-1]
+        s = ContextStackVars._get_stack()
+        return s[-1] if s else None
 
     @staticmethod
     def ensure_current() -> 'ContextStackVars':
-        if len(ContextStackVars.stack) == 0:
+        s = ContextStackVars._get_stack()
+        if not s:
             raise ValueError("No context stack found.")
-        return ContextStackVars.stack[-1]
+        return s[-1]
 
 @interruptible_class
 class ContextOcr:
@@ -867,7 +877,10 @@ def wait(at_least: float = 0.3, *, before: WaitBeforeType) -> None:
 # 这里 Context 类还没有初始化，但是 tasks 中的脚本可能已经引用了这里的变量
 # 为了能够动态更新这里变量的值，这里使用 Forwarded 类再封装一层，
 # 将调用转发到实际的稍后初始化的 Context 类上
-_c: Context | None = None
+#
+# _c 使用 ContextVar，使每个线程/异步任务持有独立的 Context，互不干扰。
+# Forwarded 代理本身保持模块级单例，getter 在运行时通过 _c.get() 找到当前线程的 Context。
+_c: ContextVar[Context | None] = ContextVar('_c', default=None)
 device: ContextDevice = cast(ContextDevice, Forwarded(name="device"))
 """当前正在执行任务的设备。"""
 input: InputManager = cast(InputManager, Forwarded(name="input"))
@@ -898,23 +911,33 @@ def init_context(
 
     :param force:  是否强制重新初始化。
         若为 `True`，则忽略已存在的 Context 实例，并重新创建一个新的实例。
+        多线程场景下，每个线程调用此函数只影响当前线程自身的 Context。
     :param target_device: 目标设备
     :param target_screenshot_interval: 见 `ContextDevice.target_screenshot_interval`。
     """
-    global _c, device, input, ocr, image, color, vars, debug
-    if _c is not None and not force:
+    if _c.get() is not None and not force:
         return
-    _c = Context(
+    c = Context(
         device=target_device,
         target_screenshot_interval=target_screenshot_interval,
     )
-    device._FORWARD_getter = lambda: _c.device # type: ignore
-    input._FORWARD_getter = lambda: _c.device.input # type: ignore
-    ocr._FORWARD_getter = lambda: _c.ocr # type: ignore
-    image._FORWARD_getter = lambda: _c.image # type: ignore
-    color._FORWARD_getter = lambda: _c.color # type: ignore
-    vars._FORWARD_getter = lambda: _c.vars # type: ignore
-    debug._FORWARD_getter = lambda: _c.debug # type: ignore
+    _c.set(c)
+    device._FORWARD_getter = lambda: _c.get().device # type: ignore
+    input._FORWARD_getter = lambda: _c.get().device.input # type: ignore
+    ocr._FORWARD_getter = lambda: _c.get().ocr # type: ignore
+    image._FORWARD_getter = lambda: _c.get().image # type: ignore
+    color._FORWARD_getter = lambda: _c.get().color # type: ignore
+    vars._FORWARD_getter = lambda: _c.get().vars # type: ignore
+    debug._FORWARD_getter = lambda: _c.get().debug # type: ignore
+
+
+def get_context() -> 'Context | None':
+    """返回当前线程的 Context 实例，若未初始化则返回 None。
+
+    用于需要跨线程持有 Context 引用的场景（例如从 UI 线程调用 stop() 时，
+    需要提前在调度器线程里把 FlowController 引用存下来）。
+    """
+    return _c.get()
 
 
 def inject_context(
@@ -926,10 +949,10 @@ def inject_context(
     vars: Optional[ContextGlobalVars] = None,
     debug: Optional[ContextDebug] = None,
 ):
-    global _c
-    if _c is None:
+    c = _c.get()
+    if c is None:
         raise ContextNotInitializedError('Context not initialized')
-    _c.inject(device=device, ocr=ocr, image=image, color=color, vars=vars, debug=debug)
+    c.inject(device=device, ocr=ocr, image=image, color=color, vars=vars, debug=debug)
 
 class ManualContextManager:
     def __init__(self, screenshot_mode: ScreenshotMode = 'auto'):

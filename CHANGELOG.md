@@ -3,6 +3,9 @@
 Library:
 1. [feat] **BREAKING** 对于 MuMu 模拟器，当模拟器未安装或未找到时，现在抛出 `EmulatorNotFoundError` 而不是 `RumtimeError` 了。
 
+Framework：
+1. [feat] 优化了框架部分 API 对于多线程的支持，现在可以在多个线程内同时执行任务了。
+
 ## v0.14.0
 Library:
 1. [feat] **BREAKING** 移除 remote_windows 实现。
