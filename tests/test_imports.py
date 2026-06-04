@@ -83,7 +83,7 @@ class TestImportAll(unittest.TestCase):
             import kotonebot.backend.color
             import kotonebot.backend.context
             import kotonebot.backend.core
-            # import kotonebot.backend.debug
+            import kotonebot.backend.debug
             import kotonebot.backend.dispatch
             import kotonebot.backend.flow_controller
             import kotonebot.backend.image
@@ -168,7 +168,7 @@ class TestImportAll(unittest.TestCase):
         }):
             import kotonebot
             for loader, name, is_pkg in pkgutil.walk_packages(kotonebot.__path__, kotonebot.__name__ + '.'):
-                if 'kotonebot.backend.debug' in name or 'kotonebot.tools' in name:
+                if 'kotonebot.tools' in name:
                     continue
                 try:
                     importlib.import_module(name)

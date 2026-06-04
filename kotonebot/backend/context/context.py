@@ -641,13 +641,6 @@ class ContextColor:
     def find_all(self, *args, **kwargs):
         return color_find_all(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
-@deprecated('使用 kotonebot.backend.debug 模块替代')
-class ContextDebug:
-    def __init__(self, context: 'Context'):
-        self.__context = context
-        self.save_images: bool = False
-        self.save_images_dir: str = "debug_images"
-
 class Forwarded:
     def __init__(self, getter: Callable[[], T] | None = None, name: str | None = None):
         self._FORWARD_getter = getter
@@ -797,7 +790,6 @@ class Context(Generic[T]):
         self.__image = ContextImage(self)
         self.__color = ContextColor(self)
         self.__vars = ContextGlobalVars()
-        self.__debug = ContextDebug(self)
         self.__device = ContextDevice(device, target_screenshot_interval)
 
     def inject(
@@ -808,7 +800,6 @@ class Context(Generic[T]):
         image: Optional[ContextImage] = None,
         color: Optional[ContextColor] = None,
         vars: Optional[ContextGlobalVars] = None,
-        debug: Optional[ContextDebug] = None,
     ):
         if device is not None:
             if isinstance(device, Device):
@@ -823,8 +814,6 @@ class Context(Generic[T]):
             self.__color = color
         if vars is not None:
             self.__vars = vars
-        if debug is not None:
-            self.__debug = debug
 
     @property
     def device(self) -> ContextDevice:
@@ -845,10 +834,6 @@ class Context(Generic[T]):
     @property
     def vars(self) -> 'ContextGlobalVars':
         return self.__vars
-
-    @property
-    def debug(self) -> 'ContextDebug':
-        return self.__debug
 
 @deprecated('使用 Rect 类的实例方法代替')
 def rect_expand(rect: Rect, left: int = 0, top: int = 0, right: int = 0, bottom: int = 0) -> Rect:
@@ -893,8 +878,6 @@ color: ContextColor = cast(ContextColor, Forwarded(name="color"))
 """颜色识别。"""
 vars: ContextGlobalVars = cast(ContextGlobalVars, Forwarded(name="vars"))
 """全局变量。"""
-debug: ContextDebug = cast(ContextDebug, Forwarded(name="debug"))
-"""调试工具。"""
 last_screenshot_time: float = -1
 """上一次截图的时间。"""
 next_wait: WaitBeforeType | None = None
@@ -928,7 +911,6 @@ def init_context(
     image._FORWARD_getter = lambda: _c.get().image # type: ignore
     color._FORWARD_getter = lambda: _c.get().color # type: ignore
     vars._FORWARD_getter = lambda: _c.get().vars # type: ignore
-    debug._FORWARD_getter = lambda: _c.get().debug # type: ignore
 
 
 def get_context() -> 'Context | None':
@@ -947,12 +929,11 @@ def inject_context(
     image: Optional[ContextImage] = None,
     color: Optional[ContextColor] = None,
     vars: Optional[ContextGlobalVars] = None,
-    debug: Optional[ContextDebug] = None,
 ):
     c = _c.get()
     if c is None:
         raise ContextNotInitializedError('Context not initialized')
-    c.inject(device=device, ocr=ocr, image=image, color=color, vars=vars, debug=debug)
+    c.inject(device=device, ocr=ocr, image=image, color=color, vars=vars)
 
 class ManualContextManager:
     def __init__(self, screenshot_mode: ScreenshotMode = 'auto'):

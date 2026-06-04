@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 from ..util import lf_path
 from ..primitives import Rect, Point
 from .core import HintBox, Image, unify_image
-from .debug import result as debug_result, debug
+# from .debug import result as debug_result, debug
 
 logger = logging.getLogger(__name__)
 StringMatchFunction = Callable[[str], bool]
@@ -375,20 +375,20 @@ class Ocr:
                 confidence=confidence
             ))
         ret = OcrResultList(ret)
-        if debug.enabled:
-            result_image = _draw_result(img, ret)
-            elapse = elapse or [0, 0, 0]
-            debug_result(
-                'ocr',
-                [result_image, original_img],
-                f"pad={pad}\n" + \
-                f"rect={rect}\n" + \
-                f"elapsed: det={elapse[0]:.3f}s cls={elapse[1]:.3f}s rec={elapse[2]:.3f}s\n" + \
-                f"result: \n" + \
-                "<table class='result-table'><tr><th>Text</th><th>Confidence</th></tr>" + \
-                "\n".join([f"<tr><td>{r.text}</td><td>{r.confidence:.3f}</td></tr>" for r in ret]) + \
-                "</table>"
-            )
+        # if debug.enabled:
+        #     result_image = _draw_result(img, ret)
+        #     elapse = elapse or [0, 0, 0]
+        #     debug_result(
+        #         'ocr',
+        #         [result_image, original_img],
+        #         f"pad={pad}\n" + \
+        #         f"rect={rect}\n" + \
+        #         f"elapsed: det={elapse[0]:.3f}s cls={elapse[1]:.3f}s rec={elapse[2]:.3f}s\n" + \
+        #         f"result: \n" + \
+        #         "<table class='result-table'><tr><th>Text</th><th>Confidence</th></tr>" + \
+        #         "\n".join([f"<tr><td>{r.text}</td><td>{r.confidence:.3f}</td></tr>" for r in ret]) + \
+        #         "</table>"
+        #     )
         return ret
 
     def find(

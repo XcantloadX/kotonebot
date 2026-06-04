@@ -74,12 +74,7 @@ class BaseTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.device = MockDevice()
-        from kotonebot.backend.debug.server import start_server
-        from kotonebot.backend.debug import debug
         from kotonebot.kaa.common import BaseConfig
-        debug.enabled = True
-        # debug.wait_for_message_sent = True
-        start_server()
         from kotonebot.backend.context import init_context, inject_context
         init_context(config_type=BaseConfig)
         inject_context(device=cls.device)

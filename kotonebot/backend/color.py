@@ -8,7 +8,7 @@ from cv2.typing import MatLike
 
 from .core import unify_image
 from ..primitives import RectTuple, Rect
-from .debug import result as debug_result, debug, color as debug_color
+# from .debug import result as debug_result, debug, color as debug_color
 
 RgbColorTuple = tuple[int, int, int]
 RgbColorStr = str
@@ -189,31 +189,31 @@ def find(
             ret_similarity = 1 - dist[min_y, min_x]
             found_color = tuple(image_rgb[min_y, min_x])
     # 调试输出
-    if debug.enabled:
-        result_image = image.copy()
-        # 绘制结果点
-        if ret is not None:
-            x, y = ret
-            # 蓝色圈出结果点
-            cv2.rectangle(result_image, 
-                (max(0, x-20), max(0, y-20)),
-                (min(result_image.shape[1], x+20), min(result_image.shape[0], y+20)),
-                (255, 0, 0), 2)
-        # 绘制搜索范围
-        if _rect is not None:
-            x, y, w, h = _rect
-            # 红色圈出rect
-            cv2.rectangle(result_image, (x, y), (x+w, y+h), (0, 0, 255), 2)
-        debug_result(
-            'find_rgb',
-            [result_image, image],
-            f'target={debug_color(color)}\n'
-            f'rect={rect}\n'
-            f'result={ret}\n'
-            f'similarity={ret_similarity}\n'
-            f'found_color={debug_color(found_color)}\n'
-            '(Red rect for search area, blue rect for result area)'
-        )
+    # if debug.enabled:
+    #     result_image = image.copy()
+    #     # 绘制结果点
+    #     if ret is not None:
+    #         x, y = ret
+    #         # 蓝色圈出结果点
+    #         cv2.rectangle(result_image, 
+    #             (max(0, x-20), max(0, y-20)),
+    #             (min(result_image.shape[1], x+20), min(result_image.shape[0], y+20)),
+    #             (255, 0, 0), 2)
+    #     # 绘制搜索范围
+    #     if _rect is not None:
+    #         x, y, w, h = _rect
+    #         # 红色圈出rect
+    #         cv2.rectangle(result_image, (x, y), (x+w, y+h), (0, 0, 255), 2)
+    #     debug_result(
+    #         'find_rgb',
+    #         [result_image, image],
+    #         f'target={debug_color(color)}\n'
+    #         f'rect={rect}\n'
+    #         f'result={ret}\n'
+    #         f'similarity={ret_similarity}\n'
+    #         f'found_color={debug_color(found_color)}\n'
+    #         '(Red rect for search area, blue rect for result area)'
+    #     )
     return ret
 
 def color_distance_map(
@@ -425,30 +425,30 @@ def find_all(
         results = filter_by_contour(binary, color, dist, rect, max_results)
 
     # 调试输出
-    if debug.enabled:
-        result_image = unify_image(image).copy()
-        # 绘制所有结果点
-        for result in results:
-            x, y = result.position
-            cv2.rectangle(result_image, 
-                (max(0, x-10), max(0, y-10)),
-                (min(result_image.shape[1], x+10), min(result_image.shape[0], y+10)),
-                (255, 0, 0), 1)
-        # 绘制搜索范围
-        if _rect is not None:
-            x, y, w, h = _rect
-            cv2.rectangle(result_image, (x, y), (x+w, y+h), (0, 0, 255), 2)
+    # if debug.enabled:
+    #     result_image = unify_image(image).copy()
+    #     # 绘制所有结果点
+    #     for result in results:
+    #         x, y = result.position
+    #         cv2.rectangle(result_image, 
+    #             (max(0, x-10), max(0, y-10)),
+    #             (min(result_image.shape[1], x+10), min(result_image.shape[0], y+10)),
+    #             (255, 0, 0), 1)
+    #     # 绘制搜索范围
+    #     if _rect is not None:
+    #         x, y, w, h = _rect
+    #         cv2.rectangle(result_image, (x, y), (x+w, y+h), (0, 0, 255), 2)
         
-        debug_result(
-            'find_rgb_many',
-            [result_image, unify_image(image)],
-            f'target={debug_color(color)}\n'
-            f'rect={rect}\n'
-            f'found {len(results)} points\n'
-            f'threshold={threshold}\n'
-            f'filter_method={filter_method}\n'
-            '(Red rect for search area, blue rects for result areas)'
-        )
+    #     debug_result(
+    #         'find_rgb_many',
+    #         [result_image, unify_image(image)],
+    #         f'target={debug_color(color)}\n'
+    #         f'rect={rect}\n'
+    #         f'found {len(results)} points\n'
+    #         f'threshold={threshold}\n'
+    #         f'filter_method={filter_method}\n'
+    #         '(Red rect for search area, blue rects for result areas)'
+    #     )
 
     return results
 
@@ -497,18 +497,18 @@ def dominant_color(
         hex_color = f'#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}'
         result.append(hex_color)
     
-    if debug.enabled:
-        origin_image = unify_image(image)
-        result_image = origin_image.copy()
-        if _rect is not None:
-            x, y, w, h = _rect
-            cv2.rectangle(result_image, (x, y), (x + w, y + h), (0, 0, 255), 2)
-        debug_result(
-            'color.dominant_color',
-            [result_image, origin_image],
-            f'arguments:\n \tcount={count}\n \trect={rect}\n'
-            f'result={", ".join(map(debug_color, result))}'
-        )
+    # if debug.enabled:
+    #     origin_image = unify_image(image)
+    #     result_image = origin_image.copy()
+    #     if _rect is not None:
+    #         x, y, w, h = _rect
+    #         cv2.rectangle(result_image, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    #     debug_result(
+    #         'color.dominant_color',
+    #         [result_image, origin_image],
+    #         f'arguments:\n \tcount={count}\n \trect={rect}\n'
+    #         f'result={", ".join(map(debug_color, result))}'
+    #     )
 
     return result
 

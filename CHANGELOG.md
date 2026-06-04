@@ -2,6 +2,7 @@
 ## v0.15.0
 Library:
 1. [feat] **BREAKING** 对于 MuMu 模拟器，当模拟器未安装或未找到时，现在抛出 `EmulatorNotFoundError` 而不是 `RumtimeError` 了。
+2. [feat] **BREAKING** 完全移除 `kotonebot.backend.debug` 模块以及相关设计。
 
 Framework：
 1. [feat] 优化了框架部分 API 对于多线程的支持，现在可以在多个线程内同时执行任务了。

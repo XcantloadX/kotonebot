@@ -5,7 +5,7 @@ backend-path = ["."]
 
 [project]
 name = "kotonebot"
-version = "0.14.0"
+version = "0.15.0"
 description = "Kotonebot is game automation library based on computer vision technology, works for Windows and Android."
 readme = "README.md"
 requires-python = ">=3.10"

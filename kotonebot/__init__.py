@@ -1,12 +1,10 @@
 from .backend.context import (
     ContextOcr,
     ContextImage,
-    ContextDebug,
     ContextColor,
     device,
     ocr,
     image,
-    debug,
     color,
     input,
     rect_expand,

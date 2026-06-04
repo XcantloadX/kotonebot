@@ -10,7 +10,6 @@ from cv2.typing import MatLike, Rect as CvRect
 from .core import Image, unify_image
 from .preprocessor import PreprocessorProtocol
 from kotonebot.primitives import Point as KbPoint, Rect as KbRect, Size as KbSize
-from .debug import result as debug_result, debug, img
 
 logger = getLogger(__name__)
 
@@ -437,17 +436,17 @@ def find(
     #     f'matches: {_results2str(matches)}'
     # )
     # 调试输出
-    if debug.enabled and debug_output:
-        result_image = _draw_result(image, matches)
-        result_text = f"template: {img(template)} \n"
-        result_text += f"matches: {len(matches)} \n"
-        for match in matches:
-            result_text += f"score: {match.score} position: {match.position} size: {match.size} \n"
-        debug_result(
-            'image.find',
-            [result_image, image],
-            result_text
-        )
+    # if debug.enabled and debug_output:
+    #     result_image = _draw_result(image, matches)
+    #     result_text = f"template: {img(template)} \n"
+    #     result_text += f"matches: {len(matches)} \n"
+    #     for match in matches:
+    #         result_text += f"score: {match.score} position: {match.position} size: {match.size} \n"
+    #     debug_result(
+    #         'image.find',
+    #         [result_image, image],
+    #         result_text
+    #     )
     return matches[0] if len(matches) > 0 else None
 
 def find_all(
@@ -492,14 +491,14 @@ def find_all(
     #     f'find_all(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
     #     f'matches: {_results2str(results)}'
     # )
-    if debug.enabled and debug_output:
-        result_image = _draw_result(image, results)
-        debug_result(
-            'image.find_all',
-            [result_image, image],
-            f"template: {img(template)} \n"
-            f"matches: {len(results)} \n"
-        )
+    # if debug.enabled and debug_output:
+    #     result_image = _draw_result(image, results)
+    #     debug_result(
+    #         'image.find_all',
+    #         [result_image, image],
+    #         f"template: {img(template)} \n"
+    #         f"matches: {len(results)} \n"
+    #     )
     return results
 
 def find_multi(
@@ -558,21 +557,21 @@ def find_multi(
     #     f'find_multi(): templates: {_imgs2str(templates)} images: {_img2str(image)} masks: {_imgs2str(masks)} '
     #     f'result: {_result2str(ret)}'
     # )
-    if debug.enabled:
-        msg = (
-            "<table class='result-table'>" +
-            "<tr><th>Template</th><th>Mask</th><th>Result</th></tr>" +
-            "\n".join([
-                f"<tr><td>{img(t)}</td><td>{img(m)}</td><td>{'✓' if ret and t == templates[ret.index] else '✗'}</td></tr>"
-                for i, (t, m) in enumerate(zip(templates, _masks))
-            ]) +
-            "</table>\n"
-        )
-        debug_result(
-            'image.find_multi',
-            [_draw_result(image, ret), image],
-            msg
-        )
+    # if debug.enabled:
+    #     msg = (
+    #         "<table class='result-table'>" +
+    #         "<tr><th>Template</th><th>Mask</th><th>Result</th></tr>" +
+    #         "\n".join([
+    #             f"<tr><td>{img(t)}</td><td>{img(m)}</td><td>{'✓' if ret and t == templates[ret.index] else '✗'}</td></tr>"
+    #             for i, (t, m) in enumerate(zip(templates, _masks))
+    #         ]) +
+    #         "</table>\n"
+    #     )
+    #     debug_result(
+    #         'image.find_multi',
+    #         [_draw_result(image, ret), image],
+    #         msg
+    #     )
     return ret
 
 def find_all_multi(
@@ -635,33 +634,33 @@ def find_all_multi(
     #     f'find_all_multi(): templates: {_imgs2str(templates)} images: {_img2str(image)} masks: {_imgs2str(masks)} '
     #     f'result: {_results2str(ret)}'
     # )
-    if debug.enabled:
-        # 参数表格
-        msg = (
-            "<center>Templates</center>"
-            "<table class='result-table'>"
-            "<tr><th>Template</th><th>Mask</th></tr>"
-        )
-        for t, m in zip(templates, _masks):
-            msg += f"<tr><td>{img(t)}</td><td>{img(m)}</td></tr>"
-        msg += "</table>"
-        msg += "<br>"
-        # 结果表格
-        msg += (
-            "<center>Results</center>"
-            "<table class='result-table'>"
-            "<tr><th>Template</th><th>Mask</th><th>Result</th></tr>"
-        )
-        for result in ret:
-            template = templates[result.index]
-            mask = _masks[result.index]
-            msg += f"<tr><td>{img(template)}</td><td>{img(mask)}</td><td>{result.position}</td></tr>"
-        msg += "</table>"
-        debug_result(
-            'image.find_all_multi',
-            [_draw_result(image, ret), image], 
-            msg
-        )
+    # if debug.enabled:
+    #     # 参数表格
+    #     msg = (
+    #         "<center>Templates</center>"
+    #         "<table class='result-table'>"
+    #         "<tr><th>Template</th><th>Mask</th></tr>"
+    #     )
+    #     for t, m in zip(templates, _masks):
+    #         msg += f"<tr><td>{img(t)}</td><td>{img(m)}</td></tr>"
+    #     msg += "</table>"
+    #     msg += "<br>"
+    #     # 结果表格
+    #     msg += (
+    #         "<center>Results</center>"
+    #         "<table class='result-table'>"
+    #         "<tr><th>Template</th><th>Mask</th><th>Result</th></tr>"
+    #     )
+    #     for result in ret:
+    #         template = templates[result.index]
+    #         mask = _masks[result.index]
+    #         msg += f"<tr><td>{img(template)}</td><td>{img(mask)}</td><td>{result.position}</td></tr>"
+    #     msg += "</table>"
+    #     debug_result(
+    #         'image.find_all_multi',
+    #         [_draw_result(image, ret), image], 
+    #         msg
+    #     )
     return ret
 
 def count(
@@ -705,19 +704,19 @@ def count(
     #     f'count(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
     #     f'result: {_results2str(results)}'
     # )
-    if debug.enabled:
-        result_image = _draw_result(image, results)
-        debug_result(
-            'image.count',
-            [result_image, image],
-            (
-                f"template: {img(template)} \n"
-                f"mask: {img(mask)} \n"
-                f"transparent: {transparent} \n"
-                f"threshold: {threshold} \n"
-                f"count: {len(results)} \n"
-            )
-        )
+    # if debug.enabled:
+    #     result_image = _draw_result(image, results)
+    #     debug_result(
+    #         'image.count',
+    #         [result_image, image],
+    #         (
+    #             f"template: {img(template)} \n"
+    #             f"mask: {img(mask)} \n"
+    #             f"transparent: {transparent} \n"
+    #             f"threshold: {threshold} \n"
+    #             f"count: {len(results)} \n"
+    #         )
+    #     )
     return len(results)
 
 def expect(
@@ -761,19 +760,19 @@ def expect(
     #     f'expect(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
     #     f'result: {_result2str(ret)}'
     # )
-    if debug.enabled:
-        debug_result(
-            'image.expect',
-            [_draw_result(image, ret), image],
-            (
-                f"template: {img(template)} \n"
-                f"mask: {img(mask)} \n"
-                f"args: transparent={transparent} threshold={threshold} \n"
-                f"result: {ret}  "
-                '<span class="text-success">SUCCESS</span>' if ret is not None 
-                    else '<span class="text-danger">FAILED</span>'
-            )
-        )
+    # if debug.enabled:
+    #     debug_result(
+    #         'image.expect',
+    #         [_draw_result(image, ret), image],
+    #         (
+    #             f"template: {img(template)} \n"
+    #             f"mask: {img(mask)} \n"
+    #             f"args: transparent={transparent} threshold={threshold} \n"
+    #             f"result: {ret}  "
+    #             '<span class="text-success">SUCCESS</span>' if ret is not None 
+    #                 else '<span class="text-danger">FAILED</span>'
+    #         )
+    #     )
     if ret is None:
         raise TemplateNoMatchError(image, template)
     else:

@@ -69,7 +69,7 @@ class MockDevice(Device):
             return next(self.__video_stream)
         else:
             raise RuntimeError('No video stream loaded')
-        
+
     @property
     @override
     def screen_size(self):
