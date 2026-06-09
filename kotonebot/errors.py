@@ -111,7 +111,30 @@ class MissingResourceVariant(KotonebotError):
     def __repr__(self) -> str:
         return f"MissingResourceVariant(variant_name={self.variant_name!r}, resource_class={self.resource_class!r})"
 
+class DeviceConnectionError(KotonebotError):
+    """设备连接失败基类。所有连接相关异常的公共父类。"""
+
+class DeviceConnectRefusedError(DeviceConnectionError):
+    """端口不可达 / 模拟器未启动（TCP 连接被拒绝）。"""
+    def __init__(self, addr: str, cause: Exception | None = None):
+        super().__init__(f'无法连接到设备 {addr}，请确认模拟器已启动。')
+        self.__cause__ = cause
+
+class DeviceNotReadyError(DeviceConnectionError):
+    """设备存在但未就绪（offline / 连接中断）。"""
+    def __init__(self, detail: str = ''):
+        msg = f'设备连接中断：{detail}' if detail else '设备连接中断，请检查模拟器状态。'
+        super().__init__(msg)
+
+class DeviceConnectTimeoutError(DeviceConnectionError):
+    """连接超时。"""
+    def __init__(self, addr: str = ''):
+        msg = f'连接设备 {addr} 超时。' if addr else '连接设备超时。'
+        super().__init__(msg)
+
 class EmulatorNotFoundError(KotonebotError):
     def __init__(self, emulator_name: str):
         self.emulator_name = emulator_name
         super().__init__(f'Emulator "{emulator_name}" not found. Check if it is installed in your system.')
+
+

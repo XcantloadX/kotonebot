@@ -16,12 +16,49 @@ from kotonebot.config.config import conf
 from kotonebot.primitives.geometry import Size
 from kotonebot.client.input import InputManager
 from kotonebot.primitives import Rect, Point
-from kotonebot.errors import CapabilityNotSupportedError, DeviceAlreadyStartedError, DeviceThreadMismatchError
+from functools import wraps
+from kotonebot.errors import (
+    CapabilityNotSupportedError, DeviceAlreadyStartedError, DeviceThreadMismatchError,
+    DeviceConnectionError, DeviceNotReadyError, DeviceConnectRefusedError, DeviceConnectTimeoutError,
+)
 from .protocol import ClickableObjectProtocol, Commandable, MultiTouchable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable, Lifecycle
 
 logger = logging.getLogger(__name__)
 LogLevel = Literal['info', 'debug', 'verbose', 'silent']
 CommandComponent = Commandable | AndroidCommandable | WindowsCommandable
+
+def device_operation(func):
+    """
+    标记一个方法为设备操作。
+
+    将底层 impl 抛出的连接相关异常（AdbError、AdbTimeout、socket 异常等）
+    统一转译为 DeviceConnectionError 子类，使调用方无需感知底层库细节。
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except DeviceConnectionError:
+            raise
+        except (ConnectionAbortedError, ConnectionResetError) as e:
+            raise DeviceNotReadyError(str(e)) from e
+        except ConnectionRefusedError as e:
+            raise DeviceConnectRefusedError('', e) from e
+        except Exception as e:
+            msg = str(e)
+            try:
+                from adbutils import AdbTimeout
+                from adbutils.errors import AdbError
+                if isinstance(e, AdbTimeout):
+                    raise DeviceConnectTimeoutError() from e
+                if isinstance(e, AdbError):
+                    if any(k in msg for k in ('offline', 'closed', 'not found', 'screencap error')):
+                        raise DeviceNotReadyError(msg) from e
+            except ImportError:
+                pass
+            raise
+    return wrapper
+
 
 class HookContextManager:
     def __init__(self, device: 'Device', func: Callable[[MatLike], MatLike]):
@@ -207,6 +244,7 @@ class Device:
             components.append(item)
         return components
 
+    @device_operation
     def start(self) -> None:
         """启动设备并初始化组件。
         
@@ -230,6 +268,7 @@ class Device:
             raise
         self._lifecycle_started = True
 
+    @device_operation
     def stop(self) -> None:
         """停止设备并清理组件。
 
@@ -314,6 +353,7 @@ class Device:
         """
         ...
 
+    @device_operation
     def click(self, *args, **kwargs) -> None:
         log: LogLevel | None = kwargs.pop('log', None)
         if match_types(args, {}, exact=True):
@@ -412,6 +452,7 @@ class Device:
         sleep(interval)
         self.click(*args, log=log)
 
+    @device_operation
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float|None = None, *, log: "LogLevel | None" = None) -> None:
         """
         滑动屏幕
@@ -442,6 +483,7 @@ class Device:
         w, h = self.scaler.physical_to_logic(self.screen_size)
         self.swipe(int(w * x1), int(h * y1), int(w * x2), int(h * y2), duration, log=log)
     
+    @device_operation
     def screenshot(self) -> MatLike:
         """
         截图
@@ -458,6 +500,7 @@ class Device:
             img = self.screenshot_hook_after(img)
         return img
 
+    @device_operation
     def screenshot_raw(self) -> MatLike:
         """
         截图，不调用任何 Hook。
@@ -470,21 +513,8 @@ class Device:
         """
         return HookContextManager(self, func)
 
-    @property
-    def screen_size(self) -> tuple[int, int]:
-        """
-        真实屏幕尺寸。格式为 `(width, height)`。
-        
-        **注意**： 此属性返回的分辨率会随设备方向变化。
-        如果 `self.orientation` 为 `landscape`，则返回的分辨率是横屏下的分辨率，
-        否则返回竖屏下的分辨率。
-
-        `self.orientation` 属性默认为竖屏。如果需要自动检测，
-        调用 `self.detect_orientation()` 方法。
-        如果已知方向，也可以直接设置 `self.orientation` 属性。
-        
-        即使设置了 `self.target_resolution`，返回的分辨率仍然是真实分辨率。
-        """
+    @device_operation
+    def _get_screen_size(self) -> tuple[int, int]:
         size = self._screenshot.screen_size
         if self.orientation == 'landscape':
             size = sorted(size, reverse=True)
@@ -492,6 +522,24 @@ class Device:
             size = sorted(size, reverse=False)
         return size[0], size[1]
 
+    @property
+    def screen_size(self) -> tuple[int, int]:
+        """
+        真实屏幕尺寸。格式为 `(width, height)`。
+
+        **注意**： 此属性返回的分辨率会随设备方向变化。
+        如果 `self.orientation` 为 `landscape`，则返回的分辨率是横屏下的分辨率，
+        否则返回竖屏下的分辨率。
+
+        `self.orientation` 属性默认为竖屏。如果需要自动检测，
+        调用 `self.detect_orientation()` 方法。
+        如果已知方向，也可以直接设置 `self.orientation` 属性。
+
+        即使设置了 `self.target_resolution`，返回的分辨率仍然是真实分辨率。
+        """
+        return self._get_screen_size()
+
+    @device_operation
     def detect_orientation(self) -> Literal['portrait', 'landscape'] | None:
         """
         检测当前设备方向并设置 `self.orientation` 属性。
@@ -507,6 +555,7 @@ class AndroidDevice(Device):
         self._adb: 'AdbUtilsDevice | None' = adb_connection
         self.commands: AndroidCommandable
         
+    @device_operation
     def current_package(self) -> str | None:
         """
         获取前台 APP 的包名。
@@ -518,6 +567,7 @@ class AndroidDevice(Device):
         logger.debug("current_package: %s", ret)
         return ret
 
+    @device_operation
     def launch_app(self, package_name: str) -> None:
         """
         根据包名启动 app

@@ -11,6 +11,7 @@ except ImportError as _e:
     raise MissingDependencyError(_e, 'android')
 from kotonebot import logging
 from kotonebot.client.device import AndroidDevice
+from kotonebot.errors import DeviceConnectRefusedError
 from .protocol import AdbHostConfig, Device
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ def connect_adb(
             logger.debug('adb connect %s', target.addr)
             result = adb.connect(target.addr)
             if 'cannot connect to' in result:
-                raise ValueError(result)
+                raise DeviceConnectRefusedError(target.addr)
         else:
             logger.debug('Skip adb connect.')
     logger.debug('adb wait for %s', target.serial)
