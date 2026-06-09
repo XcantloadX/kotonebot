@@ -12,6 +12,7 @@ import { useSymbolIndexStore } from "../symbolIndexStore";
 import { useAppStore } from "../state";
 import { openImageWithMeta } from "./image";
 import { useProjectInfoStore } from "../../app/projectInfoStore";
+import { useSettingsStore } from "../settings";
 import i18n from "../../i18n";
 
 export async function loadProjectVariants(): Promise<string[]> {
@@ -239,6 +240,26 @@ export async function importVariantImageForActiveDocument(
     toaster.show({ message: e?.message ?? String(e), intent: "danger" });
     return false;
   }
+}
+
+export async function importFromClipboardForActiveDocument(): Promise<void> {
+  const { rememberedVariant } = useSettingsStore.getState();
+  const projectVariants = await loadProjectVariants();
+  const variant = rememberedVariant ?? await pickVariantForActiveDocument(projectVariants);
+  if (variant === null) {
+    return;
+  }
+  const clipboardData = await navigator.clipboard.read();
+  for (const item of clipboardData) {
+    const imageType = item.types.find((type) => type.startsWith("image/"));
+    if (imageType) {
+      const blob = await item.getType(imageType);
+      const file = new File([blob], "clipboard.png", { type: imageType });
+      await importVariantImageForActiveDocument([file], variant);
+      return;
+    }
+  }
+  toaster.show({ message: i18n.t('deviceCapture.clipboardEmpty'), intent: "warning" });
 }
 
 export async function copySelectedPrefabToVariantForActiveDocument(

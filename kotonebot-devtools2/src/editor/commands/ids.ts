@@ -17,6 +17,8 @@ export const COMMAND_ID = {
   DEFINITION_DELETE_SELECTED: "definition.deleteSelected",
   DEFINITION_PASTE_FROM_CLIPBOARD: "definition.pasteFromClipboard",
   VARIANT_NEW_DOCUMENT: "variant.newDocument",
+  VARIANT_NEW_FROM_CLIPBOARD: "variant.newFromClipboard",
+  VARIANT_NEW_FROM_DEVICE: "variant.newFromDevice",
   VARIANT_COPY_SELECTED_PREFAB: "variant.copySelectedPrefab",
   VARIANT_RENAME_VARIANTS_FOR_DEFINITION: "variant.renameVariantsForDefinition",
   SYMBOL_RENAME_FOR_DEFINITION: "symbol.renameForDefinition",

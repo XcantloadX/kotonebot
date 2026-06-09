@@ -40,6 +40,10 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.DEFINITION_PASTE_FROM_CLIPBOARD]: undefined;
   /** 创建新的 variant 图像文档。 */
   [COMMAND_ID.VARIANT_NEW_DOCUMENT]: undefined;
+  /** 从剪贴板创建 variant。 */
+  [COMMAND_ID.VARIANT_NEW_FROM_CLIPBOARD]: undefined;
+  /** 从设备截图创建 variant。 */
+  [COMMAND_ID.VARIANT_NEW_FROM_DEVICE]: undefined;
   /** 将当前选中 prefab 复制到 variant。 */
   [COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB]: { variant?: string } | undefined;
   /** 依据定义 ID 重命名关联 variants。 */
@@ -67,6 +71,8 @@ export interface EditorCommandUiHandlers {
   openImageDialog: () => void;
   /** 打开 variant 目标选择对话框。 */
   openVariantDialog: () => Promise<void>;
+  /** 打开设备截图对话框。 */
+  openDeviceCaptureDialog: () => Promise<void>;
   /** 打开替换图片对话框。 */
   openReplaceImageDialog: () => void;
 }

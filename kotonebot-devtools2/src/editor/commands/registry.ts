@@ -207,6 +207,27 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
       await requireUiHandler(ctx, "openVariantDialog")();
     },
   },
+  [COMMAND_ID.VARIANT_NEW_FROM_CLIPBOARD]: {
+    id: COMMAND_ID.VARIANT_NEW_FROM_CLIPBOARD,
+    title: t('menuItem.newVariantFromClipboard'),
+    keywords: ["variant", "clipboard", "new"],
+    showInPalette: true,
+    when: () => canCreateVariantForActiveDocument(),
+    run: async () => {
+      await editorActions.variant.importFromClipboardForActive();
+    },
+  },
+  [COMMAND_ID.VARIANT_NEW_FROM_DEVICE]: {
+    id: COMMAND_ID.VARIANT_NEW_FROM_DEVICE,
+    title: t('menuItem.newVariantFromDevice'),
+    keywords: ["variant", "device", "capture", "new"],
+    showInPalette: true,
+    requiredUi: ["openDeviceCaptureDialog"],
+    when: () => canCreateVariantForActiveDocument(),
+    run: async (ctx) => {
+      await requireUiHandler(ctx, "openDeviceCaptureDialog")();
+    },
+  },
   [COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB]: {
     id: COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB,
     title: t('menuItem.copyToVariant'),
@@ -289,6 +310,8 @@ export const paletteCommandIds: NoArgCommandId[] = [
   COMMAND_ID.EDIT_UNDO,
   COMMAND_ID.EDIT_REDO,
   COMMAND_ID.VARIANT_NEW_DOCUMENT,
+  COMMAND_ID.VARIANT_NEW_FROM_CLIPBOARD,
+  COMMAND_ID.VARIANT_NEW_FROM_DEVICE,
   COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB,
 ];
 

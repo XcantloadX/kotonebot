@@ -19,6 +19,7 @@ import { saveActiveDocumentWithToast, saveAllDocumentsWithToast } from "./save";
 import { renameSymbolNameForActiveDefinition } from "./symbolRename";
 import {
   copySelectedPrefabToVariantForActiveDocument,
+  importFromClipboardForActiveDocument,
   importVariantImageForActiveDocument,
   loadProjectVariants,
   pickVariantForActiveDocument,
@@ -61,6 +62,8 @@ const variantActions = {
   selectImageForActive: selectVariantImageForActiveDocument,
   /** 为当前文档导入一个 Variant 图片。 */
   importImageForActive: importVariantImageForActiveDocument,
+  /** 从剪贴板读取图片并导入为当前文档的 Variant。 */
+  importFromClipboardForActive: importFromClipboardForActiveDocument,
   /** 将当前选中 prefab 复制到指定 Variant。 */
   copySelectedPrefabForActive: copySelectedPrefabToVariantForActiveDocument,
   /** 基于当前定义批量重命名相关 Variant。 */

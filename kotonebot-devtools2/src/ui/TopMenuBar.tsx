@@ -4,28 +4,14 @@ import { useTranslation } from "react-i18next";
 import { editorActions } from "../editor/actions";
 import { COMMAND_ID, executeCommand, useCommandStatuses } from "../editor/commands";
 import { useAppStore } from "../editor/state";
-import { FileOpenDialog } from "./components/FileOpenDialog/FileOpenDialog";
-import { FileOpenOrImportDialog } from "./components/FileOpenDialog/FileOpenOrImportDialog";
-import { DeviceCaptureDialog } from "./components/FileOpenDialog/DeviceCaptureDialog";
-import { ReplaceImageConfirmDialog } from "./components/ReplaceImageConfirmDialog";
-import { getImageUrl } from "../api/fs";
-import type { ReplaceImageSource } from "../editor/actions/image";
-import { toaster } from "./toaster";
 import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
 import { useLocaleStore } from "../i18n/localeStore";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import { useRecentOpenStore } from "../editor/recentOpenStore";
 import { shallow } from "zustand/shallow";
-
-/** 加载指定 URL 的图片并返回其像素尺寸。 */
-async function measureImageUrl(url: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve({ width: img.width, height: img.height });
-    img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
-    img.src = url;
-  });
-}
+import { useEditorDialogsContext } from "../editor/EditorDialogsContext";
+import { useSettingsStore } from "../editor/settings";
+import { useProjectInfoStore } from "../app/projectInfoStore";
 
 type MenuKey = "file" | "edit" | "variant" | null;
 type MenuId = Exclude<MenuKey, null>;
@@ -60,132 +46,18 @@ export const TopMenuBar: React.FC = () => {
     shallow,
   );
   const recentItems = itemsByWorkspace[currentWorkspaceKey] ?? [];
+  const { commandContext } = useEditorDialogsContext();
+  const { rememberedVariant, setRememberedVariant } = useSettingsStore();
+  const projectVariants = useProjectInfoStore((state) => state.data?.variant?.variants ?? []);
+
   const fileButtonRef = useRef<HTMLButtonElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const variantButtonRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const [openMenu, setOpenMenu] = useState<MenuKey>(null);
   const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
-  const [isImageDialogOpen, setImageDialogOpen] = useState(false);
-  const [projectVariants, setProjectVariants] = useState<string[]>([]);
-  const [variantDialogState, setVariantDialogState] = useState<{ isOpen: boolean; variant: string | null }>({
-    isOpen: false,
-    variant: null,
-  });
-  const [deviceCaptureState, setDeviceCaptureState] = useState<{ isOpen: boolean; variant: string | null }>({
-    isOpen: false,
-    variant: null,
-  });
-  const [rememberedVariant, setRememberedVariant] = useState<string | null>(null);
-  const [replaceImageDialogOpen, setReplaceImageDialogOpen] = useState(false);
-  const [replaceImageSource, setReplaceImageSource] = useState<ReplaceImageSource | null>(null);
-  const [replaceImageNewDims, setReplaceImageNewDims] = useState<{ width: number; height: number } | null>(null);
-  const variantDialogTitle = variantDialogState.variant
-    ? t('dialog.selectTargetImage') + ` ${variantDialogState.variant}`
-    : t('dialog.selectTargetImage');
-  const modalOpen = isImageDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen || replaceImageDialogOpen || replaceImageSource !== null;
 
   useShortcutScope("menu", openMenu !== null);
-  useShortcutScope("modal", modalOpen);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        setProjectVariants(await editorActions.variant.loadOptions());
-      } catch {
-        setProjectVariants([]);
-      }
-    })();
-  }, []);
-
-  const openImageDialog = useCallback(() => {
-    setImageDialogOpen(true);
-  }, []);
-
-  const closeImageDialog = useCallback(() => {
-    setImageDialogOpen(false);
-  }, []);
-
-  const closeVariantDialog = useCallback(() => {
-    setVariantDialogState({ isOpen: false, variant: null });
-  }, []);
-
-  const openVariantDialog = useCallback(async () => {
-    const variant = rememberedVariant ?? await editorActions.variant.pickForActive(projectVariants);
-    if (variant === null) {
-      return;
-    }
-    setVariantDialogState({ isOpen: true, variant });
-  }, [projectVariants, rememberedVariant]);
-
-  const openReplaceImageDialog = useCallback(() => {
-    setReplaceImageDialogOpen(true);
-  }, []);
-
-  const handleSelectReplaceImage = useCallback(async (paths: string[]) => {
-    if (paths.length !== 1) return;
-    setReplaceImageDialogOpen(false);
-    const path = paths[0];
-    let newDims: { width: number; height: number } | null = null;
-    try {
-      newDims = await measureImageUrl(getImageUrl(path));
-    } catch {
-      // 量尺寸失败时不阻断流程，仅无法显示警告
-    }
-    setReplaceImageNewDims(newDims);
-    setReplaceImageSource({ kind: "path", path });
-  }, []);
-
-  const handleImportReplaceImage = useCallback(async (files: File[]): Promise<boolean> => {
-    if (files.length === 0) return false;
-    if (files.length > 1) {
-      toaster.show({ message: t("image.onlyOneFileReplace"), intent: "warning" });
-      return false;
-    }
-    const file = files[0];
-    const objectUrl = URL.createObjectURL(file);
-    let newDims: { width: number; height: number } | null = null;
-    try {
-      newDims = await measureImageUrl(objectUrl);
-    } catch {
-      // 量尺寸失败时不阻断流程，仅无法显示警告
-    }
-    setReplaceImageNewDims(newDims);
-    setReplaceImageSource({ kind: "file", file, objectUrl });
-    return true;
-  }, [t]);
-
-  const handleConfirmReplace = useCallback(async () => {
-    if (!replaceImageSource) return;
-    try {
-      await editorActions.image.replaceActive(replaceImageSource);
-    } finally {
-      if (replaceImageSource.kind === "file") {
-        URL.revokeObjectURL(replaceImageSource.objectUrl);
-      }
-      setReplaceImageSource(null);
-      setReplaceImageNewDims(null);
-    }
-  }, [replaceImageSource]);
-
-  const handleCancelReplace = useCallback(() => {
-    if (replaceImageSource?.kind === "file") {
-      URL.revokeObjectURL(replaceImageSource.objectUrl);
-    }
-    setReplaceImageSource(null);
-    setReplaceImageNewDims(null);
-  }, [replaceImageSource]);
-
-  const commandContext = useMemo(
-    () => ({
-      ui: {
-        openImageDialog,
-        openVariantDialog,
-        openReplaceImageDialog,
-      },
-    }),
-    [openImageDialog, openVariantDialog, openReplaceImageDialog],
-  );
 
   const statusEntries = useMemo(() => ([
     { id: COMMAND_ID.FILE_SAVE, args: undefined },
@@ -197,6 +69,8 @@ export const TopMenuBar: React.FC = () => {
     { id: COMMAND_ID.EDIT_UNDO, args: undefined },
     { id: COMMAND_ID.EDIT_REDO, args: undefined },
     { id: COMMAND_ID.VARIANT_NEW_DOCUMENT, args: undefined },
+    { id: COMMAND_ID.VARIANT_NEW_FROM_CLIPBOARD, args: undefined },
+    { id: COMMAND_ID.VARIANT_NEW_FROM_DEVICE, args: undefined },
     { id: COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB, args: undefined },
   ] as const), []);
   const statuses = useCommandStatuses(statusEntries, commandContext);
@@ -205,6 +79,8 @@ export const TopMenuBar: React.FC = () => {
   const canRenameDocument = statuses[COMMAND_ID.FILE_RENAME].enabled;
   const canReplaceImage = statuses[COMMAND_ID.FILE_REPLACE_IMAGE].enabled;
   const canCreateVariantDocument = statuses[COMMAND_ID.VARIANT_NEW_DOCUMENT].enabled;
+  const canNewVariantFromClipboard = statuses[COMMAND_ID.VARIANT_NEW_FROM_CLIPBOARD].enabled;
+  const canNewVariantFromDevice = statuses[COMMAND_ID.VARIANT_NEW_FROM_DEVICE].enabled;
   const canCopySelectedPrefabToVariant = statuses[COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB].enabled;
   const canUndo = statuses[COMMAND_ID.EDIT_UNDO].enabled;
   const canRedo = statuses[COMMAND_ID.EDIT_REDO].enabled;
@@ -212,82 +88,6 @@ export const TopMenuBar: React.FC = () => {
   const redoLabel = canRedo && activeDoc ? activeDoc.history.entries[activeDoc.history.cursor].label : "";
   const undoMenuText = canUndo ? `${t('menuItem.undo')}: ${undoLabel}` : t('menuItem.undo');
   const redoMenuText = canRedo ? `${t('menuItem.redo')}: ${redoLabel}` : t('menuItem.redo');
-
-  const handleSelectImages = useCallback(
-    async (paths: string[]) => {
-      await editorActions.image.openWithChecks(paths);
-      setImageDialogOpen(false);
-    },
-    []
-  );
-
-  const handleSelectVariantImage = useCallback(
-    async (paths: string[]) => {
-      const variant = variantDialogState.variant;
-      if (!variant) {
-        throw new Error("No variant selected for target image");
-      }
-      await editorActions.variant.selectImageForActive(paths, variant);
-      setVariantDialogState({ isOpen: false, variant: null });
-    },
-    [variantDialogState.variant]
-  );
-
-  const handleImportVariantImage = useCallback(
-    async (files: File[]) => {
-      const variant = variantDialogState.variant;
-      if (!variant) {
-        throw new Error("No variant selected for import");
-      }
-      const shouldClose = await editorActions.variant.importImageForActive(files, variant);
-      if (shouldClose) {
-        setVariantDialogState({ isOpen: false, variant: null });
-      }
-      return shouldClose;
-    },
-    [variantDialogState.variant]
-  );
-
-  const handleDeviceCaptureImport = useCallback(
-    async (files: File[]) => {
-      const variant = deviceCaptureState.variant;
-      if (!variant) {
-        throw new Error("No variant selected for device capture");
-      }
-      const shouldClose = await editorActions.variant.importImageForActive(files, variant);
-      if (shouldClose) {
-        setDeviceCaptureState({ isOpen: false, variant: null });
-      }
-      return shouldClose;
-    },
-    [deviceCaptureState.variant]
-  );
-
-  const handleNewVariantFromClipboard = useCallback(async () => {
-    const variant = rememberedVariant ?? await editorActions.variant.pickForActive(projectVariants);
-    if (variant === null) {
-      return;
-    }
-    const clipboardData = await navigator.clipboard.read();
-    for (const item of clipboardData) {
-      const imageType = item.types.find(type => type.startsWith("image/"));
-      if (imageType) {
-        const blob = await item.getType(imageType);
-        const file = new File([blob], "clipboard.png", { type: imageType });
-        await editorActions.variant.importImageForActive([file], variant);
-        return;
-      }
-    }
-    toaster.show({ message: t('deviceCapture.clipboardEmpty'), intent: "warning" });
-  }, [projectVariants, rememberedVariant, t]);
-
-  const handleNewVariantFromDevice = useCallback(async () => {
-    const variant = rememberedVariant ?? await editorActions.variant.pickForActive(projectVariants);
-    if (variant === null) {
-      return;
-    }
-    setDeviceCaptureState({ isOpen: true, variant });
-  }, [projectVariants, rememberedVariant]);
 
   const triggerStyle = useMemo<React.CSSProperties>(
     () => ({
@@ -447,18 +247,18 @@ export const TopMenuBar: React.FC = () => {
         },
         {
           text: t('menuItem.newVariantFromClipboard'),
-          disabled: !canCreateVariantDocument,
+          disabled: !canNewVariantFromClipboard,
           onClick: () => {
             setOpenMenu(null);
-            void handleNewVariantFromClipboard();
+            void executeCommand(COMMAND_ID.VARIANT_NEW_FROM_CLIPBOARD, commandContext, undefined);
           },
         },
         {
           text: t('menuItem.newVariantFromDevice'),
-          disabled: !canCreateVariantDocument,
+          disabled: !canNewVariantFromDevice,
           onClick: () => {
             setOpenMenu(null);
-            void handleNewVariantFromDevice();
+            void executeCommand(COMMAND_ID.VARIANT_NEW_FROM_DEVICE, commandContext, undefined);
           },
         },
         {
@@ -507,6 +307,8 @@ export const TopMenuBar: React.FC = () => {
       activeDocumentId,
       canCopySelectedPrefabToVariant,
       canCreateVariantDocument,
+      canNewVariantFromClipboard,
+      canNewVariantFromDevice,
       canRedo,
       canRenameDocument,
       canReplaceImage,
@@ -516,12 +318,11 @@ export const TopMenuBar: React.FC = () => {
       canUndo,
       commandContext,
       documents,
-      handleNewVariantFromClipboard,
-      handleNewVariantFromDevice,
       projectVariants,
       recentItems,
       redoMenuText,
       rememberedVariant,
+      setRememberedVariant,
       undoMenuText,
       t,
     ]
@@ -793,69 +594,6 @@ export const TopMenuBar: React.FC = () => {
           {renderMenu()}
         </div>
       ) : null}
-      <FileOpenDialog
-        isOpen={isImageDialogOpen}
-        onClose={closeImageDialog}
-        onSelect={handleSelectImages}
-        title={t('dialog.openImage')}
-        filter={(name) => name.endsWith(".png")}
-      />
-      <FileOpenOrImportDialog
-        isOpen={variantDialogState.isOpen}
-        onClose={closeVariantDialog}
-        onSelect={handleSelectVariantImage}
-        onImportDrop={handleImportVariantImage}
-        title={variantDialogTitle}
-        filter={(name) => name.endsWith(".png")}
-        multiSelect={false}
-        showDeviceCapture={false}
-      />
-      <DeviceCaptureDialog
-        isOpen={deviceCaptureState.isOpen}
-        onClose={() => setDeviceCaptureState({ isOpen: false, variant: null })}
-        onImport={handleDeviceCaptureImport}
-      />
-      <FileOpenOrImportDialog
-        isOpen={replaceImageDialogOpen}
-        onClose={() => setReplaceImageDialogOpen(false)}
-        onSelect={handleSelectReplaceImage}
-        onImportDrop={handleImportReplaceImage}
-        title={t("image.replaceImage")}
-        filter={(name) => name.endsWith(".png")}
-        multiSelect={false}
-        showDeviceCapture={false}
-      />
-      {replaceImageSource !== null && activeDoc !== null && (
-        <ReplaceImageConfirmDialog
-          isOpen={true}
-          currentImagePath={activeDoc.image.path}
-          currentImageUrl={getImageUrl(activeDoc.image.path)}
-          newImageLabel={
-            replaceImageSource.kind === "path"
-              ? replaceImageSource.path
-              : replaceImageSource.file.name
-          }
-          newImageUrl={
-            replaceImageSource.kind === "path"
-              ? getImageUrl(replaceImageSource.path)
-              : replaceImageSource.objectUrl
-          }
-          dimensionMismatch={
-            replaceImageNewDims !== null &&
-            (replaceImageNewDims.width !== activeDoc.image.width ||
-              replaceImageNewDims.height !== activeDoc.image.height)
-              ? {
-                  currentWidth: activeDoc.image.width,
-                  currentHeight: activeDoc.image.height,
-                  newWidth: replaceImageNewDims.width,
-                  newHeight: replaceImageNewDims.height,
-                }
-              : undefined
-          }
-          onClose={handleCancelReplace}
-          onConfirm={handleConfirmReplace}
-        />
-      )}
     </div>
   );
 };
