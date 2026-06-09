@@ -119,7 +119,6 @@ export const TopMenuBar: React.FC = () => {
           },
         },
         {
-          icon: "history",
           text: t('menuItem.openRecent'),
           children: (
             <>
@@ -164,7 +163,6 @@ export const TopMenuBar: React.FC = () => {
           },
         },
         {
-          icon: "floppy-disk",
           text: t('menuItem.saveAll'),
           label: t('shortcut.ctrlShiftS'),
           disabled: !canSaveAll,
@@ -193,7 +191,6 @@ export const TopMenuBar: React.FC = () => {
           },
         },
         {
-          icon: "small-cross",
           text: t('menuItem.closeAllDocuments'),
           label: t('shortcut.ctrlShift2'),
           disabled: !statuses[COMMAND_ID.FILE_CLOSE_ALL].enabled,
