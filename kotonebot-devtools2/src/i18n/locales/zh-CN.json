@@ -107,7 +107,8 @@
     "renameSymbol": "重命名定义的符号",
     "closeDocuments": "关闭文档",
     "jumpToSymbol": "跳转到符号",
-    "jumpToDiagnostic": "跳转到诊断"
+    "jumpToDiagnostic": "跳转到诊断",
+    "revealInExplorer": "在文件管理器中定位当前图片"
   },
   "variant": {
     "selectVariant": "选择变体",
@@ -201,7 +202,8 @@
   "tabBar": {
     "close": "关闭",
     "closeAll": "关闭全部",
-    "closeOthers": "关闭其他"
+    "closeOthers": "关闭其他",
+    "revealInExplorer": "在文件管理器中定位"
   },
   "rightProperties": {
     "displayName": "显示名称",

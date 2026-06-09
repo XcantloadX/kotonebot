@@ -1,8 +1,10 @@
 import json
 import logging
 import os
+import platform
 import shutil
 import string
+import subprocess
 import uuid
 import tempfile
 from pathlib import Path
@@ -724,6 +726,18 @@ class RestApiLogic:
             variant=variant,
             force_overwrite=force_overwrite,
         )
+
+    def reveal_in_explorer(self, path: str) -> None:
+        safe_path = get_safe_path(path, self.project)
+        if not safe_path.exists():
+            raise FileNotFoundError(f"File not found: {path}")
+        sys_platform = platform.system()
+        if sys_platform == "Windows":
+            subprocess.Popen(["explorer", "/select,", str(safe_path)])
+        elif sys_platform == "Darwin":
+            subprocess.Popen(["open", "-R", str(safe_path)])
+        else:
+            subprocess.Popen(["xdg-open", str(safe_path.parent)])
 
     def get_health(self) -> dict[str, str]:
         return {"status": "ok", "service": "kotonebot-devtools"}

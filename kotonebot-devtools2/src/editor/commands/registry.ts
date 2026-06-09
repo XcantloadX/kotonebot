@@ -106,6 +106,18 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
       requireUiHandler(ctx, "openReplaceImageDialog")();
     },
   },
+  [COMMAND_ID.FILE_REVEAL_IN_EXPLORER]: {
+    id: COMMAND_ID.FILE_REVEAL_IN_EXPLORER,
+    title: t('commands.revealInExplorer'),
+    keywords: ["reveal", "explorer", "finder", "locate", "file", "manager"],
+    showInPalette: true,
+    when: () => !!getActiveDocumentId(),
+    run: async (_, args) => {
+      const { revealInExplorer } = await import("../../api/fs");
+      const path = args?.path ?? useAppStore.getState().documents[getActiveDocumentId()!]?.image.path;
+      if (path) await revealInExplorer(path);
+    },
+  },
   [COMMAND_ID.FILE_CLOSE_ACTIVE]: {
     id: COMMAND_ID.FILE_CLOSE_ACTIVE,
     title: t('menuItem.closeDocument'),
@@ -305,6 +317,7 @@ export const paletteCommandIds: NoArgCommandId[] = [
   COMMAND_ID.FILE_SAVE_ALL,
   COMMAND_ID.FILE_RENAME,
   COMMAND_ID.FILE_REPLACE_IMAGE,
+  COMMAND_ID.FILE_REVEAL_IN_EXPLORER,
   COMMAND_ID.FILE_CLOSE_ACTIVE,
   COMMAND_ID.FILE_CLOSE_ALL,
   COMMAND_ID.EDIT_UNDO,

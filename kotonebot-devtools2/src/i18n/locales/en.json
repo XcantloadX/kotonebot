@@ -107,7 +107,8 @@
     "renameSymbol": "Rename Symbol for Definition",
     "closeDocuments": "Close Documents",
     "jumpToSymbol": "Jump To Symbol",
-    "jumpToDiagnostic": "Jump To Diagnostic"
+    "jumpToDiagnostic": "Jump To Diagnostic",
+    "revealInExplorer": "Reveal Current Image in Explorer"
   },
   "variant": {
     "selectVariant": "Select Variant",
@@ -201,7 +202,8 @@
   "tabBar": {
     "close": "Close",
     "closeAll": "Close All",
-    "closeOthers": "Close Others"
+    "closeOthers": "Close Others",
+    "revealInExplorer": "Reveal in Explorer"
   },
   "rightProperties": {
     "displayName": "Display Name",

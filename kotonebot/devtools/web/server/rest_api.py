@@ -344,6 +344,17 @@ def create_rest_router(project: Project) -> APIRouter:
             logging.exception("Error while handling /meta/variant/copy_selected_prefab")
             return _err(str(e))
 
+    @router.post("/fs/reveal_in_explorer")
+    async def reveal_in_explorer(path: str = Query(...)):
+        try:
+            logic.reveal_in_explorer(path)
+            return _ok()
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            logging.exception("Error while handling /fs/reveal_in_explorer")
+            return _err(str(e))
+
     @router.get("/health")
     async def health_check():
         return _ok(logic.get_health())

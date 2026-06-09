@@ -20,6 +20,8 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.FILE_RENAME]: undefined;
   /** 替换当前文档的图片。 */
   [COMMAND_ID.FILE_REPLACE_IMAGE]: undefined;
+  /** 在文件管理器中定位图片。path 为绝对路径；省略时使用当前激活文档。 */
+  [COMMAND_ID.FILE_REVEAL_IN_EXPLORER]: { path?: string } | undefined;
   /** 关闭当前激活文档。 */
   [COMMAND_ID.FILE_CLOSE_ACTIVE]: undefined;
   /** 关闭全部文档。 */

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useHorizontalScroll } from './hooks/useHorizontalScroll';
-import { Icon, Tooltip, Menu, MenuItem } from '@blueprintjs/core';
+import { Icon, Tooltip, Menu, MenuItem, MenuDivider } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
 import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { useAppStore } from '../editor/state';
@@ -165,6 +165,14 @@ export const TabBar: React.FC = () => {
                             const id = contextMenu.docId;
                             const ids = Object.keys(documents).filter(i => i !== id);
                             void executeCommand(COMMAND_ID.DOCUMENT_CLOSE_MANY, commandContext, { ids });
+                            setContextMenu(null);
+                        }} />
+                        <MenuDivider />
+                        <MenuItem text={t('tabBar.revealInExplorer')} onClick={() => {
+                            const doc = documents[contextMenu.docId];
+                            if (doc) {
+                                void executeCommand(COMMAND_ID.FILE_REVEAL_IN_EXPLORER, commandContext, { path: doc.image.path });
+                            }
                             setContextMenu(null);
                         }} />
                     </Menu>

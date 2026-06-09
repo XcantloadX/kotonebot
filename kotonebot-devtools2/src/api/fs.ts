@@ -133,3 +133,7 @@ export async function fetchImageAsFile(path: string, filename: string): Promise<
 export async function getProjectInfo(): Promise<ProjectInfo> {
   return fetchJson(`/api/project/root`);
 }
+
+export async function revealInExplorer(path: string): Promise<void> {
+  await fetchJson(`/api/fs/reveal_in_explorer?path=${encodeURIComponent(path)}`, { method: "POST" });
+}
