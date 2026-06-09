@@ -4,6 +4,7 @@ Library:
 1. [feat] **BREAKING** 对于 MuMu 模拟器，当模拟器未安装或未找到时，现在抛出 `EmulatorNotFoundError` 而不是 `RumtimeError` 了。
 2. [feat] **BREAKING** 完全移除 `kotonebot.backend.debug` 模块以及相关设计。
 3. [feat] 归一化处理各种 ADB 连接错误与网络错误，统一为 `DeviceConnectionError` 及其子类。
+4. [fix] 修复了 `UserFriendlyError` 遗漏传递参数导致在异常描述中消息文本缺失的问题。
 
 Framework：
 1. [feat] 优化了框架部分 API 对于多线程的支持，现在可以在多个线程内同时执行任务了。

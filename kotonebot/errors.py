@@ -19,7 +19,7 @@ class UserFriendlyError(KotonebotError):
         actions: list[tuple[int, str, Callable[[], None]]] = [],
         *args, **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(message, *args, **kwargs)
         self.message = message
         self.actions = actions or []
 
