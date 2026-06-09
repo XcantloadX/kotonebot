@@ -12,7 +12,7 @@ import {
   pasteDefinitionFromClipboard,
   selectDefinition,
 } from "./definition";
-import { openImageWithMeta, openImagesWithChecks } from "./image";
+import { openImageWithMeta, openImagesWithChecks, replaceActiveDocumentImage } from "./image";
 import { jumpToDiagnostic, jumpToSymbol } from "./navigation";
 import { promptAndRenameActiveDocument } from "./rename";
 import { saveActiveDocumentWithToast, saveAllDocumentsWithToast } from "./save";
@@ -31,6 +31,8 @@ const imageActions = {
   openWithMeta: openImageWithMeta,
   /** 批量打开图片并执行必要检查。 */
   openWithChecks: openImagesWithChecks,
+  /** 替换当前文档的图片文件。 */
+  replaceActive: replaceActiveDocumentImage,
 };
 
 const documentActions = {

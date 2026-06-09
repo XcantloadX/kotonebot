@@ -9,6 +9,7 @@
   },
   "menuItem": {
     "openImage": "Open Image...",
+    "replaceImage": "Replace Image...",
     "openRecent": "Open Recent",
     "clearRecent": "Clear Recent",
     "save": "Save",
@@ -96,6 +97,7 @@
     "openCommandPalette": "Open Command Palette",
     "toggleProblemsPanel": "Toggle Problems Panel",
     "renameDocument": "Rename Document...",
+    "replaceImage": "Replace Image...",
     "duplicateDefinition": "Duplicate Selected Definition",
     "copyDefinition": "Copy Selected Definition",
     "cutDefinition": "Cut Selected Definition",
@@ -166,7 +168,17 @@
   "image": {
     "legacyMetaFormat": "Legacy Meta Format",
     "detectedLegacyFormat": "Detected legacy or unknown meta format:\n{{path}}\n\nStart fresh with V3 definitions?",
-    "startFreshV3": "Start Fresh V3"
+    "startFreshV3": "Start Fresh V3",
+    "replaceImage": "Replace Image",
+    "replaceImageMenuItem": "Replace Image...",
+    "current": "Current",
+    "new": "New",
+    "replace": "Replace",
+    "replaced": "Image replaced successfully",
+    "onlyOneFileReplace": "Only one file can be used for replacement",
+    "reloadFailed": "Failed to reload image after replacement",
+    "dimensionMismatch": "Size mismatch: current image is {{currentW}}×{{currentH}}, new image is {{newW}}×{{newH}}. Existing annotations may be misaligned.",
+    "replaceConfirmPrompt": "Are you sure you want to replace the current document's image?"
   },
   "variantRename": {
     "syncVariantNames": "Sync Variant Names",

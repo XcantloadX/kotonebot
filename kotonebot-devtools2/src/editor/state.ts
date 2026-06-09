@@ -3,7 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import { Patch, applyPatches, current, enablePatches, produceWithPatches } from 'immer';
 import { DefinitionModel, MetaModel, ResourceType } from '../model/metaV2';
 import { PrefabSchema } from '../model/prefabSchema';
-import { writeText } from '../api/fs';
+import { getImageUrl, writeText } from '../api/fs';
 import { toaster } from '../ui/toaster';
 import { useSymbolIndexStore } from './symbolIndexStore';
 import i18n from '../i18n';
@@ -97,6 +97,8 @@ interface AppState {
   setActiveTool: (tool: ToolType) => void;
   setActiveResourceType: (type: ResourceType) => void;
   setDefinitionClipboard: (clipboard: DefinitionClipboard | null) => void;
+
+  refreshDocumentImage: (id: string) => void;
 
   // Active Document Actions
   setSelection: (definitionId: string | null) => void;
@@ -241,6 +243,13 @@ export const useAppStore = create<AppState>()(
     setViewState: (id, view) => set((state) => {
       if (state.documents[id]) {
         state.documents[id].view = view;
+      }
+    }),
+
+    refreshDocumentImage: (id) => set((state) => {
+      if (state.documents[id]) {
+        const path = state.documents[id].image.path;
+        state.documents[id].image.url = `${getImageUrl(path)}&t=${Date.now()}`;
       }
     }),
 

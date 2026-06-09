@@ -7,12 +7,25 @@ import { useAppStore } from "../editor/state";
 import { FileOpenDialog } from "./components/FileOpenDialog/FileOpenDialog";
 import { FileOpenOrImportDialog } from "./components/FileOpenDialog/FileOpenOrImportDialog";
 import { DeviceCaptureDialog } from "./components/FileOpenDialog/DeviceCaptureDialog";
+import { ReplaceImageConfirmDialog } from "./components/ReplaceImageConfirmDialog";
+import { getImageUrl } from "../api/fs";
+import type { ReplaceImageSource } from "../editor/actions/image";
 import { toaster } from "./toaster";
 import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
 import { useLocaleStore } from "../i18n/localeStore";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import { useRecentOpenStore } from "../editor/recentOpenStore";
 import { shallow } from "zustand/shallow";
+
+/** 加载指定 URL 的图片并返回其像素尺寸。 */
+async function measureImageUrl(url: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.width, height: img.height });
+    img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+    img.src = url;
+  });
+}
 
 type MenuKey = "file" | "edit" | "variant" | null;
 type MenuId = Exclude<MenuKey, null>;
@@ -64,10 +77,13 @@ export const TopMenuBar: React.FC = () => {
     variant: null,
   });
   const [rememberedVariant, setRememberedVariant] = useState<string | null>(null);
+  const [replaceImageDialogOpen, setReplaceImageDialogOpen] = useState(false);
+  const [replaceImageSource, setReplaceImageSource] = useState<ReplaceImageSource | null>(null);
+  const [replaceImageNewDims, setReplaceImageNewDims] = useState<{ width: number; height: number } | null>(null);
   const variantDialogTitle = variantDialogState.variant
     ? t('dialog.selectTargetImage') + ` ${variantDialogState.variant}`
     : t('dialog.selectTargetImage');
-  const modalOpen = isImageDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen;
+  const modalOpen = isImageDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen || replaceImageDialogOpen || replaceImageSource !== null;
 
   useShortcutScope("menu", openMenu !== null);
   useShortcutScope("modal", modalOpen);
@@ -102,20 +118,80 @@ export const TopMenuBar: React.FC = () => {
     setVariantDialogState({ isOpen: true, variant });
   }, [projectVariants, rememberedVariant]);
 
+  const openReplaceImageDialog = useCallback(() => {
+    setReplaceImageDialogOpen(true);
+  }, []);
+
+  const handleSelectReplaceImage = useCallback(async (paths: string[]) => {
+    if (paths.length !== 1) return;
+    setReplaceImageDialogOpen(false);
+    const path = paths[0];
+    let newDims: { width: number; height: number } | null = null;
+    try {
+      newDims = await measureImageUrl(getImageUrl(path));
+    } catch {
+      // 量尺寸失败时不阻断流程，仅无法显示警告
+    }
+    setReplaceImageNewDims(newDims);
+    setReplaceImageSource({ kind: "path", path });
+  }, []);
+
+  const handleImportReplaceImage = useCallback(async (files: File[]): Promise<boolean> => {
+    if (files.length === 0) return false;
+    if (files.length > 1) {
+      toaster.show({ message: t("image.onlyOneFileReplace"), intent: "warning" });
+      return false;
+    }
+    const file = files[0];
+    const objectUrl = URL.createObjectURL(file);
+    let newDims: { width: number; height: number } | null = null;
+    try {
+      newDims = await measureImageUrl(objectUrl);
+    } catch {
+      // 量尺寸失败时不阻断流程，仅无法显示警告
+    }
+    setReplaceImageNewDims(newDims);
+    setReplaceImageSource({ kind: "file", file, objectUrl });
+    return true;
+  }, [t]);
+
+  const handleConfirmReplace = useCallback(async () => {
+    if (!replaceImageSource) return;
+    try {
+      await editorActions.image.replaceActive(replaceImageSource);
+    } finally {
+      if (replaceImageSource.kind === "file") {
+        URL.revokeObjectURL(replaceImageSource.objectUrl);
+      }
+      setReplaceImageSource(null);
+      setReplaceImageNewDims(null);
+    }
+  }, [replaceImageSource]);
+
+  const handleCancelReplace = useCallback(() => {
+    if (replaceImageSource?.kind === "file") {
+      URL.revokeObjectURL(replaceImageSource.objectUrl);
+    }
+    setReplaceImageSource(null);
+    setReplaceImageNewDims(null);
+  }, [replaceImageSource]);
+
   const commandContext = useMemo(
     () => ({
       ui: {
         openImageDialog,
         openVariantDialog,
+        openReplaceImageDialog,
       },
     }),
-    [openImageDialog, openVariantDialog],
+    [openImageDialog, openVariantDialog, openReplaceImageDialog],
   );
 
   const statusEntries = useMemo(() => ([
     { id: COMMAND_ID.FILE_SAVE, args: undefined },
     { id: COMMAND_ID.FILE_SAVE_ALL, args: undefined },
     { id: COMMAND_ID.FILE_RENAME, args: undefined },
+    { id: COMMAND_ID.FILE_REPLACE_IMAGE, args: undefined },
     { id: COMMAND_ID.FILE_CLOSE_ACTIVE, args: undefined },
     { id: COMMAND_ID.FILE_CLOSE_ALL, args: undefined },
     { id: COMMAND_ID.EDIT_UNDO, args: undefined },
@@ -127,6 +203,7 @@ export const TopMenuBar: React.FC = () => {
   const canSave = statuses[COMMAND_ID.FILE_SAVE].enabled;
   const canSaveAll = statuses[COMMAND_ID.FILE_SAVE_ALL].enabled;
   const canRenameDocument = statuses[COMMAND_ID.FILE_RENAME].enabled;
+  const canReplaceImage = statuses[COMMAND_ID.FILE_REPLACE_IMAGE].enabled;
   const canCreateVariantDocument = statuses[COMMAND_ID.VARIANT_NEW_DOCUMENT].enabled;
   const canCopySelectedPrefabToVariant = statuses[COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB].enabled;
   const canUndo = statuses[COMMAND_ID.EDIT_UNDO].enabled;
@@ -347,6 +424,15 @@ export const TopMenuBar: React.FC = () => {
             void executeCommand(COMMAND_ID.EDIT_REDO, commandContext, undefined);
           },
         },
+        { divider: true },
+        {
+          text: t('menuItem.replaceImage'),
+          disabled: !canReplaceImage,
+          onClick: () => {
+            setOpenMenu(null);
+            void executeCommand(COMMAND_ID.FILE_REPLACE_IMAGE, commandContext, undefined);
+          },
+        },
       ],
       variant: [
         {
@@ -423,6 +509,7 @@ export const TopMenuBar: React.FC = () => {
       canCreateVariantDocument,
       canRedo,
       canRenameDocument,
+      canReplaceImage,
       canSave,
       canSaveAll,
       clearRecentInWorkspace,
@@ -728,6 +815,47 @@ export const TopMenuBar: React.FC = () => {
         onClose={() => setDeviceCaptureState({ isOpen: false, variant: null })}
         onImport={handleDeviceCaptureImport}
       />
+      <FileOpenOrImportDialog
+        isOpen={replaceImageDialogOpen}
+        onClose={() => setReplaceImageDialogOpen(false)}
+        onSelect={handleSelectReplaceImage}
+        onImportDrop={handleImportReplaceImage}
+        title={t("image.replaceImage")}
+        filter={(name) => name.endsWith(".png")}
+        multiSelect={false}
+        showDeviceCapture={false}
+      />
+      {replaceImageSource !== null && activeDoc !== null && (
+        <ReplaceImageConfirmDialog
+          isOpen={true}
+          currentImagePath={activeDoc.image.path}
+          currentImageUrl={getImageUrl(activeDoc.image.path)}
+          newImageLabel={
+            replaceImageSource.kind === "path"
+              ? replaceImageSource.path
+              : replaceImageSource.file.name
+          }
+          newImageUrl={
+            replaceImageSource.kind === "path"
+              ? getImageUrl(replaceImageSource.path)
+              : replaceImageSource.objectUrl
+          }
+          dimensionMismatch={
+            replaceImageNewDims !== null &&
+            (replaceImageNewDims.width !== activeDoc.image.width ||
+              replaceImageNewDims.height !== activeDoc.image.height)
+              ? {
+                  currentWidth: activeDoc.image.width,
+                  currentHeight: activeDoc.image.height,
+                  newWidth: replaceImageNewDims.width,
+                  newHeight: replaceImageNewDims.height,
+                }
+              : undefined
+          }
+          onClose={handleCancelReplace}
+          onConfirm={handleConfirmReplace}
+        />
+      )}
     </div>
   );
 };

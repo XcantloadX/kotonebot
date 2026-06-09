@@ -75,6 +75,11 @@ export function canOperateOnSelectedDefinitionInActiveDocument(): boolean {
   return !!activeDoc.meta.data.definitions[activeDoc.selection.definitionId];
 }
 
+/** 当前激活文档是否可替换图片。 */
+export function canReplaceActiveDocumentImage(): boolean {
+  return !!getActiveDocument();
+}
+
 /** 当前激活文档是否可从内部剪贴板粘贴 definition。 */
 export function canPasteDefinitionFromClipboardInActiveDocument(): boolean {
   const state = useAppStore.getState();

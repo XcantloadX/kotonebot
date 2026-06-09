@@ -9,6 +9,7 @@ import {
   canCreateVariantForActiveDocument,
   canRedoInActiveDocument,
   canRenameActiveDocument,
+  canReplaceActiveDocumentImage,
   canSaveActiveDocument,
   canSaveAnyDocument,
   canUndoInActiveDocument,
@@ -92,6 +93,17 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     when: () => canRenameActiveDocument(),
     run: async () => {
       await editorActions.document.renameByPrompt();
+    },
+  },
+  [COMMAND_ID.FILE_REPLACE_IMAGE]: {
+    id: COMMAND_ID.FILE_REPLACE_IMAGE,
+    title: t('commands.replaceImage'),
+    keywords: ["replace", "image", "file"],
+    showInPalette: true,
+    requiredUi: ["openReplaceImageDialog"],
+    when: () => canReplaceActiveDocumentImage(),
+    run: async (ctx) => {
+      requireUiHandler(ctx, "openReplaceImageDialog")();
     },
   },
   [COMMAND_ID.FILE_CLOSE_ACTIVE]: {
@@ -271,6 +283,7 @@ export const paletteCommandIds: NoArgCommandId[] = [
   COMMAND_ID.FILE_SAVE,
   COMMAND_ID.FILE_SAVE_ALL,
   COMMAND_ID.FILE_RENAME,
+  COMMAND_ID.FILE_REPLACE_IMAGE,
   COMMAND_ID.FILE_CLOSE_ACTIVE,
   COMMAND_ID.FILE_CLOSE_ALL,
   COMMAND_ID.EDIT_UNDO,

@@ -7,6 +7,9 @@ Library:
 Framework：
 1. [feat] 优化了框架部分 API 对于多线程的支持，现在可以在多个线程内同时执行任务了。
 
+Devtools:
+1. [feat] 新增支持替换图片功能，可以快速替换当前文档的图像。
+
 ## v0.14.0
 Library:
 1. [feat] **BREAKING** 移除 remote_windows 实现。

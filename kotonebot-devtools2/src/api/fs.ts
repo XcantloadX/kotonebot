@@ -99,6 +99,24 @@ export async function executeRenameDocument(sourceImagePath: string, targetImage
   });
 }
 
+export async function copyFile(sourcePath: string, targetPath: string): Promise<void> {
+  await fetchJson("/api/fs/copy_file", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sourcePath, targetPath }),
+  });
+}
+
+export async function uploadFile(targetPath: string, file: File): Promise<void> {
+  const formData = new FormData();
+  formData.set("targetPath", targetPath);
+  formData.set("file", file);
+  await fetchJson("/api/fs/upload_file", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 export function getImageUrl(path: string): string {
   return `/api/image?path=${encodeURIComponent(path)}`;
 }

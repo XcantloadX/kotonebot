@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 import string
 import uuid
 import tempfile
@@ -416,6 +417,49 @@ class RestApiLogic:
             raise ValueError(f"Target parent directory does not exist: {safe_target.parent}")
         os.replace(safe_source, safe_target)
         return {"sourcePath": safe_source.as_posix(), "targetPath": safe_target.as_posix()}
+
+    def copy_file(self, source_path: str, target_path: str) -> dict[str, Any]:
+        """将服务端已有图片文件拷贝并覆盖目标路径（原子操作）。"""
+        safe_source = get_safe_path(source_path, self.project)
+        safe_target = get_safe_path(target_path, self.project)
+        if not safe_source.exists():
+            raise ValueError(f"Source file not found: {safe_source}")
+        if not safe_source.is_file():
+            raise ValueError(f"Source path is not a file: {safe_source}")
+        if not self._is_image_file(safe_source):
+            raise ValueError(f"Source file is not an image: {safe_source}")
+        if not safe_target.parent.exists():
+            raise ValueError(f"Target parent directory does not exist: {safe_target.parent}")
+        if not self._is_image_file(safe_target):
+            raise ValueError(f"Target path is not an image file: {safe_target}")
+        temp_path = safe_target.with_name(f"{safe_target.name}.copy_tmp_{uuid.uuid4().hex}")
+        try:
+            shutil.copy2(safe_source, temp_path)
+            os.replace(temp_path, safe_target)
+        except Exception:
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
+        return {"status": "ok", "targetPath": safe_target.as_posix()}
+
+    def upload_file(self, target_path: str, file_data: bytes) -> dict[str, Any]:
+        """将上传的二进制数据原子写入目标路径（覆盖已有文件）。"""
+        safe_target = get_safe_path(target_path, self.project)
+        if not safe_target.parent.exists():
+            raise ValueError(f"Target parent directory does not exist: {safe_target.parent}")
+        if not self._is_image_file(safe_target):
+            raise ValueError(f"Target path is not an image file: {safe_target}")
+        if len(file_data) == 0:
+            raise ValueError("Uploaded file data is empty")
+        temp_path = safe_target.with_name(f"{safe_target.name}.upload_tmp_{uuid.uuid4().hex}")
+        try:
+            temp_path.write_bytes(file_data)
+            os.replace(temp_path, safe_target)
+        except Exception:
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
+        return {"status": "ok", "targetPath": safe_target.as_posix()}
 
     def precheck_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentPrecheckResultModel:
         return self.workspace.precheck_rename_document(

@@ -9,6 +9,7 @@
   },
   "menuItem": {
     "openImage": "打开图片...",
+    "replaceImage": "替换图片...",
     "openRecent": "最近打开",
     "clearRecent": "清空最近打开",
     "save": "保存",
@@ -96,6 +97,7 @@
     "openCommandPalette": "打开命令面板",
     "toggleProblemsPanel": "切换问题面板",
     "renameDocument": "重命名文档...",
+    "replaceImage": "替换图片...",
     "duplicateDefinition": "复制选中的定义",
     "copyDefinition": "复制选中的定义",
     "cutDefinition": "剪切选中的定义",
@@ -166,7 +168,17 @@
   "image": {
     "legacyMetaFormat": "旧版元数据格式",
     "detectedLegacyFormat": "检测到旧版或未知元数据格式：\n{{path}}\n\n是否使用 V3 定义重新开始？",
-    "startFreshV3": "重新开始 V3"
+    "startFreshV3": "重新开始 V3",
+    "replaceImage": "替换图片",
+    "replaceImageMenuItem": "替换图片...",
+    "current": "当前",
+    "new": "新",
+    "replace": "替换",
+    "replaced": "图片替换成功",
+    "onlyOneFileReplace": "一次只能替换一个文件",
+    "reloadFailed": "替换后图片重新加载失败",
+    "dimensionMismatch": "尺寸不一致：当前图片为 {{currentW}}×{{currentH}}，新图片为 {{newW}}×{{newH}}。已有标注坐标可能错位。",
+    "replaceConfirmPrompt": "是否确定替换当前文档的图像？"
   },
   "variantRename": {
     "syncVariantNames": "同步变体名称",

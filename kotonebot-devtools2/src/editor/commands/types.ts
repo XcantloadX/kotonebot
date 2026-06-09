@@ -18,6 +18,8 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.FILE_SAVE_ALL]: undefined;
   /** 重命名当前文档。 */
   [COMMAND_ID.FILE_RENAME]: undefined;
+  /** 替换当前文档的图片。 */
+  [COMMAND_ID.FILE_REPLACE_IMAGE]: undefined;
   /** 关闭当前激活文档。 */
   [COMMAND_ID.FILE_CLOSE_ACTIVE]: undefined;
   /** 关闭全部文档。 */
@@ -65,6 +67,8 @@ export interface EditorCommandUiHandlers {
   openImageDialog: () => void;
   /** 打开 variant 目标选择对话框。 */
   openVariantDialog: () => Promise<void>;
+  /** 打开替换图片对话框。 */
+  openReplaceImageDialog: () => void;
 }
 
 /** 命令执行上下文。 */

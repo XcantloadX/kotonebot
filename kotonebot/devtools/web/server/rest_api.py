@@ -31,6 +31,13 @@ class RenamePathRequest(BaseModel):
     targetPath: str
 
 
+class CopyFileRequest(BaseModel):
+    """文件拷贝覆盖请求（用于替换当前文档图片的服务端路径来源）。"""
+
+    sourcePath: str
+    targetPath: str
+
+
 class PrecheckRenameDocumentRequest(BaseModel):
     """文档重命名预检请求。"""
 
@@ -125,6 +132,26 @@ def create_rest_router(project: Project) -> APIRouter:
         try:
             return _ok(logic.rename_path(body.sourcePath, body.targetPath))
         except Exception as e:
+            return _err(str(e))
+
+    @router.post("/fs/copy_file")
+    async def copy_file(body: CopyFileRequest = Body(...)):
+        try:
+            return _ok(logic.copy_file(body.sourcePath, body.targetPath))
+        except Exception as e:
+            logging.exception("Error while handling /fs/copy_file")
+            return _err(str(e))
+
+    @router.post("/fs/upload_file")
+    async def upload_file(
+        targetPath: str = Form(...),
+        file: UploadFile = File(...),
+    ):
+        try:
+            file_data = await file.read()
+            return _ok(logic.upload_file(target_path=targetPath, file_data=file_data))
+        except Exception as e:
+            logging.exception("Error while handling /fs/upload_file")
             return _err(str(e))
 
     @router.post("/fs/rename_document/precheck")

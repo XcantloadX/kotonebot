@@ -6,6 +6,7 @@ export const COMMAND_ID = {
   FILE_SAVE: "file.save",
   FILE_SAVE_ALL: "file.saveAll",
   FILE_RENAME: "file.rename",
+  FILE_REPLACE_IMAGE: "file.replaceImage",
   FILE_CLOSE_ACTIVE: "file.closeActive",
   FILE_CLOSE_ALL: "file.closeAll",
   EDIT_UNDO: "edit.undo",
