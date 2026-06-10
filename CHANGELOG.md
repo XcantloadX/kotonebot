@@ -5,6 +5,7 @@ Library:
 2. [feat] **BREAKING** 完全移除 `kotonebot.backend.debug` 模块以及相关设计。
 3. [feat] 归一化处理各种 ADB 连接错误与网络错误，统一为 `DeviceConnectionError` 及其子类。
 4. [fix] 修复了 `UserFriendlyError` 遗漏传递参数导致在异常描述中消息文本缺失的问题。
+5. [feat] **BREAKING** 当使用 `LandscapeGameScaler` 和 `PortraitGameScaler` 进行分辨率缩放时，如果分辨率存在微小误差（例如实际分辨率不是 1920x1080 而是 1919x1080），旧行为按照真实的带有误差的分辨率计算缩放比例（以 1280x720 为目标，最终结果可能为 1279x720），而新行为直接假设为正确的分辨率（以 1280x720 为目标，最终结果为 1280x720）。
 
 Framework：
 1. [feat] 优化了框架部分 API 对于多线程的支持，现在可以在多个线程内同时执行任务了。

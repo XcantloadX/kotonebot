@@ -430,10 +430,6 @@ class LandscapeGameScaler(ProportionalScaler):
         
         return max(phy_w, phy_h) / max(log_w, log_h)
 
-    @override
-    def _assert_scalable(self, source: SizeLike, target: SizeLike) -> Size:
-        return Size(int(source[0] / self.scale_ratio), int(source[1] / self.scale_ratio))
-
 
 class PortraitGameScaler(ProportionalScaler):
     """竖屏游戏等比例缩放。
@@ -462,6 +458,3 @@ class PortraitGameScaler(ProportionalScaler):
         log_w, log_h = self.logic_resolution
         return min(phy_w, phy_h) / min(log_w, log_h)
     
-    @override
-    def _assert_scalable(self, source: SizeLike, target: SizeLike) -> Size:
-        return Size(int(source[0] / self.scale_ratio), int(source[1] / self.scale_ratio))
