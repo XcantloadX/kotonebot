@@ -214,7 +214,7 @@ class Mumu12Instance(CommonAdbCreateDeviceMixin, Instance[MuMu12HostConfig]):
         if recipe == 'nemu_ipc' and isinstance(host_config, MuMu12HostConfig):
             # NemuImpl
             if self.nemu_path is None:
-                raise RuntimeError("Nemu path is not set.")
+                raise EmulatorNotFoundError('MuMu Player 12')
             nemu_config = NemuIpcImplConfig(
                 nemu_folder=self.nemu_path,
                 instance_id=int(self.id),
@@ -314,7 +314,7 @@ class Mumu12V5Host(Mumu12Host):
         """
         install_path = cls._read_install_path()
         if install_path is None:
-            raise RuntimeError('MuMu Player 12 v5.x is not installed.')
+            raise EmulatorNotFoundError('MuMu Player 12 v5.x')
         manager_path = os.path.join(install_path, 'nx_main', 'MuMuManager.exe')
         logger.debug('MuMuManager execute: %s', repr(args))
         output = subprocess.run(

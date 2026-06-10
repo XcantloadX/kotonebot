@@ -132,9 +132,9 @@ class DeviceConnectTimeoutError(DeviceConnectionError):
         msg = f'连接设备 {addr} 超时。' if addr else '连接设备超时。'
         super().__init__(msg)
 
-class EmulatorNotFoundError(KotonebotError):
+class EmulatorNotFoundError(UserFriendlyError):
     def __init__(self, emulator_name: str):
         self.emulator_name = emulator_name
-        super().__init__(f'Emulator "{emulator_name}" not found. Check if it is installed in your system.')
+        super().__init__(f'未找到模拟器「{emulator_name}」，请确认已正确安装。')
 
 
