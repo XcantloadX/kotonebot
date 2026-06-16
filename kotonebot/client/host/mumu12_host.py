@@ -53,8 +53,6 @@ class Mumu12Host(HostProtocol[MuMu12Recipes]):
 
         uninstall_subkeys = [
             r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\MuMuPlayer-12.0',
-            # TODO: 支持国际版 MuMu
-            # r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\MuMuPlayerGlobal-12.0'
         ]
 
         for subkey in uninstall_subkeys:
@@ -290,8 +288,8 @@ class Mumu12V5Host(Mumu12Host):
 
         uninstall_subkeys = [
             r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\MuMuPlayer',
+            r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\MuMuPlayerGlobal',
         ]
-
         for subkey in uninstall_subkeys:
             icon_path = read_reg('HKLM', subkey, 'DisplayIcon', default=None)
             if icon_path and isinstance(icon_path, str):
