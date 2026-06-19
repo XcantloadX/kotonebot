@@ -1,4 +1,64 @@
 # 更新日志
+## v0.16.0
+Library:
+1. [feat] 新增不依赖 AHK 的 `WindowsNativeImpl`，原有 `WindowsImpl` 进入废弃状态，将在后续若干个版本后移除。
+
+### 迁移
+
+#### `WindowsImpl` → `WindowsNativeImpl`
+
+`WindowsImpl` 底层依赖 AHK（AutoHotkey）执行鼠标点击/拖拽，并提供全局热键（Ctrl+F4 暂停/恢复、Ctrl+F3 停止）与消息框提示功能。新的 `WindowsNativeImpl` 改用 win32 API（窗口激活/截图）与 `mouse` 库（鼠标点击/拖拽）实现，不再依赖 AHK，因此**不再提供全局热键与消息框提示功能**，如有需要请自行实现。
+
+涉及的类：
+- `WindowsImpl` → `WindowsNativeImpl`
+- `WindowsImplConfig` → `WindowsNativeImplConfig`
+- `WindowsHostConfig` → `WindowsNativeHostConfig`
+
+对应的 recipe 名称由 `'windows'` 改为 `'windows_native'`。
+
+**迁移方式：**
+
+```python
+from kotonebot.interop.window import WindowQuery
+
+# 旧写法（依赖 AHK，需要提供 ahk_exe_path）
+from kotonebot.client.implements.windows import WindowsImpl, WindowsImplConfig
+impl = WindowsImpl(
+    device,
+    window_query=WindowQuery(title_contains="gakumas"),
+    ahk_exe_path=ahk_path,
+)
+config = WindowsImplConfig(window_query=WindowQuery(title_contains="gakumas"), ahk_exe_path=ahk_path)
+
+# 新写法（无需 AHK）
+from kotonebot.client.implements.windows import WindowsNativeImpl, WindowsNativeImplConfig
+impl = WindowsNativeImpl(device, window_query=WindowQuery(title_contains="gakumas"))
+config = WindowsNativeImplConfig(window_query=WindowQuery(title_contains="gakumas"))
+```
+
+主机配置（`create_device` recipe）迁移：
+
+```python
+# 旧写法
+host_config = WindowsHostConfig(window_query=query, ahk_exe_path=ahk_path)
+device = instance.create_device('windows', host_config)
+
+# 新写法
+from kotonebot.client.host.protocol import WindowsNativeHostConfig
+host_config = WindowsNativeHostConfig(window_query=query)
+device = instance.create_device('windows_native', host_config)
+```
+
+`WindowsNativeImplConfig` / `WindowsNativeHostConfig` 新增以下可选参数：
+
+| 字段 | 说明 |
+|------|------|
+| `avoid_border_click` | 点击坐标为 `(0, *)` 或 `(*, 0)` 时，是否自动偏移 1~2 像素以避免点到窗口边框。默认开启（`True`）。 |
+| `click_animation` | 点击前移动鼠标到目标位置时使用的动画参数（`AnimationParams`）。默认为空字典，即瞬间跳转，不做动画。 |
+| `swipe_animation` | `swipe`（拖拽）操作默认使用的动画参数（`AnimationParams`）。若调用 `swipe()` 时显式传入了 `duration`，会覆盖此处配置的 `duration`/`speed`。 |
+
+`WindowsImpl` 暂时保留，仍可正常使用，但已进入废弃状态，将在后续若干个版本后移除，请尽快迁移到 `WindowsNativeImpl`。
+
 ## v0.15.0
 Library:
 1. [feat] **BREAKING** 对于 MuMu 模拟器，当模拟器未安装或未找到时，现在抛出 `EmulatorNotFoundError` 而不是 `RumtimeError` 了。

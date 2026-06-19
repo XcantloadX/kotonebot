@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from kotonebot import logging
 from kotonebot.client import Device, DeviceImpl
 from kotonebot.interop.window import WindowQuery
+from kotonebot.interop.win._mouse import AnimationParams
 
 from kotonebot.util import Countdown, Interval
 
@@ -28,6 +29,17 @@ class WindowsHostConfig:
     """由外部为 Windows 实现提供配置。"""
     window_query: WindowQuery
     ahk_exe_path: str
+
+@dataclass
+class WindowsNativeHostConfig:
+    """由外部为基于原生 API（无 AHK 依赖）的 Windows 实现提供配置。"""
+    window_query: WindowQuery
+    avoid_border_click: bool = True
+    """点击坐标为 (0, *) 或 (*, 0) 时，是否自动偏移以避免点到窗口边框。默认开启。"""
+    click_animation: AnimationParams | None = None
+    """点击前移动鼠标到目标位置时使用的动画参数。为 None 表示瞬间跳转，不做动画。"""
+    swipe_animation: AnimationParams | None = None
+    """swipe（拖拽）操作默认使用的动画参数。"""
 
 # --- 使用泛型改造 Instance 协议 ---
 T_HostConfig = TypeVar("T_HostConfig")

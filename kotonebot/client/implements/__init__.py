@@ -4,15 +4,15 @@ if TYPE_CHECKING:
     from .adb import AdbImpl, AdbImplConfig
     from .scrcpy import ScrcpyImpl, ScrcpyConfig, VirtualDisplayConfig, ScrcpySession
     from .uiautomator2 import UiAutomator2Impl
-    from .windows import WindowsImpl, WindowsImplConfig
+    from .windows import WindowsImpl, WindowsImplConfig, WindowsNativeImpl, WindowsNativeImplConfig
     from .nemu_ipc import NemuIpcImpl, NemuIpcImplConfig, ExternalRendererIpc
 
 
 def _require_windows():
-    global WindowsImpl, WindowsImplConfig
+    global WindowsImpl, WindowsImplConfig, WindowsNativeImpl, WindowsNativeImplConfig
     global NemuIpcImpl, NemuIpcImplConfig, ExternalRendererIpc
-    
-    from .windows import WindowsImpl, WindowsImplConfig
+
+    from .windows import WindowsImpl, WindowsImplConfig, WindowsNativeImpl, WindowsNativeImplConfig
     from .nemu_ipc import NemuIpcImpl, NemuIpcImplConfig, ExternalRendererIpc
 
 def _require_adb():
@@ -33,6 +33,7 @@ def _require_uiautomator2():
 _IMPORT_NAMES = [
     (_require_windows, [
         'WindowsImpl', 'WindowsImplConfig',
+        'WindowsNativeImpl', 'WindowsNativeImplConfig',
         'NemuIpcImpl', 'NemuIpcImplConfig', 'ExternalRendererIpc'
     ]),
     (_require_adb, [
@@ -60,6 +61,7 @@ def __getattr__(name: str):
 __all__ = [
     # windows
     'WindowsImpl', 'WindowsImplConfig',
+    'WindowsNativeImpl', 'WindowsNativeImplConfig',
     'NemuIpcImpl', 'NemuIpcImplConfig', 'ExternalRendererIpc',
     # android
     'AdbImpl', 'AdbImplConfig',

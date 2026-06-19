@@ -5,11 +5,11 @@ from ..errors import KotonebotError
 if TYPE_CHECKING:
     from .implements.adb import AdbImplConfig
     from .implements.scrcpy import ScrcpyConfig, VirtualDisplayConfig
-    from .implements.windows import WindowsImplConfig
+    from .implements.windows import WindowsImplConfig, WindowsNativeImplConfig
     from .implements.nemu_ipc import NemuIpcImplConfig
 
 AdbBasedImpl = Literal['adb', 'uiautomator2', 'scrcpy']
-DeviceImpl = str | AdbBasedImpl | Literal['windows', 'nemu_ipc']
+DeviceImpl = str | AdbBasedImpl | Literal['windows', 'windows_native', 'nemu_ipc']
 
 # --- 核心类型定义 ---
 

@@ -5,13 +5,13 @@ from typing_extensions import assert_never
 from kotonebot import logging
 from kotonebot.client.device import WindowsDevice
 from kotonebot.util import require_windows
-from .protocol import Device, WindowsHostConfig
+from .protocol import Device, WindowsHostConfig, WindowsNativeHostConfig
 
 logger = logging.getLogger(__name__)
-WindowsRecipes = Literal['windows', 'windows_background']
+WindowsRecipes = Literal['windows', 'windows_native', 'windows_background']
 
 # Windows 相关的配置类型联合
-WindowsHostConfigs = WindowsHostConfig
+WindowsHostConfigs = WindowsHostConfig | WindowsNativeHostConfig
 
 class CommonWindowsCreateDeviceMixin(ABC):
     """
@@ -37,6 +37,20 @@ class CommonWindowsCreateDeviceMixin(ABC):
                     device=d,
                     window_query=config.window_query,
                     ahk_exe_path=config.ahk_exe_path
+                )
+                d.setup(screenshot=impl, touch=impl)
+                return d
+            case 'windows_native':
+                if not isinstance(config, WindowsNativeHostConfig):
+                    raise ValueError(f"Expected WindowsNativeHostConfig for 'windows_native' recipe, got {type(config)}")
+                from kotonebot.client.implements.windows import WindowsNativeImpl
+                d = WindowsDevice()
+                impl = WindowsNativeImpl(
+                    device=d,
+                    window_query=config.window_query,
+                    avoid_border_click=config.avoid_border_click,
+                    click_animation=config.click_animation,
+                    swipe_animation=config.swipe_animation,
                 )
                 d.setup(screenshot=impl, touch=impl)
                 return d
