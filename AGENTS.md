@@ -137,3 +137,103 @@ useShortcut({
 2. **combo 冲突**：`editor` / `menu` / `palette` 仍保持严格冲突校验；`modal` 允许多个可见弹窗共存，由后注册的绑定在运行时优先生效
 3. **when 函数**：使用 `() => condition` 而非 `condition`，确保响应式更新
 4. **输入框兼容**：默认在输入框内不触发，需要时设置 `allowInInput: true`
+
+---
+
+### Action / Command / Top Menu / Right Menu 四层架构
+
+#### 总体数据流
+
+```
+Right Menu / Top Menu
+  → executeCommand(COMMAND_ID.*, context, args)
+    → Command Registry（查定义 + 评估 when/requiredUi）
+      → run() → editorActions.xxx.yyy()
+        → Zustand stores / Server RPC
+```
+
+#### Action
+
+**位置**：`src/editor/actions/index.ts` + 同目录子文件（`close.ts`、`definition.ts`、`image.ts` 等）
+
+最底层的具体实现，以命名空间对象导出：
+
+```typescript
+editorActions = {
+  image, document, variant, navigation, definition, symbol
+}
+```
+
+每个成员是纯异步函数，直接操作 Zustand store 或调用服务端 RPC。
+
+#### Command
+
+**位置**：`src/editor/commands/`
+
+| 文件 | 职责 |
+|------|------|
+| `ids.ts` | `COMMAND_ID` 常量表 |
+| `types.ts` | `EditorCommandArgsMap`（参数类型）、`EditorCommandDefinition`（结构）、`EditorCommandUiHandlers`（需 UI 提供的回调） |
+| `registry.ts` | `editorCommandRegistry`（注册表）+ `paletteCommandIds`（命令面板列表） |
+| `executor.ts` | `executeCommand()` |
+| `status.ts` | `useCommandStatuses()` hook，供 UI 查询启用态 |
+
+命令定义结构：
+```typescript
+{
+  id: COMMAND_ID.FILE_SAVE,
+  title: t('menuItem.save'),
+  keywords: ["save"],
+  showInPalette: true,
+  when: () => canSaveActiveDocument(),   // 启用态判断（可选）
+  requiredUi: ["openImageDialog"],        // 需要 UI 回调时填写（可选）
+  run: async (ctx, args) => { await editorActions.document.save(); }
+}
+```
+
+#### Top Menu
+
+**位置**：`src/ui/TopMenuBar.tsx`
+
+三个菜单（`file` / `edit` / `variant`）全部硬编码在 `menuDefinitions` 这一 `useMemo` 对象中。菜单项的 `disabled` 通过 `useCommandStatuses()` 从对应 command 的 `when()` 派生，`onClick` 调用 `executeCommand()`。键盘快捷键通过 `useShortcut()` 单独注册。
+
+#### Right Menu
+
+**位置**（三处独立，不共享）：
+- `src/editor/konva/StageView.tsx`：画布右键（点击 shape / 点击空白各一套）
+- `src/ui/HierarchyPanel.tsx`：层级面板右键
+- `src/ui/TabBar.tsx`：Tab 标签右键
+
+每处用 `useState<{x, y, ...} | null>` 管理菜单状态，菜单项直接内联 JSX，`onClick` 调用 `executeCommand()`。
+
+---
+
+#### 新增功能完整步骤
+
+1. **Action**：在 `src/editor/actions/` 对应子文件实现函数，并在 `index.ts` 的 `editorActions` 中挂载。
+2. **Command ID**：在 `ids.ts` 的 `COMMAND_ID` 对象加一行。
+3. **参数类型**：在 `types.ts` 的 `EditorCommandArgsMap` 加一行（无参数填 `undefined`）。
+4. **命令定义**：在 `registry.ts` 的 `commands` 对象加一项（含 `title`、`when`、`run`）；若需命令面板入口，同时加入 `paletteCommandIds`。
+5. **翻译**：在 `src/i18n/locales/zh-CN.json` 和 `en.json` 加对应 key。
+6. **Top Menu**（如需）：在 `TopMenuBar.tsx` 的 `statusEntries` 加条目、在 `menuDefinitions` 对应菜单数组加菜单项、用 `useShortcut()` 注册快捷键。
+7. **Right Menu**（如需）：在 `HierarchyPanel.tsx` / `StageView.tsx` 的右键菜单 JSX 加 `<MenuItem>`，`onClick` 调用 `executeCommand()`。
+
+#### 修改已有项
+
+| 修改内容 | 需动的文件 |
+|----------|-----------|
+| 改命令显示名称 | `registry.ts` 的 `title` + i18n JSON |
+| 改启用/禁用逻辑 | `registry.ts` 的 `when()` 及 `selectors.ts` |
+| 改执行逻辑 | `registry.ts` 的 `run()` 或 actions 子文件 |
+| 改菜单项文字 | i18n JSON + `TopMenuBar.tsx` 中的 `text` 字段 |
+| 改菜单项位置 | `TopMenuBar.tsx` 中 `menuDefinitions` 数组顺序 |
+
+#### 删除功能
+
+1. `ids.ts`：删除 `COMMAND_ID` 条目
+2. `types.ts`：删除 `EditorCommandArgsMap` 对应行
+3. `registry.ts`：删除命令定义，以及 `paletteCommandIds` 中的引用
+4. `TopMenuBar.tsx`：删除 `statusEntries` 条目、`menuDefinitions` 菜单项、`useShortcut` 注册
+5. `HierarchyPanel.tsx` / `StageView.tsx` / `TabBar.tsx`：删除对应 `<MenuItem>`
+6. i18n JSON：删除对应 key
+7. `actions/`：删除 action 实现及 `index.ts` 挂载

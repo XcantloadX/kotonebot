@@ -2,6 +2,7 @@
 ## v0.16.0
 Library:
 1. [feat] 新增不依赖 AHK 的 `WindowsNativeImpl`，原有 `WindowsImpl` 进入废弃状态，将在后续若干个版本后移除。
+2. [feat] 新增对于国际版 MuMu 模拟器的支持。
 
 ### 迁移
 
