@@ -2,6 +2,7 @@
 ## v0.17.0
 Framework:
 1. [feat] 为 RunStatus 类新增 对 Flow 的封装，即暂停、停止与恢复任务执行的方法。
+2. [fix] 修复了 Context 类中的 Forwarded 当被包装对象为 None 时抛出 AttributeError 的问题。
 
 ## v0.16.0
 Library:

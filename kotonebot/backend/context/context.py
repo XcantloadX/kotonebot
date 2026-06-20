@@ -651,14 +651,20 @@ class Forwarded:
             return object.__getattribute__(self, name)
         if self._FORWARD_getter is None:
             raise ContextNotInitializedError(f"Forwarded object {self._FORWARD_name} called before initialization.")
-        return getattr(self._FORWARD_getter(), name)
+        target = self._FORWARD_getter()
+        if target is None:
+            raise ContextNotInitializedError(f"Forwarded object {self._FORWARD_name} is not available in the current context (called from a thread without an active context?).")
+        return getattr(target, name)
 
     def __setattr__(self, name: str, value: Any):
         if name.startswith('_FORWARD_'):
             return object.__setattr__(self, name, value)
         if self._FORWARD_getter is None:
             raise ContextNotInitializedError(f"Forwarded object {self._FORWARD_name} called before initialization.")
-        setattr(self._FORWARD_getter(), name, value)
+        target = self._FORWARD_getter()
+        if target is None:
+            raise ContextNotInitializedError(f"Forwarded object {self._FORWARD_name} is not available in the current context (called from a thread without an active context?).")
+        setattr(target, name, value)
 
 
 T_Device = TypeVar('T_Device', bound=Device)
