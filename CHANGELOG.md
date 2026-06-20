@@ -1,4 +1,8 @@
 # 更新日志
+## v0.17.0
+Framework:
+1. [feat] 为 RunStatus 类新增 对 Flow 的封装，即暂停、停止与恢复任务执行的方法。
+
 ## v0.16.0
 Library:
 1. [feat] 新增不依赖 AHK 的 `WindowsNativeImpl`，原有 `WindowsImpl` 进入废弃状态，将在后续若干个版本后移除。

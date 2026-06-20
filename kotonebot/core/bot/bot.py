@@ -5,7 +5,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, TypeVar, ParamSpec, Generic, List, Protocol, runtime_checkable
 
 from kotonebot.client import Device
-from kotonebot.backend.context import init_context, vars, Task, Action
+from kotonebot.backend.context import init_context, vars, get_context, Task, Action
+from kotonebot.backend.flow_controller import FlowController
 
 
 T = TypeVar("T", covariant=True)
@@ -45,15 +46,34 @@ class BotContext:
 
 @dataclass
 class RunStatus:
+    """任务运行状态句柄。由 KotoneBot.start() 返回，可从任意线程安全地控制任务。"""
     bot: 'KotoneBot'
     thread: threading.Thread
     running: bool = False
     tasks: list[TaskStatus] = field(default_factory=list)
     current_task: Task | None = None
     callstack: list[Task | Action] = field(default_factory=list)
+    _flow: 'FlowController | None' = field(default=None, init=False, repr=False)
 
-    def interrupt(self):
-        vars.flow.request_interrupt()
+    def interrupt(self) -> None:
+        """请求中断（停止）任务。线程安全。"""
+        if self._flow is not None:
+            self._flow.request_interrupt()
+
+    def pause(self) -> None:
+        """请求暂停任务。线程安全。"""
+        if self._flow is not None:
+            self._flow.request_pause()
+
+    def resume(self) -> None:
+        """请求恢复任务。线程安全。"""
+        if self._flow is not None:
+            self._flow.request_resume()
+
+    @property
+    def is_paused(self) -> bool:
+        """当前是否处于暂停状态。"""
+        return self._flow.is_paused if self._flow is not None else False
 
 logger = logging.getLogger(__name__)
 NextHandler = Callable[[], None]
@@ -189,8 +209,12 @@ class KotoneBot:
         s = RunStatus(bot=self, thread=t, running=True)
         def _on_started():
             s.running = True
+            ctx = get_context()
+            if ctx is not None:
+                s._flow = ctx.vars.flow
         def _on_stopped(reason: BotStopReason, exc: Exception | None):
             s.running = False
+            s._flow = None
             self.events.started -= _on_started
             self.events.stopped -= _on_stopped
         self.events.started += _on_started
