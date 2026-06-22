@@ -36,6 +36,7 @@
     "duplicate": "Create Duplicate",
     "copy": "Copy",
     "cut": "Cut",
+    "paste": "Paste",
     "delete": "Delete",
     "copyToVariant": "Copy to Variant"
   },
@@ -217,6 +218,9 @@
     "none": "None",
     "false": "False",
     "true": "True",
+    "resizePanel": "Resize panel"
+  },
+  "rightPanel": {
     "resizePanel": "Resize panel"
   },
   "projectPanel": {

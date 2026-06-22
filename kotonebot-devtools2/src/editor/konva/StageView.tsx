@@ -618,7 +618,7 @@ export const StageView: React.FC = () => {
           <Menu>
             <MenuItem
               icon="duplicate"
-              text="创建副本"
+              text={t('contextMenu.duplicate')}
               onClick={() => {
                 void executeCommand(COMMAND_ID.DEFINITION_DUPLICATE_SELECTED, commandContext, undefined);
                 setDefinitionContextMenu(null);
@@ -626,7 +626,7 @@ export const StageView: React.FC = () => {
             />
             <MenuItem
               icon="duplicate"
-              text="复制"
+              text={t('contextMenu.copy')}
               onClick={() => {
                 void executeCommand(COMMAND_ID.DEFINITION_COPY_SELECTED, commandContext, undefined);
                 setDefinitionContextMenu(null);
@@ -634,7 +634,7 @@ export const StageView: React.FC = () => {
             />
             <MenuItem
               icon="cut"
-              text="剪切"
+              text={t('contextMenu.cut')}
               onClick={() => {
                 void executeCommand(COMMAND_ID.DEFINITION_CUT_SELECTED, commandContext, undefined);
                 setDefinitionContextMenu(null);
@@ -642,7 +642,7 @@ export const StageView: React.FC = () => {
             />
             <MenuItem
               icon="trash"
-              text="删除"
+              text={t('contextMenu.delete')}
               intent="danger"
               onClick={() => {
                 void executeCommand(COMMAND_ID.DEFINITION_DELETE_SELECTED, commandContext, undefined);
@@ -681,7 +681,7 @@ export const StageView: React.FC = () => {
           <Menu>
             <MenuItem
               icon="clipboard"
-              text="粘贴"
+              text={t('contextMenu.paste')}
               disabled={!definitionClipboard}
               onClick={() => {
                 void executeCommand(COMMAND_ID.DEFINITION_PASTE_FROM_CLIPBOARD, commandContext, undefined);
