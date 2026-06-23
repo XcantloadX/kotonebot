@@ -547,6 +547,13 @@ class RestApiLogic:
 
     def get_meta_index(self) -> Any:
         return self.workspace.get_meta_index()
+
+    def list_workspace_images(self) -> dict[str, Any]:
+        """返回 workspace 内所有 PNG 文件路径（含无 JSON 的新文件）。"""
+        self.resource_index_store.ensure_ready()
+        indexed = {ref.image_path for ref in self.resource_index_store.snapshot.meta_refs}
+        all_pngs = {p.as_posix() for p in self.project_root.rglob("*.png")}
+        return {"imagePaths": sorted(indexed | all_pngs)}
     
     def get_project_symbol_tree(self) -> list[dict[str, Any]]:
         self.symbol_index_view.ensure_ready()

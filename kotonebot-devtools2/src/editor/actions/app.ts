@@ -5,6 +5,8 @@ import type { EditorCommandContext, EditorCommandDefinition, NoArgCommandId } fr
 import { useAppStore } from "../state";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import i18n from "../../i18n";
+import { listWorkspaceImages } from "../../api/fs";
+import { openImageWithMeta } from "./image";
 
 /** 命令面板中“命令项”返回值。 */
 interface CommandPaletteCommandValue {
@@ -22,10 +24,19 @@ interface CommandPaletteSymbolValue {
   symbol: SymbolLite;
 }
 
+/** 命令面板中"文档项"返回值。 */
+interface CommandPaletteDocumentValue {
+  /** 结果类型标识。 */
+  kind: "document";
+  /** 被选中的图片文件绝对路径。 */
+  imagePath: string;
+}
+
 /** 命令面板的统一返回值。 */
 type CommandPaletteValue =
   | CommandPaletteCommandValue
-  | CommandPaletteSymbolValue;
+  | CommandPaletteSymbolValue
+  | CommandPaletteDocumentValue;
 
 /** 将输入文本切分为可用于匹配的 token。 */
 function splitQueryTokens(text: string): string[] {
@@ -100,6 +111,30 @@ function rankCommand(command: EditorCommandDefinition<NoArgCommandId>, query: st
   return -1;
 }
 
+/** 计算文档匹配分数。 */
+function rankDocument(imagePath: string, query: string, tokens: string[]): number {
+  if (query.trim() === "") {
+    return 100;
+  }
+  const filename = (imagePath.split(/[\\/]/).pop() ?? "").toLowerCase();
+  const full = query.toLowerCase();
+  const haystack = imagePath.toLowerCase();
+
+  if (filename === full) {
+    return 1000;
+  }
+  if (filename.startsWith(full)) {
+    return 800;
+  }
+  if (tokens.length > 0 && tokens.every((token) => haystack.includes(token))) {
+    return 500;
+  }
+  if (haystack.includes(full)) {
+    return 300;
+  }
+  return -1;
+}
+
 /** 打开命令面板并执行用户最终选中的命令或符号跳转。 */
 export async function openCommandPalette(): Promise<void> {
   const commandContext: EditorCommandContext = { ui: {} };
@@ -109,20 +144,44 @@ export async function openCommandPalette(): Promise<void> {
     emptyText: i18n.t('commandPalette.empty'),
     canOutsideClickClose: true,
     canEscapeKeyClose: true,
-    getItems: (query) => {
+    getItems: async (query) => {
       const { activeDocumentId } = useAppStore.getState();
       const { symbols, recentSymbolKeys } = useSymbolIndexStore.getState();
-      const queryTokens = splitQueryTokens(query.startsWith("#") ? query.slice(1) : query);
-      const recentOrder = new Map<string, number>();
-      for (let i = 0; i < recentSymbolKeys.length; i += 1) {
-        recentOrder.set(recentSymbolKeys[i], i);
+
+      // ">" 前缀：命令搜索。
+      if (query.startsWith(">")) {
+        const raw = query.slice(1);
+        const queryTokens = splitQueryTokens(raw);
+        return getPaletteCommands(commandContext)
+          .map((command) => ({
+            command,
+            score: rankCommand(command, raw, queryTokens),
+          }))
+          .filter((item) => item.score >= 0)
+          .sort((a, b) => b.score - a.score)
+          .map((item) => {
+            const status = getCommandStatus(item.command.id, commandContext, undefined);
+            return {
+              id: item.command.id,
+              label: item.command.title,
+              description: item.command.id,
+              searchText: `${item.command.title} ${(item.command.keywords ?? []).join(" ")}`.trim(),
+              disabled: !status.enabled,
+              value: { kind: "command", command: item.command } as const,
+            };
+          });
       }
 
-      // "#..." 表示符号搜索；其余输入按命令搜索。
+      // "#" 前缀：符号搜索。
       if (query.startsWith("#")) {
         const raw = query.slice(1).trim();
         if (raw.length === 0) {
           return [];
+        }
+        const queryTokens = splitQueryTokens(raw);
+        const recentOrder = new Map<string, number>();
+        for (let i = 0; i < recentSymbolKeys.length; i += 1) {
+          recentOrder.set(recentSymbolKeys[i], i);
         }
         return symbols
           .map((symbol) => ({
@@ -146,28 +205,35 @@ export async function openCommandPalette(): Promise<void> {
           });
       }
 
-      return getPaletteCommands(commandContext)
-        .map((command) => ({
-          command,
-          score: rankCommand(command, query, queryTokens),
+      // 无前缀：workspace 文档搜索。
+      const queryTokens = splitQueryTokens(query);
+      const imagePaths = await listWorkspaceImages();
+      return imagePaths
+        .map((imagePath) => ({
+          imagePath,
+          score: rankDocument(imagePath, query, queryTokens),
         }))
         .filter((item) => item.score >= 0)
         .sort((a, b) => b.score - a.score)
+        .slice(0, 100)
         .map((item) => {
-          const status = getCommandStatus(item.command.id, commandContext, undefined);
+          const filename = item.imagePath.split(/[\\/]/).pop() ?? item.imagePath;
           return {
-            id: item.command.id,
-            label: item.command.title,
-            description: item.command.id,
-            searchText: `${item.command.title} ${(item.command.keywords ?? []).join(" ")}`.trim(),
-            disabled: !status.enabled,
-            value: { kind: "command", command: item.command } as const,
+            id: item.imagePath,
+            label: filename,
+            description: item.imagePath,
+            searchText: item.imagePath,
+            value: { kind: "document", imagePath: item.imagePath } as const,
           };
         });
     },
   });
 
   if (!selected) {
+    return;
+  }
+  if (selected.kind === "document") {
+    await openImageWithMeta(selected.imagePath);
     return;
   }
   if (selected.kind === "symbol") {

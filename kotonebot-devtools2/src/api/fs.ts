@@ -134,6 +134,11 @@ export async function getProjectInfo(): Promise<ProjectInfo> {
   return fetchJson(`/api/project/root`);
 }
 
+export async function listWorkspaceImages(): Promise<string[]> {
+  const res = await fetchJson<{ imagePaths: string[] }>("/api/project/list_images");
+  return res.imagePaths;
+}
+
 export async function revealInExplorer(path: string): Promise<void> {
   await fetchJson(`/api/fs/reveal_in_explorer?path=${encodeURIComponent(path)}`, { method: "POST" });
 }

@@ -96,6 +96,14 @@ def create_rest_router(project: Project) -> APIRouter:
             logging.exception("Error while handling /project/root")
             return _err(str(e))
 
+    @router.get("/project/list_images")
+    async def list_workspace_images():
+        try:
+            return _ok(logic.list_workspace_images())
+        except Exception as e:
+            logging.exception("Error while handling /project/list_images")
+            return _err(str(e))
+
     @router.get("/project/symbol_tree")
     async def get_project_symbol_tree():
         try:

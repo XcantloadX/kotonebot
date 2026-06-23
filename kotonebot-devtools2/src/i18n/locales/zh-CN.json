@@ -91,7 +91,7 @@
   },
   "commandPalette": {
     "title": "命令面板",
-    "placeholder": "输入命令名称，或 # 搜索符号",
+    "placeholder": "搜索文件，> 执行命令，# 搜索符号",
     "empty": "无匹配"
   },
   "commands": {

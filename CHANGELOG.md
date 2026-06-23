@@ -1,4 +1,8 @@
 # 更新日志
+## v0.18.0
+Devtool:
+1. [feat] 为命令面板新增支持文件搜索。
+
 ## v0.17.0
 Framework:
 1. [feat] 为 RunStatus 类新增 对 Flow 的封装，即暂停、停止与恢复任务执行的方法。

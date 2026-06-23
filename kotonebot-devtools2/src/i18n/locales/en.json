@@ -91,7 +91,7 @@
   },
   "commandPalette": {
     "title": "Command Palette",
-    "placeholder": "Type command name, or # to search symbols",
+    "placeholder": "Search files, > for commands, # for symbols",
     "empty": "No match"
   },
   "commands": {
