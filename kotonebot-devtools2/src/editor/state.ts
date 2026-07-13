@@ -1,3 +1,4 @@
+import { Intent } from '@blueprintjs/core';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { Patch, applyPatches, current, enablePatches, produceWithPatches } from 'immer';
@@ -520,7 +521,7 @@ export const useAppStore = create<AppState>()(
           }
         });
       } catch (e: any) {
-        toaster.show({ message: i18n.t('error.saveFailed', { message: e?.message ?? String(e) }), intent: 'danger' as any });
+        toaster.show({ message: i18n.t('error.saveFailed', { message: e?.message ?? String(e) }), intent: Intent.DANGER });
         throw e;
       }
     },
@@ -548,7 +549,7 @@ export const useAppStore = create<AppState>()(
         }
         return savedCount;
       } catch (e: any) {
-        toaster.show({ message: i18n.t('error.saveFailed', { message: e?.message ?? String(e) }), intent: 'danger' as any });
+        toaster.show({ message: i18n.t('error.saveFailed', { message: e?.message ?? String(e) }), intent: Intent.DANGER });
         throw e;
       }
     }

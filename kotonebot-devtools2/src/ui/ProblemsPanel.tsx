@@ -5,7 +5,9 @@ import { DiagnosticItem } from "../model/symbolIndex";
 import { useSymbolIndexStore } from "../editor/symbolIndexStore";
 import { COMMAND_ID, executeCommand } from "../editor/commands";
 import { useSettingsStore } from "../editor/settings";
+import { useEditorDialogsContext } from "../editor/EditorDialogsContext";
 import { useResize } from "./hooks/useResize";
+import { normalizePath } from "../shared/normalizePath";
 
 interface ProblemsPanelProps {
   visible: boolean;
@@ -22,10 +24,6 @@ interface FlatDiagnosticItem {
 }
 
 const MIN_PANEL_HEIGHT = 140;
-
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, "/").toLowerCase();
-}
 
 function getSeverityOrder(severity: DiagnosticItem["severity"]): number {
   if (severity === "error") {

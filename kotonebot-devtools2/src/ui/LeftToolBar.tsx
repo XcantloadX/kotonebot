@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from "react";
+import { IconName } from "@blueprintjs/core";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../editor/state";
 import { SideToolBar, Tool } from "./SideToolBar";
@@ -39,7 +40,7 @@ export const LeftToolBar: React.FC = () => {
           kind: "creating-prefab",
           prefab_id: prefabId,
           propKey: schema.primary_prop,
-          tool: primaryPropSchema.kind as any,
+          tool: primaryPropSchema.kind as "rect" | "point" | "image",
         });
         return;
       }
@@ -125,7 +126,7 @@ export const LeftToolBar: React.FC = () => {
       const shortcut = p.shortcut || 'no shortcut';
       tools.push({
         id: `prefab-${p.id}`,
-        icon: p.icon as any,
+        icon: p.icon as IconName,
         title: `${p.name} (${shortcut})`,
         selectable: true,
         onClick: () => createPrefab(p.id),

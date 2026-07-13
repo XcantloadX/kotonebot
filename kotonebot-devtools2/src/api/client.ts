@@ -6,13 +6,9 @@ export interface ResponseModel<T> {
 
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API Error ${res.status}: ${text}`);
+  const body = await res.json() as ResponseModel<T>;
+  if (!res.ok || !body.success) {
+    throw new Error(body.message || `HTTP ${res.status}`);
   }
-  const json = await res.json() as ResponseModel<T>;
-  if (!json.success) {
-    throw new Error(json.message || "Unknown API Error");
-  }
-  return json.data as T;
+  return body.data as T;
 }

@@ -1,3 +1,4 @@
+import { Intent } from '@blueprintjs/core';
 import { executeRenameDocument, precheckRenameDocument } from "../../api/fs";
 import { toaster } from "../../ui/toaster";
 import { messageBox } from "../../ui/messageBox";
@@ -165,5 +166,5 @@ export async function promptAndRenameActiveDocument(): Promise<void> {
     useAppStore.getState().renameDocuments(openedRenames);
   }
   await useSymbolIndexStore.getState().refetch();
-  toaster.show({ message: i18n.t('document.renamedCount', { count: result.renamedDocumentCount }), intent: "success" as any });
+  toaster.show({ message: i18n.t('document.renamedCount', { count: result.renamedDocumentCount }), intent: Intent.SUCCESS });
 }

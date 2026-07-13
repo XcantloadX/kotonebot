@@ -1,5 +1,5 @@
 import contextlib
-from typing import List, Any, Protocol, Dict, Optional, Union, Tuple
+from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 
@@ -33,16 +33,16 @@ class CodeWriter:
 class ImageAsset(BaseModel):
     """代表图片资源的结构化数据"""
     path: str
-    rect: Tuple[int, int, int, int] | None  # (x1, y1, x2, y2)
+    rect: tuple[int, int, int, int] | None
 
 
 class PrefabData(BaseModel):
     """代表自定义 Prefab 资源的结构化数据
     """
-    image: Optional[ImageAsset]
+    image: ImageAsset | None
     prefab_id: str
-    props: Dict[str, Any] = Field(default_factory=dict)
-    variant_props: Dict[str, Dict[str, Any]] | None = None
+    props: dict[str, Any] = Field(default_factory=dict)
+    variant_props: dict[str, dict[str, Any]] | None = None
 
 
 class BoxData(BaseModel):
@@ -51,7 +51,7 @@ class BoxData(BaseModel):
     y1: int
     x2: int
     y2: int
-    resolution: Tuple[int, int] = (720, 1280)
+    resolution: tuple[int, int] = (720, 1280)
 
 
 class RectData(BaseModel):
@@ -71,16 +71,16 @@ class PointData(BaseModel):
 class ResourceNode(BaseModel):
     """资源的最小单元 (Sprite, HintBox 等)。value 存放 IR 对象，而不是代码字符串。"""
     name: str
-    type: str  # 'template', 'hint-box', 'hint-point', 'prefab'
-    value: Union[ImageAsset, BoxData, PointData, PrefabData, Any]
+    type: str
+    value: ImageAsset | BoxData | PointData | PrefabData
     docstring: str = ""
-    metadata: Dict[str, Any] = Field(default_factory=dict) # 原始数据备份，用于扩展
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 class ClassNode(BaseModel):
     """表示一个生成的类节点"""
     name: str
-    children: List['ClassNode'] = Field(default_factory=list)
-    attributes: List[ResourceNode] = Field(default_factory=list)
+    children: list['ClassNode'] = Field(default_factory=list)
+    attributes: list[ResourceNode] = Field(default_factory=list)
     
     def is_empty(self) -> bool:
         return not self.children and not self.attributes
@@ -93,6 +93,6 @@ class SchemaParser(Protocol):
         """判断该解析器是否能处理此文件"""
         ...
 
-    def parse(self, file_path: str, context: Dict[str, Any]) -> List[ResourceNode]:
+    def parse(self, file_path: str, context: dict[str, Any]) -> list[ResourceNode]:
         """解析文件并返回资源列表。Context 可包含输出目录等配置"""
         ...

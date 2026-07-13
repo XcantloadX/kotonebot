@@ -26,6 +26,7 @@ export async function executeCommand<K extends EditorCommandId>(
   args: EditorCommandArgsMap[K],
 ): Promise<void> {
   if (!isCommandAvailable(id, ctx)) {
+    console.warn(`Command "${id}" is not available: missing required UI handlers`);
     return;
   }
   if (!isCommandEnabled(id, args)) {

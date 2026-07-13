@@ -13,9 +13,9 @@ import { HierarchyPanel } from '../ui/HierarchyPanel';
 import { ProjectPanel } from '../ui/ProjectPanel';
 import { useSettingsStore } from './settings';
 import { FocusSpotlightOverlay } from './FocusSpotlightOverlay';
-import { COMMAND_ID, executeCommand } from './commands';
-import { useShortcut, useShortcutScope } from '../shortcuts/shortcutManager';
+import { useShortcutScope } from '../shortcuts/shortcutManager';
 import { EditorDialogsProvider } from './EditorDialogsContext';
+import { EditorShortcuts } from './EditorShortcuts';
 import { installHostBridge, isSingleTabMode } from './host/hostBridge';
 import { registerHostHandlers } from './host/hostHandlers';
 import { installDocumentStateSync } from './host/documentStateSync';
@@ -26,9 +26,7 @@ import { useProjectInfoStore } from '../app/projectInfoStore';
 
 export const EditorApp: React.FC = () => {
   const { t } = useTranslation();
-  // host mode: 当 editor 以嵌入模式在 VSCode 扩展里执行时
   const isHostMode = window.parent !== window;
-  // single tab mode: 禁用多标签页功能，将标签页管理托管给 host（如 VSCode 扩展）
   const singleTabMode = isSingleTabMode();
   const { setPrefabSchema, activeDocumentId } = useAppStore();
   const { initialize } = useSymbolIndexStore();
@@ -47,12 +45,6 @@ export const EditorApp: React.FC = () => {
     onSizeChange: setRightPanelWidth,
     enabled: true,
   });
-  const commandContext = React.useMemo(
-    () => ({
-      ui: {},
-    }),
-    [],
-  );
 
   useEffect(() => {
     getPrefabSchema().then(setPrefabSchema).catch(console.error);
@@ -79,27 +71,9 @@ export const EditorApp: React.FC = () => {
 
   useShortcutScope("editor", true);
 
-  useShortcut({
-    id: "editor.open-command-palette",
-    scope: "editor",
-    combo: "mod+shift+p",
-    when: () => !isHostMode,
-    onKeyDown: () => {
-      void executeCommand(COMMAND_ID.APP_OPEN_COMMAND_PALETTE, commandContext, undefined);
-    },
-  });
-
-  useShortcut({
-    id: "editor.toggle-problems-panel",
-    scope: "editor",
-    combo: "mod+shift+m",
-    onKeyDown: () => {
-      void executeCommand(COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL, commandContext, undefined);
-    },
-  });
-
   return (
     <EditorDialogsProvider>
+      <EditorShortcuts />
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#f5f8fa' }}>
         {!isHostMode ? (
           <TopMenuBar />

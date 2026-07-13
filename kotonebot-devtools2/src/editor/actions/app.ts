@@ -3,6 +3,7 @@ import { quickPick } from "../../ui/quickPick";
 import { COMMAND_ID, executeCommand, getPaletteCommands, getCommandStatus } from "../commands";
 import type { EditorCommandContext, EditorCommandDefinition, NoArgCommandId } from "../commands";
 import { useAppStore } from "../state";
+import { getGlobalCommandContext } from "../EditorDialogsContext";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import i18n from "../../i18n";
 import { listWorkspaceImages } from "../../api/fs";
@@ -137,7 +138,7 @@ function rankDocument(imagePath: string, query: string, tokens: string[]): numbe
 
 /** 打开命令面板并执行用户最终选中的命令或符号跳转。 */
 export async function openCommandPalette(): Promise<void> {
-  const commandContext: EditorCommandContext = { ui: {} };
+  const commandContext = getGlobalCommandContext();
   const selected = await quickPick.show<CommandPaletteValue>({
     title: i18n.t('commandPalette.title'),
     placeholder: i18n.t('commandPalette.placeholder'),

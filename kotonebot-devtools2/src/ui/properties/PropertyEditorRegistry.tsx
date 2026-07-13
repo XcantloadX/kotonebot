@@ -1,7 +1,7 @@
 import React from 'react';
 import { FormGroup, InputGroup, Switch, Button, HTMLSelect } from '@blueprintjs/core';
-import { PropValue } from '../../model/metaV2';
-import { EditorPropSchema } from '../../model/prefabSchema';
+import { PropValue, RectValue, PointValue, ImageValue } from '../../model/metaV2';
+import { EditorPropSchema, PropKind } from '../../model/prefabSchema';
 import { HelpIcon } from '../components/HelpIcon';
 
 export interface PropertyEditorProps {
@@ -139,8 +139,8 @@ export const ChoiceEditor: React.FC<PropertyEditorProps> = ({ propKey, value, sc
 };
 
 export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, schema, onEditGeometry, onChange }) => {
-    const rectVal = value as any;
-    const kind = schema?.kind || (value as any)?.kind;
+    const rectVal = value as { kind?: string; x?: number; y?: number; x1?: number; y1?: number; x2?: number; y2?: number } | undefined;
+    const kind = schema?.kind || rectVal?.kind;
     
     const toNumber = (v: string) => {
         const n = parseFloat(v);
@@ -155,7 +155,7 @@ export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, 
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <div style={{ flex: 1, fontSize: 12, color: '#a7b6c2' }}>Not set</div>
                             {kind && (
-                                <Button icon="select" variant='minimal' onClick={() => onEditGeometry?.(kind)} />
+                                <Button icon="select" variant='minimal' onClick={() => onEditGeometry?.(kind as "rect" | "point" | "image")} />
                             )}
                         </div>
                     )}
@@ -179,7 +179,7 @@ export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, 
                                 />
                             </div>
                             <div style={{ marginLeft: 'auto' }}>
-                                <Button icon="select" variant='minimal' onClick={() => onEditGeometry?.(kind)} />
+                                <Button icon="select" variant='minimal' onClick={() => onEditGeometry?.(kind as "rect" | "point" | "image")} />
                             </div>
                         </div>
                     )}
@@ -219,7 +219,7 @@ export const GeometryEditor: React.FC<PropertyEditorProps> = ({ propKey, value, 
                                 />
                             </div>
                             <div style={{ marginLeft: 'auto' }}>
-                                <Button icon="select" variant='minimal' onClick={() => onEditGeometry?.(kind)} />
+                                <Button icon="select" variant='minimal' onClick={() => onEditGeometry?.(kind as "rect" | "point" | "image")} />
                             </div>
                         </div>
                     )}

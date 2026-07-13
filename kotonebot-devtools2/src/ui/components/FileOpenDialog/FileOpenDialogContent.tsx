@@ -306,7 +306,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
       setCurrentPathInput(normalized);
     } catch (err: any) {
       const msg = err && err.message ? err.message : t('fileDialog.failedToOpenPath');
-      toaster.show({ message: `Cannot open path: ${msg}`, intent: "danger" });
+      toaster.show({ message: t('fileOpen.cannotOpenPath', { message: msg }), intent: "danger" });
       setCurrentPathInput(currentPath.replace(/\\/g, "/"));
     } finally {
       setIsLoading(false);
@@ -370,7 +370,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
   const handleNodeClick = (node: TreeNodeInfo, _nodePath?: number[], e?: React.MouseEvent<HTMLElement>) => {
     const shiftKey = !!(e && e.shiftKey);
     const ctrlKey = !!(e && (e.ctrlKey || e.metaKey));
-    const item = node.nodeData as any;
+    const item = node.nodeData as DialogTreeNodeData;
     if (item.isDirectory) {
       tryChangePath(item.path);
     } else {
@@ -458,7 +458,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
       );
     } catch (err: any) {
       const msg = err && err.message ? err.message : t('fileDialog.failedToOpenPath');
-      toaster.show({ message: `Cannot open path: ${msg}`, intent: "danger" });
+      toaster.show({ message: t('fileOpen.cannotOpenPath', { message: msg }), intent: "danger" });
       setTreeViewNodes((prev) =>
         updateNodeById(prev, String(node.id), (current) => ({
           ...current,

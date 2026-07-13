@@ -18,6 +18,7 @@ import { DefinitionRect } from './shapes/DefinitionRect';
 import { DefinitionPoint } from './shapes/DefinitionPoint';
 import { resolveBasePrefabsByName } from '../prefabResolver';
 import { useShortcuts } from '../../shortcuts/shortcutManager';
+import { useEditorDialogsContext } from '../EditorDialogsContext';
 import { COMMAND_ID, executeCommand } from '../commands';
 
 export const StageView: React.FC = () => {
@@ -76,7 +77,7 @@ export const StageView: React.FC = () => {
 
   const stageRef = useRef<any>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
-  const commandContext = useMemo(() => ({ ui: {} }), []);
+  const { commandContext } = useEditorDialogsContext();
   const [definitionContextMenu, setDefinitionContextMenu] = useState<{ x: number; y: number; definitionId: string } | null>(null);
   const [blankContextMenu, setBlankContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -111,7 +112,7 @@ export const StageView: React.FC = () => {
           if (missingBaseToastKeyRef.current !== key) {
             missingBaseToastKeyRef.current = key;
             toaster.show({
-              message: `Missing base prefab definitions: ${missingNames.slice(0, 3).join(", ")}${missingNames.length > 3 ? " ..." : ""}`,
+              message: t('stageView.missingBasePrefab', { names: missingNames.slice(0, 3).join(", ") + (missingNames.length > 3 ? " ..." : "") }),
               intent: "warning",
             });
           }
@@ -520,9 +521,9 @@ export const StageView: React.FC = () => {
                           updateMeta(draft => {
                             const d = draft.definitions[defId];
                             if (!d) return;
-                            if (!d.props) d.props = {} as any;
-                            const p = d.props[propKey || ''];
-                            d.props[propKey || ''] = { kind: val.kind, ...(p as any || {}), ...(rect as any) };
+            if (!d.props) d.props = {};
+            const p = d.props[propKey || ''];
+            d.props[propKey || ''] = { kind: val.kind, ...((p ?? {}) as object), ...rect };
                           }, {
                             label: t('resize.geometry'),
                             mergeKey: `resize:${defId}:${propKey || ""}`,

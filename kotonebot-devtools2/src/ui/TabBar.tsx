@@ -4,6 +4,7 @@ import { Icon, Tooltip, Menu, MenuItem, MenuDivider } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
 import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { useAppStore } from '../editor/state';
+import { useEditorDialogsContext } from '../editor/EditorDialogsContext';
 
 const TAB_MIN_WIDTH = 120;
 const TAB_SIDE_PADDING = 20;
@@ -15,7 +16,7 @@ export const TabBar: React.FC = () => {
     const { t } = useTranslation();
     const { documents, activeDocumentId, setActiveDocument } = useAppStore();
     const scrollRef = useHorizontalScroll();
-    const commandContext = useMemo(() => ({ ui: {} }), []);
+    const { commandContext } = useEditorDialogsContext();
 
     const docList = Object.values(documents);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; docId: string } | null>(null);

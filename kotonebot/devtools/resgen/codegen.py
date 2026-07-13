@@ -1,5 +1,5 @@
 import os
-from typing import Any, List, Callable, Protocol
+from typing import Any, Callable, Protocol
 
 from .core import CodeWriter, ClassNode, ResourceNode, ImageAsset, BoxData, RectData, PointData, PrefabData
 from .utils import to_camel_case, unify_path
@@ -150,7 +150,7 @@ class StandardGenerator:
             return self.path_transformer(original_path)
         return default_expr
 
-    def generate(self, root_nodes: List[ClassNode]) -> str:
+    def generate(self, root_nodes: list[ClassNode]) -> str:
         self.render_header()
         self.writer.write_empty_line()
         for node in root_nodes:

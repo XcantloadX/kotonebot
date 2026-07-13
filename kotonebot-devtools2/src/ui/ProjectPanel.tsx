@@ -1,5 +1,5 @@
 import React from 'react';
-import { Icon, Spinner } from '@blueprintjs/core';
+import { Icon, Spinner, Intent, IconName } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
 import { editorActions } from '../editor/actions';
 import { useAppStore } from '../editor/state';
@@ -11,11 +11,12 @@ import {
   ProjectSymbolTreeVariantNode,
 } from '../model/symbolIndex';
 import { toaster } from './toaster';
+import { normalizePath } from '../shared/normalizePath';
 
 interface TreeRowProps {
   depth: number;
   label: string;
-  icon: string;
+  icon: IconName;
   expanded?: boolean;
   onToggle?: () => void;
   onClick?: () => void;
@@ -59,7 +60,7 @@ const TreeRow: React.FC<TreeRowProps> = ({ depth, label, icon, expanded, onToggl
       ) : (
         <span style={{ width: 20 }} />
       )}
-      <Icon icon={icon as any} size={12} style={{ color: '#5c7080', flexShrink: 0 }} />
+      <Icon icon={icon} size={12} style={{ color: '#5c7080', flexShrink: 0 }} />
       <button
         type="button"
         onClick={onClick}
@@ -116,10 +117,6 @@ function useExpandedState(nodes: ProjectSymbolTreeNode[]) {
   return { expanded, toggle };
 }
 
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, '/').toLowerCase();
-}
-
 export const ProjectPanel: React.FC = () => {
   const { t } = useTranslation();
   const activeDocumentId = useAppStore((s) => s.activeDocumentId);
@@ -141,7 +138,7 @@ export const ProjectPanel: React.FC = () => {
       .map((child) => symbolMap.get(`${normalizePath(child.metaPath)}::${child.definitionId}`))
       .filter((item): item is NonNullable<typeof item> => !!item);
     if (candidates.length === 0) {
-      toaster.show({ message: t('projectPanel.symbolNotFound'), intent: 'warning' as any });
+      toaster.show({ message: t('projectPanel.symbolNotFound'), intent: Intent.WARNING });
       return;
     }
     const preferred = activeDocumentId
@@ -149,7 +146,7 @@ export const ProjectPanel: React.FC = () => {
       : undefined;
     const symbol = preferred ?? candidates[0];
     if (candidates.length > 1 && !preferred) {
-      toaster.show({ message: t('projectPanel.variantHasMultipleTargets'), intent: 'none' as any });
+      toaster.show({ message: t('projectPanel.variantHasMultipleTargets'), intent: Intent.NONE });
     }
     await editorActions.navigation.jumpToSymbol(symbol);
   }, [activeDocumentId, symbolMap, t]);

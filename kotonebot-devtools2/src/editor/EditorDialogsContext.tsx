@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { loadProjectVariants, pickVariantForActiveDocument } from "./actions/variant";
 import { editorActions } from "./actions";
@@ -21,6 +21,16 @@ async function measureImageUrl(url: string): Promise<{ width: number; height: nu
     img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
     img.src = url;
   });
+}
+
+let globalCommandContext: EditorCommandContext = { ui: {} };
+
+export function setGlobalCommandContext(ctx: EditorCommandContext) {
+  globalCommandContext = ctx;
+}
+
+export function getGlobalCommandContext(): EditorCommandContext {
+  return globalCommandContext;
 }
 
 interface EditorDialogsContextValue {
@@ -199,6 +209,10 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
     }),
     [openImageDialog, openVariantDialog, openDeviceCaptureDialog, openReplaceImageDialog],
   );
+
+  useEffect(() => {
+    setGlobalCommandContext(commandContext);
+  }, [commandContext]);
 
   const contextValue = useMemo<EditorDialogsContextValue>(
     () => ({ commandContext }),

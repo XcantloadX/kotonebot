@@ -1,16 +1,17 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { Icon, Menu, MenuItem } from '@blueprintjs/core';
+import { Icon, Menu, MenuItem, IconName } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../editor/state';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { editorActions } from '../editor/actions';
+import { useEditorDialogsContext } from '../editor/EditorDialogsContext';
 import { DefinitionModel } from '../model/metaV2';
 
-function getTypeIcon(def: DefinitionModel, prefabSchema: ReturnType<typeof useAppStore.getState>['prefabSchema']): string {
+function getTypeIcon(def: DefinitionModel, prefabSchema: ReturnType<typeof useAppStore.getState>['prefabSchema']): IconName {
   if (def.type === 'prefab' && def.prefab_id && prefabSchema) {
     const schema = prefabSchema.prefabs[def.prefab_id];
-    if (schema?.icon) return schema.icon;
+    if (schema?.icon) return schema.icon as IconName;
   }
   switch (def.type) {
     case 'template': return 'media';
@@ -32,7 +33,7 @@ export const HierarchyPanel: React.FC = () => {
   const activeMeta = activeDoc?.meta;
   const selection = activeDoc?.selection;
 
-  const commandContext = useMemo(() => ({ ui: {} }), []);
+  const { commandContext } = useEditorDialogsContext();
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; definitionId: string } | null>(null);
 
@@ -130,7 +131,7 @@ export const HierarchyPanel: React.FC = () => {
               gap: 6,
             }}
           >
-            <Icon icon={icon as any} style={{ color: '#5c7080', flexShrink: 0 }} />
+            <Icon icon={icon} style={{ color: '#5c7080', flexShrink: 0 }} />
             <span style={{ fontSize: 13, color: '#182026', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {name}
             </span>

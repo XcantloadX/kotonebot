@@ -1,8 +1,8 @@
 import React from 'react';
-import { FormGroup, InputGroup, Button, Tooltip } from '@blueprintjs/core';
+import { FormGroup, InputGroup, Button, Tooltip, Intent } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../editor/state';
-import { PropValue, VariantPolicy } from '../model/metaV2';
+import { PropValue, VariantPolicy, DefinitionV3 } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
 import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
@@ -11,6 +11,7 @@ import { OverridableField } from './components/OverridableField';
 import { SegmentedControl, SegmentedOption } from './components/SegmentedControl';
 import { toaster } from './toaster';
 import { HelpIcon } from './components/HelpIcon';
+import { useEditorDialogsContext } from '../editor/EditorDialogsContext';
 import { useProjectInfoStore } from '../app/projectInfoStore';
 
 export const RightProperties: React.FC = () => {
@@ -21,7 +22,7 @@ export const RightProperties: React.FC = () => {
     { label: t('rightProperties.variantPolicyRequire'), value: 'require' },
     { label: t('rightProperties.variantPolicyExclude'), value: 'exclude' },
   ];
-  const commandContext = React.useMemo(() => ({ ui: {} }), []);
+  const { commandContext } = useEditorDialogsContext();
   const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
   const symbols = useSymbolIndexStore(s => s.symbols);
   const [nameDraft, setNameDraft] = React.useState<string>('');
@@ -49,7 +50,7 @@ export const RightProperties: React.FC = () => {
   const trimmedNameDraft = nameDraft.trim();
   const hasPendingNameChange = !isVariantPrefab && trimmedNameDraft !== currentName;
   const canSubmitNameChange = hasPendingNameChange && trimmedNameDraft !== "";
-  const variantPolicyByVariant: Record<string, VariantPolicy> = (definition as any).variant_policy ?? {};
+  const variantPolicyByVariant = definition.variant_policy ?? {};
   const sameNamePrefabSymbols = definition.type === "prefab" && definition.name
     ? symbols
       .filter(s => s.type === "prefab" && s.name === definition.name)
@@ -64,7 +65,7 @@ export const RightProperties: React.FC = () => {
   const handleChange = (key: string, value: any) => {
       updateMeta(draft => {
         if (key === 'name' || key === 'displayName' || key === 'description' || key === 'variant_policy') {
-              (draft.definitions[defId] as any)[key] = value;
+              (draft.definitions[defId] as DefinitionV3 & Record<string, unknown>)[key] = value;
           } else {
               if (value === undefined) {
                   delete draft.definitions[defId].props[key];
@@ -73,7 +74,7 @@ export const RightProperties: React.FC = () => {
               }
           }
       }, {
-          label: key === 'name' || key === 'displayName' || key === 'description' ? `Edit ${key}` : `Edit prop ${key}`,
+          label: key === 'name' || key === 'displayName' || key === 'description' ? t('properties.editKey', { key }) : t('properties.editPropKey', { key }),
           mergeKey: `prop:${defId}:${key}`,
       });
   };
@@ -104,7 +105,7 @@ export const RightProperties: React.FC = () => {
       setNameDraft(trimmedNameDraft);
     } catch (error: any) {
       setNameDraft(currentName);
-      toaster.show({ message: `Rename failed: ${error?.message ?? String(error)}`, intent: "danger" as any });
+      toaster.show({ message: t('properties.renameFailed', { message: error?.message ?? String(error) }), intent: Intent.DANGER });
     }
   };
 
@@ -135,7 +136,7 @@ export const RightProperties: React.FC = () => {
         setNameDraft(latestDefinition.name || '');
       } catch (error: any) {
         setNameDraft(currentName);
-        toaster.show({ message: `Rename failed: ${error?.message ?? String(error)}`, intent: "danger" as any });
+        toaster.show({ message: t('properties.renameFailed', { message: error?.message ?? String(error) }), intent: Intent.DANGER });
       }
     })();
   };
@@ -145,7 +146,7 @@ export const RightProperties: React.FC = () => {
       const Editor = getEditorForType(kind);
 
       if (!Editor) {
-          return <div key={key}>Unknown prop type: {kind}</div>;
+          return <div key={key}>{t('properties.unknownPropType', { kind })}</div>;
       }
 
       return (
@@ -167,7 +168,7 @@ export const RightProperties: React.FC = () => {
 
   if (definition.type === "prefab" && projectVariants.length > 0) {
     editors.push(
-      <FormGroup key="meta-variant" label="变体">
+      <FormGroup key="meta-variant" label={t('properties.variant')}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {projectVariants
             .filter((variant) => variant !== definition.variant)
@@ -214,24 +215,24 @@ export const RightProperties: React.FC = () => {
             />
             {hasPendingNameChange ? (
               <>
-                <Tooltip content="仅重命名" position="top">
+                <Tooltip content={t('properties.renameOnly')} position="top">
                   <Button
                     small
                     intent="none"
                     icon="edit"
                     disabled={!canSubmitNameChange}
-                    aria-label="仅重命名"
+                    aria-label={t('properties.renameOnly')}
                     style={{ width: 28, minWidth: 28 }}
                     onClick={handleRenameOnly}
                   />
                 </Tooltip>
-                <Tooltip content="重命名+重构" position="top">
+                <Tooltip content={t('properties.renameAndRefactor')} position="top">
                   <Button
                     small
                     intent="primary"
                     icon="wrench"
                     disabled={!canSubmitNameChange}
-                    aria-label="重命名+重构"
+                    aria-label={t('properties.renameAndRefactor')}
                     style={{ width: 28, minWidth: 28 }}
                     onClick={handleRenameWithRefactor}
                   />

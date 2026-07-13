@@ -14,7 +14,7 @@ export async function saveActiveDocumentWithToast(): Promise<void> {
 export async function saveAllDocumentsWithToast(): Promise<void> {
   try {
     const savedCount = await useAppStore.getState().saveAllDocuments();
-    toaster.show({ message: i18n.t('status.saved') + ` ${savedCount} files`, intent: "success" });
+    toaster.show({ message: i18n.t('save.savedCount', { count: savedCount }), intent: "success" });
   } catch {
     toaster.show({ message: i18n.t('error.saveFailed', { message: '' }), intent: "danger" });
   }

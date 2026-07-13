@@ -1,4 +1,5 @@
 import React from "react";
+import { Intent } from '@blueprintjs/core';
 import { executeServerCommand } from "../../api/serverCommands";
 import { readText } from "../../api/fs";
 import { messageBox } from "../../ui/messageBox";
@@ -7,6 +8,8 @@ import { useAppStore } from "../state";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { SERVER_COMMAND_ID } from "../commands/serverIds";
 import i18n from "../../i18n";
+
+import { normalizePath } from "../../shared/normalizePath";
 
 /** 单个受影响符号目标。 */
 interface RenameSymbolTarget {
@@ -54,21 +57,16 @@ interface RenameSymbolExecuteResult extends RenameSymbolPrecheckResult {
   updatedContentHash: string;
 }
 
-/** 统一路径格式用于大小写无关比较。 */
-function normalizePath(path: string): string {
-  return path.split("\\").join("/").toLowerCase();
-}
-
 /** 构建重命名确认弹窗内容（仅展示 meta 文件影响范围）。 */
 function buildRenameConfirmContent(precheck: RenameSymbolPrecheckResult): React.ReactNode {
   const affectedMetaPaths = Array.from(new Set(precheck.targets.map((item) => item.metaPath))).sort();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 900 }}>
       <div style={{ fontWeight: 600 }}>
-        Rename {precheck.oldName} -&gt; {precheck.newName}
+        {i18n.t('symbolRename.confirmTitle', { oldName: precheck.oldName, newName: precheck.newName })}
       </div>
       <div style={{ fontSize: 12, color: "#5c7080" }}>
-        Affected definitions: {precheck.affectedDefinitionCount} | Affected files: {precheck.affectedMetaCount}
+        {i18n.t('symbolRename.confirmBody', { defCount: precheck.affectedDefinitionCount, fileCount: precheck.affectedMetaCount })}
       </div>
       <div
         style={{
@@ -209,8 +207,8 @@ export async function renameSymbolNameForActiveDefinition(definitionId: string, 
   await reloadAffectedOpenDocuments(affectedMetaPathSet);
   await useSymbolIndexStore.getState().refetch();
   toaster.show({
-    message: `Renamed '${result.oldName}' to '${result.newName}' in ${result.affectedDefinitionCount} definition(s)`,
-    intent: "success" as any,
+    message: i18n.t('symbolRename.successToast', { oldName: result.oldName, newName: result.newName, count: result.affectedDefinitionCount }),
+    intent: Intent.SUCCESS,
   });
   return true;
 }
