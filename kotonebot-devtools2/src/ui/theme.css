@@ -1,0 +1,14 @@
+:root {
+  --color-app-bg: #f5f8fa;
+  --color-sidebar-bg: #e1e8ed;
+  --color-panel-bg: #dde5ec;
+  --color-hover-bg: #c7d4e0;
+  --color-border: #c5d2db;
+  --color-border-subtle: #d2dce5;
+  --color-divider: #b8c6d2;
+  --color-text-primary: #182026;
+  --color-text-secondary: #5c7080;
+  --color-text-muted: #8a9ba8;
+  --color-accent: #4a9eff;
+  --color-white: #ffffff;
+}

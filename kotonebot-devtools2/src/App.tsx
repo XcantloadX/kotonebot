@@ -1,3 +1,4 @@
+import { ErrorBoundary } from './ui/ErrorBoundary';
 import { EditorApp } from './editor/EditorApp';
 import { MessageBoxProvider } from './ui/messageBox';
 import { ShortcutProvider } from './shortcuts/shortcutManager';
@@ -12,15 +13,17 @@ function App() {
   }
 
   return (
-    <div className="">
-      <ShortcutProvider>
-        <QuickPickProvider>
-          <MessageBoxProvider>
-            <EditorApp />
-          </MessageBoxProvider>
-        </QuickPickProvider>
-      </ShortcutProvider>
-    </div>
+    <ErrorBoundary>
+      <div className="">
+        <ShortcutProvider>
+          <QuickPickProvider>
+            <MessageBoxProvider>
+              <EditorApp />
+            </MessageBoxProvider>
+          </QuickPickProvider>
+        </ShortcutProvider>
+      </div>
+    </ErrorBoundary>
   )
 }
 

@@ -87,7 +87,11 @@
   },
   "error": {
     "saveFailed": "Save failed: {{message}}",
-    "noPrimaryProp": "No primary prop defined for prefab '{{name}}'"
+    "noPrimaryProp": "No primary prop defined for prefab '{{name}}'",
+    "renderCrashed": "Application render crashed"
+  },
+  "common": {
+    "reload": "Reload"
   },
   "commandPalette": {
     "title": "Command Palette",
@@ -163,6 +167,29 @@
     "enterNewPath": "Enter new image path",
     "plannedRenames": "Planned Renames",
     "renamedCount": "Renamed {{count}} documents"
+  },
+  "properties": {
+    "variant": "Variant",
+    "renameOnly": "Rename only",
+    "renameAndRefactor": "Rename + refactor",
+    "renameFailed": "Rename failed: {{message}}",
+    "unknownPropType": "Unknown prop type: {{kind}}",
+    "editKey": "Edit {{key}}",
+    "editPropKey": "Edit prop {{key}}"
+  },
+  "symbolRename": {
+    "confirmTitle": "Rename {{oldName}} -> {{newName}}",
+    "confirmBody": "Affected definitions: {{defCount}} | Affected files: {{fileCount}}",
+    "successToast": "Renamed '{{oldName}}' to '{{newName}}' in {{count}} definition(s)"
+  },
+  "stageView": {
+    "missingBasePrefab": "Missing base prefab definitions: {{names}}"
+  },
+  "save": {
+    "savedCount": "{{count}} files"
+  },
+  "fileOpen": {
+    "cannotOpenPath": "Cannot open path: {{message}}"
   },
   "resize": {
     "geometry": "Resize geometry"

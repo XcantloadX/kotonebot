@@ -87,7 +87,11 @@
   },
   "error": {
     "saveFailed": "保存失败: {{message}}",
-    "noPrimaryProp": "未定义 Prefab '{{name}}' 的主要属性"
+    "noPrimaryProp": "未定义 Prefab '{{name}}' 的主要属性",
+    "renderCrashed": "应用渲染崩溃"
+  },
+  "common": {
+    "reload": "重新加载"
   },
   "commandPalette": {
     "title": "命令面板",
@@ -163,6 +167,29 @@
     "enterNewPath": "输入新图片路径",
     "plannedRenames": "计划重命名",
     "renamedCount": "已重命名 {{count}} 个文档"
+  },
+  "properties": {
+    "variant": "变体",
+    "renameOnly": "仅重命名",
+    "renameAndRefactor": "重命名+重构",
+    "renameFailed": "重命名失败: {{message}}",
+    "unknownPropType": "未知属性类型: {{kind}}",
+    "editKey": "编辑 {{key}}",
+    "editPropKey": "编辑属性 {{key}}"
+  },
+  "symbolRename": {
+    "confirmTitle": "重命名 {{oldName}} -> {{newName}}",
+    "confirmBody": "受影响的定义: {{defCount}} | 受影响的文件: {{fileCount}}",
+    "successToast": "已将 '{{oldName}}' 重命名为 '{{newName}}'，共 {{count}} 个定义"
+  },
+  "stageView": {
+    "missingBasePrefab": "缺少基础 prefab 定义: {{names}}"
+  },
+  "save": {
+    "savedCount": "{{count}} 个文件"
+  },
+  "fileOpen": {
+    "cannotOpenPath": "无法打开路径: {{message}}"
   },
   "resize": {
     "geometry": "调整几何"
