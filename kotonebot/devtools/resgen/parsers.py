@@ -1,4 +1,3 @@
-import os
 import json
 import uuid
 from pathlib import Path
@@ -13,6 +12,7 @@ from kotonebot.devtools.meta import (
     build_variant_projection_for_resgen,
     parse_meta_file,
 )
+from kotonebot.devtools.path_utils import unify_path
 from .core import SchemaParser, ResourceNode, ImageAsset, BoxData, RectData, PointData, PrefabData
 from .utils import to_camel_case, ImageProcessor
 from .validation import MetaValidationError, detect_and_validate_meta_schema
@@ -29,8 +29,7 @@ class ResgenProjectContext(BaseModel):
     diagnostics: list[Diagnostic] = Field(default_factory=list)
 
 
-def _normalize_meta_path(path: str) -> str:
-    return Path(path).resolve().as_posix().lower()
+
 
 
 def _meta_to_image_path(meta_path: str) -> str:
@@ -216,7 +215,7 @@ class KotoneV1Parser(SchemaParser):
     def _parse_v3_schema(self, data: MetaV3Model, meta_path: str, png_file: str, output_dir: str, context: Dict[str, Any]) -> List[ResourceNode]:
         resources: List[ResourceNode] = []
         definitions = data.definitions
-        normalized_meta_path = _normalize_meta_path(meta_path)
+        normalized_meta_path = unify_path(meta_path)
         resource_variants = context.get("resource_variants")
         if resource_variants is not None and not isinstance(resource_variants, list):
             raise ValidationError("resource_variants must be a list[str]")
@@ -311,7 +310,7 @@ class KotoneV1Parser(SchemaParser):
             
             metadata = {
                 'class_path': class_path,
-                'origin_file': os.path.abspath(png_file),
+                'origin_file': str(Path(png_file).resolve()),
                 'display_name': display_name,
                 'description': desc
             }
@@ -500,17 +499,17 @@ class KotoneV1Parser(SchemaParser):
 
         # --- 基于文件路径的默认推导（复用 BasicSpriteParser 逻辑） ---
         root_scan_path = context.get('root_scan_path', '')
-        file_name = os.path.basename(png_file)
+        png_path = Path(png_file)
+        file_name = png_path.name
         name_no_ext = file_name.replace('.png', '')
         try:
-            rel_dir = os.path.dirname(os.path.relpath(png_file, root_scan_path)) if root_scan_path else ''
+            rel_dir = Path(png_file).parent.relative_to(root_scan_path).as_posix() if root_scan_path else ''
         except ValueError:
-            # os.path.relpath 可能在 root_scan_path 非法时抛错，此时退回空相对目录
             rel_dir = ''
 
         path_class_path = [
             to_camel_case(p)
-            for p in rel_dir.split(os.sep)
+            for p in rel_dir.split('/')
             if p and p != '.'
         ]
         path_attr_name = to_camel_case(name_no_ext)
@@ -543,8 +542,8 @@ class KotoneV1Parser(SchemaParser):
 
         metadata = {
             'class_path': class_path,
-            'origin_file': os.path.abspath(png_file),
-            'abs_path': os.path.abspath(final_path),
+            'origin_file': str(Path(png_file).resolve()),
+            'abs_path': str(Path(final_path).resolve()),
             'isSimple': True,
             'display_name': display_name,
             'description': desc,
@@ -584,7 +583,7 @@ class BasicSpriteParser(SchemaParser):
         # 只有是 png 且没有对应的 json 文件时
         if not file_path.endswith('.png'):
             return False
-        if os.path.exists(file_path + '.json'):
+        if Path(file_path + '.json').exists():
             return False
         return True
 
@@ -592,12 +591,13 @@ class BasicSpriteParser(SchemaParser):
         output_dir = context.get('output_img_dir', 'tmp')
         root_scan_path = context.get('root_scan_path', '')
         
-        file_name = os.path.basename(file_path)
+        p = Path(file_path)
+        file_name = p.name
         name_no_ext = file_name.replace('.png', '')
         
         # 计算 class path: 相对路径文件夹转 CamelCase
-        rel_dir = os.path.dirname(os.path.relpath(file_path, root_scan_path))
-        class_path = [to_camel_case(p) for p in rel_dir.split(os.sep) if p and p != '.']
+        rel_dir = p.parent.relative_to(root_scan_path).as_posix()
+        class_path = [to_camel_case(p) for p in rel_dir.split('/') if p and p != '.']
         
         # 复制图片
         img_uuid = str(uuid.uuid4())
@@ -609,7 +609,7 @@ class BasicSpriteParser(SchemaParser):
         
         metadata = {
             'class_path': class_path,
-            'origin_file': os.path.abspath(file_path),
+            'origin_file': str(p.resolve()),
             'abs_path': final_path,
             'display_name': display_name
         }

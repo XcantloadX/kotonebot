@@ -66,7 +66,7 @@ const ThumbnailGrid: React.FC<ThumbnailGridProps> = ({
       }}
     >
       {items.map((item) => {
-        const normalizedPath = item.path.replace(/\\/g, "/");
+        const normalizedPath = item.path;
         const isSelected = selectedPaths.has(normalizedPath);
         const isImage = !!item.isImage;
         const thumbnailUrl = item.thumbnailUrl || (isImage ? getImageUrl(normalizedPath) : undefined);
@@ -154,7 +154,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
   const [lastSelected, setLastSelected] = useState<string | null>(null);
   const [items, setItems] = useState<FileItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [currentPathInput, setCurrentPathInput] = useState<string>(currentPath.replace(/\\/g, "/"));
+  const [currentPathInput, setCurrentPathInput] = useState<string>(currentPath);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const viewMode = useSettingsStore((s) => s.fileDialogViewMode);
   const setViewMode = useSettingsStore((s) => s.setFileDialogViewMode);
@@ -178,7 +178,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
   });
 
   const createTreeNode = (item: FileItem): TreeNodeInfo<DialogTreeNodeData> => {
-    const fullPath = item.path.replace(/\\/g, "/");
+    const fullPath = item.path;
     return {
       id: fullPath,
       label: item.name,
@@ -252,7 +252,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
   }, [persistedThumbSize]);
 
   useEffect(() => {
-    setCurrentPathInput(currentPath.replace(/\\/g, "/"));
+    setCurrentPathInput(currentPath);
   }, [currentPath]);
 
   useEffect(() => {
@@ -275,8 +275,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
       (async () => {
         try {
           if (projectResourcePath) {
-            const initial = projectResourcePath.replace(/\\/g, "/");
-            tryChangePath(initial, false);
+            tryChangePath(projectResourcePath, false);
           } else {
             tryChangePath(currentPath, false);
           }
@@ -293,7 +292,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
   }, [isOpen, projectResourcePath]);
 
   const tryChangePath = async (newPath: string, addToHistory: boolean = true) => {
-    const normalized = (newPath || ".").replace(/\\/g, "/");
+    const normalized = newPath || ".";
     setIsLoading(true);
     try {
       const loadedItems = await listDir(normalized);
@@ -307,7 +306,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
     } catch (err: any) {
       const msg = err && err.message ? err.message : t('fileDialog.failedToOpenPath');
       toaster.show({ message: t('fileOpen.cannotOpenPath', { message: msg }), intent: "danger" });
-      setCurrentPathInput(currentPath.replace(/\\/g, "/"));
+      setCurrentPathInput(currentPath);
     } finally {
       setIsLoading(false);
     }
@@ -480,8 +479,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
   };
 
   const handleGoUp = () => {
-    const normalized = currentPath.replace(/\\/g, "/");
-    const parent = normalized.split("/").slice(0, -1).join("/") || ".";
+    const parent = currentPath.split("/").slice(0, -1).join("/") || ".";
     tryChangePath(parent);
   };
 
@@ -584,7 +582,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
                 }
               }}
               onBlur={() => {
-                const p = (currentPathInput || ".").replace(/\\/g, "/");
+                const p = currentPathInput || ".";
                 if (p !== currentPath) {
                   tryChangePath(p);
                 }

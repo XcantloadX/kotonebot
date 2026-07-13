@@ -6,6 +6,7 @@ from lsprotocol import types as lsp
 from pygls.lsp.server import LanguageServer
 
 from kotonebot.devtools.errors import ValidationError
+from kotonebot.devtools.path_utils import unify_path
 from kotonebot.devtools.server_commands.commands import SERVER_COMMAND_IDS, ServerCommandId
 from kotonebot.devtools.server_commands.types import parse_server_command_request
 from kotonebot.devtools.indexing.symbol_index_view import DiagnosticPayloadModel
@@ -13,10 +14,6 @@ from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.server_commands.workspace_service import WorkspaceService
 
 METHOD_SYMBOL_TREE = "kotonebot/symbolTree"
-
-
-def normalize_path(path: str) -> str:
-    return str(Path(path).resolve()).replace("\\", "/").lower()
 
 
 def path_to_uri(path: str) -> str:
@@ -30,7 +27,7 @@ def uri_to_normalized_path(uri: str) -> str | None:
     raw_path = unquote(parsed.path)
     if raw_path.startswith("/") and len(raw_path) >= 3 and raw_path[2] == ":":
         raw_path = raw_path[1:]
-    return normalize_path(raw_path)
+    return unify_path(raw_path)
 
 
 def diagnostic_severity_to_lsp(severity: str) -> lsp.DiagnosticSeverity:
@@ -82,7 +79,7 @@ class DevtoolsLspServer(LanguageServer):
         published_paths: set[str] = set()
 
         for meta_path, items in by_file.items():
-            normalized = normalize_path(meta_path)
+            normalized = unify_path(meta_path)
             published_paths.add(normalized)
             uri = opened_by_path.get(normalized, path_to_uri(meta_path))
             diagnostics = [to_lsp_diagnostic(item) for item in items]

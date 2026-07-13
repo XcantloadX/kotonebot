@@ -46,7 +46,7 @@ export const TabBar: React.FC = () => {
 
         ctx.font = TAB_FONT;
         const naturalWidths = docList.map((doc) => {
-            const name = doc.id.split(/[/\\]/).pop() || doc.id;
+            const name = doc.id.split("/").pop() || doc.id;
             const title = `${doc.dirty ? '*' : ''}${name}`;
             const textWidth = Math.ceil(ctx.measureText(title).width);
             const natural = Math.max(TAB_MIN_WIDTH, textWidth + TAB_SIDE_PADDING + TAB_GAP_AND_CLOSE);
@@ -96,7 +96,7 @@ export const TabBar: React.FC = () => {
                 }}>
                 {docList.map(doc => {
                     const isActive = doc.id === activeDocumentId;
-                    const name = doc.id.split(/[/\\]/).pop() || doc.id;
+                    const name = doc.id.split("/").pop() || doc.id;
 
                     return (
                         <Tooltip content={name} key={doc.id} hoverOpenDelay={100}>

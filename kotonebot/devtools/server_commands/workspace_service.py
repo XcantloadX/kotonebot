@@ -54,14 +54,20 @@ from kotonebot.devtools.server_commands.types import (
 from kotonebot.devtools.indexing.document_index_view import (
     DocumentIndexView,
     RenameDocumentExecuteResultModel,
+    RenameDocumentItemModel,
+    RenameFileItemModel,
     RenameDocumentPrecheckResultModel,
 )
 from kotonebot.devtools.indexing.resource_index_store import ResourceIndexStore
-from kotonebot.devtools.indexing.symbol_index_view import SymbolIndexView
+from kotonebot.devtools.indexing.symbol_index_view import (
+    SymbolIndexView,
+    SymbolLiteModel,
+    DiagnosticPayloadModel,
+)
 from kotonebot.devtools.meta import DefinitionV3Model, merge_prefab_definition, parse_meta_file
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.project.scanner import scan_prefabs
-from kotonebot.devtools.path_utils import get_safe_path
+from kotonebot.devtools.path_utils import get_safe_path, to_rel, unify_path
 
 
 class WorkspaceService:
@@ -212,7 +218,8 @@ class WorkspaceService:
         raise CommandError(f"Unsupported server command: {request.command}")
 
     def get_project_root_data(self) -> dict[str, Any]:
-        data: dict[str, Any] = {"resource_root": str(self.project_root)}
+        root = self.project.pyproject_root
+        data: dict[str, Any] = {"resource_root": to_rel(self.project_root, root)}
         if self.project.conf and self.project.conf.editor:
             data["editor"] = self.project.conf.editor.model_dump()
         if self.project.conf and self.project.conf.variant:
@@ -232,35 +239,132 @@ class WorkspaceService:
         return self._prefabs_cache
 
     def get_meta_index(self) -> SymbolSnapshotLiteModel:
-        return self.symbol_index_view.get_snapshot_lite()
+        result = self.symbol_index_view.get_snapshot_lite()
+        root = self.project.pyproject_root
+        result.symbols = [self._convert_symbol_lite(s, root) for s in result.symbols]
+        return result
 
     def update_meta_index(self, meta_path: str) -> SymbolUpdateResultModel:
-        return self.symbol_index_view.update_file(meta_path=meta_path)
+        result = self.symbol_index_view.update_file(meta_path=meta_path)
+        root = self.project.pyproject_root
+        result.updatedMetaPath = to_rel(result.updatedMetaPath, root)
+        result.upsertedSymbols = [self._convert_symbol_lite(s, root) for s in result.upsertedSymbols]
+        result.diagnostics = self._convert_diagnostics(result.diagnostics, root)
+        return result
 
     def get_meta_diagnostics(self) -> MetaDiagnosticsSnapshotModel:
-        return self.symbol_index_view.get_diagnostics()
+        result = self.symbol_index_view.get_diagnostics()
+        root = self.project.pyproject_root
+        result.diagnosticsByFile = {
+            to_rel(meta_path, root): self._convert_diagnostics(entries, root)
+            for meta_path, entries in result.diagnosticsByFile.items()
+        }
+        return result
+
+    def _convert_symbol_lite(self, symbol: SymbolLiteModel, root: Path) -> SymbolLiteModel:
+        return SymbolLiteModel(
+            symbolKey=symbol.symbolKey,
+            definitionId=symbol.definitionId,
+            type=symbol.type,
+            name=symbol.name,
+            displayName=symbol.displayName,
+            description=symbol.description,
+            prefabId=symbol.prefabId,
+            variant=symbol.variant,
+            metaPath=to_rel(symbol.metaPath, root),
+            imagePath=to_rel(symbol.imagePath, root),
+            primaryGeometry=symbol.primaryGeometry,
+            searchText=symbol.searchText,
+        )
+
+    @staticmethod
+    def _convert_diagnostics(
+        diagnostics: list[DiagnosticPayloadModel], root: Path
+    ) -> list[DiagnosticPayloadModel]:
+        return [
+            DiagnosticPayloadModel(
+                code=d.code,
+                message=d.message,
+                meta_path=to_rel(d.meta_path, root),
+                severity=d.severity,
+                definition_id=d.definition_id,
+                field_path=d.field_path,
+                line=d.line,
+                column=d.column,
+                endLine=d.endLine,
+                endColumn=d.endColumn,
+            )
+            for d in diagnostics
+        ]
 
     def get_meta_index_health(self) -> SymbolIndexHealthModel:
         return self.symbol_index_view.get_health()
 
+    def _convert_rename_precheck(self, result: RenameDocumentPrecheckResultModel, root: Path) -> RenameDocumentPrecheckResultModel:
+        return RenameDocumentPrecheckResultModel(
+            documents=[
+                RenameDocumentItemModel(
+                    variant=d.variant,
+                    sourceImagePath=to_rel(d.sourceImagePath, root),
+                    targetImagePath=to_rel(d.targetImagePath, root),
+                    sourceMetaPath=to_rel(d.sourceMetaPath, root),
+                    targetMetaPath=to_rel(d.targetMetaPath, root),
+                )
+                for d in result.documents
+            ],
+            fileRenames=[
+                RenameFileItemModel(
+                    kind=f.kind,
+                    variant=f.variant,
+                    sourcePath=to_rel(f.sourcePath, root),
+                    targetPath=to_rel(f.targetPath, root),
+                )
+                for f in result.fileRenames
+            ],
+            conflicts=result.conflicts,
+            hasConflicts=result.hasConflicts,
+        )
+
     def precheck_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentPrecheckResultModel:
-        return self.document_index_view.precheck_rename_document(
+        result = self.document_index_view.precheck_rename_document(
             source_image_path=source_image_path,
             target_image_path=target_image_path,
         )
+        return self._convert_rename_precheck(result, self.project.pyproject_root)
 
     def execute_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentExecuteResultModel:
-        precheck = self.precheck_rename_document(source_image_path=source_image_path, target_image_path=target_image_path)
-        if precheck.hasConflicts:
-            message = "\n".join(precheck.conflicts)
+        result = self.document_index_view.precheck_rename_document(
+            source_image_path=source_image_path,
+            target_image_path=target_image_path,
+        )
+        if result.hasConflicts:
+            message = "\n".join(result.conflicts)
             raise ValidationError(f"Cannot execute rename due to conflicts:\n{message}")
-        renames = [(Path(item.sourcePath), Path(item.targetPath)) for item in precheck.fileRenames]
+        renames = [(Path(item.sourcePath), Path(item.targetPath)) for item in result.fileRenames]
         self._execute_file_rename_batch(renames)
+        root = self.project.pyproject_root
         return RenameDocumentExecuteResultModel(
-            documents=precheck.documents,
-            fileRenames=precheck.fileRenames,
-            renamedFileCount=len(precheck.fileRenames),
-            renamedDocumentCount=len(precheck.documents),
+            documents=[
+                RenameDocumentItemModel(
+                    variant=d.variant,
+                    sourceImagePath=to_rel(d.sourceImagePath, root),
+                    targetImagePath=to_rel(d.targetImagePath, root),
+                    sourceMetaPath=to_rel(d.sourceMetaPath, root),
+                    targetMetaPath=to_rel(d.targetMetaPath, root),
+                )
+                for d in result.documents
+            ],
+            fileRenames=[
+                RenameFileItemModel(
+                    kind=f.kind,
+                    variant=f.variant,
+                    sourcePath=to_rel(f.sourcePath, root),
+                    targetPath=to_rel(f.targetPath, root),
+                )
+                for f in result.fileRenames
+            ],
+            renamedFileCount=len(result.fileRenames),
+            renamedDocumentCount=len(result.documents),
         )
 
     def precheck_rename_symbol(
@@ -271,7 +375,7 @@ class WorkspaceService:
         new_name: str,
     ) -> RenameSymbolPrecheckResult:
         self.symbol_index_view.ensure_ready()
-        normalized_meta_path = self._normalize_path_key(str(get_safe_path(source_meta_path, self.project)))
+        normalized_meta_path = unify_path(str(get_safe_path(source_meta_path, self.project)))
         requested_name = new_name.strip()
         if requested_name == "":
             raise ValidationError("newName cannot be empty")
@@ -280,7 +384,7 @@ class WorkspaceService:
 
         source_symbol = None
         for symbol in self.symbol_index_view.snapshot.symbols.values():
-            if self._normalize_path_key(symbol.meta_path) == normalized_meta_path and symbol.definition_id == source_definition_id:
+            if unify_path(symbol.meta_path) == normalized_meta_path and symbol.definition_id == source_definition_id:
                 source_symbol = symbol
                 break
         if source_symbol is None:
@@ -299,10 +403,11 @@ class WorkspaceService:
             key = (symbol.meta_path, symbol.definition_id)
             if key in targets_by_key:
                 continue
+            root = self.project.pyproject_root
             targets_by_key[key] = RenameSymbolTargetModel(
                 symbolKey=symbol.symbol_key,
-                metaPath=symbol.meta_path,
-                imagePath=symbol.image_path,
+                metaPath=to_rel(symbol.meta_path, root),
+                imagePath=to_rel(symbol.image_path, root),
                 definitionId=symbol.definition_id,
                 variant=symbol.variant,
                 type=symbol.type,
@@ -318,8 +423,9 @@ class WorkspaceService:
         )
         affected_meta_count = len({item.metaPath for item in targets})
 
+        root = self.project.pyproject_root
         return RenameSymbolPrecheckResult(
-            sourceMetaPath=source_symbol.meta_path,
+            sourceMetaPath=to_rel(source_symbol.meta_path, root),
             sourceDefinitionId=source_definition_id,
             oldName=old_name,
             newName=requested_name,
@@ -418,7 +524,8 @@ class WorkspaceService:
         )
         payload = {"version": 3, "definitions": target_definitions}
         target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {"targetMetaPath": target_meta_path.as_posix(), "definitionCount": len(target_definitions)}
+        root = self.project.pyproject_root
+        return {"targetMetaPath": to_rel(target_meta_path, root), "definitionCount": len(target_definitions)}
 
     def precheck_variant_import_path(
         self,
@@ -448,10 +555,11 @@ class WorkspaceService:
             target_image_override=uploaded_target_image,
         )
         target_meta_path = Path(str(target_image_path) + ".json")
+        root = self.project.pyproject_root
         return {
-            "targetImagePath": target_image_path.as_posix(),
+            "targetImagePath": to_rel(target_image_path, root),
             "targetImageExists": target_image_path.exists(),
-            "targetMetaPath": target_meta_path.as_posix(),
+            "targetMetaPath": to_rel(target_meta_path, root),
             "targetMetaExists": target_meta_path.exists(),
             "copiedDefinitions": plan["copiedDefinitions"],
             "skippedDefinitions": plan["skippedDefinitions"],
@@ -485,7 +593,8 @@ class WorkspaceService:
         temp_path = target_image_path.with_suffix(target_image_path.suffix + ".tmp")
         temp_path.write_bytes(image_data)
         os.replace(temp_path, target_image_path)
-        return {"targetImagePath": target_image_path.as_posix(), "size": len(image_data)}
+        root = self.project.pyproject_root
+        return {"targetImagePath": to_rel(target_image_path, root), "size": len(image_data)}
 
     def precheck_copy_selected_prefab_to_variant(
         self,
@@ -530,10 +639,11 @@ class WorkspaceService:
             target_meta_data = parse_meta_file(target_meta_path)
             target_definition_exists = source_definition_id in target_meta_data.definitions
 
+        root = self.project.pyproject_root
         return {
-            "targetImagePath": target_image_path.as_posix(),
+            "targetImagePath": to_rel(target_image_path, root),
             "targetImageExists": target_image_path.exists(),
-            "targetMetaPath": target_meta_path.as_posix(),
+            "targetMetaPath": to_rel(target_meta_path, root),
             "targetMetaExists": target_meta_path.exists(),
             "targetDefinitionExists": target_definition_exists,
             "sourceDefinitionId": source_definition_id,
@@ -598,9 +708,6 @@ class WorkspaceService:
         if len(decoded) == 0:
             raise ValidationError("decoded payload is empty")
         return decoded
-
-    def _normalize_path_key(self, path_str: str) -> str:
-        return Path(path_str).resolve().as_posix().lower()
 
     def _execute_file_rename_batch(self, renames: list[tuple[Path, Path]]) -> None:
         staged: list[tuple[Path, Path, Path]] = []

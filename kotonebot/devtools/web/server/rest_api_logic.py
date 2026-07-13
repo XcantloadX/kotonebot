@@ -21,7 +21,7 @@ from kotonebot.devtools.indexing.document_index_view import (
     RenameDocumentPrecheckResultModel,
 )
 from kotonebot.devtools.project.project import Project
-from kotonebot.devtools.path_utils import get_safe_path
+from kotonebot.devtools.path_utils import get_safe_path, to_rel
 
 
 class RestApiLogic:
@@ -80,20 +80,22 @@ class RestApiLogic:
         if not safe_path.is_dir():
             raise ValidationError("Not a directory")
 
+        root = self.pyproject_root
         items = []
         entries = sorted(list(safe_path.iterdir()), key=lambda x: (not x.is_dir(), x.name.lower()))
         for item in entries:
             is_image = self._is_image_file(item) if item.is_file() else False
             thumbnail_url: Optional[str]
+            rel_item = to_rel(item, root)
             if is_image:
-                thumbnail_url = f"/api/image/thumbnail?path={item}&size=128"
+                thumbnail_url = f"/api/image/thumbnail?path={rel_item}&size=128"
             else:
                 thumbnail_url = None
             items.append(
                 {
                     "name": item.name,
                     "isDirectory": item.is_dir(),
-                    "path": str(item),
+                    "path": rel_item,
                     "isImage": is_image,
                     "thumbnailUrl": thumbnail_url,
                 }
@@ -131,7 +133,8 @@ class RestApiLogic:
         if not safe_target.parent.exists():
             raise NotFoundError(f"Target parent directory does not exist: {safe_target.parent}")
         os.replace(safe_source, safe_target)
-        return {"sourcePath": safe_source.as_posix(), "targetPath": safe_target.as_posix()}
+        root = self.pyproject_root
+        return {"sourcePath": to_rel(safe_source, root), "targetPath": to_rel(safe_target, root)}
 
     def copy_file(self, source_path: str, target_path: str) -> dict[str, Any]:
         safe_source = get_safe_path(source_path, self.project)
@@ -154,7 +157,8 @@ class RestApiLogic:
             if temp_path.exists():
                 temp_path.unlink()
             raise
-        return {"status": "ok", "targetPath": safe_target.as_posix()}
+        root = self.pyproject_root
+        return {"status": "ok", "targetPath": to_rel(safe_target, root)}
 
     def upload_file(self, target_path: str, file_data: bytes) -> dict[str, Any]:
         safe_target = get_safe_path(target_path, self.project)
@@ -172,7 +176,8 @@ class RestApiLogic:
             if temp_path.exists():
                 temp_path.unlink()
             raise
-        return {"status": "ok", "targetPath": safe_target.as_posix()}
+        root = self.pyproject_root
+        return {"status": "ok", "targetPath": to_rel(safe_target, root)}
 
     def precheck_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentPrecheckResultModel:
         return self.workspace.precheck_rename_document(
@@ -239,13 +244,15 @@ class RestApiLogic:
     def list_workspace_images(self) -> dict[str, Any]:
         """返回 workspace 内所有 PNG 文件路径（含无 JSON 的新文件）。"""
         self.workspace.resource_index_store.ensure_ready()
-        indexed = {ref.image_path for ref in self.workspace.resource_index_store.snapshot.meta_refs}
-        all_pngs = {p.as_posix() for p in self.project_root.rglob("*.png")}
-        return {"imagePaths": sorted(indexed | all_pngs)}
+        root = self.pyproject_root
+        indexed = {Path(ref.image_path) for ref in self.workspace.resource_index_store.snapshot.meta_refs}
+        all_pngs = set(self.project_root.rglob("*.png"))
+        return {"imagePaths": sorted(to_rel(p, root) for p in (indexed | all_pngs))}
     
     def get_project_symbol_tree(self) -> list[dict[str, Any]]:
         self.workspace.symbol_index_view.ensure_ready()
         symbols = list(self.workspace.symbol_index_view.snapshot.symbols.values())
+        root_path = self.pyproject_root
         root: dict[str, Any] = {"kind": "group", "label": "__root__", "children": []}
         group_map: dict[str, dict[str, Any]] = {"": root}
         
@@ -306,8 +313,8 @@ class RestApiLogic:
                     {
                         "kind": "file",
                         "label": Path(symbol.meta_path).name,
-                        "metaPath": symbol.meta_path,
-                        "imagePath": symbol.image_path,
+                        "metaPath": to_rel(symbol.meta_path, root_path),
+                        "imagePath": to_rel(symbol.image_path, root_path),
                         "definitionId": symbol.definition_id,
                         "variant": symbol.variant,
                     }
@@ -488,11 +495,13 @@ class RestApiLogic:
             temp_path = temp_dir / filename
             
             cv2.imwrite(str(temp_path), bgr_image)
-            
+
+            root = self.pyproject_root
+            rel_path = to_rel(temp_path, root)
             return {
                 "success": True,
-                "imagePath": str(temp_path),
-                "imageUrl": f"/api/image?path={temp_path}",
+                "imagePath": rel_path,
+                "imageUrl": f"/api/image?path={rel_path}",
             }
         except AdbError as e:
             return {"error": f"ADB error: {str(e)}", "success": False}

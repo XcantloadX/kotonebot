@@ -1,5 +1,5 @@
-import os
 import shutil
+from pathlib import Path
 from typing import Callable
 import traceback
 
@@ -35,11 +35,7 @@ class ResgenGenerateResult(BaseModel):
 
 
 def _scan_files(path: str) -> list[str]:
-    files: list[str] = []
-    for root, _, filenames in os.walk(path):
-        for file_name in filenames:
-            files.append(os.path.join(root, file_name))
-    return files
+    return [str(p) for p in Path(path).rglob("*") if p.is_file()]
 
 
 def generate_resources(
@@ -54,9 +50,10 @@ def generate_resources(
     show_diagnostics: bool = True,
     ignore_error: bool = False,
 ) -> ResgenGenerateResult:
-    if clean_output_img_dir and os.path.exists(output_img_dir):
-        shutil.rmtree(output_img_dir)
-    os.makedirs(output_img_dir, exist_ok=True)
+    output_img_dir_path = Path(output_img_dir)
+    if clean_output_img_dir and output_img_dir_path.exists():
+        shutil.rmtree(output_img_dir_path)
+    output_img_dir_path.mkdir(parents=True, exist_ok=True)
 
     runtime_context = load_resgen_runtime_context(
         conf_path=conf_path,
@@ -67,7 +64,7 @@ def generate_resources(
     if show_diagnostics:
         print_diagnostics_report(
             diagnostics,
-            cwd=os.getcwd(),
+            cwd=str(Path.cwd()),
             abort_on_error=not ignore_error,
         )
     error_count = sum(1 for diag in diagnostics if diag.severity == "error")
@@ -89,7 +86,7 @@ def generate_resources(
     def parse_all_files() -> None:
         nonlocal parsed_file_count
         for file_path in all_files:
-            if file_path.endswith(".png") and os.path.exists(file_path + ".json"):
+            if file_path.endswith(".png") and Path(file_path + ".json").exists():
                 continue
             try:
                 parsed_resources = registry.parse_file(file_path, context)
@@ -120,9 +117,10 @@ def generate_resources(
         with progress:
             task_id = progress.add_task("Parsing resources", total=len(all_files), current_file="")
             for file_path in all_files:
-                rel_file_path = os.path.relpath(file_path, root_scan_path)
+                p = Path(file_path)
+                rel_file_path = p.relative_to(root_scan_path).as_posix()
                 progress.update(task_id, current_file=rel_file_path)
-                if file_path.endswith(".png") and os.path.exists(file_path + ".json"):
+                if file_path.endswith(".png") and Path(file_path + ".json").exists():
                     progress.advance(task_id)
                     continue
                 try:
@@ -145,15 +143,14 @@ def generate_resources(
     generator = generator_factory(runtime_context.default_variant)
     code = generator.generate(tree)
 
-    output_dir = os.path.dirname(output_code_file)
-    if output_dir != "" and not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    with open(output_code_file, "w", encoding="utf-8") as handle:
-        handle.write(code)
+    output_code_path = Path(output_code_file)
+    output_dir = output_code_path.parent
+    if str(output_dir) != "" and not output_dir.exists():
+        output_dir.mkdir(parents=True, exist_ok=True)
+    output_code_path.write_text(code, encoding="utf-8")
 
-    init_file = os.path.join(output_img_dir, "__init__.py")
-    with open(init_file, "w", encoding="utf-8") as handle:
-        handle.write("")
+    init_file = output_img_dir_path / "__init__.py"
+    init_file.write_text("", encoding="utf-8")
 
     variant_names = context.get("resource_variants")
     if variant_names is not None and not isinstance(variant_names, list):

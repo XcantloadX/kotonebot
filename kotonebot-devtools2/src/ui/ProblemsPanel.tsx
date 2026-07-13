@@ -210,7 +210,7 @@ export const ProblemsPanel: React.FC<ProblemsPanelProps> = ({
             ) : (
               filteredItems.map((row) => {
                 const isSelected = selectedProblemId === row.id;
-                const fileName = row.metaPath.split(/[\\/]/).pop() ?? row.metaPath;
+                const fileName = row.metaPath.split("/").pop() ?? row.metaPath;
                 const symbolLabel = row.item.definition_id
                   ? symbolLabelByDiagKey.get(`${normalizePath(row.metaPath)}::${row.item.definition_id}`)
                   : undefined;

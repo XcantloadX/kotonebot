@@ -1,6 +1,6 @@
-import os
 import cv2
 import uuid
+from pathlib import Path
 from typing import List, Dict, Tuple
 from kotonebot.devtools.errors import InvalidImageError
 
@@ -102,25 +102,25 @@ class ImageProcessor:
         rect: (x1, y1, x2, y2)
         Returns: 保存后的绝对路径
         """
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-            
+        output_dir_path = Path(output_dir)
+        output_dir_path.mkdir(parents=True, exist_ok=True)
+
         img = cv2.imread(source_path)
         if img is None:
             raise InvalidImageError(f"Could not read image: {source_path}")
-            
+
         x1, y1, x2, y2 = map(int, rect)
         # 边界检查
         h, w = img.shape[:2]
         x1, y1 = max(0, x1), max(0, y1)
         x2, y2 = min(w, x2), min(h, y2)
-        
+
         clip = img[y1:y2, x1:x2]
         filename = f"{prefix}_{uuid.uuid4().hex[:8]}.png"
-        out_path = os.path.join(output_dir, filename)
+        out_path = output_dir_path / filename
 
-        cv2.imwrite(out_path, clip)
-        return os.path.abspath(out_path)
+        cv2.imwrite(str(out_path), clip)
+        return str(out_path.resolve())
 
     @staticmethod
     def save_crop_to_path(source_path: str, rect: Tuple[float, float, float, float], output_dir: str, filename: str) -> str:
@@ -128,8 +128,8 @@ class ImageProcessor:
 
         主要用于 Meta V2 ImageProp 导出的切片命名：<definitionId>_<propKey>.png。
         """
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        output_dir_path = Path(output_dir)
+        output_dir_path.mkdir(parents=True, exist_ok=True)
 
         img = cv2.imread(source_path)
         if img is None:
@@ -141,20 +141,20 @@ class ImageProcessor:
         x2, y2 = min(w, x2), min(h, y2)
 
         clip = img[y1:y2, x1:x2]
-        out_path = os.path.join(output_dir, filename)
-        cv2.imwrite(out_path, clip)
-        return os.path.abspath(out_path)
+        out_path = output_dir_path / filename
+        cv2.imwrite(str(out_path), clip)
+        return str(out_path.resolve())
 
     @staticmethod
     def copy_image(source_path: str, output_dir: str, new_name: str | None = None) -> str:
         """复制图片并返回绝对路径"""
         import shutil
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-            
+        output_dir_path = Path(output_dir)
+        output_dir_path.mkdir(parents=True, exist_ok=True)
+
         if new_name is None:
-            new_name = os.path.basename(source_path)
-            
-        dst_path = os.path.join(output_dir, new_name)
-        shutil.copy(source_path, dst_path)
-        return os.path.abspath(dst_path)
+            new_name = Path(source_path).name
+
+        dst_path = output_dir_path / new_name
+        shutil.copy(source_path, str(dst_path))
+        return str(dst_path.resolve())

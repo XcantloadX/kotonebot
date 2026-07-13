@@ -117,7 +117,7 @@ function rankDocument(imagePath: string, query: string, tokens: string[]): numbe
   if (query.trim() === "") {
     return 100;
   }
-  const filename = (imagePath.split(/[\\/]/).pop() ?? "").toLowerCase();
+  const filename = (imagePath.split("/").pop() ?? "").toLowerCase();
   const full = query.toLowerCase();
   const haystack = imagePath.toLowerCase();
 
@@ -194,7 +194,7 @@ export async function openCommandPalette(): Promise<void> {
           .slice(0, 100)
           .map((item) => {
             const symbol = item.symbol;
-            const subtitle = [symbol.type, symbol.prefabId || "-", symbol.imagePath.split(/[\\/]/).pop() || symbol.imagePath].join(" | ");
+            const subtitle = [symbol.type, symbol.prefabId || "-", symbol.imagePath.split("/").pop() || symbol.imagePath].join(" | ");
             return {
               id: symbol.symbolKey,
               label: buildResultTitle(symbol),
@@ -218,7 +218,7 @@ export async function openCommandPalette(): Promise<void> {
         .sort((a, b) => b.score - a.score)
         .slice(0, 100)
         .map((item) => {
-          const filename = item.imagePath.split(/[\\/]/).pop() ?? item.imagePath;
+          const filename = item.imagePath.split("/").pop() ?? item.imagePath;
           return {
             id: item.imagePath,
             label: filename,

@@ -15,7 +15,7 @@ export async function closeDocumentWithChecks(id: string): Promise<boolean> {
 
   const action = await messageBox.show<"save" | "dont-save" | "cancel">({
     title: i18n.t('document.unsavedChanges'),
-    content: i18n.t('document.saveChangesPrompt', { fileName: id.split(/[/\\]/).pop() }),
+    content: i18n.t('document.saveChangesPrompt', { fileName: id.split("/").pop() }),
     buttons: [
       { value: "save", text: i18n.t('menuItem.save'), intent: "primary" },
       { value: "dont-save", text: i18n.t('document.dontSave') },
