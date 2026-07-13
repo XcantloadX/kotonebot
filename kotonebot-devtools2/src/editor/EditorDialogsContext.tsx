@@ -9,6 +9,7 @@ import { FileOpenOrImportDialog } from "../ui/components/FileOpenDialog/FileOpen
 import { DeviceCaptureDialog } from "../ui/components/FileOpenDialog/DeviceCaptureDialog";
 import { ReplaceImageConfirmDialog } from "../ui/components/ReplaceImageConfirmDialog";
 import { PreferencesDialog } from "../ui/PreferencesDialog";
+import { NewDocumentDialog } from "../ui/components/NewDocumentDialog/NewDocumentDialog";
 import { getImageUrl } from "../api/fs";
 import type { ReplaceImageSource } from "./actions/image";
 import { toaster } from "../ui/toaster";
@@ -63,12 +64,13 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
   const [replaceImageDialogOpen, setReplaceImageDialogOpen] = useState(false);
   const [replaceImageSource, setReplaceImageSource] = useState<ReplaceImageSource | null>(null);
   const [replaceImageNewDims, setReplaceImageNewDims] = useState<{ width: number; height: number } | null>(null);
+  const [isNewDocumentDialogOpen, setNewDocumentDialogOpen] = useState(false);
   const [isPreferencesDialogOpen, setPreferencesDialogOpen] = useState(false);
 
   const variantDialogTitle = variantDialogState.variant
     ? t('dialog.selectTargetImage') + ` ${variantDialogState.variant}`
     : t('dialog.selectTargetImage');
-  const modalOpen = isImageDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen || replaceImageDialogOpen || replaceImageSource !== null || isPreferencesDialogOpen;
+  const modalOpen = isImageDialogOpen || isNewDocumentDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen || replaceImageDialogOpen || replaceImageSource !== null || isPreferencesDialogOpen;
 
   useShortcutScope("modal", modalOpen);
 
@@ -108,12 +110,24 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
     setReplaceImageDialogOpen(true);
   }, []);
 
+  const openNewDocumentDialog = useCallback(() => {
+    setNewDocumentDialogOpen(true);
+  }, []);
+
+  const closeNewDocumentDialog = useCallback(() => {
+    setNewDocumentDialogOpen(false);
+  }, []);
+
   const openPreferencesDialog = useCallback(() => {
     setPreferencesDialogOpen(true);
   }, []);
 
   const closePreferencesDialog = useCallback(() => {
     setPreferencesDialogOpen(false);
+  }, []);
+
+  const handleNewDocumentConfirm = useCallback(async (imagePath: string) => {
+    await editorActions.newDocument.openFromPath(imagePath);
   }, []);
 
   const handleSelectImages = useCallback(async (paths: string[]) => {
@@ -212,13 +226,14 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
     () => ({
       ui: {
         openImageDialog,
+        openNewDocumentDialog,
         openVariantDialog,
         openDeviceCaptureDialog,
         openReplaceImageDialog,
         openPreferencesDialog,
       },
     }),
-    [openImageDialog, openVariantDialog, openDeviceCaptureDialog, openReplaceImageDialog, openPreferencesDialog],
+    [openImageDialog, openNewDocumentDialog, openVariantDialog, openDeviceCaptureDialog, openReplaceImageDialog, openPreferencesDialog],
   );
 
   useEffect(() => {
@@ -296,6 +311,11 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
           onConfirm={handleConfirmReplace}
         />
       )}
+      <NewDocumentDialog
+        isOpen={isNewDocumentDialogOpen}
+        onClose={closeNewDocumentDialog}
+        onConfirm={handleNewDocumentConfirm}
+      />
       <PreferencesDialog
         isOpen={isPreferencesDialogOpen}
         onClose={closePreferencesDialog}

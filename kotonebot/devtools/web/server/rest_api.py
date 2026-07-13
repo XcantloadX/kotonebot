@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFil
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
+from kotonebot.devtools.ai.types import AiConfig
 from kotonebot.devtools.errors import DevtoolsError
 from kotonebot.devtools.server_commands.types import parse_server_command_request
 from kotonebot.devtools.project.project import Project
@@ -263,6 +264,35 @@ def create_rest_router(project: Project) -> APIRouter:
     async def reveal_in_explorer(path: str = Query(...)):
         logic.reveal_in_explorer(path)
         return _ok()
+
+    @router.get("/fs/folder_tree")
+    async def get_folder_tree():
+        return _ok(logic.get_folder_tree())
+
+    @router.post("/ai/suggest_path")
+    async def suggest_document_path(
+        image: UploadFile = File(...),
+        providerType: str = Form(...),
+        endpoint: str = Form(""),
+        model: str = Form(""),
+        apiKey: str = Form(""),
+    ):
+        image_data = await image.read()
+        ai_config = AiConfig(
+            providerType=providerType,
+            endpoint=endpoint,
+            model=model,
+            apiKey=apiKey,
+        )
+        return _ok(logic.suggest_document_path(image_data, ai_config))
+
+    @router.post("/document/create")
+    async def create_document(
+        targetPath: str = Form(...),
+        image: UploadFile = File(...),
+    ):
+        image_data = await image.read()
+        return _ok(logic.create_document(image_data, targetPath))
 
     @router.get("/health")
     async def health_check():

@@ -12,6 +12,8 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.APP_OPEN_PREFERENCES]: undefined;
   /** 切换问题面板显隐。 */
   [COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL]: undefined;
+  /** 新建文档（打开新建文档对话框）。 */
+  [COMMAND_ID.FILE_NEW_DOCUMENT]: undefined;
   /** 打开图片选择对话框。 */
   [COMMAND_ID.FILE_OPEN_IMAGE]: undefined;
   /** 保存当前文档。 */
@@ -81,6 +83,8 @@ export interface EditorCommandUiHandlers {
   openReplaceImageDialog: () => void;
   /** 打开偏好设置对话框。 */
   openPreferencesDialog: () => void;
+  /** 打开新建文档对话框。 */
+  openNewDocumentDialog: () => void;
 }
 
 /** 命令执行上下文。 */

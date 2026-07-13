@@ -12,6 +12,7 @@ import {
   pasteDefinitionFromClipboard,
   selectDefinition,
 } from "./definition";
+import { openNewDocumentFromPath } from "./newDocument";
 import { openImageWithMeta, openImagesWithChecks, replaceActiveDocumentImage } from "./image";
 import { jumpToDiagnostic, jumpToSymbol } from "./navigation";
 import { promptAndRenameActiveDocument } from "./rename";
@@ -26,6 +27,10 @@ import {
   selectVariantImageForActiveDocument,
 } from "./variant";
 import { promptAndRenameVariantsForDefinition } from "./variantRename";
+
+const newDocumentActions = {
+  openFromPath: openNewDocumentFromPath,
+};
 
 const imageActions = {
   /** 打开单个图片并加载其元数据。 */
@@ -91,6 +96,7 @@ const symbolActions = {
 };
 
 export const editorActions = {
+  newDocument: newDocumentActions,
   image: imageActions,
   document: documentActions,
   variant: variantActions,

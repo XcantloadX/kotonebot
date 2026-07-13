@@ -8,6 +8,7 @@
     "variant": "Variant"
   },
   "menuItem": {
+    "newDocument": "New Document...",
     "openImage": "Open Image...",
     "replaceImage": "Replace Image...",
     "openRecent": "Open Recent",
@@ -69,6 +70,8 @@
     "ok": "OK",
     "yes": "Yes",
     "no": "No",
+    "next": "Next",
+    "back": "Back",
     "openImage": "Open Image",
     "selectTargetImage": "Select target image for variant"
   },
@@ -76,6 +79,7 @@
     "searchCommands": "Search commands and symbols"
   },
   "shortcut": {
+    "ctrlN": "Ctrl+N",
     "ctrlO": "Ctrl+O",
     "ctrlS": "Ctrl+S",
     "ctrlShiftS": "Ctrl+Shift+S",
@@ -106,7 +110,16 @@
     "language": "Interface Language",
     "languageDescription": "Choose the display language of the application",
     "system": "Follow System",
-    "close": "Close"
+    "close": "Close",
+    "ai": {
+      "title": "AI",
+      "description": "Configure AI provider for document path suggestions",
+      "providerType": "Provider Type",
+      "endpoint": "Endpoint",
+      "endpointPlaceholder": "Leave empty to use default",
+      "model": "Model Name",
+      "apiKey": "API Key"
+    }
   },
   "commands": {
     "openCommandPalette": "Open Command Palette",
@@ -296,5 +309,30 @@
     "deviceNotAvailable": "Device is not available",
     "preview": "Preview",
     "clipboardEmpty": "No image found in clipboard"
+  },
+  "newDocument": {
+    "title": "New Document",
+    "stepSelectImage": "Select Image",
+    "stepSaveLocation": "Save Location",
+    "imageSource": "Image Source",
+    "fromFile": "From Local File",
+    "fromClipboard": "From Clipboard",
+    "fromDevice": "From Device Screenshot",
+    "noImage": "Please upload an image",
+    "saveLocation": "Save Location",
+    "filename": "Filename",
+    "dirPlaceholder": "Directory path (relative to resource root)",
+    "filenamePlaceholder": "Filename (e.g. my_image.png)",
+    "aiSuggest": "AI",
+    "aiSuggestHint": "Auto decide save path and filename",
+    "aiSuggestTooltip": "Configure AI provider and API key in Preferences first",
+    "aiSuggestResultTitle": "AI Suggestion",
+    "aiSuggestReason": "Reason",
+    "aiSuggestAccept": "Accept",
+    "aiSuggestReject": "Reject",
+    "confirm": "Create Document",
+    "selectImageFirst": "Please select an image first",
+    "configureAiFirst": "Please configure AI provider and API key in Preferences",
+    "noClipboardImage": "No image found in clipboard"
   }
 }

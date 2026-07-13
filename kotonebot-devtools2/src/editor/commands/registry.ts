@@ -45,6 +45,16 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
       await openCommandPalette();
     },
   },
+  [COMMAND_ID.FILE_NEW_DOCUMENT]: {
+    id: COMMAND_ID.FILE_NEW_DOCUMENT,
+    title: t('menuItem.newDocument'),
+    keywords: ["new", "document", "create"],
+    showInPalette: true,
+    requiredUi: ["openNewDocumentDialog"],
+    run: async (ctx) => {
+      requireUiHandler(ctx, "openNewDocumentDialog")();
+    },
+  },
   [COMMAND_ID.APP_OPEN_PREFERENCES]: {
     id: COMMAND_ID.APP_OPEN_PREFERENCES,
     title: t('commands.openPreferences'),
@@ -321,6 +331,7 @@ export const editorCommandRegistry = commands;
 
 /** 命令面板展示的无参命令 ID 列表。 */
 export const paletteCommandIds: NoArgCommandId[] = [
+  COMMAND_ID.FILE_NEW_DOCUMENT,
   COMMAND_ID.APP_OPEN_PREFERENCES,
   COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL,
   COMMAND_ID.FILE_OPEN_IMAGE,

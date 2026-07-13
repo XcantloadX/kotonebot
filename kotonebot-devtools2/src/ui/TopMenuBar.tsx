@@ -57,6 +57,7 @@ export const TopMenuBar: React.FC = () => {
   useShortcutScope("menu", openMenu !== null);
 
   const statusEntries = useMemo(() => ([
+    { id: COMMAND_ID.FILE_NEW_DOCUMENT, args: undefined },
     { id: COMMAND_ID.FILE_SAVE, args: undefined },
     { id: COMMAND_ID.FILE_SAVE_ALL, args: undefined },
     { id: COMMAND_ID.FILE_RENAME, args: undefined },
@@ -71,6 +72,7 @@ export const TopMenuBar: React.FC = () => {
     { id: COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB, args: undefined },
   ] as const), []);
   const statuses = useCommandStatuses(statusEntries, commandContext);
+  const canNewDocument = statuses[COMMAND_ID.FILE_NEW_DOCUMENT].enabled;
   const canSave = statuses[COMMAND_ID.FILE_SAVE].enabled;
   const canSaveAll = statuses[COMMAND_ID.FILE_SAVE_ALL].enabled;
   const canRenameDocument = statuses[COMMAND_ID.FILE_RENAME].enabled;
@@ -106,6 +108,16 @@ export const TopMenuBar: React.FC = () => {
   const menuDefinitions = useMemo<Record<MenuId, MenuDefinitionItem[]>>(
     () => ({
       file: [
+        {
+          icon: "document",
+          text: t('menuItem.newDocument'),
+          label: t('shortcut.ctrlN'),
+          disabled: !canNewDocument,
+          onClick: () => {
+            setOpenMenu(null);
+            void executeCommand(COMMAND_ID.FILE_NEW_DOCUMENT, commandContext, undefined);
+          },
+        },
         {
           icon: "folder-open",
           text: t('menuItem.openImage'),
@@ -425,6 +437,15 @@ export const TopMenuBar: React.FC = () => {
     scope: "menu",
     combo: "escape",
     onKeyDown: () => setOpenMenu(null),
+  });
+
+  useShortcut({
+    id: "editor.new-document",
+    scope: "editor",
+    combo: "mod+n",
+    onKeyDown: () => {
+      void executeCommand(COMMAND_ID.FILE_NEW_DOCUMENT, commandContext, undefined);
+    },
   });
 
   useShortcut({

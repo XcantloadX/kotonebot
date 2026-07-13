@@ -1,5 +1,5 @@
 import React from "react";
-import { Dialog, Classes, RadioGroup, Radio, Tabs, Tab } from "@blueprintjs/core";
+import { Dialog, Classes, RadioGroup, Radio, Tabs, Tab, InputGroup, HTMLSelect } from "@blueprintjs/core";
 import { useTranslation } from "react-i18next";
 import { usePreferencesStore } from "../preferences/preferencesStore";
 import { LANGUAGE_OPTIONS } from "../i18n";
@@ -12,7 +12,7 @@ interface PreferencesDialogProps {
 
 export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
-  const { language, setLanguage } = usePreferencesStore();
+  const { language, setLanguage, ai, setAiConfig } = usePreferencesStore();
 
   return (
     <Dialog
@@ -58,6 +58,63 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ isOpen, on
                     />
                   ))}
                 </RadioGroup>
+              </div>
+            }
+          />
+          <Tab
+            id="ai"
+            title="AI"
+            panel={
+              <div style={{ padding: "0 20px" }}>
+                <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 16 }}>
+                  {t('preferences.ai.title')}
+                </div>
+                <div style={{ marginBottom: 16, color: "#5c7080", fontSize: 13 }}>
+                  {t('preferences.ai.description')}
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
+                    {t('preferences.ai.providerType')}
+                  </label>
+                  <HTMLSelect
+                    value={ai.providerType}
+                    onChange={(e) => setAiConfig({ providerType: e.currentTarget.value as typeof ai.providerType })}
+                    style={{ width: "100%" }}
+                  >
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="gemini">Gemini</option>
+                  </HTMLSelect>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
+                    {t('preferences.ai.endpoint')}
+                  </label>
+                  <InputGroup
+                    value={ai.endpoint}
+                    onChange={(e) => setAiConfig({ endpoint: e.currentTarget.value })}
+                    placeholder={t('preferences.ai.endpointPlaceholder')}
+                  />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
+                    {t('preferences.ai.model')}
+                  </label>
+                  <InputGroup
+                    value={ai.model}
+                    onChange={(e) => setAiConfig({ model: e.currentTarget.value })}
+                  />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
+                    {t('preferences.ai.apiKey')}
+                  </label>
+                  <InputGroup
+                    type="password"
+                    value={ai.apiKey}
+                    onChange={(e) => setAiConfig({ apiKey: e.currentTarget.value })}
+                  />
+                </div>
               </div>
             }
           />

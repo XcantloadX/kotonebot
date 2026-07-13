@@ -2,6 +2,7 @@
 export const COMMAND_ID = {
   APP_OPEN_COMMAND_PALETTE: "app.openCommandPalette",
   APP_TOGGLE_PROBLEMS_PANEL: "app.toggleProblemsPanel",
+  FILE_NEW_DOCUMENT: "file.newDocument",
   FILE_OPEN_IMAGE: "file.openImage",
   FILE_SAVE: "file.save",
   FILE_SAVE_ALL: "file.saveAll",

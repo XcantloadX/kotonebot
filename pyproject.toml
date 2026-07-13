@@ -66,6 +66,8 @@ dev = [
     "tqdm~=4.67",
     # for LSP
     "pygls~=2.0",
+    # AI Service
+    "litellm>=1.60, <2.0",
 ]
 
 # Documentation dependencies

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useImperativeHandle } from "react";
 import {
   Classes,
   Button,
@@ -34,6 +34,14 @@ interface FileOpenDialogContentProps {
   filter?: (name: string) => boolean;
   multiSelect?: boolean;
   rightPanel?: React.ReactNode;
+  /** 当用户导航到新目录时触发，传递 project-relative path */
+  onNavigate?: (path: string) => void;
+  /** 隐藏底部的"打开"按钮区（用于嵌入 save dialog 等场景） */
+  hideFooter?: boolean;
+  /** 简化为纯文件浏览面板，去掉 DIALOG_BODY/DIALOG_FOOTER 外层结构 */
+  embedded?: boolean;
+  /** embedded 模式下的文件浏览器高度 */
+  browserHeight?: number;
 }
 
 interface ThumbnailGridProps {
@@ -137,14 +145,22 @@ const ThumbnailGrid: React.FC<ThumbnailGridProps> = ({
   );
 };
 
-export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
+export interface FileOpenDialogContentHandle {
+  navigateTo: (path: string) => Promise<void>;
+}
+
+export const FileOpenDialogContent = React.forwardRef<FileOpenDialogContentHandle, FileOpenDialogContentProps>(({
   isOpen,
   onClose,
   onSelect,
   filter,
   multiSelect = true,
   rightPanel,
-}) => {
+  onNavigate,
+  hideFooter = false,
+  embedded = false,
+  browserHeight = 400,
+}, ref) => {
   const { t } = useTranslation();
   const [currentPath, setCurrentPath] = useState<string>(".");
   const [backStack, setBackStack] = useState<string[]>([]);
@@ -303,6 +319,7 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
       }
       setCurrentPath(normalized);
       setCurrentPathInput(normalized);
+      onNavigate?.(normalized);
     } catch (err: any) {
       const msg = err && err.message ? err.message : t('fileDialog.failedToOpenPath');
       toaster.show({ message: t('fileOpen.cannotOpenPath', { message: msg }), intent: "danger" });
@@ -513,6 +530,10 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
     onClose();
   };
 
+  useImperativeHandle(ref, () => ({
+    navigateTo: tryChangePath,
+  }));
+
   const fileBrowser = (
     <div style={{ height: "100%", overflow: "auto", border: "1px solid #d1d8e0", position: "relative" }}>
       {isLoading && (
@@ -560,98 +581,115 @@ export const FileOpenDialogContent: React.FC<FileOpenDialogContentProps> = ({
     </div>
   );
 
+  const toolbar = (
+    <div style={{ marginBottom: 10, display: "flex", gap: 10, alignItems: "center" }}>
+      <ButtonGroup minimal>
+        <Button icon="chevron-left" onClick={handleBack} disabled={backStack.length === 0} minimal />
+        <Button icon="chevron-right" onClick={handleForward} disabled={forwardStack.length === 0} minimal />
+        <Button icon="refresh" onClick={handleRefresh} minimal />
+        <Button icon="arrow-up" onClick={handleGoUp} disabled={currentPath === "."} minimal />
+      </ButtonGroup>
+      <div style={{ flex: 1, display: "flex", gap: 8, alignItems: "center" }}>
+        <InputGroup
+          small
+          fill
+          value={currentPathInput}
+          onChange={(e) => setCurrentPathInput((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              tryChangePath(currentPathInput);
+            }
+          }}
+          onBlur={() => {
+            const p = currentPathInput || ".";
+            if (p !== currentPath) {
+              tryChangePath(p);
+            }
+          }}
+          style={{ flex: 1 }}
+        />
+        <ClearableInputGroup
+          small
+          leftIcon="search"
+          placeholder={t('fileDialog.search')}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
+          style={{ width: 260 }}
+          inputRef={(ref: HTMLInputElement | null) => {
+            searchInputRef.current = ref;
+          }}
+          onClear={() => {
+            setSearchTerm("");
+            setTimeout(() => searchInputRef.current?.focus(), 0);
+          }}
+        />
+      </div>
+      <ButtonGroup minimal>
+        <Button icon="list" active={viewMode === "list"} onClick={() => setViewMode("list")} />
+        <Button icon="tree" active={viewMode === "tree"} onClick={() => setViewMode("tree")} />
+        <Popover
+          interactionKind={PopoverInteractionKind.HOVER}
+          position={Position.BOTTOM}
+          content={
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: 8 }}>
+              <span style={{ fontSize: 12 }}>{t('fileDialog.size')}</span>
+              <input
+                type="range"
+                min={64}
+                max={256}
+                value={thumbSize}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  if (!Number.isFinite(value) || value <= 0) {
+                    throw new Error("Invalid thumbnail size");
+                  }
+                  setThumbSize(value);
+                }}
+              />
+            </div>
+          }
+        >
+          <Button icon="media" active={viewMode === "thumb"} onClick={() => setViewMode("thumb")} />
+        </Popover>
+      </ButtonGroup>
+    </div>
+  );
+
+  const browserArea = rightPanel ? (
+    <div style={{ height: browserHeight, display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 12 }}>
+      {fileBrowser}
+      <div style={{ height: "100%" }}>{rightPanel}</div>
+    </div>
+  ) : (
+    <div style={{ height: browserHeight }}>{fileBrowser}</div>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        {toolbar}
+        {browserArea}
+      </>
+    );
+  }
+
   return (
     <>
       <div className={Classes.DIALOG_BODY}>
-        <div style={{ marginBottom: 10, display: "flex", gap: 10, alignItems: "center" }}>
-          <ButtonGroup minimal>
-            <Button icon="chevron-left" onClick={handleBack} disabled={backStack.length === 0} minimal />
-            <Button icon="chevron-right" onClick={handleForward} disabled={forwardStack.length === 0} minimal />
-            <Button icon="refresh" onClick={handleRefresh} minimal />
-            <Button icon="arrow-up" onClick={handleGoUp} disabled={currentPath === "."} minimal />
-          </ButtonGroup>
-          <div style={{ flex: 1, display: "flex", gap: 8, alignItems: "center" }}>
-            <InputGroup
-              small
-              fill
-              value={currentPathInput}
-              onChange={(e) => setCurrentPathInput((e.target as HTMLInputElement).value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  tryChangePath(currentPathInput);
-                }
-              }}
-              onBlur={() => {
-                const p = currentPathInput || ".";
-                if (p !== currentPath) {
-                  tryChangePath(p);
-                }
-              }}
-              style={{ flex: 1 }}
-            />
-            <ClearableInputGroup
-              small
-              leftIcon="search"
-              placeholder={t('fileDialog.search')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
-              style={{ width: 260 }}
-              inputRef={(ref: HTMLInputElement | null) => {
-                searchInputRef.current = ref;
-              }}
-              onClear={() => {
-                setSearchTerm("");
-                setTimeout(() => searchInputRef.current?.focus(), 0);
-              }}
-            />
-          </div>
-          <ButtonGroup minimal>
-            <Button icon="list" active={viewMode === "list"} onClick={() => setViewMode("list")} />
-            <Button icon="tree" active={viewMode === "tree"} onClick={() => setViewMode("tree")} />
-            <Popover
-              interactionKind={PopoverInteractionKind.HOVER}
-              position={Position.BOTTOM}
-              content={
-                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: 8 }}>
-                  <span style={{ fontSize: 12 }}>{t('fileDialog.size')}</span>
-                  <input
-                    type="range"
-                    min={64}
-                    max={256}
-                    value={thumbSize}
-                    onChange={(e) => {
-                      const value = Number(e.target.value);
-                      if (!Number.isFinite(value) || value <= 0) {
-                        throw new Error("Invalid thumbnail size");
-                      }
-                      setThumbSize(value);
-                    }}
-                  />
-                </div>
-              }
-            >
-              <Button icon="media" active={viewMode === "thumb"} onClick={() => setViewMode("thumb")} />
-            </Popover>
-          </ButtonGroup>
-        </div>
-        {rightPanel ? (
-          <div style={{ height: 400, display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 12 }}>
-            {fileBrowser}
-            <div style={{ height: "100%" }}>{rightPanel}</div>
-          </div>
-        ) : (
-          <div style={{ height: 400 }}>{fileBrowser}</div>
-        )}
+        {toolbar}
+        {browserArea}
       </div>
-      <div className={Classes.DIALOG_FOOTER}>
-        <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-          <div style={{ marginRight: "auto" }}>{selectedPaths.size} {t('fileDialog.filesSelected')}</div>
-          <Button onClick={onClose}>{t('dialog.cancel')}</Button>
-          <Button intent="primary" onClick={() => void handleOpen()} disabled={selectedPaths.size === 0}>
-            {t('fileDialog.open')}
-          </Button>
+      {!hideFooter && (
+        <div className={Classes.DIALOG_FOOTER}>
+          <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+            <div style={{ marginRight: "auto" }}>{selectedPaths.size} {t('fileDialog.filesSelected')}</div>
+            <Button onClick={onClose}>{t('dialog.cancel')}</Button>
+            <Button intent="primary" onClick={() => void handleOpen()} disabled={selectedPaths.size === 0}>
+              {t('fileDialog.open')}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
-};
+});

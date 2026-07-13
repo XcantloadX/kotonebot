@@ -13,6 +13,8 @@ from typing import Any, Optional
 import cv2
 import numpy as np
 
+from kotonebot.devtools.ai.ai_service import suggest_document_path as ai_suggest_document_path
+from kotonebot.devtools.ai.types import AiConfig
 from kotonebot.devtools.errors import InvalidImageError, NotFoundError, ValidationError, VariantNotDeclaredError
 from kotonebot.devtools.image_preview import build_image_preview
 from kotonebot.devtools.server_commands.workspace_service import WorkspaceService
@@ -428,6 +430,45 @@ class RestApiLogic:
             variant=variant,
             force_overwrite=force_overwrite,
         )
+
+    def get_folder_tree(self) -> list[dict]:
+        root = self.project_root
+        if not root.exists():
+            return []
+        def _build(node: Path) -> dict | None:
+            if not node.is_dir():
+                return None
+            children = []
+            for child in sorted(node.iterdir(), key=lambda x: x.name.lower()):
+                if child.is_dir():
+                    sub = _build(child)
+                    if sub:
+                        children.append(sub)
+            return {"name": node.name, "children": children}
+        tree = _build(root)
+        return tree["children"] if tree else []
+
+    def suggest_document_path(self, image_bytes: bytes, ai_config: AiConfig) -> dict:
+        folder_tree = self.get_folder_tree()
+        return ai_suggest_document_path(image_bytes, folder_tree, ai_config)
+
+    def create_document(self, image_data: bytes, target_path: str) -> dict:
+        safe_target = get_safe_path(target_path, self.project)
+        if not safe_target.parent.exists():
+            safe_target.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = safe_target.with_name(f"{safe_target.name}.create_tmp_{uuid.uuid4().hex}")
+        try:
+            temp_path.write_bytes(image_data)
+            os.replace(temp_path, safe_target)
+        except Exception:
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
+        meta_path = safe_target.with_suffix(safe_target.suffix + ".json")
+        if not meta_path.exists():
+            meta_path.write_text(json.dumps({"version": 3, "definitions": {}}), encoding="utf-8")
+        root = self.pyproject_root
+        return {"imagePath": to_rel(safe_target, root), "metaPath": to_rel(meta_path, root)}
 
     def reveal_in_explorer(self, path: str) -> None:
         safe_path = get_safe_path(path, self.project)
