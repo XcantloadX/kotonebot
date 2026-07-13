@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { normalizePath } from "../shared/normalizePath";
 import { toWorkspaceKey } from "../app/workspace";
 
 const STORAGE_KEY = "kotonebot-devtools2-recent-open-v1";
@@ -22,10 +23,6 @@ interface RecentOpenState {
   addRecent: (item: Omit<RecentOpenItem, "openedAt"> & { openedAt?: number }) => void;
   removeRecentByMetaPath: (metaPath: string) => void;
   clearCurrentWorkspace: () => void;
-}
-
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, "/").trim().toLowerCase();
 }
 
 export const useRecentOpenStore = create<RecentOpenState>()(

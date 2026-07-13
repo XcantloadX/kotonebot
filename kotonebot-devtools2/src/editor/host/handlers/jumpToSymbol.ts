@@ -8,9 +8,7 @@ interface JumpToSymbolPayload {
   definitionId: string;
 }
 
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, "/").toLowerCase();
-}
+import { normalizePath } from "../../../shared/normalizePath";
 
 function parsePayload(value: unknown): JumpToSymbolPayload {
   if (typeof value !== "object" || value === null) {

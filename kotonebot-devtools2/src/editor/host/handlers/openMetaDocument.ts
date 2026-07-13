@@ -6,9 +6,7 @@ interface OpenMetaDocumentPayload {
   imagePath: string;
 }
 
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, "/").toLowerCase();
-}
+import { normalizePath } from "../../../shared/normalizePath";
 
 function parsePayload(value: unknown): OpenMetaDocumentPayload {
   if (typeof value !== "object" || value === null) {

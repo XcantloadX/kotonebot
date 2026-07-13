@@ -46,9 +46,7 @@ async function ensureDocumentWithMeta(imagePath: string, metaPath: string): Prom
   return true;
 }
 
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, "/").toLowerCase();
-}
+import { normalizePath } from "../../shared/normalizePath";
 
 export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
   const { setSelection, setViewState, showFocusSpotlight } = useAppStore.getState();

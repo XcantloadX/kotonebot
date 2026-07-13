@@ -1,8 +1,6 @@
-const DEFAULT_WORKSPACE_KEY = "default";
+import { normalizePath } from "../shared/normalizePath";
 
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, "/").trim().toLowerCase();
-}
+const DEFAULT_WORKSPACE_KEY = "default";
 
 export function toWorkspaceKey(resourceRoot: string | null | undefined): string {
   const normalized = normalizePath(resourceRoot ?? "");
