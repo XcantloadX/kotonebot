@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Any, cast
 
 from pydantic import BaseModel, Field
+from kotonebot.devtools.errors import ValidationError
 from kotonebot.devtools.meta import (
     Diagnostic,
     MetaV3Model,
@@ -70,7 +71,7 @@ def _load_project(conf_path: str):
 def _require_resource_path(project: Any) -> str:
     editor_conf = project.conf.editor
     if editor_conf is None or editor_conf.resource_path is None:
-        raise ValueError("editor.resource_path must be configured in pyproject.toml")
+        raise ValidationError("editor.resource_path must be configured in pyproject.toml")
     return editor_conf.resource_path
 
 
@@ -84,9 +85,9 @@ def _build_project_context(
     if variant_conf is None:
         return ResgenProjectContext(parser_context={}, default_variant="", diagnostics=[])
     if variant_conf.variants is None:
-        raise ValueError("variant.variants must be configured in pyproject.toml")
+        raise ValidationError("variant.variants must be configured in pyproject.toml")
     if variant_conf.base is None:
-        raise ValueError("variant.base must be configured in pyproject.toml")
+        raise ValidationError("variant.base must be configured in pyproject.toml")
 
     parser_context, diagnostics = build_variant_context(meta_files, variant_conf.variants, variant_conf.base)
     parser_context[_CTX_VARIANT_INCLUDE_BASE] = include_base_variant
@@ -218,10 +219,10 @@ class KotoneV1Parser(SchemaParser):
         normalized_meta_path = _normalize_meta_path(meta_path)
         resource_variants = context.get("resource_variants")
         if resource_variants is not None and not isinstance(resource_variants, list):
-            raise ValueError("resource_variants must be a list[str]")
+            raise ValidationError("resource_variants must be a list[str]")
         include_base_variant = context.get(_CTX_VARIANT_INCLUDE_BASE, True)
         if not isinstance(include_base_variant, bool):
-            raise ValueError(f"{_CTX_VARIANT_INCLUDE_BASE} must be bool")
+            raise ValidationError(f"{_CTX_VARIANT_INCLUDE_BASE} must be bool")
 
         raw_variant_group_by_base_key = context.get(_CTX_VARIANT_GROUP_BY_BASE_KEY)
         raw_skipped_variant_keys = context.get(_CTX_VARIANT_SKIP_KEYS)
@@ -231,7 +232,7 @@ class KotoneV1Parser(SchemaParser):
         if raw_variant_group_by_base_key is None or raw_skipped_variant_keys is None:
             if resource_variants is not None:
                 if not isinstance(raw_base_variant, str):
-                    raise ValueError(f"{_CTX_VARIANT_BASE} must be str")
+                    raise ValidationError(f"{_CTX_VARIANT_BASE} must be str")
                 projection = build_variant_projection_for_resgen(
                     meta_files=[meta_path],
                     resource_variants=resource_variants,
@@ -243,7 +244,7 @@ class KotoneV1Parser(SchemaParser):
                     if diag.severity == "error"
                 ]
                 if error_messages:
-                    raise ValueError("; ".join(error_messages))
+                    raise ValidationError("; ".join(error_messages))
                 variant_group_by_base_key = projection.variant_group_by_base_key
                 skipped_variant_keys = projection.variant_skip_keys
             else:
@@ -251,9 +252,9 @@ class KotoneV1Parser(SchemaParser):
                 skipped_variant_keys = set()
         else:
             if not isinstance(raw_variant_group_by_base_key, dict):
-                raise ValueError(f"{_CTX_VARIANT_GROUP_BY_BASE_KEY} must be dict")
+                raise ValidationError(f"{_CTX_VARIANT_GROUP_BY_BASE_KEY} must be dict")
             if not isinstance(raw_skipped_variant_keys, set):
-                raise ValueError(f"{_CTX_VARIANT_SKIP_KEYS} must be set")
+                raise ValidationError(f"{_CTX_VARIANT_SKIP_KEYS} must be set")
             variant_group_by_base_key = cast(
                 dict[tuple[str, str], ResolvedPrefabVariants],
                 raw_variant_group_by_base_key,
@@ -351,16 +352,16 @@ class KotoneV1Parser(SchemaParser):
             elif def_type == 'prefab':
                 prefab_id = definition.prefab_id
                 if prefab_id is None:
-                    raise ValueError(f"PrefabData missing prefab_id for node {name}")
+                    raise ValidationError(f"PrefabData missing prefab_id for node {name}")
 
                 variant_group = variant_group_by_base_key.get((normalized_meta_path, def_id))
                 variant_props: dict[str, dict[str, Any]] | None = None
                 variant_display_names: dict[str, str] | None = None
                 if variant_group is not None:
                     if resource_variants is None:
-                        raise ValueError("resource_variants is required when variant prefab exists")
+                        raise ValidationError("resource_variants is required when variant prefab exists")
                     if not isinstance(raw_base_variant, str):
-                        raise ValueError(f"{_CTX_VARIANT_BASE} must be str")
+                        raise ValidationError(f"{_CTX_VARIANT_BASE} must be str")
                     variant_props = {}
                     variant_display_names = {}
                     variant_keys = list(resource_variants)
@@ -378,7 +379,7 @@ class KotoneV1Parser(SchemaParser):
                                 print(f'WARN: missing merged variant "{variant}" for prefab "{name}"')
                                 # Skip missing variant and continue with next variant
                                 continue
-                            raise ValueError(f"missing merged variant '{variant}' for prefab '{name}'")
+                            raise ValidationError(f"missing merged variant '{variant}' for prefab '{name}'")
                         merged_definition = variant_group.merged[merged_key]
                         variant_ref = variant_group.variants.get(merged_key)
                         source_meta_for_variant = variant_ref.meta_path if variant_ref is not None else variant_group.base.meta_path

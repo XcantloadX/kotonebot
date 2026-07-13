@@ -2,6 +2,8 @@ import os
 import cv2
 import uuid
 from typing import List, Dict, Tuple
+from kotonebot.devtools.errors import InvalidImageError
+
 from .core import ResourceNode, ClassNode
 
 # --- 字符串处理 ---
@@ -105,7 +107,7 @@ class ImageProcessor:
             
         img = cv2.imread(source_path)
         if img is None:
-            raise ValueError(f"Could not read image: {source_path}")
+            raise InvalidImageError(f"Could not read image: {source_path}")
             
         x1, y1, x2, y2 = map(int, rect)
         # 边界检查
@@ -131,7 +133,7 @@ class ImageProcessor:
 
         img = cv2.imread(source_path)
         if img is None:
-            raise ValueError(f"Could not read image: {source_path}")
+            raise InvalidImageError(f"Could not read image: {source_path}")
 
         x1, y1, x2, y2 = map(int, rect)
         h, w = img.shape[:2]

@@ -1,3 +1,5 @@
+from kotonebot.devtools.errors import NotFoundError
+
 from .corpus import MetaCorpus
 from ..diagnostics.codes import (
     META_VARIANT_INVALID,
@@ -194,7 +196,7 @@ def validate_meta_corpus(
                 if policy == "require" and not has_explicit_variant:
                     base_doc = doc_by_path.get(base_ref.meta_path)
                     if base_doc is None:
-                        raise ValueError(f"Document not found: {base_ref.meta_path}")
+                        raise NotFoundError(f"Document not found: {base_ref.meta_path}")
                     field_range = base_doc.ranges.of_field(base_ref.definition_id, "variant_policy")
                     diagnostics.append(
                         Diagnostic(

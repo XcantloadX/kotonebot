@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from kotonebot.devtools.errors import ValidationError
+
 from .models import DefinitionModel, DefinitionV3Model, VariantPolicy
 
 
@@ -28,9 +30,9 @@ def _policy_for_variant(base: DefinitionModel, variant: str) -> VariantPolicy:
 
 def merge_prefab_definition(base: DefinitionModel, override: DefinitionModel) -> DefinitionModel:
     if base.type != "prefab" or override.type != "prefab":
-        raise ValueError("merge_prefab_definition requires prefab definitions")
+        raise ValidationError("merge_prefab_definition requires prefab definitions")
     if base.name != override.name:
-        raise ValueError("merge_prefab_definition requires same name")
+        raise ValidationError("merge_prefab_definition requires same name")
 
     base_props = base.props or {}
     override_props = override.props or {}
@@ -62,7 +64,7 @@ def group_prefab_definitions_by_name(
         group = groups.setdefault(key, {})
         variant = definition.variant
         if variant in group:
-            raise ValueError(f"duplicate prefab (name, variant) group entry: {key}, {variant}")
+            raise ValidationError(f"duplicate prefab (name, variant) group entry: {key}, {variant}")
         group[variant] = ref
     return groups
 
@@ -81,15 +83,15 @@ def resolve_prefab_variant_groups(
                 continue
 
         if base is None:
-            raise ValueError(f"variant prefab requires base definition: {name}")
+            raise ValidationError(f"variant prefab requires base definition: {name}")
         if base.definition.type != "prefab":
-            raise ValueError(f"variant prefab base must be prefab: {name}")
+            raise ValidationError(f"variant prefab base must be prefab: {name}")
 
         typed_variants: dict[str, DefinitionRef] = {}
         for variant in sorted(variant_keys):
             ref = group[variant]
             if ref.definition.type != "prefab":
-                raise ValueError(f"variant prefab must be prefab: {name}#{variant}")
+                raise ValidationError(f"variant prefab must be prefab: {name}#{variant}")
             typed_variants[variant] = ref
 
         merged: dict[str, DefinitionModel] = {}

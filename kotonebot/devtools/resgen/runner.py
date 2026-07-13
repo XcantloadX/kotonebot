@@ -13,6 +13,8 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
+from kotonebot.devtools.errors import CommandError, ValidationError
+
 from .codegen import StandardGenerator
 from .diagnostics import print_diagnostics_report
 from .parsers import (
@@ -70,7 +72,7 @@ def generate_resources(
         )
     error_count = sum(1 for diag in diagnostics if diag.severity == "error")
     if error_count > 0 and not ignore_error:
-        raise ValueError(f"resgen aborted due to {error_count} error(s)")
+        raise CommandError(f"resgen aborted due to {error_count} error(s)")
 
     context = runtime_context.parser_context
     context['ignore_error'] = ignore_error
@@ -155,7 +157,7 @@ def generate_resources(
 
     variant_names = context.get("resource_variants")
     if variant_names is not None and not isinstance(variant_names, list):
-        raise ValueError("resource_variants must be list[str]")
+        raise ValidationError("resource_variants must be list[str]")
 
     return ResgenGenerateResult(
         root_scan_path=root_scan_path,

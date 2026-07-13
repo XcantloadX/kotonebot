@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from kotonebot.devtools.errors import InvalidImageError, NotFoundError, ValidationError, VariantNotDeclaredError
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.path_utils import get_safe_path
 from .resource_index_store import ResourceIndexStore
@@ -132,11 +133,11 @@ class DocumentIndexView:
         base_variant = self.project.conf.variant.base
         path_pattern = self.project.conf.variant.path_pattern
         if variants is None:
-            raise ValueError("variant.variants must be configured in pyproject.toml")
+            raise ValidationError("variant.variants must be configured in pyproject.toml")
         if base_variant is None:
-            raise ValueError("variant.base must be configured in pyproject.toml")
+            raise ValidationError("variant.base must be configured in pyproject.toml")
         if path_pattern is None:
-            raise ValueError("variant.path_pattern must be configured in pyproject.toml")
+            raise ValidationError("variant.path_pattern must be configured in pyproject.toml")
         return (variants, base_variant, path_pattern)
 
     def _build_pattern_regex(self, template: str) -> tuple[re.Pattern[str], set[str]]:
@@ -149,11 +150,11 @@ class DocumentIndexView:
             if field_name is None:
                 continue
             if field_name == "":
-                raise ValueError("variant.path_pattern contains empty placeholder")
+                raise ValidationError("variant.path_pattern contains empty placeholder")
             if field_name not in self._variant_path_placeholders:
-                raise ValueError(f"variant.path_pattern contains unsupported placeholder: {field_name}")
+                raise ValidationError(f"variant.path_pattern contains unsupported placeholder: {field_name}")
             if field_name in seen_fields:
-                raise ValueError(f"variant.path_pattern contains duplicated placeholder: {field_name}")
+                raise ValidationError(f"variant.path_pattern contains duplicated placeholder: {field_name}")
             seen_fields.add(field_name)
             if field_name == "file_dir":
                 parts.append("(?P<file_dir>.*?)")
@@ -171,7 +172,7 @@ class DocumentIndexView:
     def _build_document_entry(self, *, image_path: Path, meta_path: Path) -> DocumentEntry:
         """将单个 image/meta 路径解析为文档条目。"""
         if image_path.suffix.lower() not in self.image_suffixes:
-            raise ValueError(f"Image path is not supported: {image_path}")
+            raise InvalidImageError(f"Image path is not supported: {image_path}")
         variant_config = self._get_variant_config()
         if variant_config is None:
             return DocumentEntry(
@@ -196,7 +197,7 @@ class DocumentIndexView:
         file_name_default = image_path.stem
         file_ext_default = image_path.suffix[1:]
         if file_ext_default == "":
-            raise ValueError(f"Image path has no extension: {image_path}")
+            raise InvalidImageError(f"Image path has no extension: {image_path}")
 
         if path_pattern == "nest":
             parent_parts = list(rel.parent.parts) if parent_posix != "." else []
@@ -257,7 +258,7 @@ class DocumentIndexView:
                 if file_name_default.endswith(suffix):
                     file_name = file_name_default[: -len(suffix)]
                     if file_name == "":
-                        raise ValueError(f"Invalid flat variant file name: {image_path}")
+                        raise ValidationError(f"Invalid flat variant file name: {image_path}")
                     role = "variant"
                     variant_name = variant
                     break
@@ -277,14 +278,14 @@ class DocumentIndexView:
             )
 
         if not path_pattern.startswith("pattern:"):
-            raise ValueError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
+            raise ValidationError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
         template = path_pattern[len("pattern:"):].strip()
         if template == "":
-            raise ValueError("variant.path_pattern 'pattern:' template cannot be empty")
+            raise ValidationError("variant.path_pattern 'pattern:' template cannot be empty")
         regex, fields = self._build_pattern_regex(template)
         match = regex.match(rel_posix)
         if match is None:
-            raise ValueError(f"Image path does not match variant.path_pattern template: {image_path}")
+            raise ValidationError(f"Image path does not match variant.path_pattern template: {image_path}")
         values = match.groupdict()
         file_dir = values.get("file_dir") or ""
         file_name = values.get("file_name")
@@ -292,36 +293,36 @@ class DocumentIndexView:
         file_name_ext = values.get("file_name_ext")
         if file_name_ext is not None:
             if "." not in file_name_ext:
-                raise ValueError(f"file_name_ext must contain extension: {image_path}")
+                raise ValidationError(f"file_name_ext must contain extension: {image_path}")
             name_from_ext, ext_from_ext = file_name_ext.rsplit(".", 1)
             if name_from_ext == "" or ext_from_ext == "":
-                raise ValueError(f"file_name_ext is invalid: {image_path}")
+                raise ValidationError(f"file_name_ext is invalid: {image_path}")
             if file_name is None:
                 file_name = name_from_ext
             elif file_name != name_from_ext:
-                raise ValueError(f"file_name and file_name_ext mismatch: {image_path}")
+                raise ValidationError(f"file_name and file_name_ext mismatch: {image_path}")
             if file_ext is None:
                 file_ext = ext_from_ext
             elif file_ext != ext_from_ext:
-                raise ValueError(f"file_ext and file_name_ext mismatch: {image_path}")
+                raise ValidationError(f"file_ext and file_name_ext mismatch: {image_path}")
         if file_name is None or file_name == "":
-            raise ValueError(f"Cannot resolve file_name from path: {image_path}")
+            raise ValidationError(f"Cannot resolve file_name from path: {image_path}")
         if file_ext is None or file_ext == "":
-            raise ValueError(f"Cannot resolve file_ext from path: {image_path}")
+            raise ValidationError(f"Cannot resolve file_ext from path: {image_path}")
         role = "base"
         variant_name = None
         has_variant_name = "variant_name" in fields
         if has_variant_name:
             parsed_variant = values.get("variant_name")
             if parsed_variant is None or parsed_variant == "":
-                raise ValueError(f"Cannot resolve variant_name from path: {image_path}")
+                raise ValidationError(f"Cannot resolve variant_name from path: {image_path}")
             if parsed_variant == base_variant:
                 role = "base"
             elif parsed_variant in variants:
                 role = "variant"
                 variant_name = parsed_variant
             else:
-                raise ValueError(f"variant_name '{parsed_variant}' is not declared in variant config")
+                raise VariantNotDeclaredError(f"variant_name '{parsed_variant}' is not declared in variant config")
         return DocumentEntry(
             image_path=image_path.as_posix(),
             meta_path=meta_path.as_posix(),
@@ -347,7 +348,7 @@ class DocumentIndexView:
             file_name_ext = f"{target_descriptor.file_name}.{target_descriptor.file_ext}"
             if member.role == "variant":
                 if member.variant is None:
-                    raise ValueError("variant member requires variant name")
+                    raise ValidationError("variant member requires variant name")
                 rel = f"{member.variant}/{target_descriptor.file_dir}/{file_name_ext}" if target_descriptor.file_dir else f"{member.variant}/{file_name_ext}"
                 return get_safe_path(rel, self.project)
             if source_descriptor.role == "base":
@@ -362,7 +363,7 @@ class DocumentIndexView:
         if member.strategy == "flat":
             if member.role == "variant":
                 if member.variant is None:
-                    raise ValueError("variant member requires variant name")
+                    raise ValidationError("variant member requires variant name")
                 file_name_ext = f"{target_descriptor.file_name}_{member.variant}.{target_descriptor.file_ext}"
             else:
                 file_name_ext = f"{target_descriptor.file_name}.{target_descriptor.file_ext}"
@@ -370,13 +371,13 @@ class DocumentIndexView:
             return get_safe_path(rel, self.project)
         if member.strategy == "pattern":
             if member.template is None:
-                raise ValueError("pattern member requires template")
+                raise ValidationError("pattern member requires template")
             if source_descriptor.strategy != "pattern":
-                raise ValueError("source descriptor strategy mismatch")
+                raise ValidationError("source descriptor strategy mismatch")
             render_variant: str
             if member.role == "variant":
                 if member.variant is None:
-                    raise ValueError("variant member requires variant name")
+                    raise ValidationError("variant member requires variant name")
                 render_variant = member.variant
             else:
                 render_variant = base_variant
@@ -388,11 +389,11 @@ class DocumentIndexView:
                 file_dir=target_descriptor.file_dir,
             ).strip()
             if rendered == "":
-                raise ValueError("variant.path_pattern resolved to empty path")
+                raise ValidationError("variant.path_pattern resolved to empty path")
             return get_safe_path(rendered, self.project)
         if member.strategy == "none":
             return get_safe_path(target_descriptor.image_path, self.project)
-        raise ValueError(f"Unsupported strategy: {member.strategy}")
+        raise ValidationError(f"Unsupported strategy: {member.strategy}")
 
     def precheck_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentPrecheckResultModel:
         """执行文档重命名预检并返回计划与冲突。"""
@@ -400,34 +401,34 @@ class DocumentIndexView:
         source_image = get_safe_path(source_image_path, self.project)
         target_image = get_safe_path(target_image_path, self.project)
         if source_image.suffix.lower() not in self.image_suffixes:
-            raise ValueError(f"Source path is not an image: {source_image}")
+            raise InvalidImageError(f"Source path is not an image: {source_image}")
         if target_image.suffix.lower() not in self.image_suffixes:
-            raise ValueError(f"Target path is not an image: {target_image}")
+            raise InvalidImageError(f"Target path is not an image: {target_image}")
         if source_image == target_image:
-            raise ValueError("Target path must be different from source path")
+            raise ValidationError("Target path must be different from source path")
 
         source_entry = self._snapshot.documents_by_image.get(source_image.as_posix())
         if source_entry is None:
-            raise ValueError(f"Source document is not indexed: {source_image.as_posix()}")
+            raise NotFoundError(f"Source document is not indexed: {source_image.as_posix()}")
         target_entry = self._build_document_entry(
             image_path=target_image,
             meta_path=Path(str(target_image) + ".json"),
         )
         if source_entry.strategy != target_entry.strategy:
-            raise ValueError("Target path pattern type must match source document pattern type")
+            raise ValidationError("Target path pattern type must match source document pattern type")
         if source_entry.role != target_entry.role:
-            raise ValueError("Target path must keep the same variant role as source path")
+            raise ValidationError("Target path must keep the same variant role as source path")
         if source_entry.role == "variant" and source_entry.variant != target_entry.variant:
-            raise ValueError("Target path must keep the same variant name as source path")
+            raise ValidationError("Target path must keep the same variant name as source path")
         if source_entry.strategy == "pattern" and source_entry.template != target_entry.template:
-            raise ValueError("Target path pattern template must match source document pattern template")
+            raise ValidationError("Target path pattern template must match source document pattern template")
 
         documents: list[RenameDocumentItemModel] = []
         file_renames: list[RenameFileItemModel] = []
         conflicts: list[str] = []
         group_members = self._snapshot.groups.get(source_entry.group_key)
         if group_members is None:
-            raise ValueError(f"Source document group not found: {source_entry.group_key}")
+            raise NotFoundError(f"Source document group not found: {source_entry.group_key}")
         for member in group_members:
             source_member_image = Path(member.image_path)
             source_member_meta = Path(member.meta_path)

@@ -1,6 +1,8 @@
 from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import ValidationError as PydanticValidationError
+from kotonebot.devtools.errors import CommandError
 from kotonebot.devtools.indexing.document_index_view import (
     RenameDocumentExecuteResultModel,
     RenameDocumentPrecheckResultModel,
@@ -234,5 +236,5 @@ ServerCommandResponse: TypeAlias = (
 def parse_server_command_request(payload: dict[str, Any]) -> ServerCommandRequest:
     try:
         return _SERVER_COMMAND_REQUEST_ADAPTER.validate_python(payload)
-    except ValidationError as exc:
-        raise ValueError(str(exc)) from exc
+    except PydanticValidationError as exc:
+        raise CommandError(str(exc)) from exc

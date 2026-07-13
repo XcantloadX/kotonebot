@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from kotonebot.devtools.errors import PathSafetyError
+
 if TYPE_CHECKING:
     from kotonebot.devtools.project.project import Project
 
@@ -21,22 +23,24 @@ def get_safe_path(path_str: str, project: "Project") -> Path:
     """
     allowed_roots = project.allowed_roots
     if not allowed_roots:
-        raise ValueError("No allowed roots configured for project")
-    
+        raise PathSafetyError("No allowed roots configured for project")
+
     p = Path(path_str)
-    
+
     for root in allowed_roots:
         if not p.is_absolute():
             candidate = root / p
         else:
             candidate = p
-        
+
         try:
             resolved = candidate.resolve()
             resolved.relative_to(root.resolve())
             return resolved
-        except Exception:
+        except ValueError:
             continue
-    
+        except OSError:
+            continue
+
     roots_str = ", ".join(str(r) for r in allowed_roots)
-    raise ValueError(f"Invalid path: '{path_str}' is not within allowed roots: {roots_str}")
+    raise PathSafetyError(f"Invalid path: '{path_str}' is not within allowed roots: {roots_str}")

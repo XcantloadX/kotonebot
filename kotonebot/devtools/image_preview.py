@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import cv2
+from kotonebot.devtools.errors import InvalidImageError, ValidationError
 
 
 Rect = tuple[int, int, int, int]
@@ -16,7 +17,7 @@ def _normalize_rect(rect: tuple[float, float, float, float]) -> Rect:
     x2 = int(rect[2])
     y2 = int(rect[3])
     if x2 <= x1 or y2 <= y1:
-        raise ValueError("invalid rect")
+        raise ValidationError("invalid rect")
     return (x1, y1, x2, y2)
 
 
@@ -40,11 +41,11 @@ def build_image_preview(
     rect: tuple[float, float, float, float] | None,
 ) -> Path:
     if size is not None and size <= 0:
-        raise ValueError("size must be positive")
+        raise ValidationError("size must be positive")
     if not source_path.exists():
         raise FileNotFoundError(f"Image not found: {source_path}")
     if not source_path.is_file():
-        raise ValueError(f"Not a file: {source_path}")
+        raise InvalidImageError(f"Not a file: {source_path}")
 
     normalized_rect = _normalize_rect(rect) if rect is not None else None
     stat = source_path.stat()
@@ -57,13 +58,13 @@ def build_image_preview(
 
     image = cv2.imread(str(source_path))
     if image is None:
-        raise ValueError(f"Could not read image: {source_path}")
+        raise InvalidImageError(f"Could not read image: {source_path}")
 
     if normalized_rect is not None:
         height, width = image.shape[:2]
         x1, y1, x2, y2 = normalized_rect
         if x1 < 0 or y1 < 0 or x2 > width or y2 > height:
-            raise ValueError("rect is out of bounds")
+            raise ValidationError("rect is out of bounds")
         image = image[y1:y2, x1:x2]
 
     if size is None:
@@ -72,7 +73,7 @@ def build_image_preview(
         cropped_height, cropped_width = image.shape[:2]
         longest = max(cropped_width, cropped_height)
         if longest <= 0:
-            raise ValueError("invalid image size")
+            raise ValidationError("invalid image size")
         scale = size / float(longest)
         resized_width = max(1, int(round(cropped_width * scale)))
         resized_height = max(1, int(round(cropped_height * scale)))
@@ -81,6 +82,6 @@ def build_image_preview(
     temp_path = target_path.with_suffix(".tmp.png")
     ok = cv2.imwrite(str(temp_path), resized)
     if not ok:
-        raise ValueError(f"failed to write preview: {temp_path}")
+        raise InvalidImageError(f"failed to write preview: {temp_path}")
     os.replace(temp_path, target_path)
     return target_path

@@ -2,6 +2,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from kotonebot.devtools.errors import NotFoundError
+
 
 class MetaFileRef(BaseModel):
     meta_path: str
@@ -24,7 +26,7 @@ def scan_meta_files(resource_root: Path) -> list[MetaFileRef]:
     :return: 元数据文件基本信息。不包含文件内容。
     """
     if not resource_root.exists() or not resource_root.is_dir():
-        raise ValueError(f"Resource root does not exist or is not a directory: {resource_root}")
+        raise NotFoundError(f"Resource root does not exist or is not a directory: {resource_root}")
 
     entries: list[MetaFileRef] = []
     for abs_meta_path in sorted(resource_root.rglob("*.png.json")):

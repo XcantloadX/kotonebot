@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from kotonebot.devtools.diagnostics.models import Diagnostic
+from kotonebot.devtools.errors import PathSafetyError, ValidationError
 from kotonebot.devtools.meta import build_indexing_projection
 
 from .models import IndexedFile, IndexSnapshot
@@ -264,7 +265,7 @@ class SymbolIndexView:
                 elif diag.severity == "info":
                     info += 1
                 else:
-                    raise ValueError(f"Unsupported diagnostic severity: {diag.severity}")
+                    raise ValidationError(f"Unsupported diagnostic severity: {diag.severity}")
         return MetaDiagnosticsSnapshotModel(
             indexVersion=self._snapshot.index_version,
             diagnosticsByFile={
@@ -303,7 +304,7 @@ class SymbolIndexView:
             path = self._resource_root / path
         resolved = path.resolve()
         if not str(resolved).startswith(str(self._resource_root)):
-            raise ValueError(f"Meta path is outside resource root: {resolved}")
+            raise PathSafetyError(f"Meta path is outside resource root: {resolved}")
         if not resolved.as_posix().endswith(".png.json"):
-            raise ValueError("Meta path must end with .png.json")
+            raise ValidationError("Meta path must end with .png.json")
         return resolved.as_posix()

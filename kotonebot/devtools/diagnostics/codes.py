@@ -3,6 +3,8 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from kotonebot.devtools.errors import ValidationError
+
 
 class DiagnosticCodeDef(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -64,9 +66,9 @@ _CODE_PATTERN: Final[re.Pattern[str]] = re.compile(r"^KBT-[EWI]-[A-Z]{3,6}-\d{4}
 
 def ensure_code_registered(code: str) -> None:
     if code not in REGISTRY:
-        raise ValueError(f"Unregistered diagnostic code: {code}")
+        raise ValidationError(f"Unregistered diagnostic code: {code}")
     if _CODE_PATTERN.match(code) is None:
-        raise ValueError(f"Invalid diagnostic code format: {code}")
+        raise ValidationError(f"Invalid diagnostic code format: {code}")
 
 
 def get_code_def(code: str) -> DiagnosticCodeDef:
@@ -77,7 +79,7 @@ def get_code_def(code: str) -> DiagnosticCodeDef:
 def ensure_code_severity(code: str, severity: str) -> None:
     expected = get_code_def(code).severity
     if severity != expected:
-        raise ValueError(
+        raise ValidationError(
             f"Diagnostic severity mismatch for {code}: expected '{expected}', got '{severity}'"
         )
 

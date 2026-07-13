@@ -5,6 +5,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     from tomli import loads as toml_loader  # py<3.11
 
+from kotonebot.devtools.errors import ValidationError
 from kotonebot.devtools.project.schema import PyProjectData
 
 
@@ -55,7 +56,7 @@ class Project:
         if self.conf.editor and self.conf.editor.r_file is not None:
             r_file = self.conf.editor.r_file.strip()
             if r_file == "":
-                raise ValueError("editor.r_file cannot be empty")
+                raise ValidationError("editor.r_file cannot be empty")
             resolved_r_file = Path(r_file)
             if not resolved_r_file.is_absolute():
                 resolved_r_file = (self.pyproject_root / resolved_r_file).resolve()
@@ -67,51 +68,51 @@ class Project:
                     'Please set [tool.kotonebot.editor.r_file] to a valid file path in pyproject.toml.'
                 )
             if not resolved_r_file.is_file():
-                raise ValueError(f"editor.r_file must be a file path: {resolved_r_file}")
+                raise ValidationError(f"editor.r_file must be a file path: {resolved_r_file}")
             self.conf.editor.r_file = str(resolved_r_file)
 
         if self.conf.variant is not None:
             variants = self.conf.variant.variants
             if variants is None:
-                raise ValueError("variant.variants must be configured in pyproject.toml")
+                raise ValidationError("variant.variants must be configured in pyproject.toml")
             seen: set[str] = set()
             deduped: list[str] = []
             for item in variants:
                 if not isinstance(item, str):
-                    raise ValueError("variant.variants must contain only strings")
+                    raise ValidationError("variant.variants must contain only strings")
                 value = item.strip()
                 if value == "":
-                    raise ValueError("variant.variants cannot contain empty string")
+                    raise ValidationError("variant.variants cannot contain empty string")
                 if value in seen:
-                    raise ValueError(f"variant.variants contains duplicated value: {value}")
+                    raise ValidationError(f"variant.variants contains duplicated value: {value}")
                 seen.add(value)
                 deduped.append(value)
             if len(deduped) == 0:
-                raise ValueError("variant.variants cannot be empty")
+                raise ValidationError("variant.variants cannot be empty")
             self.conf.variant.variants = deduped
 
             if self.conf.variant.base is None:
-                raise ValueError("variant.base must be configured in pyproject.toml")
+                raise ValidationError("variant.base must be configured in pyproject.toml")
             base = self.conf.variant.base.strip()
             if base == "":
-                raise ValueError("variant.base cannot be empty")
+                raise ValidationError("variant.base cannot be empty")
             if base in deduped:
-                raise ValueError("variant.base must not be included in variant.variants")
+                raise ValidationError("variant.base must not be included in variant.variants")
             self.conf.variant.base = base
 
             if self.conf.variant.path_pattern is not None:
                 raw_path_pattern = self.conf.variant.path_pattern.strip()
                 if raw_path_pattern == "":
-                    raise ValueError("variant.path_pattern cannot be empty")
+                    raise ValidationError("variant.path_pattern cannot be empty")
                 if raw_path_pattern == "nest" or raw_path_pattern == "flat":
                     self.conf.variant.path_pattern = raw_path_pattern
                 elif raw_path_pattern.startswith("pattern:"):
                     template = raw_path_pattern[len("pattern:"):].strip()
                     if template == "":
-                        raise ValueError("variant.path_pattern 'pattern:' template cannot be empty")
+                        raise ValidationError("variant.path_pattern 'pattern:' template cannot be empty")
                     self.conf.variant.path_pattern = f"pattern: {template}"
                 else:
-                    raise ValueError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
+                    raise ValidationError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
 
 
 if __name__ == '__main__':

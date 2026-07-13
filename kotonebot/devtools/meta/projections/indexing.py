@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from kotonebot.devtools.errors import NotFoundError, ValidationError
+
 from ...indexing.models import IndexedFile, IndexedSymbol
 from ...diagnostics.codes import (
     INDEX_DEF_ID_INVALID,
@@ -49,15 +51,15 @@ def _validate_geometry(prop_key: str, value: Any) -> dict[str, Any] | None:
     if kind in ("rect", "image"):
         for key in ("x1", "y1", "x2", "y2"):
             if key not in value:
-                raise ValueError(f"props.{prop_key}.{key} is required for {kind}")
+                raise ValidationError(f"props.{prop_key}.{key} is required for {kind}")
             if not isinstance(value[key], (int, float)):
-                raise ValueError(f"props.{prop_key}.{key} must be number")
+                raise ValidationError(f"props.{prop_key}.{key} must be number")
     if kind == "point":
         for key in ("x", "y"):
             if key not in value:
-                raise ValueError(f"props.{prop_key}.{key} is required for point")
+                raise ValidationError(f"props.{prop_key}.{key} is required for point")
             if not isinstance(value[key], (int, float)):
-                raise ValueError(f"props.{prop_key}.{key} must be number")
+                raise ValidationError(f"props.{prop_key}.{key} must be number")
     return value
 
 
@@ -74,10 +76,10 @@ def _pick_primary_geometry(
             if primary_prop is not None:
                 value = props.get(primary_prop)
                 if value is None:
-                    raise ValueError(f"Primary prop '{primary_prop}' does not exist in props")
+                    raise ValidationError(f"Primary prop '{primary_prop}' does not exist in props")
                 geometry = _validate_geometry(primary_prop, value)
                 if geometry is None:
-                    raise ValueError(f"Primary prop '{primary_prop}' is not geometry")
+                    raise ValidationError(f"Primary prop '{primary_prop}' is not geometry")
                 return primary_prop, geometry
 
     for kind in _GEOMETRY_KINDS:
@@ -119,10 +121,10 @@ def _project_symbols_for_doc(
         try:
             type_value = definition.type
             if not isinstance(type_value, str):
-                raise ValueError("type must be string")
+                raise ValidationError("type must be string")
             props = definition.props
             if not isinstance(props, dict):
-                raise ValueError("props must be an object")
+                raise ValidationError("props must be an object")
 
             name = definition.name or definition_id
             display_name = definition.display_name
@@ -233,7 +235,7 @@ def build_indexing_projection(
     for doc in corpus.docs:
         ref = ref_by_path.get(doc.meta_path)
         if ref is None:
-            raise ValueError(f"Missing file ref for parsed doc: {doc.meta_path}")
+            raise NotFoundError(f"Missing file ref for parsed doc: {doc.meta_path}")
         indexed_file, file_symbols, file_diags = _project_symbols_for_doc(
             doc=doc,
             mtime_ns=ref.mtime_ns,

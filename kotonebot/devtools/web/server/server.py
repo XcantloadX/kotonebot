@@ -6,11 +6,14 @@ from importlib import resources
 from pathlib import Path
 from threading import Thread
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, HTMLResponse
 import uvicorn
 
+from kotonebot.devtools.errors import DevtoolsError
 from kotonebot.devtools.project.project import Project
 from .rest_api import create_rest_router
 
@@ -32,6 +35,23 @@ def _can_connect(host: str, port: int) -> bool:
 def create_app(*, workspace: str | None = None):
     """Create and configure the FastAPI application."""
     app = FastAPI(title="KotoneBot DevTools")
+
+    @app.exception_handler(DevtoolsError)
+    async def handle_devtools_error(request, exc: DevtoolsError):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"success": False, "code": exc.code, "message": exc.message},
+        )
+
+    @app.exception_handler(Exception)
+    async def handle_unexpected(request, exc):
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            raise
+        logging.exception("Unhandled error in %s %s", request.method, request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "code": "INTERNAL", "message": "Internal server error"},
+        )
 
     if workspace is None:
         project = Project()

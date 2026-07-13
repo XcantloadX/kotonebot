@@ -1,3 +1,4 @@
+from kotonebot.devtools.errors import CommandError
 from typing import Final, Literal, cast
 
 
@@ -42,5 +43,5 @@ SERVER_COMMAND_IDS: Final[frozenset[ServerCommandId]] = frozenset(
 
 def ensure_server_command_id(command: str) -> ServerCommandId:
     if command not in SERVER_COMMAND_IDS:
-        raise ValueError(f"Unsupported server command: {command}")
+        raise CommandError(f"Unsupported server command: {command}")
     return cast(ServerCommandId, command)

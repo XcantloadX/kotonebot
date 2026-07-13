@@ -8,6 +8,17 @@ from typing import Any, Optional
 
 import cv2
 import numpy as np
+from kotonebot.devtools.errors import (
+    NotFoundError,
+    ValidationError,
+    VariantNotDeclaredError,
+    InvalidImageError,
+    CommandError,
+)
+from kotonebot.devtools.indexing.symbol_index_view import (
+    SymbolSnapshotLiteModel, SymbolUpdateResultModel,
+    MetaDiagnosticsSnapshotModel, SymbolIndexHealthModel,
+)
 from kotonebot.devtools.server_commands.commands import (
     SERVER_COMMAND_META_REFETCH,
     SERVER_COMMAND_META_UPDATE_FILE,
@@ -59,7 +70,7 @@ class WorkspaceService:
         self._prefabs_cache: Optional[dict[str, Any]] = None
 
         if project.conf is None or project.conf.editor is None or project.conf.editor.resource_path is None:
-            raise ValueError("Missing [tool.kotonebot.editor.resource_path] in pyproject.toml")
+            raise ValidationError("Missing [tool.kotonebot.editor.resource_path] in pyproject.toml")
         self.project_root = Path(project.conf.editor.resource_path).resolve()
 
         try:
@@ -198,7 +209,7 @@ class WorkspaceService:
                 variant=request.args.variant,
             )
             return VariantCopySelectedPrefabPrecheckResult(**result)
-        raise ValueError(f"Unsupported server command: {request.command}")
+        raise CommandError(f"Unsupported server command: {request.command}")
 
     def get_project_root_data(self) -> dict[str, Any]:
         data: dict[str, Any] = {"resource_root": str(self.project_root)}
@@ -216,20 +227,20 @@ class WorkspaceService:
             return self._prefabs_cache
         self._prefabs_cache = scan_prefabs(self.project.conf.editor.prefabs_module)
         if not isinstance(self._prefabs_cache, dict):
-            raise ValueError("Invalid prefab schema response")
+            raise ValidationError("Invalid prefab schema response")
         self._prefabs_cache.setdefault("prefabs", {})
         return self._prefabs_cache
 
-    def get_meta_index(self) -> Any:
+    def get_meta_index(self) -> SymbolSnapshotLiteModel:
         return self.symbol_index_view.get_snapshot_lite()
 
-    def update_meta_index(self, meta_path: str) -> Any:
+    def update_meta_index(self, meta_path: str) -> SymbolUpdateResultModel:
         return self.symbol_index_view.update_file(meta_path=meta_path)
 
-    def get_meta_diagnostics(self) -> Any:
+    def get_meta_diagnostics(self) -> MetaDiagnosticsSnapshotModel:
         return self.symbol_index_view.get_diagnostics()
 
-    def get_meta_index_health(self) -> Any:
+    def get_meta_index_health(self) -> SymbolIndexHealthModel:
         return self.symbol_index_view.get_health()
 
     def precheck_rename_document(self, *, source_image_path: str, target_image_path: str) -> RenameDocumentPrecheckResultModel:
@@ -242,7 +253,7 @@ class WorkspaceService:
         precheck = self.precheck_rename_document(source_image_path=source_image_path, target_image_path=target_image_path)
         if precheck.hasConflicts:
             message = "\n".join(precheck.conflicts)
-            raise ValueError(f"Cannot execute rename due to conflicts:\n{message}")
+            raise ValidationError(f"Cannot execute rename due to conflicts:\n{message}")
         renames = [(Path(item.sourcePath), Path(item.targetPath)) for item in precheck.fileRenames]
         self._execute_file_rename_batch(renames)
         return RenameDocumentExecuteResultModel(
@@ -263,9 +274,9 @@ class WorkspaceService:
         normalized_meta_path = self._normalize_path_key(str(get_safe_path(source_meta_path, self.project)))
         requested_name = new_name.strip()
         if requested_name == "":
-            raise ValueError("newName cannot be empty")
+            raise ValidationError("newName cannot be empty")
         if source_definition_id.strip() == "":
-            raise ValueError("definitionId cannot be empty")
+            raise ValidationError("definitionId cannot be empty")
 
         source_symbol = None
         for symbol in self.symbol_index_view.snapshot.symbols.values():
@@ -273,13 +284,13 @@ class WorkspaceService:
                 source_symbol = symbol
                 break
         if source_symbol is None:
-            raise ValueError(f"Source symbol not found: {source_meta_path}::{source_definition_id}")
+            raise NotFoundError(f"Source symbol not found: {source_meta_path}::{source_definition_id}")
 
         old_name = source_symbol.name.strip()
         if old_name == "":
-            raise ValueError(f"Source symbol name is empty: {source_meta_path}::{source_definition_id}")
+            raise ValidationError(f"Source symbol name is empty: {source_meta_path}::{source_definition_id}")
         if requested_name == old_name:
-            raise ValueError("newName must be different from oldName")
+            raise ValidationError("newName must be different from oldName")
 
         targets_by_key: dict[tuple[str, str], RenameSymbolTargetModel] = {}
         for symbol in self.symbol_index_view.snapshot.symbols.values():
@@ -299,7 +310,7 @@ class WorkspaceService:
                 newName=requested_name,
             )
         if len(targets_by_key) == 0:
-            raise ValueError(f"No symbols found for name: {old_name}")
+            raise NotFoundError(f"No symbols found for name: {old_name}")
 
         targets = sorted(
             targets_by_key.values(),
@@ -342,19 +353,19 @@ class WorkspaceService:
             safe_meta_path = get_safe_path(meta_path, self.project)
             payload = json.loads(safe_meta_path.read_text(encoding="utf-8"))
             if not isinstance(payload, dict):
-                raise ValueError(f"Invalid meta payload: {meta_path}")
+                raise ValidationError(f"Invalid meta payload: {meta_path}")
             if payload.get("version") != 3:
-                raise ValueError(f"Unsupported meta version for rename: {meta_path}")
+                raise ValidationError(f"Unsupported meta version for rename: {meta_path}")
             definitions = payload.get("definitions")
             if not isinstance(definitions, dict):
-                raise ValueError(f"Meta definitions must be object: {meta_path}")
+                raise ValidationError(f"Meta definitions must be object: {meta_path}")
             for definition_id in definition_ids:
                 definition = definitions.get(definition_id)
                 if not isinstance(definition, dict):
-                    raise ValueError(f"Definition not found: {meta_path}::{definition_id}")
+                    raise NotFoundError(f"Definition not found: {meta_path}::{definition_id}")
                 current_name = definition.get("name")
                 if not isinstance(current_name, str) or current_name.strip() == "":
-                    raise ValueError(f"Definition name must be non-empty string: {meta_path}::{definition_id}")
+                    raise ValidationError(f"Definition name must be non-empty string: {meta_path}::{definition_id}")
                 definition["name"] = precheck.newName
             safe_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -384,15 +395,15 @@ class WorkspaceService:
         source_meta = get_safe_path(source_meta_path, self.project)
         target_image = get_safe_path(target_image_path, self.project)
         if not source_meta.exists():
-            raise ValueError(f"Source meta not found: {source_meta}")
+            raise NotFoundError(f"Source meta not found: {source_meta}")
         if not target_image.exists():
-            raise ValueError(f"Target image not found: {target_image}")
+            raise NotFoundError(f"Target image not found: {target_image}")
         if not self._is_image_file(target_image):
-            raise ValueError(f"Target path is not an image: {target_image}")
+            raise InvalidImageError(f"Target path is not an image: {target_image}")
 
         target_meta_path = Path(str(target_image) + ".json")
         if target_meta_path.exists() and not force_overwrite:
-            raise ValueError(f"Target meta already exists: {target_meta_path}")
+            raise ValidationError(f"Target meta already exists: {target_meta_path}")
         plan = self._plan_variant_clone_definitions(
             source_meta_path=source_meta,
             target_variant=variant_name,
@@ -421,11 +432,12 @@ class WorkspaceService:
         source_meta = get_safe_path(source_meta_path, self.project)
         base_image = get_safe_path(base_image_path, self.project)
         if not source_meta.exists():
-            raise ValueError(f"Source meta not found: {source_meta}")
+            raise NotFoundError(f"Source meta not found: {source_meta}")
         if not base_image.exists():
-            raise ValueError(f"Base image not found: {base_image}")
+            raise NotFoundError(f"Base image not found: {base_image}")
         if not self._is_image_file(base_image):
-            raise ValueError(f"Base path is not an image: {base_image}")
+            raise InvalidImageError(f"Base path is not an image: {base_image}")
+
         uploaded_target_image = self._decode_uploaded_image(uploaded_image_data)
         target_image_path = self._resolve_variant_import_target_path(base_image_path=base_image, variant_name=variant_name)
         plan = self._plan_variant_clone_definitions(
@@ -462,7 +474,7 @@ class WorkspaceService:
         target_image_path = self._resolve_variant_import_target_path(base_image_path=base_image, variant_name=variant_name)
         if target_image_path.exists():
             if not delete_existing_target:
-                raise ValueError(f"Target image already exists: {target_image_path}")
+                raise ValidationError(f"Target image already exists: {target_image_path}")
             target_image_path.unlink()
             target_meta_path = Path(str(target_image_path) + ".json")
             if target_meta_path.exists():
@@ -487,28 +499,28 @@ class WorkspaceService:
         source_meta = get_safe_path(source_meta_path, self.project)
         base_image = get_safe_path(base_image_path, self.project)
         if not source_meta.exists():
-            raise ValueError(f"Source meta not found: {source_meta}")
+            raise NotFoundError(f"Source meta not found: {source_meta}")
         if not base_image.exists():
-            raise ValueError(f"Base image not found: {base_image}")
+            raise NotFoundError(f"Base image not found: {base_image}")
         if not self._is_image_file(base_image):
-            raise ValueError(f"Base path is not an image: {base_image}")
+            raise InvalidImageError(f"Base path is not an image: {base_image}")
         source_meta_data = parse_meta_file(source_meta)
         source_definition = source_meta_data.definitions.get(source_definition_id)
         if source_definition is None:
-            raise ValueError(f"Source definition not found: {source_definition_id}")
+            raise NotFoundError(f"Source definition not found: {source_definition_id}")
         if source_definition.type != "prefab":
-            raise ValueError(f"Source definition is not prefab: {source_definition_id}")
+            raise ValidationError(f"Source definition is not prefab: {source_definition_id}")
         if source_definition.name is None:
-            raise ValueError(f"Source definition requires name: {source_definition_id}")
+            raise ValidationError(f"Source definition requires name: {source_definition_id}")
 
         base_by_name: dict[str, DefinitionV3Model] = {}
         for definition in source_meta_data.definitions.values():
             if definition.type != "prefab" or definition.variant is not None:
                 continue
             if definition.name is None:
-                raise ValueError("prefab definition requires name")
+                raise ValidationError("prefab definition requires name")
             if definition.name in base_by_name:
-                raise ValueError(f"duplicate prefab base definition: {definition.name}")
+                raise ValidationError(f"duplicate prefab base definition: {definition.name}")
             base_by_name[definition.name] = definition
 
         target_image_path = self._resolve_variant_import_target_path(base_image_path=base_image, variant_name=variant_name)
@@ -551,7 +563,7 @@ class WorkspaceService:
         target_meta_path = get_safe_path(precheck["targetMetaPath"], self.project)
         target_definition = precheck["targetDefinition"]
         if not precheck["targetImageExists"]:
-            raise ValueError(f"Target image not found: {precheck['targetImagePath']}")
+            raise NotFoundError(f"Target image not found: {precheck['targetImagePath']}")
         if precheck["targetMetaExists"]:
             target_meta_data = parse_meta_file(target_meta_path)
             target_definitions = {
@@ -561,7 +573,7 @@ class WorkspaceService:
         else:
             target_definitions = {}
         if source_definition_id in target_definitions and not force_overwrite:
-            raise ValueError(f"Target definition already exists: {source_definition_id}")
+            raise ValidationError(f"Target definition already exists: {source_definition_id}")
         target_definitions[source_definition_id] = target_definition
         self._ensure_source_base_variant_policy(
             source_meta_path=get_safe_path(source_meta_path, self.project),
@@ -584,7 +596,7 @@ class WorkspaceService:
 
         decoded = base64.b64decode(value.encode("ascii"), validate=True)
         if len(decoded) == 0:
-            raise ValueError("decoded payload is empty")
+            raise ValidationError("decoded payload is empty")
         return decoded
 
     def _normalize_path_key(self, path_str: str) -> str:
@@ -596,7 +608,7 @@ class WorkspaceService:
         for source, target in renames:
             temp = source.with_name(f"{source.name}.rename_tmp_{uuid.uuid4().hex}")
             if temp.exists():
-                raise ValueError(f"Temporary file path already exists: {temp.as_posix()}")
+                raise ValidationError(f"Temporary file path already exists: {temp.as_posix()}")
             os.replace(source, temp)
             staged.append((source, temp, target))
         try:
@@ -618,18 +630,18 @@ class WorkspaceService:
     def _assert_variant_declared(self, variant: str) -> str:
         variant_name = variant.strip()
         if variant_name == "":
-            raise ValueError("variant cannot be empty")
+            raise ValidationError("variant cannot be empty")
         declared_variants = self.project.conf.variant.variants if self.project.conf.variant and self.project.conf.variant.variants is not None else []
         if variant_name not in declared_variants:
-            raise ValueError(f"variant '{variant_name}' is not declared in variant.variants")
+            raise VariantNotDeclaredError(f"variant '{variant_name}' is not declared in variant.variants")
         return variant_name
 
     def _resolve_variant_import_target_path(self, *, base_image_path: Path, variant_name: str) -> Path:
         if self.project.conf.variant is None:
-            raise ValueError("Missing [tool.kotonebot.variant] in pyproject.toml")
+            raise ValidationError("Missing [tool.kotonebot.variant] in pyproject.toml")
         variant_path_pattern = self.project.conf.variant.path_pattern
         if variant_path_pattern is None:
-            raise ValueError("Missing [tool.kotonebot.variant.path_pattern] in pyproject.toml")
+            raise ValidationError("Missing [tool.kotonebot.variant.path_pattern] in pyproject.toml")
         rel_base_image_path = base_image_path.resolve().relative_to(self.project_root)
         declared_variants = self.project.conf.variant.variants if self.project.conf.variant.variants is not None else []
         base_variant = self.project.conf.variant.base
@@ -639,10 +651,10 @@ class WorkspaceService:
             if head == base_variant:
                 base_parent_parts = base_parent_parts[1:]
             elif head in declared_variants:
-                raise ValueError(f"base image path must use variant.base prefix '{base_variant}' when variant prefix exists")
+                raise ValidationError(f"base image path must use variant.base prefix '{base_variant}' when variant prefix exists")
         file_ext = base_image_path.suffix[1:]
         if file_ext == "":
-            raise ValueError(f"base image path has no extension: {base_image_path}")
+            raise InvalidImageError(f"base image path has no extension: {base_image_path}")
         file_dir = Path(*base_parent_parts).as_posix() if len(base_parent_parts) > 0 else ""
         if variant_path_pattern == "nest":
             rendered = f"{variant_name}/{file_dir}/{base_image_path.name}" if file_dir else f"{variant_name}/{base_image_path.name}"
@@ -652,15 +664,15 @@ class WorkspaceService:
         elif variant_path_pattern.startswith("pattern:"):
             template = variant_path_pattern[len("pattern:"):].strip()
             if template == "":
-                raise ValueError("variant.path_pattern 'pattern:' template cannot be empty")
+                raise ValidationError("variant.path_pattern 'pattern:' template cannot be empty")
             formatter = string.Formatter()
             for _, field_name, _, _ in formatter.parse(template):
                 if field_name is None:
                     continue
                 if field_name == "":
-                    raise ValueError("variant.path_pattern contains empty placeholder")
+                    raise ValidationError("variant.path_pattern contains empty placeholder")
                 if field_name not in self.variant_path_placeholders:
-                    raise ValueError(f"variant.path_pattern contains unsupported placeholder: {field_name}")
+                    raise ValidationError(f"variant.path_pattern contains unsupported placeholder: {field_name}")
             rendered = template.format(
                 variant_name=variant_name,
                 file_name=base_image_path.stem,
@@ -669,12 +681,12 @@ class WorkspaceService:
                 file_dir=file_dir,
             ).strip()
         else:
-            raise ValueError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
+            raise ValidationError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
         if rendered == "":
-            raise ValueError("variant.path_pattern resolved to empty path")
+            raise ValidationError("variant.path_pattern resolved to empty path")
         target_image_path = get_safe_path(rendered, self.project)
         if target_image_path.suffix.lower() not in self.image_suffixes:
-            raise ValueError(f"target image extension is not supported: {target_image_path.suffix}")
+            raise InvalidImageError(f"target image extension is not supported: {target_image_path.suffix}")
         return target_image_path
 
     def _build_prefab_variant_definition(
@@ -685,11 +697,11 @@ class WorkspaceService:
         target_variant: str,
     ) -> dict[str, Any]:
         if definition.name is None:
-            raise ValueError("prefab definition requires name")
+            raise ValidationError("prefab definition requires name")
         name = definition.name
         base = base_by_name.get(name)
         if base is None:
-            raise ValueError(f"prefab '{name}' has no base definition")
+            raise NotFoundError(f"prefab '{name}' has no base definition")
         base_props = base.props or {}
         full = definition if definition.variant is None else merge_prefab_definition(base, definition)
         full_props = full.props or {}
@@ -762,47 +774,47 @@ class WorkspaceService:
     def _read_image(self, path: Path) -> Any:
         image = cv2.imread(str(path))
         if image is None:
-            raise ValueError(f"Could not read image: {path}")
+            raise InvalidImageError(f"Could not read image: {path}")
         return image
 
     def _decode_uploaded_image(self, image_data: bytes) -> Any:
         if len(image_data) == 0:
-            raise ValueError("Import image is empty")
+            raise InvalidImageError("Import image is empty")
         decoded = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
         if decoded is None:
-            raise ValueError("Import image decode failed")
+            raise InvalidImageError("Import image decode failed")
         return decoded
 
     def _validate_template_prop(self, template_prop: Any, *, definition_id: str) -> tuple[int, int, int, int]:
         if not isinstance(template_prop, dict):
-            raise ValueError(f"definition '{definition_id}' props.template must be an object")
+            raise ValidationError(f"definition '{definition_id}' props.template must be an object")
         if template_prop.get("kind") != "image":
-            raise ValueError(f"definition '{definition_id}' props.template.kind must be 'image'")
+            raise ValidationError(f"definition '{definition_id}' props.template.kind must be 'image'")
         x1 = template_prop.get("x1")
         y1 = template_prop.get("y1")
         x2 = template_prop.get("x2")
         y2 = template_prop.get("y2")
         if not isinstance(x1, (int, float)):
-            raise ValueError(f"definition '{definition_id}' props.template.x1 must be number")
+            raise ValidationError(f"definition '{definition_id}' props.template.x1 must be number")
         if not isinstance(y1, (int, float)):
-            raise ValueError(f"definition '{definition_id}' props.template.y1 must be number")
+            raise ValidationError(f"definition '{definition_id}' props.template.y1 must be number")
         if not isinstance(x2, (int, float)):
-            raise ValueError(f"definition '{definition_id}' props.template.x2 must be number")
+            raise ValidationError(f"definition '{definition_id}' props.template.x2 must be number")
         if not isinstance(y2, (int, float)):
-            raise ValueError(f"definition '{definition_id}' props.template.y2 must be number")
+            raise ValidationError(f"definition '{definition_id}' props.template.y2 must be number")
         ix1 = int(x1)
         iy1 = int(y1)
         ix2 = int(x2)
         iy2 = int(y2)
         if ix2 <= ix1 or iy2 <= iy1:
-            raise ValueError(f"definition '{definition_id}' props.template has invalid rect")
+            raise ValidationError(f"definition '{definition_id}' props.template has invalid rect")
         return ix1, iy1, ix2, iy2
 
     def _extract_region(self, image: Any, rect: tuple[int, int, int, int], *, definition_id: str, image_label: str) -> Any:
         height, width = image.shape[:2]
         x1, y1, x2, y2 = rect
         if x1 < 0 or y1 < 0 or x2 > width or y2 > height:
-            raise ValueError(
+            raise ValidationError(
                 f"definition '{definition_id}' props.template rect is out of bounds for {image_label}: "
                 f"rect=({x1},{y1},{x2},{y2}), image=({width},{height})"
             )
@@ -820,7 +832,7 @@ class WorkspaceService:
         source_region = self._extract_region(source_image, rect, definition_id=definition_id, image_label="source image")
         target_region = self._extract_region(target_image, rect, definition_id=definition_id, image_label="target image")
         if source_region.shape != target_region.shape:
-            raise ValueError(f"definition '{definition_id}' source and target template region shape mismatch")
+            raise ValidationError(f"definition '{definition_id}' source and target template region shape mismatch")
         match = cv2.matchTemplate(target_region, source_region, cv2.TM_CCOEFF_NORMED)
         return float(match[0][0])
 
@@ -842,10 +854,10 @@ class WorkspaceService:
             if definition.type != "prefab":
                 continue
             if definition.name is None:
-                raise ValueError("prefab definition requires name")
+                raise ValidationError("prefab definition requires name")
             if definition.variant is None:
                 if definition.name in base_by_name:
-                    raise ValueError(f"duplicate prefab base definition: {definition.name}")
+                    raise ValidationError(f"duplicate prefab base definition: {definition.name}")
                 base_by_name[definition.name] = definition
 
         target_definitions: dict[str, Any] = {}
@@ -854,13 +866,13 @@ class WorkspaceService:
         for definition_id, definition in source_meta.definitions.items():
             definition_name = definition.name
             if definition_name is None:
-                raise ValueError(f"definition '{definition_id}' requires name")
+                raise ValidationError(f"definition '{definition_id}' requires name")
             if definition.type != "prefab":
                 skipped_definitions.append({"definitionId": definition_id, "name": definition_name, "reason": "not prefab"})
                 continue
             base_definition = base_by_name.get(definition_name)
             if base_definition is None:
-                raise ValueError(f"prefab '{definition_name}' has no base definition")
+                raise NotFoundError(f"prefab '{definition_name}' has no base definition")
             full_definition = definition if definition.variant is None else merge_prefab_definition(base_definition, definition)
             full_props = full_definition.props or {}
             template_prop = full_props.get("template")

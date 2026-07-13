@@ -5,6 +5,7 @@ from urllib.parse import unquote, urlparse
 from lsprotocol import types as lsp
 from pygls.lsp.server import LanguageServer
 
+from kotonebot.devtools.errors import ValidationError
 from kotonebot.devtools.server_commands.commands import SERVER_COMMAND_IDS, ServerCommandId
 from kotonebot.devtools.server_commands.types import parse_server_command_request
 from kotonebot.devtools.indexing.symbol_index_view import DiagnosticPayloadModel
@@ -117,10 +118,10 @@ class DevtoolsLspServer(LanguageServer):
         for symbol in symbols:
             parts = symbol.name.split(".")
             if len(parts) == 0:
-                raise ValueError(f"Invalid symbol name: {symbol.name}")
+                raise ValidationError(f"Invalid symbol name: {symbol.name}")
             for part in parts:
                 if part.strip() == "":
-                    raise ValueError(f"Invalid symbol name segment: {symbol.name}")
+                    raise ValidationError(f"Invalid symbol name segment: {symbol.name}")
 
             current_path = ""
             current_group = root
@@ -192,7 +193,7 @@ class DevtoolsLspServer(LanguageServer):
                         variant["children"].sort(key=lambda item: item["metaPath"])
                     symbols_nodes.append(node)
                     continue
-                raise ValueError(f"Unexpected root node kind: {kind}")
+                raise ValidationError(f"Unexpected root node kind: {kind}")
             groups.sort(key=lambda item: item["label"])
             symbols_nodes.sort(key=lambda item: item["fullName"])
             return [*groups, *symbols_nodes]
@@ -204,10 +205,10 @@ def _first_argument_dict(args: tuple[Any, ...]) -> dict[str, Any]:
     if len(args) == 0:
         return {}
     if len(args) != 1:
-        raise ValueError("workspace/executeCommand arguments supports at most one object")
+        raise ValidationError("workspace/executeCommand arguments supports at most one object")
     payload = args[0]
     if not isinstance(payload, dict):
-        raise ValueError("workspace/executeCommand argument must be object")
+        raise ValidationError("workspace/executeCommand argument must be object")
     return payload
 
 
