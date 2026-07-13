@@ -45,6 +45,16 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
       await openCommandPalette();
     },
   },
+  [COMMAND_ID.APP_OPEN_PREFERENCES]: {
+    id: COMMAND_ID.APP_OPEN_PREFERENCES,
+    title: t('commands.openPreferences'),
+    keywords: ["preferences", "settings", "config"],
+    showInPalette: true,
+    requiredUi: ["openPreferencesDialog"],
+    run: async (ctx) => {
+      requireUiHandler(ctx, "openPreferencesDialog")();
+    },
+  },
   [COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL]: {
     id: COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL,
     title: t('commands.toggleProblemsPanel'),
@@ -311,6 +321,7 @@ export const editorCommandRegistry = commands;
 
 /** 命令面板展示的无参命令 ID 列表。 */
 export const paletteCommandIds: NoArgCommandId[] = [
+  COMMAND_ID.APP_OPEN_PREFERENCES,
   COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL,
   COMMAND_ID.FILE_OPEN_IMAGE,
   COMMAND_ID.FILE_SAVE,

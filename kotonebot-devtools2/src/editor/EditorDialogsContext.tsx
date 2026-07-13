@@ -8,6 +8,7 @@ import { FileOpenDialog } from "../ui/components/FileOpenDialog/FileOpenDialog";
 import { FileOpenOrImportDialog } from "../ui/components/FileOpenDialog/FileOpenOrImportDialog";
 import { DeviceCaptureDialog } from "../ui/components/FileOpenDialog/DeviceCaptureDialog";
 import { ReplaceImageConfirmDialog } from "../ui/components/ReplaceImageConfirmDialog";
+import { PreferencesDialog } from "../ui/PreferencesDialog";
 import { getImageUrl } from "../api/fs";
 import type { ReplaceImageSource } from "./actions/image";
 import { toaster } from "../ui/toaster";
@@ -62,11 +63,12 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
   const [replaceImageDialogOpen, setReplaceImageDialogOpen] = useState(false);
   const [replaceImageSource, setReplaceImageSource] = useState<ReplaceImageSource | null>(null);
   const [replaceImageNewDims, setReplaceImageNewDims] = useState<{ width: number; height: number } | null>(null);
+  const [isPreferencesDialogOpen, setPreferencesDialogOpen] = useState(false);
 
   const variantDialogTitle = variantDialogState.variant
     ? t('dialog.selectTargetImage') + ` ${variantDialogState.variant}`
     : t('dialog.selectTargetImage');
-  const modalOpen = isImageDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen || replaceImageDialogOpen || replaceImageSource !== null;
+  const modalOpen = isImageDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen || replaceImageDialogOpen || replaceImageSource !== null || isPreferencesDialogOpen;
 
   useShortcutScope("modal", modalOpen);
 
@@ -104,6 +106,14 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const openReplaceImageDialog = useCallback(() => {
     setReplaceImageDialogOpen(true);
+  }, []);
+
+  const openPreferencesDialog = useCallback(() => {
+    setPreferencesDialogOpen(true);
+  }, []);
+
+  const closePreferencesDialog = useCallback(() => {
+    setPreferencesDialogOpen(false);
   }, []);
 
   const handleSelectImages = useCallback(async (paths: string[]) => {
@@ -205,9 +215,10 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
         openVariantDialog,
         openDeviceCaptureDialog,
         openReplaceImageDialog,
+        openPreferencesDialog,
       },
     }),
-    [openImageDialog, openVariantDialog, openDeviceCaptureDialog, openReplaceImageDialog],
+    [openImageDialog, openVariantDialog, openDeviceCaptureDialog, openReplaceImageDialog, openPreferencesDialog],
   );
 
   useEffect(() => {
@@ -285,6 +296,10 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
           onConfirm={handleConfirmReplace}
         />
       )}
+      <PreferencesDialog
+        isOpen={isPreferencesDialogOpen}
+        onClose={closePreferencesDialog}
+      />
     </EditorDialogsContext.Provider>
   );
 };

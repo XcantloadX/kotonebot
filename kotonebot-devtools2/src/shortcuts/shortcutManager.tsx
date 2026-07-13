@@ -91,6 +91,9 @@ function normalizeEventKey(event: KeyboardEvent): string {
   if (lower === "arrowright") {
     return "right";
   }
+  if (lower === ",") {
+    return "comma";
+  }
   return lower;
 }
 

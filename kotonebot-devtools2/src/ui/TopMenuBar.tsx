@@ -1,15 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IconName, InputGroup, Menu, MenuItem, HTMLSelect, MenuDivider } from "@blueprintjs/core";
+import { IconName, InputGroup, Menu, MenuItem, MenuDivider } from "@blueprintjs/core";
 import { useTranslation } from "react-i18next";
 import { editorActions } from "../editor/actions";
 import { COMMAND_ID, executeCommand, useCommandStatuses } from "../editor/commands";
 import { useAppStore } from "../editor/state";
 import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
-import { useLocaleStore } from "../i18n/localeStore";
-import { SUPPORTED_LANGUAGES } from "../i18n";
+import { useEditorDialogsContext } from "../editor/EditorDialogsContext";
 import { useRecentOpenStore } from "../editor/recentOpenStore";
 import { shallow } from "zustand/shallow";
-import { useEditorDialogsContext } from "../editor/EditorDialogsContext";
 import { useSettingsStore } from "../editor/settings";
 import { useProjectInfoStore } from "../app/projectInfoStore";
 
@@ -34,7 +32,6 @@ type MenuDefinitionItem = MenuItemDefinition | MenuDividerDefinition;
 
 export const TopMenuBar: React.FC = () => {
   const { t } = useTranslation();
-  const { language, setLanguage } = useLocaleStore();
   const { activeDocumentId, documents } = useAppStore();
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const { clearRecentInWorkspace, currentWorkspaceKey, itemsByWorkspace } = useRecentOpenStore(
@@ -197,6 +194,16 @@ export const TopMenuBar: React.FC = () => {
           onClick: () => {
             setOpenMenu(null);
             void executeCommand(COMMAND_ID.FILE_CLOSE_ALL, commandContext, undefined);
+          },
+        },
+        { divider: true },
+        {
+          icon: "cog",
+          text: t('menuItem.preferences'),
+          label: t('shortcut.ctrlComma'),
+          onClick: () => {
+            setOpenMenu(null);
+            void executeCommand(COMMAND_ID.APP_OPEN_PREFERENCES, commandContext, undefined);
           },
         },
       ],
@@ -563,15 +570,7 @@ export const TopMenuBar: React.FC = () => {
           rightElement={<div style={{ padding: "6px 10px", color: "#5c7080", fontSize: 12 }}>{t('shortcut.ctrlShiftP')}</div>}
         />
       </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-        <HTMLSelect
-          minimal
-          value={language}
-          onChange={(e) => setLanguage(e.target.value as typeof language)}
-          options={SUPPORTED_LANGUAGES.map((lang: string) => ({ value: lang, label: lang === 'zh-CN' ? '中文' : 'English' }))}
-          style={{ height: 24, fontSize: 12 }}
-        />
-      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }} />
       {openMenu ? (
         <div
           ref={menuPanelRef}

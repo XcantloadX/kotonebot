@@ -15,7 +15,8 @@ type NamedKey =
   | "up"
   | "down"
   | "left"
-  | "right";
+  | "right"
+  | "comma";
 
 type KeyToken = Letter | Digit | FunctionKey | NamedKey;
 

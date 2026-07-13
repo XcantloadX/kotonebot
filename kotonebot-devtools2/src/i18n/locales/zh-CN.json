@@ -23,6 +23,7 @@
     "newVariantFromClipboard": "从剪贴板新建",
     "newVariantFromDevice": "从设备画面新建...",
     "rememberVariantChoice": "记住变体选择",
+    "preferences": "偏好...",
     "alwaysAsk": "每次询问",
     "copyToVariant": "复制选中的 Prefab 到变体"
   },
@@ -83,7 +84,8 @@
     "ctrl2": "Ctrl+2",
     "ctrlShift2": "Ctrl+Shift+2",
     "ctrlAltN": "Ctrl+Alt+N",
-    "ctrlShiftP": "Ctrl+Shift+P"
+    "ctrlShiftP": "Ctrl+Shift+P",
+    "ctrlComma": "Ctrl+,"
   },
   "error": {
     "saveFailed": "保存失败: {{message}}",
@@ -98,8 +100,17 @@
     "placeholder": "搜索文件，> 执行命令，# 搜索符号",
     "empty": "无匹配"
   },
+  "preferences": {
+    "title": "偏好设置",
+    "general": "通用",
+    "language": "界面语言",
+    "languageDescription": "选择应用的显示语言",
+    "system": "跟随系统",
+    "close": "关闭"
+  },
   "commands": {
     "openCommandPalette": "打开命令面板",
+    "openPreferences": "打开偏好设置",
     "toggleProblemsPanel": "切换问题面板",
     "renameDocument": "重命名文档...",
     "replaceImage": "替换图片...",

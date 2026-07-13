@@ -23,6 +23,7 @@ export const COMMAND_ID = {
   VARIANT_COPY_SELECTED_PREFAB: "variant.copySelectedPrefab",
   VARIANT_RENAME_VARIANTS_FOR_DEFINITION: "variant.renameVariantsForDefinition",
   SYMBOL_RENAME_FOR_DEFINITION: "symbol.renameForDefinition",
+  APP_OPEN_PREFERENCES: "app.openPreferences",
   DOCUMENT_CLOSE: "document.close",
   DOCUMENT_CLOSE_MANY: "document.closeMany",
   NAVIGATION_JUMP_TO_SYMBOL: "navigation.jumpToSymbol",

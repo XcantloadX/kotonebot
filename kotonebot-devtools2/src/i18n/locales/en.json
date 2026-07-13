@@ -23,6 +23,7 @@
     "newVariantFromClipboard": "New from Clipboard",
     "newVariantFromDevice": "New from Device...",
     "rememberVariantChoice": "Remember Variant Choice",
+    "preferences": "Preferences...",
     "alwaysAsk": "Always Ask",
     "copyToVariant": "Copy Selected Prefab to Variant"
   },
@@ -83,7 +84,8 @@
     "ctrl2": "Ctrl+2",
     "ctrlShift2": "Ctrl+Shift+2",
     "ctrlAltN": "Ctrl+Alt+N",
-    "ctrlShiftP": "Ctrl+Shift+P"
+    "ctrlShiftP": "Ctrl+Shift+P",
+    "ctrlComma": "Ctrl+,"
   },
   "error": {
     "saveFailed": "Save failed: {{message}}",
@@ -98,8 +100,17 @@
     "placeholder": "Search files, > for commands, # for symbols",
     "empty": "No match"
   },
+  "preferences": {
+    "title": "Preferences",
+    "general": "General",
+    "language": "Interface Language",
+    "languageDescription": "Choose the display language of the application",
+    "system": "Follow System",
+    "close": "Close"
+  },
   "commands": {
     "openCommandPalette": "Open Command Palette",
+    "openPreferences": "Open Preferences",
     "toggleProblemsPanel": "Toggle Problems Panel",
     "renameDocument": "Rename Document...",
     "replaceImage": "Replace Image...",

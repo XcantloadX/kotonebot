@@ -8,6 +8,8 @@ export type EditorCommandId = typeof COMMAND_ID[keyof typeof COMMAND_ID];
 export interface EditorCommandArgsMap {
   /** 打开命令面板。 */
   [COMMAND_ID.APP_OPEN_COMMAND_PALETTE]: undefined;
+  /** 打开设置对话框。 */
+  [COMMAND_ID.APP_OPEN_PREFERENCES]: undefined;
   /** 切换问题面板显隐。 */
   [COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL]: undefined;
   /** 打开图片选择对话框。 */
@@ -77,6 +79,8 @@ export interface EditorCommandUiHandlers {
   openDeviceCaptureDialog: () => Promise<void>;
   /** 打开替换图片对话框。 */
   openReplaceImageDialog: () => void;
+  /** 打开偏好设置对话框。 */
+  openPreferencesDialog: () => void;
 }
 
 /** 命令执行上下文。 */

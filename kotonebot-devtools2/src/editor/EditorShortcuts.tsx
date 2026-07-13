@@ -19,5 +19,12 @@ export function EditorShortcuts() {
     onKeyDown: () => executeCommand(COMMAND_ID.APP_TOGGLE_PROBLEMS_PANEL, commandContext, undefined),
   });
 
+  useShortcut({
+    id: 'editor.open-preferences',
+    combo: 'mod+comma',
+    scope: 'editor',
+    onKeyDown: () => executeCommand(COMMAND_ID.APP_OPEN_PREFERENCES, commandContext, undefined),
+  });
+
   return null;
 }
