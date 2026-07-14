@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { LanguageClient } from "vscode-languageclient/node";
+import type { LanguageClient } from "vscode-languageclient/node";
 import { executeServerCommand } from "../lsp/executeCommand";
 import { isMetaDocumentUri } from "../shared/metaPaths";
 
@@ -30,7 +30,8 @@ function autoRefreshDebounceMs(): number {
 }
 
 /** 注册保存与文件变化触发的自动刷新逻辑。 */
-export function registerAutoRefresh(context: vscode.ExtensionContext, client: LanguageClient): void {
+export function registerAutoRefresh(context: vscode.ExtensionContext, client: LanguageClient | null): void {
+  if (!client) return;
   let refetchTimer: NodeJS.Timeout | undefined;
 
   /** 触发防抖后的全量索引刷新。 */

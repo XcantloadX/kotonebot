@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { LanguageClient } from "vscode-languageclient/node";
+import type { LanguageClient } from "vscode-languageclient/node";
 import {
   META_PATTERN,
   SYMBOL_TREE_REFRESH_COMMAND,
@@ -11,7 +11,8 @@ import { isSymbolNode, renameSymbolByNode } from "./renameFlow";
 import { SymbolTreeNode } from "./types";
 
 /** 注册符号树视图、命令与自动刷新监听。 */
-export function registerSymbolTree(context: vscode.ExtensionContext, client: LanguageClient): void {
+export function registerSymbolTree(context: vscode.ExtensionContext, client: LanguageClient | null): void {
+  if (!client) return;
   const provider = new SymbolTreeProvider(client);
   context.subscriptions.push(vscode.window.createTreeView(SYMBOL_TREE_VIEW_ID, { treeDataProvider: provider }));
 

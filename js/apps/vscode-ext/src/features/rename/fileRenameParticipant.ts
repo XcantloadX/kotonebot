@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { LanguageClient } from "vscode-languageclient/node";
+import type { LanguageClient } from "vscode-languageclient/node";
 import { executeServerCommand } from "../../lsp/executeCommand";
 import { imageToMetaPath, isImagePath, isMetaPath, metaToImagePath, normalizePathKey } from "../../shared/metaPaths";
 
@@ -196,7 +196,8 @@ function shouldAutoVariantRenameOnFileRename(): boolean {
 }
 
 /** 注册文件重命名参与者，自动补齐关联文件和 variant 改名。 */
-export function registerRenameParticipant(context: vscode.ExtensionContext, client: LanguageClient): void {
+export function registerRenameParticipant(context: vscode.ExtensionContext, client: LanguageClient | null): void {
+  if (!client) return;
   const syntheticRenamePairs = new Set<string>();
   const renamePairKey = (oldPath: string, newPath: string): string =>
     `${normalizePathKey(oldPath)}=>${normalizePathKey(newPath)}`;
