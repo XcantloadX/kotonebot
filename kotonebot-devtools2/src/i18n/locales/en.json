@@ -342,5 +342,6 @@
     "selectImageFirst": "Please select an image first",
     "configureAiFirst": "Please configure AI provider and API key in Preferences",
     "noClipboardImage": "No image found in clipboard"
-  }
+  },
+  "untitled": "<Untitled>"
 }

@@ -48,7 +48,7 @@ export class CreatingPrefabTool extends Tool {
     const newDef: any = {
         type: 'prefab',
         prefab_id: this.prefab_id,
-        name: schema.name,
+        name: null,
         props: {}
     };
 

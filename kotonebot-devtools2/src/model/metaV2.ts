@@ -12,7 +12,7 @@ export type VariantPolicy = "inherit" | "require" | "exclude";
 
 export interface DefinitionV3 {
   type: ResourceType;
-  name?: string;
+  name: string | null;
   variant?: string;
   variant_policy?: Record<string, VariantPolicy>;
   displayName?: string;

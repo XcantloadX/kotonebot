@@ -28,6 +28,7 @@ export class PointTool extends Tool {
     ctx.updateMeta(draft => {
         draft.definitions[id] = {
             type: 'hint-point',
+            name: null,
             props: {
                 point: { kind: 'point', x: this.currentPos!.x, y: this.currentPos!.y }
             }

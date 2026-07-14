@@ -100,7 +100,7 @@ export const HierarchyPanel: React.FC = () => {
       {definitions.map(({ id, def }) => {
         const isSelected = selection?.definitionId === id;
         const icon = getTypeIcon(def, prefabSchema);
-        const name = def.name || id.slice(0, 8);
+        const name = def.name || t('untitled');
         const hasDisplayName = !!def.displayName && def.displayName !== def.name;
 
         return (

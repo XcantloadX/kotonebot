@@ -514,7 +514,7 @@ export const StageView: React.FC = () => {
                         propKey={key}
                         x1={val.x1} y1={val.y1} x2={val.x2} y2={val.y2}
                         kind={val.kind}
-                        label={`${def.displayName || def.name} (${def.prefab_id || val.kind})`}
+                        label={`${def.displayName || def.name || t('untitled')} (${def.prefab_id || val.kind})`}
                         isSelected={isSelected}
                         scale={scale}
                         onClick={handleShapeClick}

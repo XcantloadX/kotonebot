@@ -47,6 +47,7 @@ export class RectTool extends Tool {
 
         draft.definitions[id] = {
             type: ctx.activeResourceType,
+            name: null,
             props
         };
     }, { label: "Create rectangle definition", forceNewEntry: true });

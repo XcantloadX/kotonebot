@@ -342,5 +342,6 @@
     "selectImageFirst": "请先选择图片",
     "configureAiFirst": "请先在偏好设置中配置 AI 提供者和 API 密钥",
     "noClipboardImage": "剪贴板中未找到图片"
-  }
+  },
+  "untitled": "<未命名>"
 }
