@@ -3,6 +3,7 @@ import { Icon, Spinner, Intent, IconName } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
 import { editorActions } from '../editor/actions';
 import { useAppStore } from '../editor/state';
+import { selectActiveDocumentId } from '../editor/commands/selectors';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import {
   ProjectSymbolTreeGroupNode,
@@ -119,7 +120,7 @@ function useExpandedState(nodes: ProjectSymbolTreeNode[]) {
 
 export const ProjectPanel: React.FC = () => {
   const { t } = useTranslation();
-  const activeDocumentId = useAppStore((s) => s.activeDocumentId);
+  const activeDocumentId = useAppStore(selectActiveDocumentId);
   const symbols = useSymbolIndexStore((s) => s.symbols);
   const tree = useSymbolIndexStore((s) => s.projectSymbolTree);
   const initialized = useSymbolIndexStore((s) => s.initialized);

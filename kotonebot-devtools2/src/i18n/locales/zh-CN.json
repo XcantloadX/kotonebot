@@ -26,7 +26,8 @@
     "rememberVariantChoice": "记住变体选择",
     "preferences": "偏好...",
     "alwaysAsk": "每次询问",
-    "copyToVariant": "复制选中的 Prefab 到变体"
+    "copyToVariant": "复制选中的 Prefab 到变体",
+    "openWelcome": "打开欢迎页"
   },
   "toolbar": {
     "select": "选择",
@@ -250,6 +251,13 @@
     "noMatch": "无匹配",
     "typeToFilter": "输入筛选",
     "loading": "加载中..."
+  },
+  "welcome": {
+    "title": "开始工作",
+    "newDocument": "新建文档...",
+    "openDocument": "打开文档...",
+    "recent": "最近打开",
+    "tabLabel": "欢迎"
   },
   "tabBar": {
     "close": "关闭",

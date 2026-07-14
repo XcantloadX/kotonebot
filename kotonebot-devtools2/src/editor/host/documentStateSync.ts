@@ -1,4 +1,5 @@
 import { useAppStore } from "../state";
+import { selectActiveDocumentId } from "../commands/selectors";
 import { emitToHost } from "./hostBridge";
 
 interface EditorDocumentStatePayload {
@@ -12,7 +13,7 @@ export function installDocumentStateSync(): () => void {
 
   const push = () => {
     const state = useAppStore.getState();
-    const activeId = state.activeDocumentId;
+    const activeId = selectActiveDocumentId(state);
     if (!activeId) return;
     const activeDoc = state.documents[activeId];
     if (!activeDoc || !activeDoc.meta) return;
@@ -36,7 +37,7 @@ export function installDocumentStateSync(): () => void {
   let lastDirty: boolean | null = null;
 
   const unsubscribe = useAppStore.subscribe((state) => {
-    const activeId = state.activeDocumentId;
+    const activeId = selectActiveDocumentId(state);
     if (!activeId) return;
     const activeDoc = state.documents[activeId];
     if (!activeDoc || !activeDoc.meta) return;

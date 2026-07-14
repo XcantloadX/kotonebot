@@ -1,5 +1,6 @@
 import { messageBox } from "../../ui/messageBox";
 import { useAppStore } from "../state";
+import { getActiveDocumentId } from "../commands/selectors";
 import i18n from "../../i18n";
 
 export async function closeDocumentWithChecks(id: string): Promise<boolean> {
@@ -9,7 +10,8 @@ export async function closeDocumentWithChecks(id: string): Promise<boolean> {
     throw new Error(`Document not found: ${id}`);
   }
   if (!doc.dirty) {
-    current.closeDocument(id);
+    current.closeTab(id);
+    current.removeDocument(id);
     return true;
   }
 
@@ -30,14 +32,15 @@ export async function closeDocumentWithChecks(id: string): Promise<boolean> {
     return false;
   }
   if (action === "save") {
-    current.setActiveDocument(id);
+    current.setActiveTab(id);
     try {
-      await current.saveActiveDocument();
+      await current.saveDocument(id);
     } catch {
       return false;
     }
   }
-  current.closeDocument(id);
+  current.closeTab(id);
+  current.removeDocument(id);
   return true;
 }
 
@@ -52,8 +55,7 @@ export async function closeDocumentsWithChecks(ids: string[]): Promise<boolean> 
 }
 
 export async function closeActiveDocumentWithChecks(): Promise<boolean> {
-  const current = useAppStore.getState();
-  const activeId = current.activeDocumentId;
+  const activeId = getActiveDocumentId();
   if (!activeId) {
     throw new Error("No active document");
   }

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useAppStore } from "../state";
+import { selectActiveDocumentId } from "./selectors";
 import { editorCommandRegistry } from "./registry";
 import type { EditorCommandArgsMap, EditorCommandContext, EditorCommandId } from "./types";
 
@@ -67,13 +68,13 @@ export function useCommandStatuses<const E extends readonly CommandStatusEntry<E
   entries: E,
   ctx: EditorCommandContext,
 ): Record<E[number]["id"], CommandStatus> {
-  const { activeDocumentId, documents } = useAppStore((state) => ({
-    activeDocumentId: state.activeDocumentId,
+  const { activeDocId, documents } = useAppStore((state) => ({
+    activeDocId: selectActiveDocumentId(state),
     documents: state.documents,
   }));
 
   return useMemo(
     () => getCommandStatuses(entries, ctx),
-    [activeDocumentId, documents, entries, ctx],
+    [activeDocId, documents, entries, ctx],
   );
 }

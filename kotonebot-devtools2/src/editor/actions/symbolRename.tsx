@@ -5,6 +5,7 @@ import { readText } from "../../api/fs";
 import { messageBox } from "../../ui/messageBox";
 import { toaster } from "../../ui/toaster";
 import { useAppStore } from "../state";
+import { getActiveDocumentId } from "../commands/selectors";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { SERVER_COMMAND_ID } from "../commands/serverIds";
 import i18n from "../../i18n";
@@ -107,7 +108,7 @@ function buildRenameConfirmContent(precheck: RenameSymbolPrecheckResult): React.
 /** 保存受影响且已打开的脏文档，避免服务端改名覆盖未保存修改。 */
 async function saveDirtyAffectedOpenDocuments(affectedMetaPathSet: Set<string>): Promise<void> {
   const current = useAppStore.getState();
-  const previousActiveId = current.activeDocumentId;
+  const previousActiveId = current.activeTabId;
   const affectedDocIds = Object.values(current.documents)
     .filter((doc) => {
       if (!doc.meta) {
@@ -129,11 +130,11 @@ async function saveDirtyAffectedOpenDocuments(affectedMetaPathSet: Set<string>):
     if (!doc.dirty) {
       continue;
     }
-    loopState.setActiveDocument(docId);
-    await useAppStore.getState().saveActiveDocument();
+    loopState.setActiveTab(docId);
+    await useAppStore.getState().saveDocument(docId);
   }
   if (previousActiveId) {
-    useAppStore.getState().setActiveDocument(previousActiveId);
+    useAppStore.getState().setActiveTab(previousActiveId);
   }
 }
 
@@ -158,11 +159,11 @@ async function reloadAffectedOpenDocuments(affectedMetaPathSet: Set<string>): Pr
 
 /** 对当前激活 definition 执行符号重命名（precheck -> confirm -> execute）。 */
 export async function renameSymbolNameForActiveDefinition(definitionId: string, newNameInput: string): Promise<boolean> {
-  const state = useAppStore.getState();
-  const activeId = state.activeDocumentId;
+  const activeId = getActiveDocumentId();
   if (!activeId) {
     throw new Error("No active document");
   }
+  const state = useAppStore.getState();
   const doc = state.documents[activeId];
   if (!doc || !doc.meta) {
     throw new Error("Active document has no meta");

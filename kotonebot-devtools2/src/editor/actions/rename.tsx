@@ -4,11 +4,12 @@ import { toaster } from "../../ui/toaster";
 import { messageBox } from "../../ui/messageBox";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { useAppStore } from "../state";
+import { getActiveDocumentId } from "../commands/selectors";
 import i18n from "../../i18n";
 
 export async function promptAndRenameActiveDocument(): Promise<void> {
   const current = useAppStore.getState();
-  const activeId = current.activeDocumentId;
+  const activeId = getActiveDocumentId();
   if (!activeId) {
     throw new Error("No active document");
   }
@@ -41,7 +42,7 @@ export async function promptAndRenameActiveDocument(): Promise<void> {
     throw new Error(`Document already opened: ${nextPath}`);
   }
 
-  await current.saveActiveDocument();
+  await current.saveDocument(activeId);
 
   const precheck = await precheckRenameDocument(activeId, nextPath);
   if (precheck.hasConflicts) {
@@ -137,7 +138,7 @@ export async function promptAndRenameActiveDocument(): Promise<void> {
   }
 
   const beforeSaveState = useAppStore.getState();
-  const previousActiveId = beforeSaveState.activeDocumentId;
+  const previousActiveId = beforeSaveState.activeTabId;
   const affectedSourceImages = new Set(precheck.documents.map((item) => item.sourceImagePath));
   for (const sourceImagePath of affectedSourceImages) {
     const loopState = useAppStore.getState();
@@ -149,12 +150,12 @@ export async function promptAndRenameActiveDocument(): Promise<void> {
       throw new Error(`Document meta is not loaded: ${sourceImagePath}`);
     }
     if (targetDoc.dirty) {
-      loopState.setActiveDocument(sourceImagePath);
-      await useAppStore.getState().saveActiveDocument();
+      loopState.setActiveTab(sourceImagePath);
+      await useAppStore.getState().saveDocument(sourceImagePath);
     }
   }
   if (previousActiveId) {
-    useAppStore.getState().setActiveDocument(previousActiveId);
+    useAppStore.getState().setActiveTab(previousActiveId);
   }
 
   const result = await executeRenameDocument(activeId, nextPath);

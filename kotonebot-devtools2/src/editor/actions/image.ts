@@ -2,6 +2,7 @@ import { copyFile, readText, uploadFile } from "../../api/fs";
 import { messageBox } from "../../ui/messageBox";
 import { toaster } from "../../ui/toaster";
 import { useAppStore } from "../state";
+import { getActiveDocumentId } from "../commands/selectors";
 import { requestHost, shouldUseSingleTabHostOpen } from "../host/hostBridge";
 import { useRecentOpenStore, RecentOpenSource } from "../recentOpenStore";
 import i18n from "../../i18n";
@@ -45,8 +46,8 @@ export async function openImageWithMeta(path: string, options?: OpenImageWithMet
   const allowHostDelegate = options?.allowHostDelegate ?? true;
   const source = options?.source ?? "file-dialog";
   if (allowHostDelegate && shouldUseSingleTabHostOpen()) {
-    const activeDocumentId = useAppStore.getState().activeDocumentId;
-    if (activeDocumentId !== path) {
+    const activeId = getActiveDocumentId();
+    if (activeId !== path) {
       await requestHostOpenMetaDocument(`${path}.json`);
       return;
     }
@@ -66,9 +67,13 @@ export async function openImageWithMeta(path: string, options?: OpenImageWithMet
 }
 
 export async function replaceActiveDocumentImage(source: ReplaceImageSource): Promise<void> {
-  const { activeDocumentId, documents, refreshDocumentImage } = useAppStore.getState();
-  const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
-  if (!activeDocumentId || !activeDoc) {
+  const activeDocId = getActiveDocumentId();
+  if (!activeDocId) {
+    throw new Error("No active document");
+  }
+  const { documents, refreshDocumentImage } = useAppStore.getState();
+  const activeDoc = documents[activeDocId];
+  if (!activeDoc) {
     throw new Error("No active document");
   }
   const currentPath = activeDoc.image.path;
@@ -79,7 +84,7 @@ export async function replaceActiveDocumentImage(source: ReplaceImageSource): Pr
     await uploadFile(currentPath, source.file);
   }
 
-  refreshDocumentImage(activeDocumentId);
+  refreshDocumentImage(activeDocId);
   toaster.show({ message: i18n.t("image.replaced"), intent: "success" });
 }
 

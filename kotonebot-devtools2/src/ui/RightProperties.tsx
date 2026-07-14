@@ -2,6 +2,7 @@ import React from 'react';
 import { FormGroup, InputGroup, Button, Tooltip, Intent } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../editor/state';
+import { selectActiveDocumentId, getActiveDocumentId } from '../editor/commands/selectors';
 import { PropValue, VariantPolicy, DefinitionV3 } from '../model/metaV2';
 import { EditorPropSchema } from '../model/prefabSchema';
 import { COMMAND_ID, executeCommand } from '../editor/commands';
@@ -23,7 +24,11 @@ export const RightProperties: React.FC = () => {
     { label: t('rightProperties.variantPolicyExclude'), value: 'exclude' },
   ];
   const { commandContext } = useEditorDialogsContext();
-  const { activeDocumentId, documents, prefabSchema, updateMeta, setMode } = useAppStore();
+  const activeDocumentId = useAppStore(selectActiveDocumentId);
+  const documents = useAppStore((s) => s.documents);
+  const prefabSchema = useAppStore((s) => s.prefabSchema);
+  const updateMeta = useAppStore((s) => s.updateMeta);
+  const setMode = useAppStore((s) => s.setMode);
   const symbols = useSymbolIndexStore(s => s.symbols);
   const [nameDraft, setNameDraft] = React.useState<string>('');
   const projectVariants = useProjectInfoStore((state) => state.data?.variant?.variants ?? []);
@@ -45,6 +50,8 @@ export const RightProperties: React.FC = () => {
       return <div style={{ padding: 10, color: '#8a9ba8' }}>{t('status.definitionNotFound')}</div>;
   }
 
+  const docId = activeDocumentId!;
+
   const isVariantPrefab = definition.type === "prefab" && !!definition.variant;
   const currentName = definition.name || '';
   const trimmedNameDraft = nameDraft.trim();
@@ -63,7 +70,7 @@ export const RightProperties: React.FC = () => {
     : [];
 
   const handleChange = (key: string, value: any) => {
-      updateMeta(draft => {
+      updateMeta(docId, draft => {
         if (key === 'name' || key === 'displayName' || key === 'description' || key === 'variant_policy') {
               (draft.definitions[defId] as DefinitionV3 & Record<string, unknown>)[key] = value;
           } else {
@@ -88,7 +95,7 @@ export const RightProperties: React.FC = () => {
   };
 
   const handleEditGeometry = (propKey: string, kind: "rect" | "point" | "image") => {
-      setMode({
+      setMode(docId, {
           kind: "picking",
           definitionId: defId,
           propKey,
@@ -121,7 +128,7 @@ export const RightProperties: React.FC = () => {
           { definitionId: defId, newName: trimmedNameDraft },
         );
         const latestState = useAppStore.getState();
-        const latestDocId = latestState.activeDocumentId;
+        const latestDocId = selectActiveDocumentId(latestState);
         if (!latestDocId) {
           throw new Error("No active document after symbol rename");
         }

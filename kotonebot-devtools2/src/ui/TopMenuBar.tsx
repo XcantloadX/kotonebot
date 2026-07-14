@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { editorActions } from "../editor/actions";
 import { COMMAND_ID, executeCommand, useCommandStatuses } from "../editor/commands";
 import { useAppStore } from "../editor/state";
+import { selectActiveDocumentId } from "../editor/commands/selectors";
 import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
 import { useEditorDialogsContext } from "../editor/EditorDialogsContext";
 import { useRecentOpenStore } from "../editor/recentOpenStore";
@@ -32,7 +33,8 @@ type MenuDefinitionItem = MenuItemDefinition | MenuDividerDefinition;
 
 export const TopMenuBar: React.FC = () => {
   const { t } = useTranslation();
-  const { activeDocumentId, documents } = useAppStore();
+  const activeDocumentId = useAppStore(selectActiveDocumentId);
+  const documents = useAppStore((s) => s.documents);
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
   const { clearRecentInWorkspace, currentWorkspaceKey, itemsByWorkspace } = useRecentOpenStore(
     (state) => ({

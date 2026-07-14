@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { Icon, Menu, MenuItem, IconName } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../editor/state';
+import { selectActiveDocumentId } from '../editor/commands/selectors';
 import { useSymbolIndexStore } from '../editor/symbolIndexStore';
 import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { editorActions } from '../editor/actions';
@@ -23,7 +24,7 @@ function getTypeIcon(def: DefinitionModel, prefabSchema: ReturnType<typeof useAp
 
 export const HierarchyPanel: React.FC = () => {
   const { t } = useTranslation();
-  const activeDocumentId = useAppStore((s) => s.activeDocumentId);
+  const activeDocumentId = useAppStore(selectActiveDocumentId);
   const documents = useAppStore((s) => s.documents);
   const setSelection = useAppStore((s) => s.setSelection);
   const prefabSchema = useAppStore((s) => s.prefabSchema);
@@ -65,7 +66,7 @@ export const HierarchyPanel: React.FC = () => {
   const handleContextMenu = (e: React.MouseEvent, definitionId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setSelection(definitionId);
+    if (activeDocumentId) setSelection(activeDocumentId, definitionId);
     setContextMenu({ x: e.clientX, y: e.clientY, definitionId });
   };
 
@@ -113,7 +114,7 @@ export const HierarchyPanel: React.FC = () => {
               if (symbol) {
                 void editorActions.navigation.jumpToSymbol(symbol);
               } else {
-                setSelection(id);
+                if (activeDocumentId) setSelection(activeDocumentId, id);
               }
             }}
             onContextMenu={(e) => handleContextMenu(e, id)}

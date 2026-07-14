@@ -2,15 +2,16 @@ import React, { useCallback, useMemo } from "react";
 import { IconName } from "@blueprintjs/core";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../editor/state";
+import { selectActiveDocumentId, getActiveDocumentId } from "../editor/commands/selectors";
 import { SideToolBar, Tool } from "./SideToolBar";
 import { toaster } from "./toaster";
 import { useShortcuts } from "../shortcuts/shortcutManager";
 
 export const LeftToolBar: React.FC = () => {
   const { t } = useTranslation();
+  const activeDocumentId = useAppStore(selectActiveDocumentId);
+  const documents = useAppStore((s) => s.documents);
   const {
-    activeDocumentId,
-    documents,
     activeTool,
     setActiveTool,
     activeResourceType,
@@ -28,7 +29,7 @@ export const LeftToolBar: React.FC = () => {
   const canRedo = !!activeDoc && activeDoc.history.cursor < activeDoc.history.entries.length;
 
   const createPrefab = useCallback((prefabId: string) => {
-    if (!activeMeta || !prefabSchema) {
+    if (!activeMeta || !prefabSchema || !activeDocumentId) {
       return;
     }
 
@@ -36,7 +37,7 @@ export const LeftToolBar: React.FC = () => {
     if (schema.primary_prop) {
       const primaryPropSchema = schema.props[schema.primary_prop];
       if (primaryPropSchema) {
-        setMode({
+        setMode(activeDocumentId, {
           kind: "creating-prefab",
           prefab_id: prefabId,
           propKey: schema.primary_prop,
@@ -70,14 +71,20 @@ export const LeftToolBar: React.FC = () => {
       scope: "editor",
       combo: "mod+shift+z",
       when: () => canRedo,
-      onKeyDown: () => redo(),
+      onKeyDown: () => {
+        const docId = getActiveDocumentId();
+        if (docId) redo(docId);
+      },
     },
     {
       id: "editor.undo",
       scope: "editor",
       combo: "mod+z",
       when: () => canUndo,
-      onKeyDown: () => undo(),
+      onKeyDown: () => {
+        const docId = getActiveDocumentId();
+        if (docId) undo(docId);
+      },
     },
     {
       id: "editor.select-tool",

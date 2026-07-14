@@ -4,6 +4,7 @@ import { Menu, MenuItem } from '@blueprintjs/core';
 import useImage from 'use-image';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../state';
+import { selectActiveDocumentId } from '../commands/selectors';
 import { useSymbolIndexStore } from '../symbolIndexStore';
 import { DefinitionModel } from '../../model/metaV2';
 import { toaster } from '../../ui/toaster';
@@ -23,9 +24,9 @@ import { COMMAND_ID, executeCommand } from '../commands';
 
 export const StageView: React.FC = () => {
   const { t } = useTranslation();
+  const activeDocumentId = useAppStore(selectActiveDocumentId);
+  const documents = useAppStore((s) => s.documents);
   const {
-    activeDocumentId,
-    documents,
     activeTool,
     activeResourceType,
     setSelection,
@@ -216,7 +217,7 @@ export const StageView: React.FC = () => {
           return;
         }
         if (mode.kind === 'picking' || mode.kind === 'creating-prefab') {
-          setMode({ kind: 'idle' });
+          setMode(activeDocumentId!, { kind: 'idle' });
           setPreview(null);
         }
       },
@@ -291,13 +292,14 @@ export const StageView: React.FC = () => {
 
   const getToolContext = (): ToolContext => {
     const stage = stageRef.current;
+    const docId = activeDocumentId!;
     return {
       activeMeta: activeMeta ?? null,
       prefabSchema,
       activeResourceType,
-      updateMeta,
-      setSelection,
-      setMode,
+      updateMeta: (updater, options) => updateMeta(docId, updater, options),
+      setSelection: (id) => setSelection(docId, id),
+      setMode: (mode) => setMode(docId, mode),
       scale,
       position,
       setPosition: (pos) => {
@@ -344,7 +346,7 @@ export const StageView: React.FC = () => {
       const hit = pointer ? stage.getIntersection(pointer) : null;
       const cls = hit ? hit.getClassName() : null;
       if (!hit || cls === 'Image' || cls === 'Stage' || cls === 'Layer') {
-        setSelection(null);
+        setSelection(activeDocumentId!, null);
         return;
       }
     }
@@ -408,7 +410,7 @@ export const StageView: React.FC = () => {
   const handleShapeContextMenu = (id: string, e: KonvaEventObject<MouseEvent>) => {
     e.evt.preventDefault();
     e.cancelBubble = true;
-    setSelection(id);
+    setSelection(activeDocumentId!, id);
     setBlankContextMenu(null);
     setDefinitionContextMenu({ x: e.evt.clientX, y: e.evt.clientY, definitionId: id });
   };
@@ -518,7 +520,7 @@ export const StageView: React.FC = () => {
                         onClick={handleShapeClick}
                         onContextMenu={handleShapeContextMenu}
                         onResize={(defId, propKey, rect) => {
-                          updateMeta(draft => {
+                          updateMeta(activeDocumentId!, draft => {
                             const d = draft.definitions[defId];
                             if (!d) return;
             if (!d.props) d.props = {};
@@ -530,13 +532,13 @@ export const StageView: React.FC = () => {
                           });
                         }}
                         onResizeStart={(defId, propKey) => {
-                          beginMetaTransaction({
+                          beginMetaTransaction(activeDocumentId!, {
                             label: t('resize.geometry'),
                             mergeKey: `resize:${defId}:${propKey || ""}`,
                           });
                         }}
                         onResizeEnd={() => {
-                          commitMetaTransaction();
+                          commitMetaTransaction(activeDocumentId!);
                         }}
                       />
                     );

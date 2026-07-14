@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { loadProjectVariants, pickVariantForActiveDocument } from "./actions/variant";
 import { editorActions } from "./actions";
 import { useAppStore } from "./state";
+import { selectActiveDocumentId, getActiveDocumentId } from "./commands/selectors";
 import { useSettingsStore } from "./settings";
 import { FileOpenDialog } from "../ui/components/FileOpenDialog/FileOpenDialog";
 import { FileOpenOrImportDialog } from "../ui/components/FileOpenDialog/FileOpenOrImportDialog";
@@ -49,7 +50,8 @@ export function useEditorDialogsContext(): EditorDialogsContextValue {
 
 export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
-  const { activeDocumentId, documents } = useAppStore();
+  const activeDocumentId = useAppStore(selectActiveDocumentId);
+  const documents = useAppStore((s) => s.documents);
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
 
   const [isImageDialogOpen, setImageDialogOpen] = useState(false);

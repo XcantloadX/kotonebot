@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from './state';
+import { selectActiveTab } from './commands/selectors';
 import { getPrefabSchema } from '../api/prefabs';
 import { StageView } from './konva/StageView';
 import { LeftToolBar } from '../ui/LeftToolBar';
@@ -9,6 +10,7 @@ import { TabBar } from '../ui/TabBar';
 import { useSymbolIndexStore } from './symbolIndexStore';
 import { TopMenuBar } from '../ui/TopMenuBar';
 import { ProblemsPanel } from '../ui/ProblemsPanel';
+import { WelcomePanel } from '../ui/WelcomePanel';
 import { HierarchyPanel } from '../ui/HierarchyPanel';
 import { ProjectPanel } from '../ui/ProjectPanel';
 import { useSettingsStore } from './settings';
@@ -28,7 +30,8 @@ export const EditorApp: React.FC = () => {
   const { t } = useTranslation();
   const isHostMode = window.parent !== window;
   const singleTabMode = isSingleTabMode();
-  const { setPrefabSchema, activeDocumentId } = useAppStore();
+  const { setPrefabSchema } = useAppStore();
+  const activeTab = useAppStore(selectActiveTab);
   const { initialize } = useSymbolIndexStore();
   const setRecentWorkspaceRoot = useRecentOpenStore((state) => state.setWorkspaceRoot);
   const projectResourceRoot = useProjectInfoStore((state) => state.data?.resource_root ?? null);
@@ -86,13 +89,7 @@ export const EditorApp: React.FC = () => {
           <div style={{ flex: 1, background: '#f5f8fa', position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             {singleTabMode ? null : <TabBar />}
             <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-              {activeDocumentId ? (
-                <StageView />
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#5c7080' }}>
-                  {t('status.noImageLoaded')}
-                </div>
-              )}
+              {activeTab?.kind === "document" ? <StageView /> : <WelcomePanel />}
             </div>
             {!isHostMode ? (
               <ProblemsPanel

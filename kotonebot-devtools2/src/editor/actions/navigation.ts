@@ -1,6 +1,7 @@
 import { readText } from "../../api/fs";
 import { DiagnosticItem, SymbolLite } from "../../model/symbolIndex";
 import { useAppStore } from "../state";
+import { selectActiveDocumentId } from "../commands/selectors";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { requestHost, shouldUseSingleTabHostOpen } from "../host/hostBridge";
 import { useRecentOpenStore } from "../recentOpenStore";
@@ -12,8 +13,10 @@ async function requestHostOpenMetaDocument(metaPath: string): Promise<void> {
 }
 
 async function ensureDocumentWithMeta(imagePath: string, metaPath: string): Promise<boolean> {
-  const { documents, openDocument, setActiveDocument, setActiveMeta, activeDocumentId } = useAppStore.getState();
-  if (shouldUseSingleTabHostOpen() && activeDocumentId !== null && activeDocumentId !== imagePath) {
+  const state = useAppStore.getState();
+  const { documents, openDocument, setActiveMeta } = state;
+  const activeDocId = selectActiveDocumentId(state);
+  if (shouldUseSingleTabHostOpen() && activeDocId !== null && activeDocId !== imagePath) {
     await requestHostOpenMetaDocument(metaPath);
     return false;
   }
@@ -29,7 +32,7 @@ async function ensureDocumentWithMeta(imagePath: string, metaPath: string): Prom
     openDocument(imagePath, img.width, img.height);
     activeDoc = useAppStore.getState().documents[imagePath];
   } else {
-    setActiveDocument(imagePath);
+    state.setActiveTab(imagePath);
   }
 
   if (!activeDoc?.meta || activeDoc.meta.path !== metaPath) {
@@ -49,7 +52,7 @@ async function ensureDocumentWithMeta(imagePath: string, metaPath: string): Prom
 import { normalizePath } from "../../shared/normalizePath";
 
 export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
-  const { setSelection, setViewState, showFocusSpotlight } = useAppStore.getState();
+  const { setViewState, showFocusSpotlight } = useAppStore.getState();
   const imagePath = symbol.imagePath;
   const metaPath = symbol.metaPath;
 
@@ -58,7 +61,7 @@ export async function jumpToSymbol(symbol: SymbolLite): Promise<void> {
     return;
   }
 
-  setSelection(symbol.definitionId);
+  useAppStore.getState().setSelection(imagePath, symbol.definitionId);
 
   const geo = symbol.primaryGeometry;
   const nextDoc = useAppStore.getState().documents[imagePath];
@@ -135,6 +138,5 @@ export async function jumpToDiagnostic(diag: DiagnosticItem): Promise<void> {
   if (!ready) {
     return;
   }
-  const { setSelection } = useAppStore.getState();
-  setSelection(diag.definition_id);
+  useAppStore.getState().setSelection(imagePath, diag.definition_id);
 }

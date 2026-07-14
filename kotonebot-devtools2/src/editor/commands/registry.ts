@@ -1,5 +1,5 @@
 import { editorActions } from "../actions";
-import { useAppStore } from "../state";
+import { useAppStore, tabId } from "../state";
 import { useSettingsStore } from "../settings";
 import { COMMAND_ID } from "./ids";
 import {
@@ -165,7 +165,8 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     showInPalette: true,
     when: () => canUndoInActiveDocument(),
     run: async () => {
-      useAppStore.getState().undo();
+      const docId = getActiveDocumentId();
+      if (docId) useAppStore.getState().undo(docId);
     },
   },
   [COMMAND_ID.EDIT_REDO]: {
@@ -175,7 +176,8 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     showInPalette: true,
     when: () => canRedoInActiveDocument(),
     run: async () => {
-      useAppStore.getState().redo();
+      const docId = getActiveDocumentId();
+      if (docId) useAppStore.getState().redo(docId);
     },
   },
   [COMMAND_ID.DEFINITION_DUPLICATE_SELECTED]: {
@@ -288,6 +290,57 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
       await editorActions.symbol.renameNameForDefinition(args.definitionId, args.newName);
     },
   },
+  [COMMAND_ID.TAB_CLOSE]: {
+    id: COMMAND_ID.TAB_CLOSE,
+    title: t('menuItem.closeDocument'),
+    keywords: ["close", "tab"],
+    showInPalette: false,
+    run: async (_, args) => {
+      const state = useAppStore.getState();
+      const tab = state.tabs.find(t => tabId(t) === args.id);
+      if (!tab) return;
+      if (tab.kind === "document") {
+        const ok = await editorActions.document.close(tab.docId);
+        if (!ok) return;
+      } else {
+        state.closeTab(args.id);
+      }
+    },
+  },
+  [COMMAND_ID.TAB_CLOSE_OTHERS]: {
+    id: COMMAND_ID.TAB_CLOSE_OTHERS,
+    title: t('tabBar.closeOthers'),
+    keywords: ["close", "others", "tab"],
+    showInPalette: false,
+    run: async (_, args) => {
+      const state = useAppStore.getState();
+      const keepId = args?.id ?? state.activeTabId ?? "";
+      const others = state.tabs.filter(t => tabId(t) !== keepId);
+      const docTabs = others.filter(t => t.kind === "document");
+      const nonDocIds = others.filter(t => t.kind !== "document").map(tabId);
+      if (docTabs.length > 0) {
+        const ok = await editorActions.document.closeMany(docTabs.map(t => t.docId));
+        if (!ok) return;
+      }
+      nonDocIds.forEach(id => useAppStore.getState().closeTab(id));
+    },
+  },
+  [COMMAND_ID.TAB_CLOSE_ALL]: {
+    id: COMMAND_ID.TAB_CLOSE_ALL,
+    title: t('menuItem.closeAllDocuments'),
+    keywords: ["close", "all", "tab"],
+    showInPalette: false,
+    run: async () => {
+      const state = useAppStore.getState();
+      const docTabs = state.tabs.filter(t => t.kind === "document");
+      const nonDocIds = state.tabs.filter(t => t.kind !== "document").map(tabId);
+      if (docTabs.length > 0) {
+        const ok = await editorActions.document.closeMany(docTabs.map(t => t.docId));
+        if (!ok) return;
+      }
+      nonDocIds.forEach(id => useAppStore.getState().closeTab(id));
+    },
+  },
   [COMMAND_ID.DOCUMENT_CLOSE]: {
     id: COMMAND_ID.DOCUMENT_CLOSE,
     title: t('menuItem.closeDocument'),
@@ -324,6 +377,15 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
       await editorActions.navigation.jumpToDiagnostic(args.diag);
     },
   },
+  [COMMAND_ID.APP_OPEN_WELCOME]: {
+    id: COMMAND_ID.APP_OPEN_WELCOME,
+    title: t('menuItem.openWelcome'),
+    keywords: ["welcome", "start"],
+    showInPalette: true,
+    run: async () => {
+      useAppStore.getState().openTab({ kind: "welcome" });
+    },
+  },
 };
 
 /** 编辑器命令注册表。 */
@@ -348,6 +410,7 @@ export const paletteCommandIds: NoArgCommandId[] = [
   COMMAND_ID.VARIANT_NEW_FROM_CLIPBOARD,
   COMMAND_ID.VARIANT_NEW_FROM_DEVICE,
   COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB,
+  COMMAND_ID.APP_OPEN_WELCOME,
 ];
 
 /** 根据命令 ID 推导其参数类型。 */

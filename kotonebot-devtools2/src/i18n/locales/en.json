@@ -26,7 +26,8 @@
     "rememberVariantChoice": "Remember Variant Choice",
     "preferences": "Preferences...",
     "alwaysAsk": "Always Ask",
-    "copyToVariant": "Copy Selected Prefab to Variant"
+    "copyToVariant": "Copy Selected Prefab to Variant",
+    "openWelcome": "Open Welcome"
   },
   "toolbar": {
     "select": "Select",
@@ -250,6 +251,13 @@
     "noMatch": "No match",
     "typeToFilter": "Type to filter",
     "loading": "Loading..."
+  },
+  "welcome": {
+    "title": "Getting Started",
+    "newDocument": "New Document...",
+    "openDocument": "Open Document...",
+    "recent": "Recent",
+    "tabLabel": "Welcome"
   },
   "tabBar": {
     "close": "Close",

@@ -3,6 +3,7 @@ import { quickPick } from "../../ui/quickPick";
 import { COMMAND_ID, executeCommand, getPaletteCommands, getCommandStatus } from "../commands";
 import type { EditorCommandContext, EditorCommandDefinition, NoArgCommandId } from "../commands";
 import { useAppStore } from "../state";
+import { selectActiveDocumentId } from "../commands/selectors";
 import { getGlobalCommandContext } from "../EditorDialogsContext";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import i18n from "../../i18n";
@@ -146,7 +147,7 @@ export async function openCommandPalette(): Promise<void> {
     canOutsideClickClose: true,
     canEscapeKeyClose: true,
     getItems: async (query) => {
-      const { activeDocumentId } = useAppStore.getState();
+      const activeDocumentId = selectActiveDocumentId(useAppStore.getState());
       const { symbols, recentSymbolKeys } = useSymbolIndexStore.getState();
 
       // ">" 前缀：命令搜索。

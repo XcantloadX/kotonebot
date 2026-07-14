@@ -1,9 +1,19 @@
-import { useAppStore } from "../state";
-import type { DocumentState } from "../state";
+import { useAppStore, tabId, type Tab, type DocumentState } from "../state";
+
+/** 根据 state 推导当前激活的 tab。 */
+export function selectActiveTab(state: { tabs: Tab[]; activeTabId: string | null }): Tab | null {
+  return state.tabs.find(t => tabId(t) === state.activeTabId) ?? null;
+}
+
+/** 根据 state 推导当前激活文档 ID。 */
+export function selectActiveDocumentId(state: { tabs: Tab[]; activeTabId: string | null }): string | null {
+  const tab = selectActiveTab(state);
+  return tab?.kind === "document" ? tab.docId : null;
+}
 
 /** 读取当前激活文档 ID。 */
 export function getActiveDocumentId(): string | null {
-  return useAppStore.getState().activeDocumentId;
+  return selectActiveDocumentId(useAppStore.getState());
 }
 
 /** 读取当前已打开文档映射。 */
@@ -13,11 +23,12 @@ export function getDocuments(): Record<string, DocumentState> {
 
 /** 读取当前激活文档。 */
 export function getActiveDocument(): DocumentState | null {
-  const { activeDocumentId, documents } = useAppStore.getState();
-  if (!activeDocumentId) {
+  const state = useAppStore.getState();
+  const activeDocId = selectActiveDocumentId(state);
+  if (!activeDocId) {
     return null;
   }
-  return documents[activeDocumentId] ?? null;
+  return state.documents[activeDocId] ?? null;
 }
 
 /** 是否至少存在一个已打开文档。 */

@@ -1,5 +1,6 @@
 import { messageBox } from "../../ui/messageBox";
 import { useAppStore } from "../state";
+import { getActiveDocumentId } from "../commands/selectors";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { openImageWithMeta } from "./image";
 import i18n from "../../i18n";
@@ -10,11 +11,7 @@ interface VariantSymbolRef {
 }
 
 async function applyVariantRenames(variantSymbols: VariantSymbolRef[], newName: string): Promise<void> {
-  const { activeDocumentId, updateMeta, setActiveDocument } = useAppStore.getState();
-  if (!activeDocumentId) {
-    throw new Error("No active document");
-  }
-  const previousActiveDocumentId = activeDocumentId;
+  const previousActiveId = getActiveDocumentId();
   const updatesByImagePath = new Map<string, string[]>();
   for (const symbol of variantSymbols) {
     const existing = updatesByImagePath.get(symbol.imagePath);
@@ -34,8 +31,9 @@ async function applyVariantRenames(variantSymbols: VariantSymbolRef[], newName: 
     if (!targetDoc || !targetDoc.meta) {
       throw new Error(`Document meta is not loaded: ${imagePath}`);
     }
-    setActiveDocument(imagePath);
-    updateMeta(
+    useAppStore.getState().setActiveTab(imagePath);
+    useAppStore.getState().updateMeta(
+      imagePath,
       (draft) => {
         for (const definitionId of definitionIds) {
           const definition = draft.definitions[definitionId];
@@ -51,16 +49,18 @@ async function applyVariantRenames(variantSymbols: VariantSymbolRef[], newName: 
       { label: "Rename variant names", mergeKey: "rename:variant-names", forceNewEntry: true }
     );
   }
-
-  setActiveDocument(previousActiveDocumentId);
+  if (previousActiveId) {
+    useAppStore.getState().setActiveTab(previousActiveId);
+  }
 }
 
 export async function promptAndRenameVariantsForDefinition(definitionId: string): Promise<void> {
-  const { activeDocumentId, documents } = useAppStore.getState();
-  if (!activeDocumentId) {
+  const activeId = getActiveDocumentId();
+  if (!activeId) {
     throw new Error("No active document");
   }
-  const activeDoc = documents[activeDocumentId];
+  const { documents } = useAppStore.getState();
+  const activeDoc = documents[activeId];
   if (!activeDoc || !activeDoc.meta) {
     throw new Error("Active document has no meta");
   }
@@ -115,6 +115,7 @@ export async function promptAndRenameVariantsForDefinition(definitionId: string)
   if (action === "undo") {
     const current = useAppStore.getState();
     current.updateMeta(
+      activeId,
       (draft) => {
         const currentDefinition = draft.definitions[definitionId];
         if (!currentDefinition) {

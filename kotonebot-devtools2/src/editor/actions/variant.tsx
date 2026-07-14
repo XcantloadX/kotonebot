@@ -10,6 +10,7 @@ import { quickPick } from "../../ui/quickPick";
 import { toaster } from "../../ui/toaster";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { useAppStore } from "../state";
+import { getActiveDocumentId } from "../commands/selectors";
 import { openImageWithMeta } from "./image";
 import { useProjectInfoStore } from "../../app/projectInfoStore";
 import { useSettingsStore } from "../settings";
@@ -23,7 +24,7 @@ export async function loadProjectVariants(): Promise<string[]> {
 export async function pickVariantForActiveDocument(
   projectVariants: string[]
 ): Promise<string | null> {
-  const activeId = useAppStore.getState().activeDocumentId;
+  const activeId = getActiveDocumentId();
   const activeDoc = activeId ? useAppStore.getState().documents[activeId] : null;
   if (!activeDoc?.meta) {
     throw new Error("No active meta document");
@@ -45,7 +46,7 @@ export async function selectVariantImageForActiveDocument(
   paths: string[],
   variant: string
 ): Promise<void> {
-  const activeId = useAppStore.getState().activeDocumentId;
+  const activeId = getActiveDocumentId();
   const activeDoc = activeId ? useAppStore.getState().documents[activeId] : null;
   if (!activeDoc?.meta) {
     throw new Error("No active source meta document");
@@ -93,7 +94,7 @@ export async function importVariantImageForActiveDocument(
   files: File[],
   variant: string
 ): Promise<boolean> {
-  const activeId = useAppStore.getState().activeDocumentId;
+  const activeId = getActiveDocumentId();
   const activeDoc = activeId ? useAppStore.getState().documents[activeId] : null;
   if (!activeDoc?.meta) {
     throw new Error("No active source meta document");
@@ -265,7 +266,7 @@ export async function importFromClipboardForActiveDocument(): Promise<void> {
 export async function copySelectedPrefabToVariantForActiveDocument(
   variant?: string
 ): Promise<void> {
-  const activeId = useAppStore.getState().activeDocumentId;
+  const activeId = getActiveDocumentId();
   const activeDoc = activeId ? useAppStore.getState().documents[activeId] : null;
   if (!activeDoc?.meta) {
     throw new Error("No active source meta document");

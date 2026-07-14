@@ -22,7 +22,7 @@ export type InteractionMode =
   | { kind: "creating-prefab"; prefab_id: string; propKey: string; tool: "rect" | "point" | "image" };
 
 export interface DocumentState {
-  id: string; // Usually the image path
+  id: string;
   image: { path: string; width: number; height: number; url: string };
   meta: { path: string; data: MetaModel } | null;
   
@@ -76,9 +76,18 @@ export interface DefinitionClipboard {
   definition: DefinitionModel;
 }
 
+export type Tab =
+  | { kind: "welcome" }
+  | { kind: "document"; docId: string };
+
+export function tabId(t: Tab): string {
+  return t.kind === "welcome" ? "welcome" : t.docId;
+}
+
 interface AppState {
+  tabs: Tab[];
+  activeTabId: string | null;
   documents: Record<string, DocumentState>;
-  activeDocumentId: string | null;
   focusSpotlight: FocusSpotlightState | null;
   definitionClipboard: DefinitionClipboard | null;
   
@@ -86,12 +95,16 @@ interface AppState {
   activeTool: ToolType;
   activeResourceType: ResourceType;
 
-  // Actions
+  // Tab primitives
+  openTab: (tab: Tab) => void;
+  closeTab: (tabId: string) => void;
+  setActiveTab: (tabId: string) => void;
+
+  // Document primitives
   openDocument: (path: string, width: number, height: number) => void;
-  closeDocument: (id: string) => void;
+  removeDocument: (docId: string) => void;
   renameDocument: (oldId: string, newId: string) => void;
   renameDocuments: (renames: Array<{ oldId: string; newId: string }>) => void;
-  setActiveDocument: (id: string) => void;
   setViewState: (id: string, view: { x: number; y: number; scale: number }) => void;
   
   setPrefabSchema: (schema: PrefabSchema) => void;
@@ -101,18 +114,18 @@ interface AppState {
 
   refreshDocumentImage: (id: string) => void;
 
-  // Active Document Actions
-  setSelection: (definitionId: string | null) => void;
-  setMode: (mode: InteractionMode) => void;
+  // Document-scoped actions
+  setSelection: (docId: string, selection: string | null) => void;
+  setMode: (docId: string, mode: InteractionMode) => void;
   setActiveMeta: (docId: string, data: MetaModel) => void;
-  updateMeta: (updater: (draft: MetaModel) => void, options?: UpdateMetaOptions) => void;
-  beginMetaTransaction: (options: { label: string; mergeKey?: string }) => void;
-  commitMetaTransaction: () => void;
-  cancelMetaTransaction: () => void;
+  updateMeta: (docId: string, updater: (draft: MetaModel) => void, options?: UpdateMetaOptions) => void;
+  beginMetaTransaction: (docId: string, options: { label: string; mergeKey?: string }) => void;
+  commitMetaTransaction: (docId: string) => void;
+  cancelMetaTransaction: (docId: string) => void;
   
-  undo: () => void;
-  redo: () => void;
-  saveActiveDocument: () => Promise<void>;
+  undo: (docId: string) => void;
+  redo: (docId: string) => void;
+  saveDocument: (docId: string) => Promise<void>;
   saveAllDocuments: () => Promise<number>;
   showFocusSpotlight: (spotlight: FocusSpotlightState) => void;
   clearFocusSpotlight: () => void;
@@ -120,17 +133,47 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
   immer((set) => ({
+    tabs: [{ kind: "welcome" } as Tab],
+    activeTabId: "welcome",
     documents: {},
-    activeDocumentId: null,
     focusSpotlight: null,
     definitionClipboard: null,
     prefabSchema: null,
     activeTool: "select",
     activeResourceType: "hint-box",
 
+    openTab: (tab) => set((state) => {
+      const id = tabId(tab);
+      const existing = state.tabs.find(t => tabId(t) === id);
+      if (existing) {
+        state.activeTabId = id;
+      } else {
+        state.tabs.push(tab);
+        state.activeTabId = id;
+      }
+    }),
+
+    closeTab: (tabIdStr) => set((state) => {
+      const tabIndex = state.tabs.findIndex(t => tabId(t) === tabIdStr);
+      if (tabIndex === -1) return;
+      state.tabs.splice(tabIndex, 1);
+      if (state.activeTabId === tabIdStr) {
+        if (state.tabs.length > 0) {
+          const newIndex = Math.min(tabIndex, state.tabs.length - 1);
+          state.activeTabId = tabId(state.tabs[newIndex]);
+        } else {
+          state.activeTabId = null;
+        }
+      }
+    }),
+
+    setActiveTab: (tabIdStr) => set((state) => {
+      state.activeTabId = tabIdStr;
+    }),
+
     openDocument: (path, width, height) => set((state) => {
       if (state.documents[path]) {
-        state.activeDocumentId = path;
+        state.activeTabId = path;
         return;
       }
       
@@ -148,15 +191,14 @@ export const useAppStore = create<AppState>()(
           transaction: null,
         }
       };
-      state.activeDocumentId = path;
+      if (!state.tabs.find(t => tabId(t) === path)) {
+        state.tabs.push({ kind: "document", docId: path });
+      }
+      state.activeTabId = path;
     }),
 
-    closeDocument: (id) => set((state) => {
-      delete state.documents[id];
-      if (state.activeDocumentId === id) {
-        const ids = Object.keys(state.documents);
-        state.activeDocumentId = ids.length > 0 ? ids[ids.length - 1] : null;
-      }
+    removeDocument: (docId) => set((state) => {
+      delete state.documents[docId];
     }),
 
     renameDocument: (oldId, newId) => set((state) => {
@@ -177,8 +219,12 @@ export const useAppStore = create<AppState>()(
       }
       doc.meta.path = nextMetaPath;
       state.documents[newId] = doc;
-      if (state.activeDocumentId === oldId) {
-        state.activeDocumentId = newId;
+      const tab = state.tabs.find(t => tabId(t) === oldId);
+      if (tab && tab.kind === "document") {
+        tab.docId = newId;
+      }
+      if (state.activeTabId === oldId) {
+        state.activeTabId = newId;
       }
     }),
 
@@ -227,17 +273,17 @@ export const useAppStore = create<AppState>()(
         item.doc.meta.path = `${item.newId}.json`;
         state.documents[item.newId] = item.doc;
       }
-      if (state.activeDocumentId) {
-        const activeRename = movingDocs.find((item) => item.oldId === state.activeDocumentId);
-        if (activeRename) {
-          state.activeDocumentId = activeRename.newId;
+      for (const { oldId, newId } of renames) {
+        const tab = state.tabs.find(t => tabId(t) === oldId);
+        if (tab && tab.kind === "document") {
+          tab.docId = newId;
         }
       }
-    }),
-
-    setActiveDocument: (id) => set((state) => {
-      if (state.documents[id]) {
-        state.activeDocumentId = id;
+      if (state.activeTabId) {
+        const activeRename = renames.find((item) => item.oldId === state.activeTabId);
+        if (activeRename) {
+          state.activeTabId = activeRename.newId;
+        }
       }
     }),
 
@@ -258,8 +304,12 @@ export const useAppStore = create<AppState>()(
     
     setActiveTool: (tool) => set((state) => {
         state.activeTool = tool;
-        if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-             state.documents[state.activeDocumentId].mode = { kind: "idle" };
+        const activeTab = state.tabs.find(t => tabId(t) === state.activeTabId);
+        if (activeTab?.kind === "document") {
+          const doc = state.documents[activeTab.docId];
+          if (doc) {
+            doc.mode = { kind: "idle" };
+          }
         }
     }),
     
@@ -271,15 +321,15 @@ export const useAppStore = create<AppState>()(
 
     clearFocusSpotlight: () => set({ focusSpotlight: null }),
 
-    setSelection: (selection) => set((state) => {
-      if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-        state.documents[state.activeDocumentId].selection = selection ? { definitionId: selection } : null;
+    setSelection: (docId, selection) => set((state) => {
+      if (state.documents[docId]) {
+        state.documents[docId].selection = selection ? { definitionId: selection } : null;
       }
     }),
 
-    setMode: (mode) => set((state) => {
-      if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-        state.documents[state.activeDocumentId].mode = mode;
+    setMode: (docId, mode) => set((state) => {
+      if (state.documents[docId]) {
+        state.documents[docId].mode = mode;
       }
     }),
 
@@ -297,228 +347,211 @@ export const useAppStore = create<AppState>()(
        }
     }),
 
-    updateMeta: (updater, options) => set((state) => {
-      if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-        const doc = state.documents[state.activeDocumentId];
-        if (doc.meta) {
-            const base = current(doc.meta.data);
-            const [next, patches, inversePatches] = produceWithPatches(base, updater);
-            if (patches.length === 0) {
-              return;
-            }
+    updateMeta: (docId, updater, options) => set((state) => {
+      const doc = state.documents[docId];
+      if (!doc?.meta) return;
+      const base = current(doc.meta.data);
+      const [next, patches, inversePatches] = produceWithPatches(base, updater);
+      if (patches.length === 0) {
+        return;
+      }
 
-            doc.meta.data = next;
+      doc.meta.data = next;
 
-            const transaction = doc.history.transaction;
-            if (transaction) {
-              transaction.patches.push(...patches);
-              transaction.inversePatches.unshift(...inversePatches);
-              doc.dirty = transaction.patches.length > 0 || doc.history.saveCursor !== doc.history.cursor;
-              return;
-            }
+      const transaction = doc.history.transaction;
+      if (transaction) {
+        transaction.patches.push(...patches);
+        transaction.inversePatches.unshift(...inversePatches);
+        doc.dirty = transaction.patches.length > 0 || doc.history.saveCursor !== doc.history.cursor;
+        return;
+      }
 
-            if (doc.history.cursor < doc.history.entries.length) {
-              doc.history.entries.splice(doc.history.cursor);
-              if (doc.history.saveCursor !== null && doc.history.saveCursor > doc.history.cursor) {
-                doc.history.saveCursor = null;
-              }
-            }
-
-            const now = Date.now();
-            const shouldTryMerge = !!options?.mergeKey && !options?.forceNewEntry;
-            if (shouldTryMerge && doc.history.cursor > 0) {
-              const previous = doc.history.entries[doc.history.cursor - 1];
-              if (
-                previous &&
-                previous.mergeKey === options?.mergeKey &&
-                now - previous.timestamp <= HISTORY_MERGE_WINDOW_MS
-              ) {
-                previous.patches.push(...patches);
-                previous.inversePatches.unshift(...inversePatches);
-                previous.timestamp = now;
-                doc.dirty = doc.history.saveCursor !== doc.history.cursor;
-                return;
-              }
-            }
-
-            doc.history.entries.push({
-              label: options?.label ?? "Edit",
-              mergeKey: options?.mergeKey,
-              timestamp: now,
-              patches,
-              inversePatches,
-            });
-            doc.history.cursor += 1;
-
-            if (doc.history.entries.length > HISTORY_LIMIT) {
-              const overflow = doc.history.entries.length - HISTORY_LIMIT;
-              doc.history.entries.splice(0, overflow);
-              doc.history.cursor = Math.max(0, doc.history.cursor - overflow);
-              if (doc.history.saveCursor !== null) {
-                if (doc.history.saveCursor < overflow) {
-                  doc.history.saveCursor = null;
-                } else {
-                  doc.history.saveCursor -= overflow;
-                }
-              }
-            }
-
-            doc.dirty = doc.history.saveCursor !== doc.history.cursor;
+      if (doc.history.cursor < doc.history.entries.length) {
+        doc.history.entries.splice(doc.history.cursor);
+        if (doc.history.saveCursor !== null && doc.history.saveCursor > doc.history.cursor) {
+          doc.history.saveCursor = null;
         }
       }
-    }),
 
-    beginMetaTransaction: ({ label, mergeKey }) => set((state) => {
-      if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-        const doc = state.documents[state.activeDocumentId];
-        if (!doc.meta) {
-          throw new Error("Cannot begin transaction: active document has no meta");
-        }
-        if (doc.history.transaction) {
-          throw new Error("History transaction already active");
-        }
-        doc.history.transaction = {
-          label,
-          mergeKey,
-          startedAt: Date.now(),
-          patches: [],
-          inversePatches: [],
-        };
-      }
-    }),
-
-    commitMetaTransaction: () => set((state) => {
-      if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-        const doc = state.documents[state.activeDocumentId];
-        const transaction = doc.history.transaction;
-        if (!transaction) {
-          throw new Error("Cannot commit transaction: no active transaction");
-        }
-        doc.history.transaction = null;
-
-        if (transaction.patches.length === 0) {
+      const now = Date.now();
+      const shouldTryMerge = !!options?.mergeKey && !options?.forceNewEntry;
+      if (shouldTryMerge && doc.history.cursor > 0) {
+        const previous = doc.history.entries[doc.history.cursor - 1];
+        if (
+          previous &&
+          previous.mergeKey === options?.mergeKey &&
+          now - previous.timestamp <= HISTORY_MERGE_WINDOW_MS
+        ) {
+          previous.patches.push(...patches);
+          previous.inversePatches.unshift(...inversePatches);
+          previous.timestamp = now;
+          doc.dirty = doc.history.saveCursor !== doc.history.cursor;
           return;
         }
-
-        if (doc.history.cursor < doc.history.entries.length) {
-          doc.history.entries.splice(doc.history.cursor);
-          if (doc.history.saveCursor !== null && doc.history.saveCursor > doc.history.cursor) {
-            doc.history.saveCursor = null;
-          }
-        }
-
-        const now = Date.now();
-        const shouldTryMerge = !!transaction.mergeKey;
-        if (shouldTryMerge && doc.history.cursor > 0) {
-          const previous = doc.history.entries[doc.history.cursor - 1];
-          if (
-            previous &&
-            previous.mergeKey === transaction.mergeKey &&
-            now - previous.timestamp <= HISTORY_MERGE_WINDOW_MS
-          ) {
-            previous.patches.push(...transaction.patches);
-            previous.inversePatches.unshift(...transaction.inversePatches);
-            previous.timestamp = now;
-            doc.dirty = doc.history.saveCursor !== doc.history.cursor;
-            return;
-          }
-        }
-
-        doc.history.entries.push({
-          label: transaction.label,
-          mergeKey: transaction.mergeKey,
-          timestamp: now,
-          patches: transaction.patches,
-          inversePatches: transaction.inversePatches,
-        });
-        doc.history.cursor += 1;
-
-        if (doc.history.entries.length > HISTORY_LIMIT) {
-          const overflow = doc.history.entries.length - HISTORY_LIMIT;
-          doc.history.entries.splice(0, overflow);
-          doc.history.cursor = Math.max(0, doc.history.cursor - overflow);
-          if (doc.history.saveCursor !== null) {
-            if (doc.history.saveCursor < overflow) {
-              doc.history.saveCursor = null;
-            } else {
-              doc.history.saveCursor -= overflow;
-            }
-          }
-        }
-
-        doc.dirty = doc.history.saveCursor !== doc.history.cursor;
       }
+
+      doc.history.entries.push({
+        label: options?.label ?? "Edit",
+        mergeKey: options?.mergeKey,
+        timestamp: now,
+        patches,
+        inversePatches,
+      });
+      doc.history.cursor += 1;
+
+      if (doc.history.entries.length > HISTORY_LIMIT) {
+        const overflow = doc.history.entries.length - HISTORY_LIMIT;
+        doc.history.entries.splice(0, overflow);
+        doc.history.cursor = Math.max(0, doc.history.cursor - overflow);
+        if (doc.history.saveCursor !== null) {
+          if (doc.history.saveCursor < overflow) {
+            doc.history.saveCursor = null;
+          } else {
+            doc.history.saveCursor -= overflow;
+          }
+        }
+      }
+
+      doc.dirty = doc.history.saveCursor !== doc.history.cursor;
     }),
 
-    cancelMetaTransaction: () => set((state) => {
-      if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-        const doc = state.documents[state.activeDocumentId];
-        const transaction = doc.history.transaction;
-        if (!transaction) {
-          throw new Error("Cannot cancel transaction: no active transaction");
-        }
-        doc.history.transaction = null;
-        if (!doc.meta) {
-          throw new Error("Cannot cancel transaction: active document has no meta");
-        }
-        if (transaction.inversePatches.length > 0) {
-          doc.meta.data = applyPatches(current(doc.meta.data), transaction.inversePatches) as MetaModel;
-        }
-        doc.dirty = doc.history.saveCursor !== doc.history.cursor;
+    beginMetaTransaction: (docId, { label, mergeKey }) => set((state) => {
+      const doc = state.documents[docId];
+      if (!doc?.meta) {
+        throw new Error("Cannot begin transaction: document has no meta");
       }
+      if (doc.history.transaction) {
+        throw new Error("History transaction already active");
+      }
+      doc.history.transaction = {
+        label,
+        mergeKey,
+        startedAt: Date.now(),
+        patches: [],
+        inversePatches: [],
+      };
+    }),
+
+    commitMetaTransaction: (docId) => set((state) => {
+      const doc = state.documents[docId];
+      if (!doc?.meta) {
+        throw new Error("Cannot commit transaction: document has no meta");
+      }
+      const transaction = doc.history.transaction;
+      if (!transaction) {
+        throw new Error("Cannot commit transaction: no active transaction");
+      }
+      doc.history.transaction = null;
+
+      if (transaction.patches.length === 0) {
+        return;
+      }
+
+      if (doc.history.cursor < doc.history.entries.length) {
+        doc.history.entries.splice(doc.history.cursor);
+        if (doc.history.saveCursor !== null && doc.history.saveCursor > doc.history.cursor) {
+          doc.history.saveCursor = null;
+        }
+      }
+
+      const now = Date.now();
+      const shouldTryMerge = !!transaction.mergeKey;
+      if (shouldTryMerge && doc.history.cursor > 0) {
+        const previous = doc.history.entries[doc.history.cursor - 1];
+        if (
+          previous &&
+          previous.mergeKey === transaction.mergeKey &&
+          now - previous.timestamp <= HISTORY_MERGE_WINDOW_MS
+        ) {
+          previous.patches.push(...transaction.patches);
+          previous.inversePatches.unshift(...transaction.inversePatches);
+          previous.timestamp = now;
+          doc.dirty = doc.history.saveCursor !== doc.history.cursor;
+          return;
+        }
+      }
+
+      doc.history.entries.push({
+        label: transaction.label,
+        mergeKey: transaction.mergeKey,
+        timestamp: now,
+        patches: transaction.patches,
+        inversePatches: transaction.inversePatches,
+      });
+      doc.history.cursor += 1;
+
+      if (doc.history.entries.length > HISTORY_LIMIT) {
+        const overflow = doc.history.entries.length - HISTORY_LIMIT;
+        doc.history.entries.splice(0, overflow);
+        doc.history.cursor = Math.max(0, doc.history.cursor - overflow);
+        if (doc.history.saveCursor !== null) {
+          if (doc.history.saveCursor < overflow) {
+            doc.history.saveCursor = null;
+          } else {
+            doc.history.saveCursor -= overflow;
+          }
+        }
+      }
+
+      doc.dirty = doc.history.saveCursor !== doc.history.cursor;
+    }),
+
+    cancelMetaTransaction: (docId) => set((state) => {
+      const doc = state.documents[docId];
+      if (!doc?.meta) {
+        throw new Error("Cannot cancel transaction: document has no meta");
+      }
+      const transaction = doc.history.transaction;
+      if (!transaction) {
+        throw new Error("Cannot cancel transaction: no active transaction");
+      }
+      doc.history.transaction = null;
+      if (transaction.inversePatches.length > 0) {
+        doc.meta.data = applyPatches(current(doc.meta.data), transaction.inversePatches) as MetaModel;
+      }
+      doc.dirty = doc.history.saveCursor !== doc.history.cursor;
     }),
     
-    undo: () => set((state) => {
-        if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-            const doc = state.documents[state.activeDocumentId];
-            if (!doc.meta) {
-              return;
-            }
-            if (doc.history.transaction) {
-              throw new Error("Cannot undo while a history transaction is active");
-            }
-            if (doc.history.cursor > 0) {
-                const entry = doc.history.entries[doc.history.cursor - 1];
-                doc.meta.data = applyPatches(current(doc.meta.data), entry.inversePatches) as MetaModel;
-                doc.history.cursor -= 1;
-                doc.dirty = doc.history.saveCursor !== doc.history.cursor;
-            }
+    undo: (docId) => set((state) => {
+        const doc = state.documents[docId];
+        if (!doc?.meta) return;
+        if (doc.history.transaction) {
+          throw new Error("Cannot undo while a history transaction is active");
+        }
+        if (doc.history.cursor > 0) {
+            const entry = doc.history.entries[doc.history.cursor - 1];
+            doc.meta.data = applyPatches(current(doc.meta.data), entry.inversePatches) as MetaModel;
+            doc.history.cursor -= 1;
+            doc.dirty = doc.history.saveCursor !== doc.history.cursor;
         }
     }),
 
-    redo: () => set((state) => {
-        if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-            const doc = state.documents[state.activeDocumentId];
-            if (!doc.meta) {
-              return;
-            }
-            if (doc.history.transaction) {
-              throw new Error("Cannot redo while a history transaction is active");
-            }
-            if (doc.history.cursor < doc.history.entries.length) {
-                const entry = doc.history.entries[doc.history.cursor];
-                doc.meta.data = applyPatches(current(doc.meta.data), entry.patches) as MetaModel;
-                doc.history.cursor += 1;
-                doc.dirty = doc.history.saveCursor !== doc.history.cursor;
-            }
+    redo: (docId) => set((state) => {
+        const doc = state.documents[docId];
+        if (!doc?.meta) return;
+        if (doc.history.transaction) {
+          throw new Error("Cannot redo while a history transaction is active");
+        }
+        if (doc.history.cursor < doc.history.entries.length) {
+            const entry = doc.history.entries[doc.history.cursor];
+            doc.meta.data = applyPatches(current(doc.meta.data), entry.patches) as MetaModel;
+            doc.history.cursor += 1;
+            doc.dirty = doc.history.saveCursor !== doc.history.cursor;
         }
     }),
 
-    saveActiveDocument: async () => {
+    saveDocument: async (docId) => {
       const current = useAppStore.getState();
-      if (!current.activeDocumentId || !current.documents[current.activeDocumentId]) return;
-      const doc = current.documents[current.activeDocumentId];
-      if (!doc.meta) return;
+      const doc = current.documents[docId];
+      if (!doc?.meta) return;
       try {
         await writeText(doc.meta.path, JSON.stringify(doc.meta.data, null, 2));
         await useSymbolIndexStore.getState().patchMetaPath(doc.meta.path);
-        // mark as saved in the store
         set((state) => {
-          if (state.activeDocumentId && state.documents[state.activeDocumentId]) {
-            const doc = state.documents[state.activeDocumentId];
-            doc.history.saveCursor = doc.history.cursor;
-            doc.dirty = false;
-          }
+          const target = state.documents[docId];
+          if (!target) return;
+          target.history.saveCursor = target.history.cursor;
+          target.dirty = false;
         });
       } catch (e: any) {
         toaster.show({ message: i18n.t('error.saveFailed', { message: e?.message ?? String(e) }), intent: Intent.DANGER });

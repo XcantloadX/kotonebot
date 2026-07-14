@@ -1,4 +1,5 @@
 import { useAppStore } from "../../state";
+import { getActiveDocumentId } from "../../commands/selectors";
 import { registerHostMessage } from "../hostBridge";
 
 interface RunEditorCommandPayload {
@@ -20,15 +21,17 @@ export function registerRunEditorCommandHandler(): () => void {
   return registerHostMessage("kotonebot.editor.runCommand", async (payload) => {
     const parsed = parsePayload(payload);
     const store = useAppStore.getState();
+    const docId = getActiveDocumentId();
+    if (!docId) return { ok: false };
     switch (parsed.command) {
       case "undo":
-        store.undo();
+        store.undo(docId);
         return { ok: true };
       case "redo":
-        store.redo();
+        store.redo(docId);
         return { ok: true };
       case "save":
-        await store.saveActiveDocument();
+        await store.saveDocument(docId);
         return { ok: true };
       default:
         throw new Error(`Unsupported run command: ${String(parsed.command)}`);

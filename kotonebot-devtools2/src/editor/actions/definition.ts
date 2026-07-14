@@ -1,22 +1,24 @@
 import { v4 as uuidv4 } from "uuid";
 import type { DefinitionModel } from "../../model/metaV2";
 import { useAppStore } from "../state";
+import { getActiveDocumentId } from "../commands/selectors";
 
 function deepCloneDefinition(definition: DefinitionModel): DefinitionModel {
   return JSON.parse(JSON.stringify(definition)) as DefinitionModel;
 }
 
-function getActiveDefinitionOrThrow(): { definitionId: string; definition: DefinitionModel } {
-  const { activeDocumentId, documents } = useAppStore.getState();
-  if (!activeDocumentId) {
+function getActiveDefinitionOrThrow(): { docId: string; definitionId: string; definition: DefinitionModel } {
+  const docId = getActiveDocumentId();
+  if (!docId) {
     throw new Error("No active document");
   }
-  const activeDoc = documents[activeDocumentId];
+  const state = useAppStore.getState();
+  const activeDoc = state.documents[docId];
   if (!activeDoc) {
-    throw new Error(`Active document not found: ${activeDocumentId}`);
+    throw new Error(`Active document not found: ${docId}`);
   }
   if (!activeDoc.meta) {
-    throw new Error(`Active document has no meta: ${activeDocumentId}`);
+    throw new Error(`Active document has no meta: ${docId}`);
   }
   if (!activeDoc.selection) {
     throw new Error("No selected definition");
@@ -26,7 +28,7 @@ function getActiveDefinitionOrThrow(): { definitionId: string; definition: Defin
   if (!definition) {
     throw new Error(`Definition not found: ${definitionId}`);
   }
-  return { definitionId, definition };
+  return { docId, definitionId, definition };
 }
 
 export async function copySelectedDefinition(): Promise<void> {
@@ -39,81 +41,86 @@ export async function copySelectedDefinition(): Promise<void> {
 }
 
 export async function duplicateSelectedDefinition(): Promise<void> {
+  const { docId } = getActiveDefinitionOrThrow();
   const { updateMeta, setSelection } = useAppStore.getState();
   const { definition } = getActiveDefinitionOrThrow();
   const duplicatedId = uuidv4();
   const duplicatedDefinition = deepCloneDefinition(definition);
-  updateMeta((draft) => {
+  updateMeta(docId, (draft) => {
     draft.definitions[duplicatedId] = duplicatedDefinition;
   }, {
     label: "Duplicate definition",
     forceNewEntry: true,
   });
-  setSelection(duplicatedId);
+  setSelection(docId, duplicatedId);
 }
 
 export async function deleteSelectedDefinition(): Promise<void> {
+  const { docId, definitionId } = getActiveDefinitionOrThrow();
   const { updateMeta, setSelection, setMode } = useAppStore.getState();
-  const { definitionId } = getActiveDefinitionOrThrow();
-  updateMeta((draft) => {
+  updateMeta(docId, (draft) => {
     delete draft.definitions[definitionId];
   }, {
     label: "Delete definition",
     mergeKey: `delete:${definitionId}`,
     forceNewEntry: true,
   });
-  setSelection(null);
-  setMode({ kind: "idle" });
+  setSelection(docId, null);
+  setMode(docId, { kind: "idle" });
 }
 
 export async function cutSelectedDefinition(): Promise<void> {
+  const { docId, definitionId, definition } = getActiveDefinitionOrThrow();
   const { setDefinitionClipboard, updateMeta, setSelection, setMode } = useAppStore.getState();
-  const { definitionId, definition } = getActiveDefinitionOrThrow();
   setDefinitionClipboard({
     sourceDefinitionId: definitionId,
     definition: deepCloneDefinition(definition),
   });
-  updateMeta((draft) => {
+  updateMeta(docId, (draft) => {
     delete draft.definitions[definitionId];
   }, {
     label: "Cut definition",
     mergeKey: `cut:${definitionId}`,
     forceNewEntry: true,
   });
-  setSelection(null);
-  setMode({ kind: "idle" });
+  setSelection(docId, null);
+  setMode(docId, { kind: "idle" });
 }
 
 export async function selectDefinition(definitionId: string | null): Promise<void> {
+  const docId = getActiveDocumentId();
+  if (!docId) return;
   const { setSelection, setMode } = useAppStore.getState();
-  setSelection(definitionId);
+  setSelection(docId, definitionId);
   if (definitionId === null) {
-    setMode({ kind: "idle" });
+    setMode(docId, { kind: "idle" });
   }
 }
 
 export async function pasteDefinitionFromClipboard(): Promise<void> {
-  const { definitionClipboard, activeDocumentId, documents, updateMeta, setSelection } = useAppStore.getState();
+  const state = useAppStore.getState();
+  const docId = getActiveDocumentId();
+  if (!docId) {
+    throw new Error("No active document");
+  }
+  const { definitionClipboard, documents, updateMeta, setSelection } = state;
   if (!definitionClipboard) {
     throw new Error("Definition clipboard is empty");
   }
-  if (!activeDocumentId) {
-    throw new Error("No active document");
-  }
-  const activeDoc = documents[activeDocumentId];
+  const activeDoc = documents[docId];
   if (!activeDoc) {
-    throw new Error(`Active document not found: ${activeDocumentId}`);
+    throw new Error(`Active document not found: ${docId}`);
   }
   if (!activeDoc.meta) {
-    throw new Error(`Active document has no meta: ${activeDocumentId}`);
+    throw new Error(`Active document has no meta: ${docId}`);
   }
   const pastedId = uuidv4();
   const pastedDefinition = deepCloneDefinition(definitionClipboard.definition);
-  updateMeta((draft) => {
+  updateMeta(docId, (draft) => {
     draft.definitions[pastedId] = pastedDefinition;
   }, {
     label: "Paste definition",
     forceNewEntry: true,
   });
-  setSelection(pastedId);
+  setSelection(docId, pastedId);
 }

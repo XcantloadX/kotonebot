@@ -56,6 +56,12 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.VARIANT_RENAME_VARIANTS_FOR_DEFINITION]: { definitionId: string };
   /** 按定义 ID 重命名符号名（走服务端 precheck/execute）。 */
   [COMMAND_ID.SYMBOL_RENAME_FOR_DEFINITION]: { definitionId: string; newName: string };
+  /** 关闭指定 tab（文档或非文档）。 */
+  [COMMAND_ID.TAB_CLOSE]: { id: string };
+  /** 关闭除指定 id 外的所有 tab。无参时取 activeTabId。 */
+  [COMMAND_ID.TAB_CLOSE_OTHERS]: { id: string } | undefined;
+  /** 关闭所有 tab。 */
+  [COMMAND_ID.TAB_CLOSE_ALL]: undefined;
   /** 关闭指定文档。 */
   [COMMAND_ID.DOCUMENT_CLOSE]: { id: string };
   /** 批量关闭指定文档。 */
@@ -64,6 +70,8 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.NAVIGATION_JUMP_TO_SYMBOL]: { symbol: SymbolLite };
   /** 跳转到目标诊断项。 */
   [COMMAND_ID.NAVIGATION_JUMP_TO_DIAGNOSTIC]: { diag: DiagnosticItem };
+  /** 打开欢迎页。 */
+  [COMMAND_ID.APP_OPEN_WELCOME]: undefined;
 }
 
 /** 无参数命令 ID 集合。 */
