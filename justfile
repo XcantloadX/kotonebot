@@ -23,11 +23,11 @@ resource:
     python tools\make_resources.py
 
 devtool:
-    cd kotonebot-devtool; npm run dev
+    cd js/apps/devtools-app; npm run dev
 
 # Build devtool frontend
 build-devtool:
-    cd kotonebot-devtool; npm run build
+    cd js/apps/devtools-app; npm run build
 
 # Check and create virtual environment using uv
 env: fetch-submodule

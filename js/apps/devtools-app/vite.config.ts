@@ -6,9 +6,10 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      { find: /^@kotonebot\/shared(?:\/.*)?$/, replacement: path.resolve(__dirname, '../../packages/shared/src') },
+    ],
   },
   server: {
     proxy: {

@@ -1,0 +1,8 @@
+{
+  "name": "kotonebot-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

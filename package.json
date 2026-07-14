@@ -1,0 +1,8 @@
+{
+  "name": "kotonebot",
+  "private": true,
+  "scripts": {
+    "dev": "cd js && npm run dev",
+    "build": "cd js && npm run build"
+  }
+}

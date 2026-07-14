@@ -22,7 +22,9 @@
     
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@kotonebot/shared": ["../../packages/shared/src/index.ts"],
+      "@kotonebot/shared/*": ["../../packages/shared/src/*"]
     }
   },
   "include": ["src"],

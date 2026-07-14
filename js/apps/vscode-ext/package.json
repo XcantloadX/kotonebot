@@ -28,7 +28,7 @@
     "onCommand:kotonebot.symbolTree.refresh",
     "onCommand:kotonebot.symbolTree.rename"
   ],
-  "main": "./dist/extension.js",
+  "main": "./dist/apps/vscode-ext/src/extension.js",
   "contributes": {
     "configuration": {
       "title": "Kotonebot",
@@ -238,6 +238,7 @@
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
+    "@kotonebot/shared": "*",
     "@types/node": "^20.14.2",
     "@types/vscode": "^1.90.0",
     "typescript": "^5.5.2"
