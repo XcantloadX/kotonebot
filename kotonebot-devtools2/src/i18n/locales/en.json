@@ -5,7 +5,8 @@
   "menu": {
     "file": "File",
     "edit": "Edit",
-    "variant": "Variant"
+    "variant": "Variant",
+    "ai": "AI"
   },
   "menuItem": {
     "newDocument": "New Document...",
@@ -27,7 +28,9 @@
     "preferences": "Preferences...",
     "alwaysAsk": "Always Ask",
     "copyToVariant": "Copy Selected Prefab to Variant",
-    "openWelcome": "Open Welcome"
+    "openWelcome": "Open Welcome",
+    "aiInferSelected": "AI Fill Selected",
+    "aiInferBatch": "AI Fill Batch"
   },
   "toolbar": {
     "select": "Select",
@@ -114,7 +117,7 @@
     "close": "Close",
     "ai": {
       "title": "AI",
-      "description": "Configure AI provider for document path suggestions",
+      "description": "Configure AI provider for document path suggestions and definition property inference",
       "providerType": "Provider Type",
       "endpoint": "Endpoint",
       "endpointPlaceholder": "Leave empty to use default",
@@ -343,5 +346,20 @@
     "configureAiFirst": "Please configure AI provider and API key in Preferences",
     "noClipboardImage": "No image found in clipboard"
   },
-  "untitled": "<Untitled>"
+  "untitled": "<Untitled>",
+  "ai": {
+    "inferName": "AI Infer",
+    "inferring": "AI inferring...",
+    "inferSuccess": "AI inference complete",
+    "inferFailed": "AI inference failed: {{message}}",
+    "noDefinitionSelected": "Please select a definition first",
+    "noTemplateRect": "Selected definition has no template region",
+    "batchConfirmDesc": "The following {{count}} definitions have no name. Use AI to auto-fill?",
+    "batchConfirmButton": "Start Batch Fill",
+    "batchTableId": "Definition ID",
+    "batchTableTemplate": "Region",
+    "batchHasTemplate": "Has region",
+    "batchNoTemplate": "No region",
+    "batchEmpty": "No unnamed definitions in the current document"
+  }
 }

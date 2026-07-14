@@ -100,3 +100,27 @@ export function canPasteDefinitionFromClipboardInActiveDocument(): boolean {
   }
   return !!state.definitionClipboard;
 }
+
+/** 当前选中的 definition 是否可进行 AI 推断 */
+export function canAiInferSelectedDefinition(): boolean {
+  const activeDoc = getActiveDocument();
+  if (!activeDoc?.meta || !activeDoc.selection) {
+    return false;
+  }
+  const def = activeDoc.meta.data.definitions[activeDoc.selection.definitionId];
+  return !!def;
+}
+
+/** 当前活动文档中是否有 name===null 的 definition */
+export function hasAnyDefinitionWithNullName(): boolean {
+  const activeDoc = getActiveDocument();
+  if (!activeDoc?.meta) {
+    return false;
+  }
+  return Object.values(activeDoc.meta.data.definitions).some(d => d.name === null);
+}
+
+/** AI 服务是否已配置（有 API key） */
+export function isAiConfigured(): boolean {
+  return false; // 由调用方直接通过 usePreferencesStore 获取
+}

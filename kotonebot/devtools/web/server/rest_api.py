@@ -286,6 +286,30 @@ def create_rest_router(project: Project) -> APIRouter:
         )
         return _ok(logic.suggest_document_path(image_data, ai_config))
 
+    @router.post("/ai/infer_definitions")
+    async def infer_definitions(
+        image: UploadFile = File(...),
+        definitionsJson: str = Form(...),
+        imagePath: str = Form(...),
+        providerType: str = Form(...),
+        endpoint: str = Form(""),
+        model: str = Form(""),
+        apiKey: str = Form(""),
+    ):
+        image_data = await image.read()
+        ai_config = AiConfig(
+            providerType=providerType,
+            endpoint=endpoint,
+            model=model,
+            apiKey=apiKey,
+        )
+        return _ok(logic.infer_definitions(
+            image_bytes=image_data,
+            definitions_json=definitionsJson,
+            image_path=imagePath,
+            ai_config=ai_config,
+        ))
+
     @router.post("/document/create")
     async def create_document(
         targetPath: str = Form(...),

@@ -72,6 +72,10 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.NAVIGATION_JUMP_TO_DIAGNOSTIC]: { diag: DiagnosticItem };
   /** 打开欢迎页。 */
   [COMMAND_ID.APP_OPEN_WELCOME]: undefined;
+  /** AI 推断当前选中的 definition。 */
+  [COMMAND_ID.AI_INFER_SELECTED]: undefined;
+  /** 批量 AI 推断所有 name===null 的 definitions。 */
+  [COMMAND_ID.AI_INFER_BATCH]: undefined;
 }
 
 /** 无参数命令 ID 集合。 */
@@ -93,6 +97,8 @@ export interface EditorCommandUiHandlers {
   openPreferencesDialog: () => void;
   /** 打开新建文档对话框。 */
   openNewDocumentDialog: () => void;
+  /** 打开批量 AI 推断对话框。 */
+  openAiBatchDialog: () => Promise<void>;
 }
 
 /** 命令执行上下文。 */

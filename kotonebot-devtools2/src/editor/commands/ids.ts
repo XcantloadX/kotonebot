@@ -33,4 +33,6 @@ export const COMMAND_ID = {
   NAVIGATION_JUMP_TO_SYMBOL: "navigation.jumpToSymbol",
   NAVIGATION_JUMP_TO_DIAGNOSTIC: "navigation.jumpToDiagnostic",
   APP_OPEN_WELCOME: "app.openWelcome",
+  AI_INFER_SELECTED: "ai.inferSelected",
+  AI_INFER_BATCH: "ai.inferBatch",
 } as const;

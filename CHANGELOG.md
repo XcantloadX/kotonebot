@@ -5,6 +5,7 @@ Devtool:
 2. [feat] 新增新建文档功能，支持从本地文件、剪贴板以及设备画面新建文档，同时支持 AI 智能命名文档。
 3. [feat] 新增欢迎页面，展示最近打开的文件与新建、打开文档入口。
 4. [feat] 项目面板新增 hover 对象时展示预览图片。
+5. [feat] 新增 AI 自动建议对象 Name 与 DisplayName 以及 Fixed 属性的值。
 
 ## v0.17.0
 Framework:

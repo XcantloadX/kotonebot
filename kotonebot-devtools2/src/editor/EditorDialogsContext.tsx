@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Intent } from "@blueprintjs/core";
 import { loadProjectVariants, pickVariantForActiveDocument } from "./actions/variant";
 import { editorActions } from "./actions";
 import { useAppStore } from "./state";
@@ -11,6 +12,8 @@ import { DeviceCaptureDialog } from "../ui/components/FileOpenDialog/DeviceCaptu
 import { ReplaceImageConfirmDialog } from "../ui/components/ReplaceImageConfirmDialog";
 import { PreferencesDialog } from "../ui/PreferencesDialog";
 import { NewDocumentDialog } from "../ui/components/NewDocumentDialog/NewDocumentDialog";
+import { AiBatchConfirmDialog } from "../ui/components/AiBatchConfirmDialog";
+import type { BatchDefItem } from "../ui/components/AiBatchConfirmDialog";
 import { getImageUrl } from "../api/fs";
 import type { ReplaceImageSource } from "./actions/image";
 import { toaster } from "../ui/toaster";
@@ -68,11 +71,13 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
   const [replaceImageNewDims, setReplaceImageNewDims] = useState<{ width: number; height: number } | null>(null);
   const [isNewDocumentDialogOpen, setNewDocumentDialogOpen] = useState(false);
   const [isPreferencesDialogOpen, setPreferencesDialogOpen] = useState(false);
+  const [isAiBatchDialogOpen, setAiBatchDialogOpen] = useState(false);
+  const [aiBatchDefs, setAiBatchDefs] = useState<BatchDefItem[]>([]);
 
   const variantDialogTitle = variantDialogState.variant
     ? t('dialog.selectTargetImage') + ` ${variantDialogState.variant}`
     : t('dialog.selectTargetImage');
-  const modalOpen = isImageDialogOpen || isNewDocumentDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen || replaceImageDialogOpen || replaceImageSource !== null || isPreferencesDialogOpen;
+  const modalOpen = isImageDialogOpen || isNewDocumentDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen || replaceImageDialogOpen || replaceImageSource !== null || isPreferencesDialogOpen || isAiBatchDialogOpen;
 
   useShortcutScope("modal", modalOpen);
 
@@ -127,6 +132,37 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
   const closePreferencesDialog = useCallback(() => {
     setPreferencesDialogOpen(false);
   }, []);
+
+  const openAiBatchDialog = useCallback(async () => {
+    const docId = getActiveDocumentId();
+    if (!docId) return;
+    const state = useAppStore.getState();
+    const activeDoc = state.documents[docId];
+    if (!activeDoc?.meta) return;
+    const defs = Object.entries(activeDoc.meta.data.definitions)
+      .filter(([_, def]) => def.name === null)
+      .map(([defId, def]) => ({
+        definitionId: defId,
+        hasTemplate: !!def.props.template,
+      }));
+    if (defs.length === 0) {
+      toaster.show({ message: t('ai.batchEmpty'), intent: Intent.PRIMARY, timeout: 3000 });
+      return;
+    }
+    setAiBatchDefs(defs);
+    setAiBatchDialogOpen(true);
+  }, [t]);
+
+  const closeAiBatchDialog = useCallback(() => {
+    setAiBatchDialogOpen(false);
+    setAiBatchDefs([]);
+  }, []);
+
+  const handleAiBatchConfirm = useCallback(async () => {
+    await editorActions.ai.inferBatch();
+    closeAiBatchDialog();
+    toaster.show({ message: t('ai.inferSuccess'), intent: Intent.SUCCESS, timeout: 3000 });
+  }, [closeAiBatchDialog, t]);
 
   const handleNewDocumentConfirm = useCallback(async (imagePath: string) => {
     await editorActions.newDocument.openFromPath(imagePath);
@@ -233,9 +269,10 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
         openDeviceCaptureDialog,
         openReplaceImageDialog,
         openPreferencesDialog,
+        openAiBatchDialog,
       },
     }),
-    [openImageDialog, openNewDocumentDialog, openVariantDialog, openDeviceCaptureDialog, openReplaceImageDialog, openPreferencesDialog],
+    [openImageDialog, openNewDocumentDialog, openVariantDialog, openDeviceCaptureDialog, openReplaceImageDialog, openPreferencesDialog, openAiBatchDialog],
   );
 
   useEffect(() => {
@@ -321,6 +358,12 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
       <PreferencesDialog
         isOpen={isPreferencesDialogOpen}
         onClose={closePreferencesDialog}
+      />
+      <AiBatchConfirmDialog
+        isOpen={isAiBatchDialogOpen}
+        definitions={aiBatchDefs}
+        onClose={closeAiBatchDialog}
+        onConfirm={handleAiBatchConfirm}
       />
     </EditorDialogsContext.Provider>
   );

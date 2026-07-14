@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FormGroup, InputGroup, Button, Tooltip, Intent } from '@blueprintjs/core';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../editor/state';
@@ -14,6 +14,7 @@ import { toaster } from './toaster';
 import { HelpIcon } from './components/HelpIcon';
 import { useEditorDialogsContext } from '../editor/EditorDialogsContext';
 import { useProjectInfoStore } from '../app/projectInfoStore';
+import { usePreferencesStore } from '../preferences/preferencesStore';
 
 export const RightProperties: React.FC = () => {
   const { t } = useTranslation();
@@ -31,6 +32,7 @@ export const RightProperties: React.FC = () => {
   const setMode = useAppStore((s) => s.setMode);
   const symbols = useSymbolIndexStore(s => s.symbols);
   const [nameDraft, setNameDraft] = React.useState<string>('');
+  const [aiInferring, setAiInferring] = React.useState(false);
   const projectVariants = useProjectInfoStore((state) => state.data?.variant?.variants ?? []);
 
   const activeDoc = activeDocumentId ? documents[activeDocumentId] : null;
@@ -92,6 +94,20 @@ export const RightProperties: React.FC = () => {
       [variant]: policy,
     };
     handleChange('variant_policy', nextPolicy);
+  };
+
+  const handleAiInfer = async () => {
+    setAiInferring(true);
+    try {
+      await executeCommand(COMMAND_ID.AI_INFER_SELECTED, commandContext, undefined);
+    } catch (error: any) {
+      toaster.show({
+        message: t('ai.inferFailed', { message: error?.message ?? String(error) }),
+        intent: Intent.DANGER,
+      });
+    } finally {
+      setAiInferring(false);
+    }
   };
 
   const handleEditGeometry = (propKey: string, kind: "rect" | "point" | "image") => {
@@ -245,6 +261,19 @@ export const RightProperties: React.FC = () => {
                   />
                 </Tooltip>
               </>
+            ) : null}
+            {usePreferencesStore.getState().ai.apiKey ? (
+              <Tooltip content={t('ai.inferName')} position="top">
+                <Button
+                  outlined
+                  icon="clean"
+                  loading={aiInferring}
+                  disabled={isVariantPrefab}
+                  aria-label={t('ai.inferName')}
+                  style={{ width: 28, minWidth: 28 }}
+                  onClick={handleAiInfer}
+                />
+              </Tooltip>
             ) : null}
           </div>
       </FormGroup>

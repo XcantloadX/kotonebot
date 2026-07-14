@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { editorActions } from "../editor/actions";
 import { COMMAND_ID, executeCommand, useCommandStatuses } from "../editor/commands";
 import { useAppStore } from "../editor/state";
-import { selectActiveDocumentId } from "../editor/commands/selectors";
+import { selectActiveDocumentId, canAiInferSelectedDefinition, hasAnyDefinitionWithNullName } from "../editor/commands/selectors";
 import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
 import { useEditorDialogsContext } from "../editor/EditorDialogsContext";
 import { useRecentOpenStore } from "../editor/recentOpenStore";
@@ -12,7 +12,7 @@ import { shallow } from "zustand/shallow";
 import { useSettingsStore } from "../editor/settings";
 import { useProjectInfoStore } from "../app/projectInfoStore";
 
-type MenuKey = "file" | "edit" | "variant" | null;
+type MenuKey = "file" | "edit" | "variant" | "ai" | null;
 type MenuId = Exclude<MenuKey, null>;
 
 interface MenuItemDefinition {
@@ -52,6 +52,7 @@ export const TopMenuBar: React.FC = () => {
   const fileButtonRef = useRef<HTMLButtonElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const variantButtonRef = useRef<HTMLButtonElement>(null);
+  const aiButtonRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const [openMenu, setOpenMenu] = useState<MenuKey>(null);
   const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
@@ -72,6 +73,8 @@ export const TopMenuBar: React.FC = () => {
     { id: COMMAND_ID.VARIANT_NEW_FROM_CLIPBOARD, args: undefined },
     { id: COMMAND_ID.VARIANT_NEW_FROM_DEVICE, args: undefined },
     { id: COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB, args: undefined },
+    { id: COMMAND_ID.AI_INFER_SELECTED, args: undefined },
+    { id: COMMAND_ID.AI_INFER_BATCH, args: undefined },
   ] as const), []);
   const statuses = useCommandStatuses(statusEntries, commandContext);
   const canNewDocument = statuses[COMMAND_ID.FILE_NEW_DOCUMENT].enabled;
@@ -89,6 +92,8 @@ export const TopMenuBar: React.FC = () => {
   const redoLabel = canRedo && activeDoc ? activeDoc.history.entries[activeDoc.history.cursor].label : "";
   const undoMenuText = canUndo ? `${t('menuItem.undo')}: ${undoLabel}` : t('menuItem.undo');
   const redoMenuText = canRedo ? `${t('menuItem.redo')}: ${redoLabel}` : t('menuItem.redo');
+  const canAiSingle = statuses[COMMAND_ID.AI_INFER_SELECTED].enabled;
+  const canAiBatch = statuses[COMMAND_ID.AI_INFER_BATCH].enabled;
 
   const triggerStyle = useMemo<React.CSSProperties>(
     () => ({
@@ -252,6 +257,26 @@ export const TopMenuBar: React.FC = () => {
           },
         },
       ],
+      ai: [
+        {
+          icon: "lightbulb",
+          text: t('menuItem.aiInferSelected'),
+          disabled: !canAiSingle,
+          onClick: () => {
+            setOpenMenu(null);
+            void executeCommand(COMMAND_ID.AI_INFER_SELECTED, commandContext, undefined);
+          },
+        },
+        {
+          icon: "lightbulb",
+          text: t('menuItem.aiInferBatch'),
+          disabled: !canAiBatch,
+          onClick: () => {
+            setOpenMenu(null);
+            void executeCommand(COMMAND_ID.AI_INFER_BATCH, commandContext, undefined);
+          },
+        },
+      ],
       variant: [
         {
           icon: "duplicate",
@@ -342,6 +367,8 @@ export const TopMenuBar: React.FC = () => {
       rememberedVariant,
       setRememberedVariant,
       undoMenuText,
+      canAiSingle,
+      canAiBatch,
       t,
     ]
   );
@@ -353,7 +380,10 @@ export const TopMenuBar: React.FC = () => {
     if (key === "edit") {
       return editButtonRef.current;
     }
-    return variantButtonRef.current;
+    if (key === "variant") {
+      return variantButtonRef.current;
+    }
+    return aiButtonRef.current;
   }, []);
 
   const openMenuAt = useCallback(
@@ -424,7 +454,8 @@ export const TopMenuBar: React.FC = () => {
       const isOnFileButton = fileButtonRef.current?.contains(target) ?? false;
       const isOnEditButton = editButtonRef.current?.contains(target) ?? false;
       const isOnVariantButton = variantButtonRef.current?.contains(target) ?? false;
-      if (!isInPanel && !isOnFileButton && !isOnEditButton && !isOnVariantButton) {
+      const isOnAiButton = aiButtonRef.current?.contains(target) ?? false;
+      if (!isInPanel && !isOnFileButton && !isOnEditButton && !isOnVariantButton && !isOnAiButton) {
         setOpenMenu(null);
       }
     };
@@ -577,6 +608,15 @@ export const TopMenuBar: React.FC = () => {
           onMouseEnter={() => switchMenuOnHover("variant")}
         >
           {t('menu.variant')}
+        </button>
+        <button
+          ref={aiButtonRef}
+          type="button"
+          style={{ ...triggerStyle, background: openMenu === "ai" ? "#c7d4e0" : "transparent" }}
+          onClick={() => toggleMenu("ai")}
+          onMouseEnter={() => switchMenuOnHover("ai")}
+        >
+          AI
         </button>
       </div>
       <div

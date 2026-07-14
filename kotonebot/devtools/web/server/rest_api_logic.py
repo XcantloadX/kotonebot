@@ -14,6 +14,8 @@ import cv2
 import numpy as np
 
 from kotonebot.devtools.ai.ai_service import suggest_document_path as ai_suggest_document_path
+from kotonebot.devtools.ai.ai_service import infer_definitions as ai_infer_definitions
+from kotonebot.devtools.ai.ai_service import sample_name_tree
 from kotonebot.devtools.ai.types import AiConfig
 from kotonebot.devtools.errors import InvalidImageError, NotFoundError, ValidationError, VariantNotDeclaredError
 from kotonebot.devtools.image_preview import build_image_preview
@@ -451,6 +453,66 @@ class RestApiLogic:
     def suggest_document_path(self, image_bytes: bytes, ai_config: AiConfig) -> dict:
         folder_tree = self.get_folder_tree()
         return ai_suggest_document_path(image_bytes, folder_tree, ai_config)
+
+    def _collect_existing_names(self, exclude_meta_path: str | None = None) -> list[str]:
+        names: list[str] = []
+        for meta_path in self.project_root.rglob("*.png.json"):
+            if exclude_meta_path and str(meta_path) == exclude_meta_path:
+                continue
+            try:
+                data = json.loads(meta_path.read_text(encoding="utf-8"))
+                defs = data.get("definitions", {})
+                for def_id, definition in defs.items():
+                    name = definition.get("name")
+                    if name and isinstance(name, str) and "." in name:
+                        names.append(name)
+            except Exception:
+                continue
+        return names
+
+    def _collect_current_doc_names(self, image_path: str) -> list[str]:
+        meta_abs = get_safe_path(image_path, self.project).with_suffix(".png.json")
+        if not meta_abs.exists():
+            return []
+        try:
+            data = json.loads(meta_abs.read_text(encoding="utf-8"))
+            return [
+                d["name"] for d in data.get("definitions", {}).values()
+                if d.get("name") and isinstance(d.get("name"), str) and "." in d["name"]
+            ]
+        except Exception:
+            return []
+
+    def infer_definitions(
+        self,
+        image_bytes: bytes,
+        definitions_json: str,
+        image_path: str,
+        ai_config: AiConfig,
+    ) -> dict:
+        definitions = json.loads(definitions_json)
+        folder_path = "/".join(image_path.replace("\\", "/").split("/")[:-1])
+        image_filename = image_path.replace("\\", "/").split("/")[-1]
+        current_names = self._collect_current_doc_names(image_path)
+        other_names = self._collect_existing_names(
+            exclude_meta_path=str(get_safe_path(image_path, self.project).with_suffix(".png.json"))
+        )
+        current_example = sample_name_tree(current_names, max_tokens=200)
+        other_example = sample_name_tree(other_names, max_tokens=400)
+        parts = []
+        if current_example:
+            parts.append("Current document:\n" + current_example)
+        if other_example:
+            parts.append("Other documents:\n" + other_example)
+        name_examples = "\n\n".join(parts) if parts else None
+        return ai_infer_definitions(
+            image_bytes=image_bytes,
+            definitions=definitions,
+            folder_path=folder_path,
+            image_filename=image_filename,
+            ai_config=ai_config,
+            name_examples=name_examples,
+        )
 
     def create_document(self, image_data: bytes, target_path: str) -> dict:
         safe_target = get_safe_path(target_path, self.project)

@@ -1,3 +1,4 @@
+import { inferSingleSelectedDefinition, inferBatchNullNames } from "./ai";
 import {
   closeActiveDocumentWithChecks,
   closeAllDocumentsWithChecks,
@@ -95,6 +96,11 @@ const symbolActions = {
   renameNameForDefinition: renameSymbolNameForActiveDefinition,
 };
 
+const aiActions = {
+  inferSingle: inferSingleSelectedDefinition,
+  inferBatch: inferBatchNullNames,
+};
+
 export const editorActions = {
   newDocument: newDocumentActions,
   image: imageActions,
@@ -103,4 +109,5 @@ export const editorActions = {
   navigation: navigationActions,
   definition: definitionActions,
   symbol: symbolActions,
+  ai: aiActions,
 };

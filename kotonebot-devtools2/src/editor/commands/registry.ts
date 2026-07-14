@@ -15,6 +15,8 @@ import {
   canUndoInActiveDocument,
   getActiveDocumentId,
   hasAnyDocument,
+  canAiInferSelectedDefinition,
+  hasAnyDefinitionWithNullName,
 } from "./selectors";
 import type { EditorCommandArgsMap, EditorCommandContext, EditorCommandDefinition, EditorCommandId, NoArgCommandId } from "./types";
 import i18n from "../../i18n";
@@ -386,6 +388,27 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
       useAppStore.getState().openTab({ kind: "welcome" });
     },
   },
+  [COMMAND_ID.AI_INFER_SELECTED]: {
+    id: COMMAND_ID.AI_INFER_SELECTED,
+    title: t('menuItem.aiInferSelected'),
+    keywords: ["ai", "infer", "fill"],
+    showInPalette: true,
+    when: () => canAiInferSelectedDefinition(),
+    run: async () => {
+      await editorActions.ai.inferSingle();
+    },
+  },
+  [COMMAND_ID.AI_INFER_BATCH]: {
+    id: COMMAND_ID.AI_INFER_BATCH,
+    title: t('menuItem.aiInferBatch'),
+    keywords: ["ai", "infer", "batch", "fill"],
+    showInPalette: true,
+    requiredUi: ["openAiBatchDialog"],
+    when: () => hasAnyDefinitionWithNullName(),
+    run: async (ctx) => {
+      await ctx.ui.openAiBatchDialog!();
+    },
+  },
 };
 
 /** 编辑器命令注册表。 */
@@ -411,6 +434,8 @@ export const paletteCommandIds: NoArgCommandId[] = [
   COMMAND_ID.VARIANT_NEW_FROM_DEVICE,
   COMMAND_ID.VARIANT_COPY_SELECTED_PREFAB,
   COMMAND_ID.APP_OPEN_WELCOME,
+  COMMAND_ID.AI_INFER_SELECTED,
+  COMMAND_ID.AI_INFER_BATCH,
 ];
 
 /** 根据命令 ID 推导其参数类型。 */
