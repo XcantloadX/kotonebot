@@ -13,6 +13,7 @@ import {
 } from '../model/symbolIndex';
 import { toaster } from './toaster';
 import { normalizePath } from '../shared/normalizePath';
+import { TooltipWithPreview } from './components/TooltipWithPreview';
 
 interface TreeRowProps {
   depth: number;
@@ -157,7 +158,11 @@ export const ProjectPanel: React.FC = () => {
     const label = node.children.length > 1
       ? t('projectPanel.variantLabelWithCount', { variant: node.label, count: node.children.length })
       : t('projectPanel.variantLabel', { variant: node.label });
-    return (
+    const firstTarget = node.children[0];
+    const symbol = firstTarget
+      ? symbolMap.get(`${normalizePath(firstTarget.metaPath)}::${firstTarget.definitionId}`)
+      : undefined;
+    const row = (
       <TreeRow
         key={variantKey}
         depth={depth}
@@ -166,26 +171,58 @@ export const ProjectPanel: React.FC = () => {
         onClick={() => void handleOpenVariantNode(node)}
       />
     );
-  }, [handleOpenVariantNode, t]);
+    if (symbol) {
+      return (
+        <TooltipWithPreview
+          key={variantKey}
+          imagePath={symbol.imagePath}
+          geometry={symbol.primaryGeometry}
+        >
+          {row}
+        </TooltipWithPreview>
+      );
+    }
+    return row;
+  }, [handleOpenVariantNode, t, symbolMap]);
 
   const renderSymbolNode = React.useCallback((node: ProjectSymbolTreeSymbolNode, depth: number) => {
     const symbolKey = `s:${node.fullName}`;
     const open = expanded.has(symbolKey);
     const label = node.displayName ? `${node.label} (${node.displayName})` : node.label;
+    const firstSymbol = (() => {
+      for (const variantNode of node.children) {
+        for (const target of variantNode.children) {
+          const key = `${normalizePath(target.metaPath)}::${target.definitionId}`;
+          const s = symbolMap.get(key);
+          if (s) return s;
+        }
+      }
+      return undefined;
+    })();
+    const row = (
+      <TreeRow
+        depth={depth}
+        label={label}
+        icon="symbol-triangle-up"
+        expanded={open}
+        onToggle={() => toggle(symbolKey)}
+        onClick={() => toggle(symbolKey)}
+      />
+    );
     return (
       <React.Fragment key={symbolKey}>
-        <TreeRow
-          depth={depth}
-          label={label}
-          icon="symbol-triangle-up"
-          expanded={open}
-          onToggle={() => toggle(symbolKey)}
-          onClick={() => toggle(symbolKey)}
-        />
+        {firstSymbol ? (
+          <TooltipWithPreview
+            imagePath={firstSymbol.imagePath}
+            geometry={firstSymbol.primaryGeometry}
+          >
+            {row}
+          </TooltipWithPreview>
+        ) : row}
         {open ? node.children.map((variantNode) => renderVariantNode(variantNode, depth + 1, node.fullName)) : null}
       </React.Fragment>
     );
-  }, [expanded, renderVariantNode, toggle]);
+  }, [expanded, renderVariantNode, toggle, symbolMap]);
 
   const renderGroupNode = React.useCallback((node: ProjectSymbolTreeGroupNode, depth: number, parentPath: string) => {
     const path = parentPath ? `${parentPath}.${node.label}` : node.label;

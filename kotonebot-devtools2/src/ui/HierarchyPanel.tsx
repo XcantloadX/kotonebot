@@ -8,6 +8,7 @@ import { COMMAND_ID, executeCommand } from '../editor/commands';
 import { editorActions } from '../editor/actions';
 import { useEditorDialogsContext } from '../editor/EditorDialogsContext';
 import { DefinitionModel } from '../model/metaV2';
+import { TooltipWithPreview } from './components/TooltipWithPreview';
 
 function getTypeIcon(def: DefinitionModel, prefabSchema: ReturnType<typeof useAppStore.getState>['prefabSchema']): IconName {
   if (def.type === 'prefab' && def.prefab_id && prefabSchema) {
@@ -102,15 +103,15 @@ export const HierarchyPanel: React.FC = () => {
         const icon = getTypeIcon(def, prefabSchema);
         const name = def.name || t('untitled');
         const hasDisplayName = !!def.displayName && def.displayName !== def.name;
+        const symbol = symbols.find(
+          (s) => s.definitionId === id && s.imagePath === activeDocumentId
+        );
 
-        return (
+        const button = (
           <button
             key={id}
             type="button"
             onClick={() => {
-              const symbol = symbols.find(
-                (s) => s.definitionId === id && s.imagePath === activeDocumentId
-              );
               if (symbol) {
                 void editorActions.navigation.jumpToSymbol(symbol);
               } else {
@@ -143,6 +144,19 @@ export const HierarchyPanel: React.FC = () => {
             )}
           </button>
         );
+
+        if (symbol) {
+          return (
+            <TooltipWithPreview
+              key={id}
+              imagePath={symbol.imagePath}
+              geometry={symbol.primaryGeometry}
+            >
+              {button}
+            </TooltipWithPreview>
+          );
+        }
+        return button;
       })}
 
       {contextMenu ? (
