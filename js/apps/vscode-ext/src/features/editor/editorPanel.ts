@@ -34,7 +34,7 @@ const VIEW_TYPE = "kotonebot.metaEditor";
 const REQUEST_HOST_OPEN_META_DOCUMENT = "kotonebot.host.openMetaDocument";
 
 function defaultMetaContent(): Uint8Array {
-  const payload = JSON.stringify({ version: 2, definitions: {} }, null, 2);
+  const payload = JSON.stringify({ version: 3, definitions: {} }, null, 2);
   return new TextEncoder().encode(payload);
 }
 
