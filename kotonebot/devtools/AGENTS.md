@@ -13,6 +13,39 @@
 - Pydantic 模型统一放在对应模块的 `types.py` 中（如 `kotonebot/devtools/ai/types.py`），若仅在该模块内部使用也可内联定义。
 - 在决定类型定义位置前必须检索是否已经存在统一的合理的 type 存放位置，如有则存放在相应位置。
 
+### 注释
+
+#### Docstring 格式
+
+使用 **reStructuredText (RST)** 格式，中文撰写：
+
+```python
+def func(param1: str, param2: int) -> bool:
+    """简要描述功能。
+
+    :param param1: 参数说明
+    :param param2: 参数说明
+    :returns: 返回值说明
+    :raises SomeError: 异常说明
+    """
+```
+
+#### 覆盖范围
+
+| 元素 | 必须 | 格式 |
+|------|------|------|
+| 模块 | 是 | 文件顶部一行中文描述 |
+| 类 | 是 | 类定义下方，中文 |
+| 公开方法 | 是 | RST，中文 |
+| 私有方法 | 推荐 | 一行 `#` 注释或 docstring |
+| 属性（dataclass / pydantic field） | 推荐 | 字段后的注释 |
+
+#### 代码行内注释
+
+- 复杂逻辑段上方加 `#` 注释说明意图
+- **禁止写「这段代码做了什么」这类显而易见的注释，而应写「为什么要这样做」**
+- 中文注释
+
 ### 路径约定
 
 - **相对路径的根**：所有 API 返回或接收的相对路径均以 `pyproject_root`（`pyproject.toml` 所在目录）为根。
