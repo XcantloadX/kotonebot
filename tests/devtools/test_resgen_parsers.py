@@ -141,8 +141,8 @@ class TestKotoneV1Parser(unittest.TestCase):
             parser = KotoneV1Parser()
             self.assertFalse(parser.can_parse(json_file.as_posix()))
 
-    def test_can_parse_with_simple_meta_schema(self):
-        """Test can_parse with new simple meta schema (isSimple + definition)."""
+    def test_can_parse_with_single_meta_schema(self):
+        """Test can_parse with new single meta schema (isSimple + definition)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             json_file = Path(tmpdir) / "test.png.json"
             schema = {
@@ -159,8 +159,8 @@ class TestKotoneV1Parser(unittest.TestCase):
             parser = KotoneV1Parser()
             self.assertTrue(parser.can_parse(json_file.as_posix()))
 
-    def test_parse_simple_template_definition(self):
-        """Test parsing simple meta with single template definition (isSimple true)."""
+    def test_parse_single_template_definition(self):
+        """Test parsing single meta with single template definition (isSimple true)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             schema = {
                 "isSimple": True,
@@ -183,7 +183,7 @@ class TestKotoneV1Parser(unittest.TestCase):
             self.assertIn("class_path", node.metadata)
             self.assertEqual(node.metadata["class_path"], ["Ui"])
 
-    def test_parse_simple_template_definition_with_empty_name_and_display(self):
+    def test_parse_single_template_definition_with_empty_name_and_display(self):
         """Simple meta: empty name/displayName should fall back to file-based defaults."""
         with tempfile.TemporaryDirectory() as tmpdir:
             schema = {
@@ -341,7 +341,7 @@ class TestBasicSpriteParser(unittest.TestCase):
             self.assertIn("Sprite3", names)
 
 
-class TestKotoneV2Parser(unittest.TestCase):
+class TestKotoneMultiParser(unittest.TestCase):
     """Tests for KotoneV1Parser (V2 support) and Meta V2 slice naming."""
 
     def setUp(self) -> None:
@@ -353,7 +353,7 @@ class TestKotoneV2Parser(unittest.TestCase):
         _, json_path = write_png_with_meta(Path(self.tmp.name), "test.png", content)
         return json_path.as_posix()
 
-    def test_v2_template_image_slice_naming(self):
+    def test_multi_template_image_slice_naming(self):
         """ImageProp 应导出 <definitionId>_<propKey>.png 命名的切片。"""
         data = {
             "version": 3,
@@ -396,7 +396,7 @@ class TestKotoneV2Parser(unittest.TestCase):
         assert isinstance(node.value, ImageAsset)
         self.assertEqual(os.path.basename(node.value.path), "def1_templateImage.png")
 
-    def test_v2_prefab_variant_merge(self):
+    def test_multi_prefab_variant_merge(self):
         data = {
             "version": 3,
             "definitions": {
@@ -448,7 +448,7 @@ class TestKotoneV2Parser(unittest.TestCase):
         self.assertIsInstance(prefab.value.variant_props["base"]["region"], RectData)
         self.assertIsInstance(prefab.value.variant_props["base"]["tapPoint"], PointData)
 
-    def test_v2_prefab_variant_merge_without_base_variant_key(self):
+    def test_multi_prefab_variant_merge_without_base_variant_key(self):
         data = {
             "version": 3,
             "definitions": {

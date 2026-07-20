@@ -64,7 +64,7 @@ from kotonebot.devtools.indexing.symbol_index_view import (
     SymbolLiteModel,
     DiagnosticPayloadModel,
 )
-from kotonebot.devtools.meta import DefinitionV3Model, merge_prefab_definition, parse_meta_file
+from kotonebot.devtools.meta import DefinitionMultiModel, merge_prefab_definition, parse_meta_file
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.project.scanner import scan_prefabs
 from kotonebot.devtools.path_utils import get_safe_path, to_rel, unify_path
@@ -622,7 +622,7 @@ class WorkspaceService:
         if source_definition.name is None:
             raise ValidationError(f"Source definition requires name: {source_definition_id}")
 
-        base_by_name: dict[str, DefinitionV3Model] = {}
+        base_by_name: dict[str, DefinitionMultiModel] = {}
         for definition in source_meta_data.definitions.values():
             if definition.type != "prefab" or definition.variant is not None:
                 continue
@@ -799,8 +799,8 @@ class WorkspaceService:
     def _build_prefab_variant_definition(
         self,
         *,
-        definition: DefinitionV3Model,
-        base_by_name: dict[str, DefinitionV3Model],
+        definition: DefinitionMultiModel,
+        base_by_name: dict[str, DefinitionMultiModel],
         target_variant: str,
     ) -> dict[str, Any]:
         if definition.name is None:
@@ -956,7 +956,7 @@ class WorkspaceService:
         source_image: Any | None = None
         target_image = target_image_override
 
-        base_by_name: dict[str, DefinitionV3Model] = {}
+        base_by_name: dict[str, DefinitionMultiModel] = {}
         for definition in source_meta.definitions.values():
             if definition.type != "prefab":
                 continue

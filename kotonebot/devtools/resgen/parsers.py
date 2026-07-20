@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from kotonebot.devtools.errors import ValidationError
 from kotonebot.devtools.meta import (
     Diagnostic,
-    MetaV3Model,
+    MetaMultiModel,
     ResolvedPrefabVariants,
     build_variant_projection_for_resgen,
     parse_meta_file,
@@ -178,41 +178,41 @@ class KotoneV1Parser(SchemaParser):
         if not file_path.endswith('.png.json'):
             return False
         # 使用统一的 schema 检测逻辑：只有在结构被认为是合法的
-        # simple/v3 meta 时才返回 True。
+        # single/multi meta 时才返回 True。
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             info = detect_and_validate_meta_schema(data)
-            if info.format == "v3":
+            if info.format == "multi":
                 parse_meta_file(Path(file_path))
-            # 支持 simple 与 v3 两种格式
-            return info.format in ("simple", "v3")
+            # 支持 single 与 multi 两种格式
+            return info.format in ("single", "multi")
         except (json.JSONDecodeError, OSError, MetaValidationError):
             return False
         except ValueError:
             return False
 
     def parse(self, file_path: str, context: Dict[str, Any]) -> List[ResourceNode]:
-        """解析版本化 meta（v3）。Context 需要包含: 'output_img_dir'。"""
+        """解析多定义 meta（multi）。Context 需要包含: 'output_img_dir'。"""
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         schema_info = detect_and_validate_meta_schema(data)
         output_dir = context.get('output_img_dir', 'tmp')
         png_file = file_path.replace('.json', '')
 
-        if schema_info.format == "simple":
+        if schema_info.format == "single":
             definition = data.get("definition")
             if not isinstance(definition, dict):
                 raise MetaValidationError("Simple meta missing 'definition' object")
-            return self._parse_simple_definition(definition, png_file, output_dir, context)
+            return self._parse_single_definition(definition, png_file, output_dir, context)
 
-        if schema_info.format == "v3":
-            v3_data = parse_meta_file(Path(file_path))
-            return self._parse_v3_schema(v3_data, file_path, png_file, output_dir, context)
+        if schema_info.format == "multi":
+            multi_data = parse_meta_file(Path(file_path))
+            return self._parse_multi_schema(multi_data, file_path, png_file, output_dir, context)
 
         raise MetaValidationError(f"KotoneV1Parser cannot parse meta format: {schema_info.format}")
 
-    def _parse_v3_schema(self, data: MetaV3Model, meta_path: str, png_file: str, output_dir: str, context: Dict[str, Any]) -> List[ResourceNode]:
+    def _parse_multi_schema(self, data: MetaMultiModel, meta_path: str, png_file: str, output_dir: str, context: Dict[str, Any]) -> List[ResourceNode]:
         resources: List[ResourceNode] = []
         definitions = data.definitions
         normalized_meta_path = unify_path(meta_path)
@@ -371,7 +371,7 @@ class KotoneV1Parser(SchemaParser):
                     for variant in variant_keys:
                         merged_key = "" if variant == raw_base_variant else variant
                         if merged_key not in variant_group.merged:
-                            # In v3, exclude means this variant intentionally has no merged output.
+                            # In multi format, exclude means this variant intentionally has no merged output.
                             if merged_key != "" and base_policy.get(variant) == "exclude":
                                 continue
                             if ignore_error:
@@ -469,14 +469,14 @@ class KotoneV1Parser(SchemaParser):
         return "\n".join(lines)
 
 
-    def _parse_simple_definition(
+    def _parse_single_definition(
         self,
         definition: Dict[str, Any],
         png_file: str,
         output_dir: str,
         context: Dict[str, Any],
     ) -> List[ResourceNode]:
-        """Parse a single-definition simple meta file.
+        """Parse a single-definition meta file.
 
         当前仅支持 `type == "template"` 与 `type == "prefab"` 的简单资源：
         - 不依赖 annotations；
@@ -560,7 +560,7 @@ class KotoneV1Parser(SchemaParser):
         else:  # prefab
             prefab_id_ref = definition.get('prefab_id')
             if not isinstance(prefab_id_ref, str) or not prefab_id_ref.strip():
-                raise MetaValidationError(f"Prefab definition missing prefab_id in simple meta for {png_file}")
+                raise MetaValidationError(f"Prefab definition missing prefab_id in single meta for {png_file}")
 
             node = ResourceNode(
                 name=attr_name,

@@ -48,7 +48,7 @@ def validate_meta_corpus(
                         diagnostics.append(
                             Diagnostic(
                                 code=META_VARIANT_INVALID.code,
-                                message=f"base prefab requires variant_policy in meta v3: {definition.name}",
+                                message=f"base prefab requires variant_policy in multi meta: {definition.name}",
                                 meta_path=doc.meta_path,
                                 severity="error",
                                 definition_id=definition_id,

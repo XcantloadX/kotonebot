@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 from kotonebot.devtools.errors import ValidationError
 
-from .models import DefinitionModel, DefinitionV3Model, VariantPolicy
+from .models import DefinitionModel, DefinitionMultiModel, VariantPolicy
 
 
 class DefinitionRef(BaseModel):
@@ -39,7 +39,7 @@ def merge_prefab_definition(base: DefinitionModel, override: DefinitionModel) ->
     merged_props = dict(base_props)
     merged_props.update(override_props)
 
-    return DefinitionV3Model(
+    return DefinitionMultiModel(
         type="prefab",
         name=override.name,
         displayName=override.display_name if override.display_name is not None else base.display_name,
@@ -108,7 +108,7 @@ def resolve_prefab_variant_groups(
                     continue
                 merged[variant] = merge_prefab_definition(
                     base.definition,
-                    DefinitionV3Model(
+                    DefinitionMultiModel(
                         type="prefab",
                         name=base.definition.name,
                         variant=variant,

@@ -35,7 +35,7 @@
 - `parsers.py`：`ParserRegistry`、`KotoneV1Parser`、`BasicSpriteParser`。
 - `codegen.py`：`StandardGenerator`、`EntityGenerator` 以及代码渲染逻辑。
 - `utils.py`：`to_camel_case`、`unify_path`、`build_class_tree`、`ImageProcessor`。
-- `validation.py`：meta JSON 简单/复杂格式的检测与校验逻辑。
+- `validation.py`：meta JSON 格式的检测与校验逻辑。
 
 ---
 
@@ -114,85 +114,32 @@ class SchemaParser(Protocol):
 
 ### `KotoneV1Parser`
 
-负责解析带有 meta JSON 的 `*.png.json` 文件，支持两种 schema：**简单格式** 与 **复杂格式**，详见下文“meta JSON 格式”。
+负责解析带有 meta JSON 的 `*.png.json` 文件，详见下文“meta JSON 格式”。
 
 接口：
 
 - `can_parse(file_path: str) -> bool`
   - 要求扩展名为 `.png.json`；
   - 打开 JSON，调用 `detect_and_validate_meta_schema` 检测/校验；
-  - 若 JSON 结构合法（无论 simple/complex），返回 `True`，否则返回 `False`。
+  - 若 JSON 结构合法，返回 `True`，否则返回 `False`。
 
 - `parse(file_path: str, context: Dict[str, Any]) -> List[ResourceNode]`
   - `file_path` 必须是 `xxx.png.json`；
   - `context` 至少应包含：
     - `output_img_dir`: 图片输出目录（裁剪/复制后的图片会写到这里）；
-    - `root_scan_path`: 可选，用于简单模式下推导 `class_path`。
+    - `root_scan_path`: 可选，用于单定义模式下推导 `class_path`。
   - 加载 JSON，调用 `detect_and_validate_meta_schema` 得到 `MetaSchemaInfo`：
-    - `format == "simple"`：走简单格式解析 `_parse_simple_definition`；
-    - `format == "complex"`：走复杂格式解析逻辑。
+    - `format == "single"`：走简单格式解析 `_parse_single_definition`；
 
-#### 复杂格式解析（`format == "complex"`）
+#### 单定义格式解析（`format == "single"`）
 
-- 输入 JSON 顶层字段：
-  - `definitions: { id: definitionObj, ... }`
-  - `annotations: [ { id, type, data }, ... ]`
-- 解析过程大致为：
-  1. 按 `annotations` 构建映射：`{ annotation_id -> annotationObj }`；
-  2. 遍历 `definitions` 中的每个 definition：
-     - `definition['name']`：形如 `"ui.button"`，前半段会转成 `class_path`（`["Ui"]`），最后一段作为 `attr_name`（`"button"`）；
-     - `definition['displayName']` / `definition['description']`：用于展示与 docstring；
-     - `definition['type']`：决定资源类型，支持：
-       - `"template"`：模板图片；
-       - `"prefab"`：自定义 Prefab；
-       - `"hint-box"`：矩形提示区域；
-       - `"hint-point"`：单点提示。
-     - `definition['annotationId']`：关联到具体的 annotation（rect / point）。
-
-  3. 根据 `type` 分支：
-
-     - **`type == "template"`**：
-       - 要求对应 `annotation` 的 `type` 为 `"rect"`，`data` 中包含 `(x1, y1, x2, y2)`；
-       - 调用 `ImageProcessor.save_crop` 按矩形裁剪原始 PNG；
-       - 将裁剪结果重命名为 `{annotationId}.png` 放入 `output_img_dir`；
-       - 构造 `ImageAsset(path=abs_path, rect=rect)`；
-       - 组装 `ResourceNode`：
-         - `name = attr_name`
-         - `type = "template"`
-         - `metadata` 中写入：
-           - `class_path`: `List[str]`
-           - `origin_file`: 原始大图绝对路径
-           - `abs_path`: 裁剪图绝对路径
-           - `display_name`: 显示名
-           - `description`: 描述
-
-     - **`type == "prefab"`**：
-       - definition 下带有 `prefab` 字段：`{"className": "MyPrefabBase"}`；
-       - 同样要求对应 `annotation` 类型为 `"rect"`，流程类似 `template`，但：
-         - `ResourceNode.value` 为 `PrefabData(image=ImageAsset(...), class_name=className)`；
-         - `ResourceNode.type = "prefab"`。
-
-     - **`type == "hint-box"`**：
-       - `annotation.type == "rect"`，从 `data` 中取出矩形；
-       - 使用 `ImageProcessor.save_crop` 生成一张预览图，保存到 `os.path.join(output_dir, 'preview')`；
-       - `ResourceNode.value = BoxData(x1, y1, x2, y2)`（目前 `resolution` 固定为 `(720, 1280)`，未来可从 content 读取）；
-       - `metadata['preview_path']` 指向预览图片，用于 IDE 文档中的截图展示；
-       - `type = "hint-box"`。
-
-     - **`type == "hint-point"`**：
-       - `annotation.type == "point"`，从 `data` 中取 `x`、`y`；
-       - `ResourceNode.value = PointData(x, y)`；
-       - `type = "hint-point"`。
-
-#### 简单格式解析（`format == "simple"`）
-
-由 `_parse_simple_definition` 完成，专门处理：
+由 `_parse_single_definition` 完成，专门处理：
 
 - 顶层只有一个 `definition` 对象；
 - `isSimple` 必须为 `true`；
 - 不允许出现 `definitions` 与 `annotations`。
 
-目前简单格式仅支持：
+目前单定义格式仅支持：
 
 - `type == "template"`
 - `type == "prefab"`
@@ -394,19 +341,15 @@ class SchemaParser(Protocol):
 
 meta JSON 的检测/校验逻辑集中在 `validation.py` 的 `detect_and_validate_meta_schema` 中，核心规则：
 
-- **简单格式（simple）**：
+- **单定义格式（single）**：
   - 顶层必须有：`isSimple: true`；
   - 顶层必须有：`definition`（对象）；
   - 顶层不能有：`definitions` 或 `annotations`；
 
-- **复杂格式（complex）**：
-  - 顶层不能有 `definition`；
-  - 顶层必须同时包含：`definitions`（对象）与 `annotations`（数组）；
-  - `isSimple` 缺省或为 `false` 都视为复杂格式。
 
-若结构不满足以上任一分支，会抛出 `MetaValidationError`。
+若结构不能满足条件，会抛出 `MetaValidationError`。
 
-### 简单格式（simple meta）
+### 单定义格式（single meta）
 
 顶层结构：
 
@@ -475,82 +418,7 @@ meta JSON 的检测/校验逻辑集中在 `validation.py` 的 `detect_and_valida
 }
 ```
 
-### 复杂格式（complex meta）
 
-顶层结构：
-
-```jsonc
-{
-  "isSimple": false,             // 可选，缺省也视为 complex
-  "definitions": {
-    "def-1": {
-      "name": "ui.button",     // 必须
-      "type": "template",      // template / prefab / hint-box / hint-point
-      "displayName": "Button", // 可选
-      "description": "Main button", // 可选
-      "annotationId": "annot-1",   // 对应 annotations 中的 id
-
-      // type == "prefab" 才需要 prefab 字段
-      "prefab": {
-        "className": "MyPrefabBase"
-      }
-    },
-    "def-2": {
-      "name": "dialogs.hint_box",
-      "type": "hint-box",
-      "displayName": "Dialog",
-      "description": "Dialog box",
-      "annotationId": "annot-2"
-    },
-    "def-3": {
-      "name": "touches.point",
-      "type": "hint-point",
-      "displayName": "Touch Point",
-      "description": "Touch location",
-      "annotationId": "annot-3"
-    }
-  },
-  "annotations": [
-    {
-      "id": "annot-1",
-      "type": "rect",
-      "data": { "x1": 10, "y1": 20, "x2": 100, "y2": 200 }
-    },
-    {
-      "id": "annot-2",
-      "type": "rect",
-      "data": { "x1": 0, "y1": 0, "x2": 720, "y2": 1280 }
-    },
-    {
-      "id": "annot-3",
-      "type": "point",
-      "data": { "x": 360, "y": 640 }
-    }
-  ]
-}
-```
-
-- `definitions` 中的 key（如 `"def-1"`）只是内部 id；
-- `name` 规范与简单格式类似：
-  - 形如 `"ui.button"`，前部经 `to_camel_case` 后作为 `class_path`，最后一段作为属性名（保持原样或再做转换由上层约定）。
-- `annotationId` 必须在 `annotations` 中存在对应条目：
-  - 对于 `template` / `prefab` / `hint-box`：`annotation.type == "rect"`；
-  - 对于 `hint-point`：`annotation.type == "point"`。
-
-解析后：
-
-- `template` / `prefab`：
-  - 使用 `ImageProcessor.save_crop` 从原始 PNG 中截出矩形区域，并重命名为 `{annotationId}.png`；
-  - 生成 `ImageAsset` / `PrefabData`；
-  - `metadata.abs_path` 指向裁剪图；
-
-- `hint-box`：
-  - 同样裁剪出一张预览图（保存到 `output_img_dir/preview`）；
-  - 运行时只使用 `BoxData` 中的坐标与默认分辨率；
-  - 预览图路径存在 `metadata.preview_path` 中，用于 IDE 中 docstring 渲染图片；
-
-- `hint-point`：
-  - 直接构造 `PointData(x, y)`，不涉及图片裁剪。
 
 ---
 
@@ -649,7 +517,7 @@ code_str = gen.generate(root_nodes)
 
 ### 2. 扩展/修改 meta JSON 结构
 
-- 若只是 **在现有 simple/complex 结构中新增可选字段**：
+- 若只是 **在现有单定义格式中新增可选字段**：
   - 可以直接在解析器的 `definition` / `annotation` 处理逻辑中读这些字段，并写入 `ResourceNode.metadata`；
   - 若这些字段需要强约束（必填、类型限制），可以在 `validation.detect_and_validate_meta_schema` 中补充检查逻辑（或编写新的验证函数）。
 
@@ -693,7 +561,6 @@ code_str = gen.generate(root_nodes)
 ## 小结
 
 - `resgen` 将“**图片 + meta JSON**”统一转化为 `ResourceNode` / `ClassNode`，再通过 Generator 生成最终 Python 代码；
-- meta JSON 支持 **简单格式** 与 **复杂格式** 两种模式：
-  - 简单格式适合单一资源（整体图片）快速配置；
-  - 复杂格式适合一张大图上包含多个模板、提示区域和点击点的精细标注；
+- meta JSON 支持 **单定义格式**：
+  - 单定义格式适合单一资源（整体图片）快速配置；
 - 模块内部通过清晰的 IR、解析器协议与生成器分层，便于扩展新的 meta 格式和代码生成目标。

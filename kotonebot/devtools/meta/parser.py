@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from .models import MetaModel, MetaV3Model
+from .models import MetaModel, MetaMultiModel
 
 
 class MetaValidationError(ValueError):
@@ -26,7 +26,7 @@ def parse_meta_text(text: str) -> MetaModel:
     data = json.loads(text)
     _detect_meta_version(data)
     try:
-        return MetaV3Model.model_validate(data)
+        return MetaMultiModel.model_validate(data)
     except ValidationError as exc:
         errors = exc.errors(include_url=False)
         field_path: str | None = None

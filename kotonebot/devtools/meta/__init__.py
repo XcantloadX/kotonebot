@@ -3,9 +3,9 @@ from ..diagnostics.models import Diagnostic, Severity
 from .graph import DefinitionKey, ResolvedDefinition, ResolvedDocsGraph, build_docs_graph
 from .models import (
     DefinitionModel,
-    DefinitionV3Model,
+    DefinitionMultiModel,
     MetaModel,
-    MetaV3Model,
+    MetaMultiModel,
     VariantPolicy,
 )
 from .parser import parse_meta_file
@@ -35,10 +35,10 @@ __all__ = [
     "build_docs_graph",
     "build_meta_state",
     "DefinitionModel",
-    "DefinitionV3Model",
+    "DefinitionMultiModel",
     "MetaFileRef",
     "MetaModel",
-    "MetaV3Model",
+    "MetaMultiModel",
     "VariantPolicy",
     "parse_meta_file",
     "scan_meta_files",

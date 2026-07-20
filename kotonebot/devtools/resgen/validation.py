@@ -8,7 +8,7 @@ class MetaValidationError(ValueError):
     """Raised when a meta JSON file does not conform to expected schema."""
 
 
-MetaFormat = Literal["simple", "v3"]
+MetaFormat = Literal["single", "multi"]
 
 
 class MetaSchemaInfo(BaseModel):
@@ -19,7 +19,7 @@ class MetaSchemaInfo(BaseModel):
     """
 
     format: MetaFormat
-    is_simple_flag: bool | None
+    is_single_flag: bool | None
 
 
 def _ensure_bool_or_none(value: Any, field_name: str) -> bool | None:
@@ -31,14 +31,14 @@ def _ensure_bool_or_none(value: Any, field_name: str) -> bool | None:
 
 
 def detect_and_validate_meta_schema(data: Dict[str, Any]) -> MetaSchemaInfo:
-    """Detect whether meta JSON is in simple or v3 format and validate structure.
+    """Detect whether meta JSON is in single or multi format and validate structure.
 
     Rules:
-        - Meta v3 format:
+        - Multi format:
             * Top-level `version` MUST be 3.
       * MUST contain `definitions` (object).
       * MUST NOT contain `annotations`.
-    - Simple format (V1):
+    - Single format (V1):
       * Top-level `isSimple` MUST be true.
       * MUST contain `definition` (object).
       * MUST NOT contain `definitions` or `annotations`.
@@ -47,7 +47,7 @@ def detect_and_validate_meta_schema(data: Dict[str, Any]) -> MetaSchemaInfo:
     if not isinstance(data, dict):
         raise MetaValidationError("Meta JSON root must be an object.")
 
-    # --- Meta v3 branch (versioned schema, no annotations) ---
+    # --- Multi format branch (versioned schema, no annotations) ---
     version = data.get("version")
     if version is not None:
         if version != 3:
@@ -57,36 +57,36 @@ def detect_and_validate_meta_schema(data: Dict[str, Any]) -> MetaSchemaInfo:
         has_annotations = "annotations" in data
 
         if not has_definitions:
-            raise MetaValidationError("Meta v3 must contain field 'definitions'.")
+            raise MetaValidationError("Multi meta must contain field 'definitions'.")
         if has_annotations:
-            raise MetaValidationError("Meta v3 must not contain field 'annotations'.")
+            raise MetaValidationError("Multi meta must not contain field 'annotations'.")
 
         definitions = data["definitions"]
         if not isinstance(definitions, dict):
             raise MetaValidationError("Field 'definitions' must be an object (mapping).")
 
-        return MetaSchemaInfo(format="v3", is_simple_flag=None)
+        return MetaSchemaInfo(format="multi", is_single_flag=None)
 
     raw_flag = data.get("isSimple")
-    is_simple_flag = _ensure_bool_or_none(raw_flag, "isSimple")
+    is_single_flag = _ensure_bool_or_none(raw_flag, "isSimple")
 
     has_definition = "definition" in data
     has_definitions = "definitions" in data
     has_annotations = "annotations" in data
 
-    # --- Simple format branch (V1) ---
-    if is_simple_flag is True:
+    # --- Single format branch (V1) ---
+    if is_single_flag is True:
         if not has_definition:
-            raise MetaValidationError("Simple meta must contain field 'definition'.")
+            raise MetaValidationError("Single meta must contain field 'definition'.")
         if has_definitions or has_annotations:
             raise MetaValidationError(
-                "Simple meta must not contain 'definitions' or 'annotations'."
+                "Single meta must not contain 'definitions' or 'annotations'."
             )
         definition = data["definition"]
         if not isinstance(definition, dict):
             raise MetaValidationError("Field 'definition' must be an object.")
-        return MetaSchemaInfo(format="simple", is_simple_flag=True)
+        return MetaSchemaInfo(format="single", is_single_flag=True)
 
     raise MetaValidationError(
-        "Unrecognized meta format: must have 'isSimple: true' (simple) or 'version: 3' (v3)."
+        "Unrecognized meta format: must have 'isSimple: true' (single) or 'version: 3' (multi)."
     )

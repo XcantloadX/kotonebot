@@ -13,11 +13,10 @@ meta 文件与图片同名，后缀为 `.png.json`，例如：
 
 当前历史上存在 3 种格式：
 
-1. Legacy Simple（旧版简单格式）
-2. Legacy Complex（旧版复杂格式）
-3. Meta V2（当前新格式）
+1. Legacy Single（旧版单定义格式）
+2. Multi（当前新格式）
 
-其中 **当前推荐并持续演进的是 Meta V2**。
+其中 **当前推荐并持续演进的是 Multi**。
 
 ## 3. Legacy Simple
 
@@ -41,37 +40,7 @@ meta 文件与图片同名，后缀为 `.png.json`，例如：
 }
 ```
 
-## 4. Legacy Complex
-
-顶层结构特征：
-
-- `isSimple` 缺省或为 `false`
-- 必须包含 `definitions: object`
-- 必须包含 `annotations: array`
-- 顶层不能包含 `definition`
-
-示例：
-
-```json
-{
-  "definitions": {
-    "def-1": {
-      "name": "ui.button",
-      "type": "template",
-      "annotationId": "annot-1"
-    }
-  },
-  "annotations": [
-    {
-      "id": "annot-1",
-      "type": "rect",
-      "data": { "x1": 10, "y1": 20, "x2": 100, "y2": 200 }
-    }
-  ]
-}
-```
-
-## 5. Meta V2（推荐）
+## 5. Multi（推荐）
 
 顶层结构特征：
 
@@ -111,16 +80,16 @@ meta 文件与图片同名，后缀为 `.png.json`，例如：
 
 ### 6.1 `devtools/indexing`
 
-- 使用共享入口解析 Meta V2。
+- 使用共享入口解析 Multi。
 - 面向 symbol index / diagnostics。
 - 不做旧格式兼容。
 
 ### 6.2 `devtools/resgen`
 
-- 历史上支持 Legacy Simple / Legacy Complex / V2。
+- 历史上支持 Legacy Single / Multi。
 - 当前主路径建议使用 V2。
 - 旧格式仅用于存量兼容与迁移阶段。
 
 ## 7. 结论
 
-新增或重构资源时，请统一使用 **Meta V2**，避免继续引入 legacy 格式。
+新增或重构资源时，请统一使用 **Multi**，避免继续引入 legacy 格式。
