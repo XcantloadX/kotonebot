@@ -45,7 +45,8 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
             png_file = write_min_png(tmp_path / "sprite.png")
             
             json_file = tmp_path / "data.png.json"
-            schema = {"definitions": {}, "annotations": []}
+            write_min_png(tmp_path / "data.png")
+            schema = {"isSimple": True, "definition": {"type": "template", "name": "test.sprite"}}
             write_json(json_file, schema)
             
             registry = ParserRegistry()

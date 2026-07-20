@@ -178,7 +178,7 @@ class KotoneV1Parser(SchemaParser):
         if not file_path.endswith('.png.json'):
             return False
         # 使用统一的 schema 检测逻辑：只有在结构被认为是合法的
-        # simple/complex meta 时才返回 True。
+        # simple/v3 meta 时才返回 True。
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)

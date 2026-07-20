@@ -8,7 +8,7 @@ class MetaValidationError(ValueError):
     """Raised when a meta JSON file does not conform to expected schema."""
 
 
-MetaFormat = Literal["simple", "complex", "v3"]
+MetaFormat = Literal["simple", "v3"]
 
 
 class MetaSchemaInfo(BaseModel):
@@ -31,7 +31,7 @@ def _ensure_bool_or_none(value: Any, field_name: str) -> bool | None:
 
 
 def detect_and_validate_meta_schema(data: Dict[str, Any]) -> MetaSchemaInfo:
-    """Detect whether meta JSON is in simple/complex/v3 format and validate structure.
+    """Detect whether meta JSON is in simple or v3 format and validate structure.
 
     Rules:
         - Meta v3 format:
@@ -42,10 +42,6 @@ def detect_and_validate_meta_schema(data: Dict[str, Any]) -> MetaSchemaInfo:
       * Top-level `isSimple` MUST be true.
       * MUST contain `definition` (object).
       * MUST NOT contain `definitions` or `annotations`.
-    - Complex format (V1):
-      * `isSimple` is absent or false (these two are strictly equivalent).
-      * MUST contain `definitions` and `annotations`.
-      * MUST NOT contain `definition`.
     """
 
     if not isinstance(data, dict):
@@ -91,24 +87,6 @@ def detect_and_validate_meta_schema(data: Dict[str, Any]) -> MetaSchemaInfo:
             raise MetaValidationError("Field 'definition' must be an object.")
         return MetaSchemaInfo(format="simple", is_simple_flag=True)
 
-    # --- Complex format branch (V1, isSimple is false or missing) ---
-    if has_definition:
-        # For complex meta, we never allow the single `definition` field.
-        raise MetaValidationError(
-            "Complex meta must not contain top-level field 'definition'."
-        )
-
-    if not (has_definitions and has_annotations):
-        raise MetaValidationError(
-            "Complex meta must contain both 'definitions' and 'annotations'."
-        )
-
-    # Basic structural checks; detailed content validation can be added later.
-    definitions = data["definitions"]
-    annotations = data["annotations"]
-    if not isinstance(definitions, dict):
-        raise MetaValidationError("Field 'definitions' must be an object (mapping).")
-    if not isinstance(annotations, list):
-        raise MetaValidationError("Field 'annotations' must be an array.")
-
-    return MetaSchemaInfo(format="complex", is_simple_flag=False)
+    raise MetaValidationError(
+        "Unrecognized meta format: must have 'isSimple: true' (simple) or 'version: 3' (v3)."
+    )

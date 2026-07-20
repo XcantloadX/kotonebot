@@ -429,7 +429,7 @@ class EntityGenerator(StandardGenerator):
             #    so simple prefab definitions that only provide an image still
             #    produce a usable `template` attribute on the generated class.
             # Only expose `template` automatically for prefabs that originated
-            # from a simple meta file (isSimple == True). Complex/v2 prefabs may
+            # from a simple meta file (isSimple == True). V3 prefabs may
             # define images via props and should not implicitly expose `template`.
             if data.image is not None and node.metadata.get('isSimple'):
                 rect_expr: str
