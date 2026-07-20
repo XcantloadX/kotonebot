@@ -6,6 +6,7 @@ Devtool:
 3. [feat] 新增欢迎页面，展示最近打开的文件与新建、打开文档入口。
 4. [feat] 项目面板新增 hover 对象时展示预览图片。
 5. [feat] 新增 AI 自动建议对象 Name 与 DisplayName 以及 Fixed 属性的值。
+6. [feat] 优化 Devtool CLI 的启动速度。
 
 ## v0.17.0
 Framework:

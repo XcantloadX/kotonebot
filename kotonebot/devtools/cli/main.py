@@ -1,9 +1,6 @@
 import sys
 import argparse
 
-from ..lsp.server import run_lsp_server
-from ..web.server.server import start_devtools, start_devtools_background, stop_devtools_background
-
 
 def main():
     """KotoneBot CLI entry point."""
@@ -11,9 +8,9 @@ def main():
         prog="kbot",
         description="KotoneBot command-line interface"
     )
-    
+
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
-    
+
     # devtools subcommand
     devtools_parser = subparsers.add_parser(
         "devtools",
@@ -70,10 +67,12 @@ def main():
         action="store_true",
         help="Use stdio transport for LSP (default behavior).",
     )
-    
+
     args = parser.parse_args()
-    
+
     if args.command == "devtools":
+        from ..web.server.server import start_devtools
+
         start_devtools(
             host=args.host,
             port=args.port,
@@ -81,6 +80,12 @@ def main():
             workspace=args.workspace,
         )
     elif args.command == "devtools-host":
+        from ..web.server.server import (
+            start_devtools_background,
+            stop_devtools_background,
+        )
+        from ..lsp.server import run_lsp_server
+
         handle = start_devtools_background(host=args.host, port=args.port, workspace=args.workspace)
         try:
             run_lsp_server(workspace=args.workspace)
