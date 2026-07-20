@@ -268,7 +268,6 @@ export const TopMenuBar: React.FC = () => {
           },
         },
         {
-          icon: "lightbulb",
           text: t('menuItem.aiInferBatch'),
           disabled: !canAiBatch,
           onClick: () => {
@@ -616,7 +615,7 @@ export const TopMenuBar: React.FC = () => {
           onClick={() => toggleMenu("ai")}
           onMouseEnter={() => switchMenuOnHover("ai")}
         >
-          AI
+          {t('menu.tools')}
         </button>
       </div>
       <div
