@@ -275,6 +275,38 @@ export const TopMenuBar: React.FC = () => {
             void executeCommand(COMMAND_ID.AI_INFER_BATCH, commandContext, undefined);
           },
         },
+        { divider: true },
+        {
+          text: t('conversion.submenu'),
+          children: (
+            <>
+              <MenuItem
+                text={t('conversion.scanAll')}
+                onClick={() => {
+                  setOpenMenu(null);
+                  void editorActions.conversion.scanAllDocuments();
+                }}
+              />
+              <MenuItem
+                text={t('conversion.scanSpecific')}
+                onClick={() => {
+                  setOpenMenu(null);
+                  commandContext.ui.openConversionImageDialog?.();
+                }}
+              />
+              <MenuItem
+                text={t('conversion.scanDevice')}
+                onClick={() => {
+                  setOpenMenu(null);
+                  commandContext.ui.openConversionCaptureDialog?.();
+                }}
+              />
+            </>
+          ),
+          popoverProps: {
+            matchTargetWidth: false,
+          },
+        },
       ],
       variant: [
         {

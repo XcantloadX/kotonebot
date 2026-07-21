@@ -96,9 +96,25 @@ const symbolActions = {
   renameNameForDefinition: renameSymbolNameForActiveDefinition,
 };
 
+import {
+  scanAllDocuments,
+  scanWithImages,
+  scanWithScreenshot,
+  executeConversion,
+  cancelScan,
+} from "./conversion";
+
 const aiActions = {
   inferSingle: inferSingleSelectedDefinition,
   inferBatch: inferBatchNullNames,
+};
+
+const conversionActions = {
+  scanAllDocuments,
+  scanWithImages,
+  scanWithScreenshot,
+  executeConversion,
+  cancelScan,
 };
 
 export const editorActions = {
@@ -110,4 +126,5 @@ export const editorActions = {
   definition: definitionActions,
   symbol: symbolActions,
   ai: aiActions,
+  conversion: conversionActions,
 };

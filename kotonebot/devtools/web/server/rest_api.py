@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Generic, Optional, TypeVar
 
 from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile
@@ -6,7 +5,11 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from kotonebot.devtools.ai.types import AiConfig
-from kotonebot.devtools.errors import DevtoolsError
+from kotonebot.devtools.conversion.types import (
+    ConfirmedMatch,
+    ScanRequest,
+    ScanStartResponse,
+)
 from kotonebot.devtools.server_commands.types import parse_server_command_request
 from kotonebot.devtools.project.project import Project
 
@@ -78,6 +81,10 @@ class CopySelectedPrefabToVariantRequest(BaseModel):
     baseImagePath: str
     variant: str
     forceOverwrite: bool = False
+
+
+class ExecuteConversionRequest(BaseModel):
+    matches: list[ConfirmedMatch]
 
 
 def create_rest_router(project: Project) -> APIRouter:
@@ -154,8 +161,15 @@ def create_rest_router(project: Project) -> APIRouter:
         return FileResponse(safe_path)
 
     @router.get("/image/thumbnail")
-    async def get_image_thumbnail(path: str = Query(...), size: int = Query(128, ge=1, le=2048)):
-        cache_path = logic.get_image_thumbnail_path(path, size)
+    async def get_image_thumbnail(
+        path: str = Query(...),
+        size: int = Query(128, ge=1, le=2048),
+        x1: int | None = Query(None),
+        y1: int | None = Query(None),
+        x2: int | None = Query(None),
+        y2: int | None = Query(None),
+    ):
+        cache_path = logic.get_image_thumbnail_path(path, size, x1=x1, y1=y1, x2=x2, y2=y2)
         return FileResponse(cache_path)
 
     @router.get("/image/hover_preview")
@@ -304,10 +318,10 @@ def create_rest_router(project: Project) -> APIRouter:
             apiKey=apiKey,
         )
         return _ok(logic.infer_definitions(
-            image_bytes=image_data,
-            definitions_json=definitionsJson,
-            image_path=imagePath,
-            ai_config=ai_config,
+                image_bytes=image_data,
+                definitions_json=definitionsJson,
+                image_path=imagePath,
+                ai_config=ai_config,
         ))
 
     @router.post("/document/create")
@@ -317,6 +331,29 @@ def create_rest_router(project: Project) -> APIRouter:
     ):
         image_data = await image.read()
         return _ok(logic.create_document(image_data, targetPath))
+
+    @router.post("/conversion/execute")
+    async def conversion_execute(body: ExecuteConversionRequest = Body(...)):
+        return _ok(logic.conversion_execute(body.matches))
+
+    @router.post("/conversion/scan")
+    async def conversion_scan(body: ScanRequest = Body(...)):
+        task_id = logic.conversion_start_scan(body)
+        return _ok(ScanStartResponse(taskId=task_id))
+
+    @router.get("/conversion/scan_progress/{task_id}")
+    async def conversion_scan_progress(task_id: str):
+        progress = logic.conversion_get_progress(task_id)
+        if progress is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return _ok(progress)
+
+    @router.delete("/conversion/scan/{task_id}")
+    async def conversion_cancel_scan(task_id: str):
+        cancelled = logic.conversion_cancel_scan(task_id)
+        if not cancelled:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return _ok()
 
     @router.get("/health")
     async def health_check():

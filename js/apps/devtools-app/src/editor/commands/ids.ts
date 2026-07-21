@@ -35,4 +35,8 @@ export const COMMAND_ID = {
   APP_OPEN_WELCOME: "app.openWelcome",
   AI_INFER_SELECTED: "ai.inferSelected",
   AI_INFER_BATCH: "ai.inferBatch",
+  CONVERSION_SCAN_ALL: "conversion.scanAll",
+  CONVERSION_SCAN_SPECIFIC: "conversion.scanSpecific",
+  CONVERSION_SCAN_DEVICE: "conversion.scanDevice",
+  CONVERSION_EXECUTE: "conversion.execute",
 } as const;

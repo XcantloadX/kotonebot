@@ -17,6 +17,12 @@ from kotonebot.devtools.ai.ai_service import suggest_document_path as ai_suggest
 from kotonebot.devtools.ai.ai_service import infer_definitions as ai_infer_definitions
 from kotonebot.devtools.ai.ai_service import sample_name_tree
 from kotonebot.devtools.ai.types import AiConfig
+from kotonebot.devtools.conversion.service import ConversionService
+from kotonebot.devtools.conversion.types import (
+    ConfirmedMatch,
+    ConversionExecuteResponse,
+    ScanProgress,
+)
 from kotonebot.devtools.errors import InvalidImageError, NotFoundError, ValidationError, VariantNotDeclaredError
 from kotonebot.devtools.image_preview import build_image_preview
 from kotonebot.devtools.server_commands.workspace_service import WorkspaceService
@@ -25,7 +31,13 @@ from kotonebot.devtools.indexing.document_index_view import (
     RenameDocumentPrecheckResultModel,
 )
 from kotonebot.devtools.project.project import Project
-from kotonebot.devtools.path_utils import get_safe_path, to_rel
+from kotonebot.devtools.path_utils import (
+    CACHE_DEVICE_CAPTURES,
+    CACHE_HOVER_PREVIEWS,
+    CACHE_THUMBNAILS,
+    get_safe_path,
+    to_rel,
+)
 
 
 class RestApiLogic:
@@ -34,7 +46,7 @@ class RestApiLogic:
         self.project = project
         self.project_root = self.workspace.project_root
         self.pyproject_root = project.pyproject_root
-        self.thumbnail_cache_root = project.pyproject_root / ".kotonebot" / "cache" / "thumbnails"
+        self.thumbnail_cache_root = project.pyproject_root / CACHE_THUMBNAILS
         self.image_suffixes = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 
     def _is_image_file(self, path: Path) -> bool:
@@ -68,8 +80,34 @@ class RestApiLogic:
             scale = size / float(longest)
             new_width = max(1, int(round(width * scale)))
             new_height = max(1, int(round(height * scale)))
-            resized = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            resized = cv2.resize(
+                img, (new_width, new_height), interpolation=cv2.INTER_AREA
+            )
             cv2.imwrite(str(cache_path), resized)
+        return cache_path
+
+    def _ensure_thumbnail_crop(
+        self, source: Path, size: int, x1: int, y1: int, x2: int, y2: int
+    ) -> Path:
+        cache_key = f"{x1}_{y1}_{x2}_{y2}_{size}"
+        cache_dir = self.thumbnail_cache_root / "crop"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_path = cache_dir / f"{source.name}.{cache_key}.png"
+        if cache_path.exists():
+            return cache_path
+        img = cv2.imread(str(source))
+        if img is None:
+            raise InvalidImageError(f"Could not read image: {source}")
+        cropped = img[y1:y2, x1:x2]
+        h, w = cropped.shape[:2]
+        if h <= 0 or w <= 0:
+            raise ValidationError("invalid crop region")
+        longest = max(w, h)
+        scale = size / float(longest)
+        new_w = max(1, int(round(w * scale)))
+        new_h = max(1, int(round(h * scale)))
+        resized = cv2.resize(cropped, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        cv2.imwrite(str(cache_path), resized)
         return cache_path
 
     ############## API Logic Methods ##############
@@ -203,12 +241,23 @@ class RestApiLogic:
             raise InvalidImageError("Not an image file")
         return safe_path
 
-    def get_image_thumbnail_path(self, path: str, size: int) -> Path:
+    def get_image_thumbnail_path(
+        self,
+        path: str,
+        size: int,
+        x1: int | None = None,
+        y1: int | None = None,
+        x2: int | None = None,
+        y2: int | None = None,
+    ) -> Path:
         safe_path = get_safe_path(path, self.project)
         if not safe_path.exists():
             raise FileNotFoundError("Image not found")
         if not self._is_image_file(safe_path):
             raise InvalidImageError("Not an image file")
+        has_rect = x1 is not None and y1 is not None and x2 is not None and y2 is not None
+        if has_rect:
+            return self._ensure_thumbnail_crop(safe_path, size, x1, y1, x2, y2)
         return self._ensure_thumbnail(safe_path, size)
 
     def get_image_hover_preview_path(
@@ -234,7 +283,7 @@ class RestApiLogic:
             raise ValidationError("x1,y1,x2,y2 must be all provided or all omitted")
         return build_image_preview(
             source_path=safe_path,
-            cache_root=self.project.pyproject_root / ".kotonebot" / "cache" / "hover_previews",
+            cache_root=self.project.pyproject_root / CACHE_HOVER_PREVIEWS,
             size=size,
             rect=rect,
         )
@@ -252,21 +301,21 @@ class RestApiLogic:
         indexed = {Path(ref.image_path) for ref in self.workspace.resource_index_store.snapshot.meta_refs}
         all_pngs = set(self.project_root.rglob("*.png"))
         return {"imagePaths": sorted(to_rel(p, root) for p in (indexed | all_pngs))}
-    
+
     def get_project_symbol_tree(self) -> list[dict[str, Any]]:
         self.workspace.symbol_index_view.ensure_ready()
         symbols = list(self.workspace.symbol_index_view.snapshot.symbols.values())
         root_path = self.pyproject_root
         root: dict[str, Any] = {"kind": "group", "label": "__root__", "children": []}
         group_map: dict[str, dict[str, Any]] = {"": root}
-        
+
         for symbol in symbols:
             if symbol.name.strip() == "":
                 continue
             parts = symbol.name.split(".")
             if len(parts) == 0 or any(part.strip() == "" for part in parts):
                 continue
-            
+
             current_path = ""
             current_group = root
             for segment in parts[:-1]:
@@ -277,7 +326,7 @@ class RestApiLogic:
                     group_map[current_path] = next_group
                     current_group["children"].append(next_group)
                 current_group = next_group
-            
+
             leaf_label = parts[-1]
             full_name = ".".join(parts)
             symbol_node = None
@@ -285,7 +334,7 @@ class RestApiLogic:
                 if node["kind"] == "symbol" and node["fullName"] == full_name:
                     symbol_node = node
                     break
-            
+
             if symbol_node is None:
                 symbol_node = {
                     "kind": "symbol",
@@ -297,7 +346,7 @@ class RestApiLogic:
                 current_group["children"].append(symbol_node)
             elif symbol_node["displayName"] is None and symbol.display_name is not None:
                 symbol_node["displayName"] = symbol.display_name
-            
+
             variant_label = "base" if symbol.variant is None else symbol.variant
             variant_node = None
             for node in symbol_node["children"]:
@@ -307,7 +356,7 @@ class RestApiLogic:
             if variant_node is None:
                 variant_node = {"kind": "variant", "label": variant_label, "children": []}
                 symbol_node["children"].append(variant_node)
-            
+
             already_exists = any(
                 item["metaPath"] == symbol.meta_path and item["definitionId"] == symbol.definition_id
                 for item in variant_node["children"]
@@ -323,7 +372,7 @@ class RestApiLogic:
                         "variant": symbol.variant,
                     }
                 )
-        
+
         def sort_nodes(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             groups: list[dict[str, Any]] = []
             symbol_nodes: list[dict[str, Any]] = []
@@ -340,11 +389,11 @@ class RestApiLogic:
                     symbol_nodes.append(node)
                     continue
                 raise ValueError(f"Unexpected root node kind: {kind}")
-            
+
             groups.sort(key=lambda item: item["label"])
             symbol_nodes.sort(key=lambda item: item["fullName"])
             return [*groups, *symbol_nodes]
-        
+
         return sort_nodes(root["children"])
 
     def update_meta_index(self, meta_path: str) -> Any:
@@ -552,16 +601,16 @@ class RestApiLogic:
             from adbutils import adb
         except ImportError:
             return {"devices": [], "error": "adbutils not installed. Please install it with: pip install adbutils"}
-        
+
         devices = []
         for d in adb.device_list():
             serial = d.serial
             state = d.get_state()
             name = f"{serial} ({state})"
             devices.append({
-                "serial": serial,
-                "state": state,
-                "name": name,
+                    "serial": serial,
+                    "state": state,
+                    "name": name,
             })
         return {"devices": devices}
 
@@ -571,32 +620,32 @@ class RestApiLogic:
             from adbutils.errors import AdbError
         except ImportError:
             return {"error": "adbutils not installed. Please install it with: pip install adbutils", "success": False}
-        
+
         try:
             device: AdbDevice | None = None
             for d in adb.device_list():
                 if d.serial == serial:
                     device = d
                     break
-            
+
             if device is None:
                 return {"error": f"Device '{serial}' not found", "success": False}
-            
+
             state = device.get_state()
             if state != "device":
                 return {"error": f"Device '{serial}' is not available (state: {state})", "success": False}
-            
+
             image = device.screenshot(display_id=display_id, error_ok=False)
             bgr_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-            
-            temp_dir = self.project.pyproject_root / ".kotonebot" / "cache" / "device_captures"
+
+            temp_dir = self.project.pyproject_root / CACHE_DEVICE_CAPTURES
             temp_dir.mkdir(parents=True, exist_ok=True)
-            
+
             import time
             timestamp = int(time.time() * 1000)
             filename = f"capture_{serial.replace(':', '_')}_{timestamp}.png"
             temp_path = temp_dir / filename
-            
+
             cv2.imwrite(str(temp_path), bgr_image)
 
             root = self.pyproject_root
@@ -611,3 +660,33 @@ class RestApiLogic:
         except Exception as e:
             logging.exception("Error capturing device screenshot")
             return {"error": str(e), "success": False}
+
+    # ======== 转换 Single → Multi（委托至 ConversionService） ========
+
+    @property
+    def conversion(self) -> ConversionService:
+        if not hasattr(self, "_conversion_service"):
+            self._conversion_service = ConversionService(self.project)
+        return self._conversion_service
+
+    def conversion_execute(
+        self, matches: list[ConfirmedMatch]
+    ) -> ConversionExecuteResponse:
+        return self.conversion.execute(matches)
+
+    def conversion_start_scan(self, request) -> str:
+        mode = request.mode
+        if mode == "all":
+            return self.conversion.start_scan_all()
+        elif mode == "files":
+            return self.conversion.start_scan_files(request.imagePaths or [])
+        elif mode == "device":
+            return self.conversion.start_scan_device(request.screenshotPath or "")
+        else:
+            raise ValueError(f"Unknown scan mode: {mode}")
+
+    def conversion_get_progress(self, task_id: str) -> ScanProgress | None:
+        return self.conversion.get_scan_progress(task_id)
+
+    def conversion_cancel_scan(self, task_id: str) -> bool:
+        return self.conversion.cancel_scan(task_id)

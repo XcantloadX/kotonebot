@@ -11,6 +11,7 @@ import { useSymbolIndexStore } from './symbolIndexStore';
 import { TopMenuBar } from '../ui/TopMenuBar';
 import { ProblemsPanel } from '../ui/ProblemsPanel';
 import { WelcomePanel } from '../ui/WelcomePanel';
+import { ConversionResultPanel } from '../ui/ConversionResultPanel';
 import { HierarchyPanel } from '../ui/HierarchyPanel';
 import { ProjectPanel } from '../ui/ProjectPanel';
 import { useSettingsStore } from './settings';
@@ -89,7 +90,7 @@ export const EditorApp: React.FC = () => {
           <div style={{ flex: 1, background: '#f5f8fa', position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             {singleTabMode ? null : <TabBar />}
             <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-              {activeTab?.kind === "document" ? <StageView /> : <WelcomePanel />}
+              {activeTab?.kind === "document" ? <StageView /> : activeTab?.kind === "conversion-result" ? <ConversionResultPanel /> : <WelcomePanel />}
             </div>
             {!isHostMode ? (
               <ProblemsPanel

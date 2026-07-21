@@ -78,10 +78,13 @@ export interface DefinitionClipboard {
 
 export type Tab =
   | { kind: "welcome" }
-  | { kind: "document"; docId: string };
+  | { kind: "document"; docId: string }
+  | { kind: "conversion-result"; id: string; label: string };
 
 export function tabId(t: Tab): string {
-  return t.kind === "welcome" ? "welcome" : t.docId;
+  if (t.kind === "welcome") return "welcome";
+  if (t.kind === "conversion-result") return t.id;
+  return t.docId;
 }
 
 interface AppState {

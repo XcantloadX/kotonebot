@@ -10,12 +10,15 @@ export interface DeviceCaptureDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (files: File[]) => boolean | Promise<boolean>;
+  /** 可选：直接返回截图路径而非 File 对象。用于转换功能。 */
+  onCapturePath?: (path: string) => void;
 }
 
 export const DeviceCaptureDialog: React.FC<DeviceCaptureDialogProps> = ({
   isOpen,
   onClose,
   onImport,
+  onCapturePath,
 }) => {
   const { t } = useTranslation();
   const [devices, setDevices] = useState<AdbDevice[]>([]);
@@ -127,6 +130,11 @@ export const DeviceCaptureDialog: React.FC<DeviceCaptureDialogProps> = ({
     if (!capturedImagePath) {
       return;
     }
+    if (onCapturePath) {
+      onCapturePath(capturedImagePath);
+      onClose();
+      return;
+    }
     try {
       const file = await fetchImageAsFile(capturedImagePath, "device_capture.png");
       const shouldClose = await onImport([file]);
@@ -136,7 +144,7 @@ export const DeviceCaptureDialog: React.FC<DeviceCaptureDialogProps> = ({
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
-  }, [capturedImagePath, onImport, onClose]);
+  }, [capturedImagePath, onImport, onClose, onCapturePath]);
 
   const selectedDevice = devices.find((d) => d.serial === selectedSerial);
 

@@ -1,0 +1,148 @@
+/** Conversion 扫描结果的 Zustand store。 */
+
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
+import type { ConversionMatch, ScanProgress } from "../api/conversion";
+
+/** 转换结果中单条匹配项的状态。 */
+export type ConversionStatus = "pending" | "confirmed" | "false-positive";
+
+export interface ConversionResultItem {
+  /** 转换匹配数据。 */
+  match: ConversionMatch;
+  /** 用户标记的状态。 */
+  status: ConversionStatus;
+}
+
+export interface ConversionProgress {
+  /** 待扫描总数。 */
+  total: number;
+  /** 已完成数量。 */
+  current: number;
+  /** 当前正在处理的文件名。 */
+  currentFile: string;
+}
+
+interface ConversionResultState {
+  /** 当前结果标签页的标题。 */
+  tabLabel: string;
+  /** 当前标签页 ID。 */
+  tabId: string;
+  /** 是否正在加载中（扫描进行中）。 */
+  isLoading: boolean;
+  /** 扫描进度。 */
+  progress: ConversionProgress | null;
+  /** 错误信息。 */
+  error: string | null;
+  /** 当前扫描任务 ID（用于轮询和取消）。 */
+  taskId: string | null;
+  /** 匹配结果列表。 */
+  items: ConversionResultItem[];
+  /** 进入 loading 状态并打开标签页。 */
+  setLoading: (tabId: string, tabLabel: string) => void;
+  /** 设置任务 ID（启动扫描后调用）。 */
+  setTaskId: (taskId: string) => void;
+  /** 设置扫描进度（轮询中调用）。 */
+  setProgress: (progress: ScanProgress) => void;
+  /** 扫描出错。 */
+  setError: (error: string) => void;
+  /** 设置结果列表（扫描完成后）。 */
+  setItems: (tabLabel: string, matches: ConversionMatch[]) => void;
+  /** 清除所有状态。 */
+  clear: () => void;
+  /** 设置指定索引项的确认状态。 */
+  setItemStatus: (index: number, status: ConversionStatus) => void;
+  /** 将所有项设为同一状态。 */
+  setAllStatus: (status: ConversionStatus) => void;
+  /** 获取所有已确认的匹配项。 */
+  getConfirmed: () => ConversionMatch[];
+  /** 获取待处理项数量。 */
+  getPendingCount: () => number;
+  /** 获取已确认项数量。 */
+  getConfirmedCount: () => number;
+  /** 获取误报项数量。 */
+  getFalsePositiveCount: () => number;
+}
+
+export const useConversionResultStore = create<ConversionResultState>()(
+  immer((set, get) => ({
+    tabLabel: "",
+    tabId: "",
+    isLoading: false,
+    progress: null,
+    error: null,
+    taskId: null,
+    items: [],
+
+    setLoading: (tabId, tabLabel) => set((state) => {
+      state.tabId = tabId;
+      state.tabLabel = tabLabel;
+      state.isLoading = true;
+      state.progress = null;
+      state.error = null;
+      state.items = [];
+    }),
+
+    setTaskId: (taskId) => set((state) => {
+      state.taskId = taskId;
+    }),
+
+    setProgress: (progress) => set((state) => {
+      state.isLoading = progress.state !== "completed" && progress.state !== "cancelled" && progress.state !== "error";
+      if (progress.state === "completed" && progress.matches) {
+        state.items = progress.matches.map((m) => ({ match: m, status: "pending" }));
+        state.isLoading = false;
+      } else if (progress.state === "error") {
+        state.error = progress.error || "Scan failed";
+        state.isLoading = false;
+      } else if (progress.state === "cancelled") {
+        state.error = "Scan cancelled";
+        state.isLoading = false;
+      } else {
+        state.progress = { total: progress.total, current: progress.current, currentFile: progress.currentFile };
+      }
+    }),
+
+    setError: (error) => set((state) => {
+      state.error = error;
+      state.isLoading = false;
+      state.progress = null;
+    }),
+
+    setItems: (tabLabel, matches) => set((state) => {
+      state.tabLabel = tabLabel;
+      state.isLoading = false;
+      state.progress = null;
+      state.error = null;
+      state.items = matches.map((m) => ({ match: m, status: "pending" }));
+    }),
+
+    clear: () => set((state) => {
+      state.tabId = "";
+      state.isLoading = false;
+      state.progress = null;
+      state.error = null;
+      state.taskId = null;
+      state.items = [];
+    }),
+
+    setItemStatus: (index, status) => set((state) => {
+      if (state.items[index]) {
+        state.items[index].status = status;
+      }
+    }),
+    setAllStatus: (status) => set((state) => {
+      for (const item of state.items) {
+        item.status = status;
+      }
+    }),
+    getConfirmed: () => {
+      return get().items
+        .filter((item) => item.status === "confirmed")
+        .map((item) => item.match);
+    },
+    getPendingCount: () => get().items.filter((i) => i.status === "pending").length,
+    getConfirmedCount: () => get().items.filter((i) => i.status === "confirmed").length,
+    getFalsePositiveCount: () => get().items.filter((i) => i.status === "false-positive").length,
+  }))
+);

@@ -3,6 +3,11 @@ from typing import TYPE_CHECKING
 
 from kotonebot.devtools.errors import PathSafetyError
 
+CACHE_THUMBNAILS = ".kotonebot/cache/thumbnails"
+CACHE_HOVER_PREVIEWS = ".kotonebot/cache/hover_previews"
+CACHE_DEVICE_CAPTURES = ".kotonebot/cache/device_captures"
+CACHE_CONVERSION = ".kotonebot/cache/conversion"
+
 if TYPE_CHECKING:
     from kotonebot.devtools.project.project import Project
 

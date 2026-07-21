@@ -13,6 +13,7 @@ const TAB_FONT = '600 13px system-ui';
 
 function getTabLabel(tab: Tab): string {
   if (tab.kind === "welcome") return "";
+  if (tab.kind === "conversion-result") return tab.label;
   return tab.docId.split("/").pop() || tab.docId;
 }
 

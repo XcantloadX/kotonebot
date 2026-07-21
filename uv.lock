@@ -1391,7 +1391,6 @@ version = "0.17.0"
 source = { editable = "." }
 dependencies = [
     { name = "ksaa-res" },
-    { name = "litellm" },
     { name = "mouse" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -1412,6 +1411,7 @@ all = [
     { name = "dataclass-wizard", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "fastapi", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "jinja2", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32'" },
+    { name = "litellm", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "mkdocs", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "mkdocs-material", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "mkdocstrings", extra = ["python"], marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32'" },
@@ -1442,6 +1442,7 @@ dev = [
     { name = "dataclass-wizard" },
     { name = "fastapi" },
     { name = "jinja2" },
+    { name = "litellm" },
     { name = "psutil" },
     { name = "pygls" },
     { name = "python-multipart" },
@@ -1493,7 +1494,7 @@ requires-dist = [
     { name = "kotonebot", extras = ["android", "macos", "dev", "docs"], marker = "sys_platform == 'darwin' and extra == 'all'" },
     { name = "kotonebot", extras = ["android", "windows", "dev", "docs"], marker = "sys_platform == 'win32' and extra == 'all'" },
     { name = "ksaa-res", specifier = "==0.2" },
-    { name = "litellm", specifier = ">=1.60,<2.0" },
+    { name = "litellm", marker = "extra == 'dev'", specifier = ">=1.60,<2.0" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.6" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.30" },

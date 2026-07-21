@@ -409,6 +409,42 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
       await ctx.ui.openAiBatchDialog!();
     },
   },
+  [COMMAND_ID.CONVERSION_SCAN_ALL]: {
+    id: COMMAND_ID.CONVERSION_SCAN_ALL,
+    title: t('conversion.scanAll'),
+    keywords: ["conversion", "scan", "all", "single", "multi"],
+    showInPalette: true,
+    run: async () => {
+      await editorActions.conversion.scanAllDocuments();
+    },
+  },
+  [COMMAND_ID.CONVERSION_SCAN_SPECIFIC]: {
+    id: COMMAND_ID.CONVERSION_SCAN_SPECIFIC,
+    title: t('conversion.scanSpecific'),
+    keywords: ["conversion", "scan", "specific", "single", "multi"],
+    showInPalette: true,
+    run: async () => {
+      await editorActions.conversion.scanWithImages([]);
+    },
+  },
+  [COMMAND_ID.CONVERSION_SCAN_DEVICE]: {
+    id: COMMAND_ID.CONVERSION_SCAN_DEVICE,
+    title: t('conversion.scanDevice'),
+    keywords: ["conversion", "scan", "device", "single", "multi"],
+    showInPalette: true,
+    run: async () => {
+      await editorActions.conversion.scanWithScreenshot("");
+    },
+  },
+  [COMMAND_ID.CONVERSION_EXECUTE]: {
+    id: COMMAND_ID.CONVERSION_EXECUTE,
+    title: t('conversion.execute'),
+    keywords: ["conversion", "execute", "apply"],
+    showInPalette: false,
+    run: async () => {
+      await editorActions.conversion.executeConversion();
+    },
+  },
 };
 
 /** 编辑器命令注册表。 */

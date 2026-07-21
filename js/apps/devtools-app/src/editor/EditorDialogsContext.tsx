@@ -73,11 +73,13 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isPreferencesDialogOpen, setPreferencesDialogOpen] = useState(false);
   const [isAiBatchDialogOpen, setAiBatchDialogOpen] = useState(false);
   const [aiBatchDefs, setAiBatchDefs] = useState<BatchDefItem[]>([]);
+  const [isConversionImageOpen, setConversionImageOpen] = useState(false);
+  const [isConversionCaptureOpen, setConversionCaptureOpen] = useState(false);
 
   const variantDialogTitle = variantDialogState.variant
     ? t('dialog.selectTargetImage') + ` ${variantDialogState.variant}`
     : t('dialog.selectTargetImage');
-  const modalOpen = isImageDialogOpen || isNewDocumentDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen || replaceImageDialogOpen || replaceImageSource !== null || isPreferencesDialogOpen || isAiBatchDialogOpen;
+  const modalOpen = isImageDialogOpen || isNewDocumentDialogOpen || variantDialogState.isOpen || deviceCaptureState.isOpen || replaceImageDialogOpen || replaceImageSource !== null || isPreferencesDialogOpen || isAiBatchDialogOpen || isConversionImageOpen || isConversionCaptureOpen;
 
   useShortcutScope("modal", modalOpen);
 
@@ -156,6 +158,38 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
   const closeAiBatchDialog = useCallback(() => {
     setAiBatchDialogOpen(false);
     setAiBatchDefs([]);
+  }, []);
+
+  /** 打开转换文件选择对话框。 */
+  const openConversionImageDialog = useCallback(() => {
+    setConversionImageOpen(true);
+  }, []);
+
+  /** 关闭转换文件选择对话框。 */
+  const closeConversionImageDialog = useCallback(() => {
+    setConversionImageOpen(false);
+  }, []);
+
+  /** 打开转换设备截图对话框。 */
+  const openConversionCaptureDialog = useCallback(() => {
+    setConversionCaptureOpen(true);
+  }, []);
+
+  /** 关闭转换设备截图对话框。 */
+  const closeConversionCaptureDialog = useCallback(() => {
+    setConversionCaptureOpen(false);
+  }, []);
+
+  /** 用户选择图片后的处理：关闭对话框并触发扫描。 */
+  const handleConversionImageSelect = useCallback(async (paths: string[]) => {
+    setConversionImageOpen(false);
+    await editorActions.conversion.scanWithImages(paths);
+  }, []);
+
+  /** 用户完成设备截图后的处理：关闭对话框并触发扫描。 */
+  const handleConversionCapture = useCallback(async (path: string) => {
+    setConversionCaptureOpen(false);
+    await editorActions.conversion.scanWithScreenshot(path);
   }, []);
 
   const handleAiBatchConfirm = useCallback(async () => {
@@ -270,9 +304,11 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
         openReplaceImageDialog,
         openPreferencesDialog,
         openAiBatchDialog,
+        openConversionImageDialog,
+        openConversionCaptureDialog,
       },
     }),
-    [openImageDialog, openNewDocumentDialog, openVariantDialog, openDeviceCaptureDialog, openReplaceImageDialog, openPreferencesDialog, openAiBatchDialog],
+    [openImageDialog, openNewDocumentDialog, openVariantDialog, openDeviceCaptureDialog, openReplaceImageDialog, openPreferencesDialog, openAiBatchDialog, openConversionImageDialog, openConversionCaptureDialog],
   );
 
   useEffect(() => {
@@ -364,6 +400,20 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
         definitions={aiBatchDefs}
         onClose={closeAiBatchDialog}
         onConfirm={handleAiBatchConfirm}
+      />
+      <FileOpenDialog
+        isOpen={isConversionImageOpen}
+        onClose={closeConversionImageDialog}
+        onSelect={handleConversionImageSelect}
+        title={t("conversion.selectImages")}
+        filter={(name) => name.endsWith(".png")}
+        multiSelect={true}
+      />
+      <DeviceCaptureDialog
+        isOpen={isConversionCaptureOpen}
+        onClose={closeConversionCaptureDialog}
+        onImport={async () => true}
+        onCapturePath={handleConversionCapture}
       />
     </EditorDialogsContext.Provider>
   );

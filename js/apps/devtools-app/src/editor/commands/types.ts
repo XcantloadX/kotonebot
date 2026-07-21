@@ -76,6 +76,14 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.AI_INFER_SELECTED]: undefined;
   /** 批量 AI 推断所有 name===null 的 definitions。 */
   [COMMAND_ID.AI_INFER_BATCH]: undefined;
+  /** 扫描所有文档（转换 Single → Multi）。 */
+  [COMMAND_ID.CONVERSION_SCAN_ALL]: undefined;
+  /** 扫描指定文档（转换 Single → Multi）。 */
+  [COMMAND_ID.CONVERSION_SCAN_SPECIFIC]: undefined;
+  /** 扫描设备画面（转换 Single → Multi）。 */
+  [COMMAND_ID.CONVERSION_SCAN_DEVICE]: undefined;
+  /** 执行转换（写入 multi 文档 + 删除 single 文档）。 */
+  [COMMAND_ID.CONVERSION_EXECUTE]: undefined;
 }
 
 /** 无参数命令 ID 集合。 */
@@ -99,6 +107,10 @@ export interface EditorCommandUiHandlers {
   openNewDocumentDialog: () => void;
   /** 打开批量 AI 推断对话框。 */
   openAiBatchDialog: () => Promise<void>;
+  /** 打开转换文件选择对话框。 */
+  openConversionImageDialog: () => void;
+  /** 打开转换设备截图对话框。 */
+  openConversionCaptureDialog: () => void;
 }
 
 /** 命令执行上下文。 */
