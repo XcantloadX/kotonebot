@@ -3,11 +3,11 @@
 import { fetchJson, postJson, del } from "./client";
 
 export interface ConversionMatch {
-  /** Single 文档的 JSON 元数据文件相对路径，null 表示裸 PNG。 */
+  /** Single 文档的 JSON 元数据文件路径（相对 pyproject_root），null 表示裸 PNG。 */
   singleMetaPath: string | null;
-  /** Single 文档对应的图片文件相对路径。 */
+  /** Single 文档对应的图片文件路径（相对 pyproject_root）。 */
   singleImagePath: string;
-  /** 匹配命中的目标图片相对路径。 */
+  /** 匹配命中的目标图片路径（相对 pyproject_root）。 */
   matchedImagePath: string;
   /** 模板匹配得分。 */
   matchScore: number;
@@ -19,20 +19,14 @@ export interface ConversionMatch {
   matchW: number;
   /** 匹配区域高度。 */
   matchH: number;
-  /** 定义类型（template / prefab）。 */
-  definitionType: string;
-  /** 生成的定义名称（大驼峰）。 */
-  definitionName: string;
-  /** 定义的显示名称（文件名）。 */
-  definitionDisplayName: string;
 }
 
 export interface ConfirmedMatch {
-  /** Single 文档的 JSON 元数据文件相对路径，null 表示裸 PNG。 */
+  /** Single 文档的 JSON 元数据文件路径（相对 pyproject_root），null 表示裸 PNG。 */
   singleMetaPath: string | null;
-  /** Single 文档对应的图片文件相对路径。 */
+  /** Single 文档对应的图片文件路径（相对 pyproject_root）。 */
   singleImagePath: string;
-  /** 匹配命中的目标图片相对路径。 */
+  /** 匹配命中的目标图片路径（相对 pyproject_root）。 */
   matchedImagePath: string;
   /** 匹配区域左上角 X 坐标。 */
   matchX: number;
@@ -42,13 +36,7 @@ export interface ConfirmedMatch {
   matchW: number;
   /** 匹配区域高度。 */
   matchH: number;
-  /** 定义类型（template / prefab）。 */
-  definitionType: string;
-  /** 生成的定义名称（大驼峰）。 */
-  definitionName: string;
-  /** 定义的显示名称（文件名）。 */
-  definitionDisplayName: string;
-  /** 目标 Multi 文档的元数据文件路径，不指定时由后端推算。 */
+  /** 目标 Multi 文档的元数据文件路径（相对 pyproject_root），不指定时由后端推算。 */
   targetMetaPath?: string | null;
 }
 
@@ -89,9 +77,11 @@ export interface ScanProgress {
 }
 
 export interface ScanRequest {
-  mode: "all" | "files" | "device";
+  mode: "all" | "files" | "device" | "current";
   imagePaths?: string[];
   screenshotPath?: string;
+  /** 当前文档模式下要扫描的 single 图片路径。 */
+  singleImagePath?: string;
 }
 
 /** 启动异步扫描任务。 */

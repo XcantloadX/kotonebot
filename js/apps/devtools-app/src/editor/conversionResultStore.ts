@@ -4,14 +4,11 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import type { ConversionMatch, ScanProgress } from "../api/conversion";
 
-/** 转换结果中单条匹配项的状态。 */
-export type ConversionStatus = "pending" | "confirmed" | "false-positive";
-
 export interface ConversionResultItem {
   /** 转换匹配数据。 */
   match: ConversionMatch;
-  /** 用户标记的状态。 */
-  status: ConversionStatus;
+  /** 用户勾选状态。 */
+  selected: boolean;
 }
 
 export interface ConversionProgress {
@@ -50,18 +47,18 @@ interface ConversionResultState {
   setItems: (tabLabel: string, matches: ConversionMatch[]) => void;
   /** 清除所有状态。 */
   clear: () => void;
-  /** 设置指定索引项的确认状态。 */
-  setItemStatus: (index: number, status: ConversionStatus) => void;
-  /** 将所有项设为同一状态。 */
-  setAllStatus: (status: ConversionStatus) => void;
-  /** 获取所有已确认的匹配项。 */
-  getConfirmed: () => ConversionMatch[];
-  /** 获取待处理项数量。 */
-  getPendingCount: () => number;
-  /** 获取已确认项数量。 */
-  getConfirmedCount: () => number;
-  /** 获取误报项数量。 */
-  getFalsePositiveCount: () => number;
+  /** 切换指定索引项的勾选状态。 */
+  toggleItem: (index: number) => void;
+  /** 全选。 */
+  selectAll: () => void;
+  /** 全不选。 */
+  deselectAll: () => void;
+  /** 获取选中项数量。 */
+  getSelectedCount: () => number;
+  /** 获取所有选中的匹配项。 */
+  getSelected: () => ConversionMatch[];
+  /** 是否全部选中。 */
+  isAllSelected: () => boolean;
 }
 
 export const useConversionResultStore = create<ConversionResultState>()(
@@ -90,7 +87,12 @@ export const useConversionResultStore = create<ConversionResultState>()(
     setProgress: (progress) => set((state) => {
       state.isLoading = progress.state !== "completed" && progress.state !== "cancelled" && progress.state !== "error";
       if (progress.state === "completed" && progress.matches) {
-        state.items = progress.matches.map((m) => ({ match: m, status: "pending" }));
+        const seen = new Set<string>();
+        state.items = progress.matches.map((m) => {
+          const first = !seen.has(m.singleImagePath);
+          seen.add(m.singleImagePath);
+          return { match: m, selected: first };
+        });
         state.isLoading = false;
       } else if (progress.state === "error") {
         state.error = progress.error || "Scan failed";
@@ -114,7 +116,12 @@ export const useConversionResultStore = create<ConversionResultState>()(
       state.isLoading = false;
       state.progress = null;
       state.error = null;
-      state.items = matches.map((m) => ({ match: m, status: "pending" }));
+      const seen = new Set<string>();
+      state.items = matches.map((m) => {
+        const first = !seen.has(m.singleImagePath);
+        seen.add(m.singleImagePath);
+        return { match: m, selected: first };
+      });
     }),
 
     clear: () => set((state) => {
@@ -126,23 +133,27 @@ export const useConversionResultStore = create<ConversionResultState>()(
       state.items = [];
     }),
 
-    setItemStatus: (index, status) => set((state) => {
+    toggleItem: (index) => set((state) => {
       if (state.items[index]) {
-        state.items[index].status = status;
+        state.items[index].selected = !state.items[index].selected;
       }
     }),
-    setAllStatus: (status) => set((state) => {
+    selectAll: () => set((state) => {
       for (const item of state.items) {
-        item.status = status;
+        item.selected = true;
       }
     }),
-    getConfirmed: () => {
+    deselectAll: () => set((state) => {
+      for (const item of state.items) {
+        item.selected = false;
+      }
+    }),
+    getSelectedCount: () => get().items.filter((i) => i.selected).length,
+    getSelected: () => {
       return get().items
-        .filter((item) => item.status === "confirmed")
+        .filter((item) => item.selected)
         .map((item) => item.match);
     },
-    getPendingCount: () => get().items.filter((i) => i.status === "pending").length,
-    getConfirmedCount: () => get().items.filter((i) => i.status === "confirmed").length,
-    getFalsePositiveCount: () => get().items.filter((i) => i.status === "false-positive").length,
+    isAllSelected: () => get().items.length > 0 && get().items.every((i) => i.selected),
   }))
 );

@@ -1,16 +1,10 @@
-/** Conversion 扫描结果展示面板，包含匹配表格、确认/标记状态、进度显示及执行入口。 */
+/** Conversion 扫描结果展示面板，包含匹配表格、全选/全不选、进度显示及执行入口。 */
 
 import React from "react";
-import { Button, ButtonGroup, NonIdealState, ProgressBar, Spinner, Intent as BPIntent } from "@blueprintjs/core";
+import { Button, Checkbox, NonIdealState, ProgressBar, Spinner, Tooltip, Intent as BPIntent } from "@blueprintjs/core";
 import { useTranslation } from "react-i18next";
-import { useConversionResultStore, type ConversionStatus } from "../editor/conversionResultStore";
+import { useConversionResultStore } from "../editor/conversionResultStore";
 import { editorActions } from "../editor/actions";
-
-const STATUS_LABELS: Record<ConversionStatus, { label: string; color: string; bg: string }> = {
-  "pending": { label: "conversion.statusPending", color: "#5c7080", bg: "#f5f8fa" },
-  "confirmed": { label: "conversion.statusConfirmed", color: "#0f9960", bg: "#f0fff8" },
-  "false-positive": { label: "conversion.statusFalsePositive", color: "#c23030", bg: "#fff5f5" },
-};
 
 /** Conversion 扫描结果展示面板。 */
 export const ConversionResultPanel: React.FC = () => {
@@ -20,15 +14,14 @@ export const ConversionResultPanel: React.FC = () => {
   const error = useConversionResultStore((s) => s.error);
   const items = useConversionResultStore((s) => s.items);
   const tabLabel = useConversionResultStore((s) => s.tabLabel);
-  const setItemStatus = useConversionResultStore((s) => s.setItemStatus);
-  const setAllStatus = useConversionResultStore((s) => s.setAllStatus);
-  const getPendingCount = useConversionResultStore((s) => s.getPendingCount);
-  const getConfirmedCount = useConversionResultStore((s) => s.getConfirmedCount);
-  const getFalsePositiveCount = useConversionResultStore((s) => s.getFalsePositiveCount);
+  const toggleItem = useConversionResultStore((s) => s.toggleItem);
+  const selectAll = useConversionResultStore((s) => s.selectAll);
+  const deselectAll = useConversionResultStore((s) => s.deselectAll);
+  const getSelectedCount = useConversionResultStore((s) => s.getSelectedCount);
+  const isAllSelected = useConversionResultStore((s) => s.isAllSelected);
 
-  const pendingCount = getPendingCount();
-  const confirmedCount = getConfirmedCount();
-  const falsePositiveCount = getFalsePositiveCount();
+  const selectedCount = getSelectedCount();
+  const allSelected = isAllSelected();
 
   const handleExecute = async () => {
     await editorActions.conversion.executeConversion();
@@ -116,29 +109,29 @@ export const ConversionResultPanel: React.FC = () => {
           {tabLabel}
         </span>
         <span style={{ fontSize: 12, color: "#5c7080" }}>
-          {t("conversion.totalCount", { count: items.length })}&nbsp;
-          {pendingCount > 0 ? <span style={{ color: "#5c7080" }}>{t("conversion.pendingCount", { count: pendingCount })}</span> : null}
-          {confirmedCount > 0 ? <span style={{ color: "#0f9960", marginLeft: 4 }}>{t("conversion.confirmedCount", { count: confirmedCount })}</span> : null}
-          {falsePositiveCount > 0 ? <span style={{ color: "#c23030", marginLeft: 4 }}>{t("conversion.falsePositiveCount", { count: falsePositiveCount })}</span> : null}
+          {t("conversion.totalCount", { count: items.length })}
+          {selectedCount > 0 ? <span style={{ color: "#137cbd", marginLeft: 4 }}>{t("conversion.selectedCount", { count: selectedCount })}</span> : null}
         </span>
         <div style={{ flex: 1 }} />
-        <ButtonGroup minimal>
-          <Button
-            text={t("conversion.confirmSelected")}
-            icon="tick"
-            onClick={() => setAllStatus("confirmed")}
-          />
-          <Button
-            text={t("conversion.markFalsePositive")}
-            icon="cross"
-            onClick={() => setAllStatus("false-positive")}
-          />
-        </ButtonGroup>
+        <Button
+          text={t("conversion.selectAll")}
+          icon="tick"
+          onClick={selectAll}
+          disabled={allSelected}
+          minimal
+        />
+        <Button
+          text={t("conversion.deselectAll")}
+          icon="cross"
+          onClick={deselectAll}
+          disabled={selectedCount === 0}
+          minimal
+        />
         <Button
           intent="primary"
           text={t("conversion.execute")}
           onClick={handleExecute}
-          disabled={confirmedCount === 0}
+          disabled={selectedCount === 0}
         />
       </div>
 
@@ -148,74 +141,100 @@ export const ConversionResultPanel: React.FC = () => {
           width: "100%",
           borderCollapse: "collapse",
           fontSize: 12,
-          tableLayout: "fixed",
         }}>
           <thead>
             <tr style={{ background: "#e1e8ed", position: "sticky", top: 0 }}>
-              <th style={{ width: 32, padding: "6px 4px", textAlign: "center" }}>☐</th>
+              <th style={{ padding: "6px 4px", textAlign: "center" }}></th>
               <th style={{ padding: "6px 8px", textAlign: "left" }}>{t("conversion.singlePath")}</th>
-              <th style={{ width: 120, padding: "6px 8px", textAlign: "left" }}>{t("conversion.singleImage")}</th>
-              <th style={{ width: 120, padding: "6px 8px", textAlign: "left" }}>{t("conversion.matchCrop")}</th>
-              <th style={{ width: 60, padding: "6px 8px", textAlign: "right" }}>{t("conversion.matchScore")}</th>
-              <th style={{ width: 70, padding: "6px 8px", textAlign: "center" }}>{t("conversion.status")}</th>
+              <th style={{ padding: "6px 8px", textAlign: "left" }}>{t("conversion.singleImage")}</th>
+              <th style={{ padding: "6px 8px", textAlign: "left" }}>{t("conversion.matchedPath")}</th>
+              <th style={{ padding: "6px 8px", textAlign: "left" }}>{t("conversion.matchCrop")}</th>
+              <th style={{ padding: "6px 8px", textAlign: "right" }}>{t("conversion.matchScore")}</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item, index) => {
-              const statusInfo = STATUS_LABELS[item.status];
-              return (
-                <tr
-                  key={index}
-                  style={{
-                    background: index % 2 === 0 ? "#ffffff" : "#fafbfc",
-                    borderBottom: "1px solid #e7edf2",
-                  }}
-                >
-                  <td style={{ textAlign: "center", padding: "4px" }}>
-                    <input
-                      type="checkbox"
-                      checked={item.status === "confirmed"}
-                      onChange={(e) => {
-                        setItemStatus(index, e.target.checked ? "confirmed" : "pending");
+            {items.map((item, index) => (
+              <tr
+                key={index}
+                onClick={() => toggleItem(index)}
+                style={{
+                  background: item.selected
+                    ? "#d3e8f7"
+                    : index % 2 === 0
+                      ? "#ffffff"
+                      : "#fafbfc",
+                  borderBottom: "1px solid #e7edf2",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  if (!item.selected) e.currentTarget.style.background = "#eaf4fb";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = item.selected
+                    ? "#d3e8f7"
+                    : index % 2 === 0
+                      ? "#ffffff"
+                      : "#fafbfc";
+                }}
+              >
+                <td style={{ textAlign: "center", padding: "4px" }}>
+                  <Checkbox
+                    checked={item.selected}
+                    onChange={() => toggleItem(index)}
+                    onClick={(e) => e.stopPropagation()}
+                    inline
+                  />
+                </td>
+                <td style={{ padding: "4px 8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span title={item.match.singleImagePath}>
+                    {item.match.singleImagePath.split("/").pop()}
+                  </span>
+                </td>
+                <td style={{ padding: "4px 8px" }}>
+                  <img
+                    src={`/api/image/thumbnail?path=${encodeURIComponent(item.match.singleImagePath)}&size=80`}
+                    alt=""
+                    style={{ width: 80, height: 60, objectFit: "contain", border: "1px solid #d1d8e0", borderRadius: 2 }}
+                  />
+                </td>
+                <td style={{ padding: "4px 8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <Tooltip
+                    content={
+                      <img
+                        src={`/api/image/thumbnail?path=${encodeURIComponent(item.match.matchedImagePath)}&size=240`}
+                        alt=""
+                        style={{ maxWidth: 240, maxHeight: 180, borderRadius: 2 }}
+                      />
+                    }
+                    placement="left"
+                    hoverOpenDelay={300}
+                  >
+                    <a
+                      href="#"
+                      title={item.match.matchedImagePath}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void editorActions.image.openWithMeta(item.match.matchedImagePath);
                       }}
-                    />
-                  </td>
-                  <td style={{ padding: "4px 8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {item.match.singleImagePath}
-                  </td>
-                  <td style={{ padding: "4px 8px" }}>
-                    <img
-                      src={`/api/image/thumbnail?path=${encodeURIComponent(item.match.singleImagePath)}&size=80`}
-                      alt=""
-                      style={{ width: 80, height: 60, objectFit: "contain", border: "1px solid #d1d8e0", borderRadius: 2 }}
-                    />
-                  </td>
-                  <td style={{ padding: "4px 8px" }}>
-                    <img
-                      src={`/api/image/thumbnail?path=${encodeURIComponent(item.match.matchedImagePath)}&size=80&x1=${item.match.matchX}&y1=${item.match.matchY}&x2=${item.match.matchX + item.match.matchW}&y2=${item.match.matchY + item.match.matchH}`}
-                      alt=""
-                      style={{ width: 80, height: 60, objectFit: "contain", border: "1px solid #d1d8e0", borderRadius: 2 }}
-                    />
-                  </td>
-                  <td style={{ textAlign: "right", padding: "4px 8px", fontVariantNumeric: "tabular-nums" }}>
-                    {item.match.matchScore.toFixed(4)}
-                  </td>
-                  <td style={{ textAlign: "center", padding: "4px 8px" }}>
-                    <span style={{
-                      display: "inline-block",
-                      padding: "2px 6px",
-                      borderRadius: 3,
-                      fontSize: 11,
-                      color: statusInfo.color,
-                      background: statusInfo.bg,
-                      border: `1px solid ${statusInfo.color}22`,
-                    }}>
-                      {t(statusInfo.label)}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+                      style={{ color: "#137cbd", textDecoration: "none" }}
+                    >
+                      {item.match.matchedImagePath.split("/").pop()}
+                    </a>
+                  </Tooltip>
+                </td>
+                <td style={{ padding: "4px 8px" }}>
+                  <img
+                    src={`/api/image/thumbnail?path=${encodeURIComponent(item.match.matchedImagePath)}&size=80&x1=${item.match.matchX}&y1=${item.match.matchY}&x2=${item.match.matchX + item.match.matchW}&y2=${item.match.matchY + item.match.matchH}`}
+                    alt=""
+                    style={{ width: 80, height: 60, objectFit: "contain", border: "1px solid #d1d8e0", borderRadius: 2 }}
+                  />
+                </td>
+                <td style={{ textAlign: "right", padding: "4px 8px", fontVariantNumeric: "tabular-nums" }}>
+                  {item.match.matchScore.toFixed(4)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

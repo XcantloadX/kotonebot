@@ -682,6 +682,8 @@ class RestApiLogic:
             return self.conversion.start_scan_files(request.imagePaths or [])
         elif mode == "device":
             return self.conversion.start_scan_device(request.screenshotPath or "")
+        elif mode == "current":
+            return self.conversion.start_scan_current(request.singleImagePath or "")
         else:
             raise ValueError(f"Unknown scan mode: {mode}")
 

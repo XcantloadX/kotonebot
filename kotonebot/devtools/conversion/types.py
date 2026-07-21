@@ -9,11 +9,11 @@ class ConversionMatch(BaseModel):
     """单个匹配结果：single 文档模板在目标图片中的命中记录。"""
 
     singleMetaPath: str | None
-    """Single 文档的 JSON 元数据文件相对路径，_None_ 表示裸 PNG。"""
+    """Single 文档的 JSON 元数据文件路径（相对 pyproject_root），_None_ 表示裸 PNG。"""
     singleImagePath: str
-    """Single 文档对应的图片文件相对路径。"""
+    """Single 文档对应的图片文件路径（相对 pyproject_root）。"""
     matchedImagePath: str
-    """匹配命中的目标图片相对路径。"""
+    """匹配命中的目标图片路径（相对 pyproject_root）。"""
     matchScore: float
     """模板匹配得分（归一化相关系数）。"""
     matchX: int
@@ -24,23 +24,18 @@ class ConversionMatch(BaseModel):
     """匹配区域宽度。"""
     matchH: int
     """匹配区域高度。"""
-    definitionType: str
-    """定义类型（template / prefab）。"""
-    definitionName: str
-    """生成的定义名称（大驼峰）。"""
-    definitionDisplayName: str
-    """定义的显示名称（文件名）。"""
 
 
 class ConfirmedMatch(BaseModel):
     """用户确认后的单条转换项。"""
+    """用户确认后的单条转换项。"""
 
     singleMetaPath: str | None
-    """Single 文档的 JSON 元数据文件相对路径，_None_ 表示裸 PNG。"""
+    """Single 文档的 JSON 元数据文件路径（相对 pyproject_root），_None_ 表示裸 PNG。"""
     singleImagePath: str
-    """Single 文档对应的图片文件相对路径。"""
+    """Single 文档对应的图片文件路径（相对 pyproject_root）。"""
     matchedImagePath: str
-    """匹配命中的目标图片相对路径。"""
+    """匹配命中的目标图片路径（相对 pyproject_root）。"""
     matchX: int
     """匹配区域左上角 X 坐标。"""
     matchY: int
@@ -49,14 +44,8 @@ class ConfirmedMatch(BaseModel):
     """匹配区域宽度。"""
     matchH: int
     """匹配区域高度。"""
-    definitionType: str
-    """定义类型（template / prefab）。"""
-    definitionName: str
-    """生成的定义名称（大驼峰）。"""
-    definitionDisplayName: str
-    """定义的显示名称（文件名）。"""
     targetMetaPath: str | None = None
-    """目标 Multi 文档的元数据文件路径，不指定时由后端推算。"""
+    """目标 Multi 文档的元数据文件路径（相对 pyproject_root），不指定时由后端推算。"""
 
 
 class ConversionScanResponse(BaseModel):
@@ -70,11 +59,11 @@ class ConversionExecuteResponse(BaseModel):
     """转换执行结果。"""
 
     modifiedMetaPaths: list[str]
-    """被修改的 Multi 元数据文件路径列表。"""
+    """被修改的 Multi 元数据文件路径列表（相对 pyproject_root）。"""
     deletedSingleMetaPaths: list[str]
-    """被删除的 Single 元数据文件路径列表。"""
+    """被删除的 Single 元数据文件路径列表（相对 pyproject_root）。"""
     deletedSingleImagePaths: list[str]
-    """被删除的 Single 图片文件路径列表。"""
+    """被删除的 Single 图片文件路径列表（相对 pyproject_root）。"""
 
 
 class ScanTaskState(str, Enum):
@@ -117,11 +106,13 @@ class ScanRequest(BaseModel):
     """启动扫描请求。"""
 
     mode: str
-    """扫描模式: ``all`` / ``files`` / ``device``。"""
+    """扫描模式: ``all`` / ``files`` / ``device`` / ``current``。"""
     imagePaths: list[str] | None = None
     """文件模式下的图片路径列表。"""
     screenshotPath: str | None = None
     """设备模式下的截图路径。"""
+    singleImagePath: str | None = None
+    """当前文档模式下的 single 图片路径。"""
 
 
 class ScanStartResponse(BaseModel):

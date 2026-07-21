@@ -39,6 +39,12 @@ class SingleDefinitionModel(BaseModel):
     """显示名称。"""
     description: str | None = None
     """描述。"""
+    prefab_id: str | None = None
+    """预制件 ID。"""
+    variant: str | None = None
+    """变体名称。"""
+    variant_policy: dict[str, VariantPolicy] | None = None
+    """变体策略。"""
     props: dict[str, Any] | None = None
     """属性字典。"""
 

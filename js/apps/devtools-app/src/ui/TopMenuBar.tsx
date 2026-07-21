@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { editorActions } from "../editor/actions";
 import { COMMAND_ID, executeCommand, useCommandStatuses } from "../editor/commands";
 import { useAppStore } from "../editor/state";
-import { selectActiveDocumentId, canAiInferSelectedDefinition, hasAnyDefinitionWithNullName } from "../editor/commands/selectors";
+import { selectActiveDocumentId, getActiveDocument, canAiInferSelectedDefinition, hasAnyDefinitionWithNullName } from "../editor/commands/selectors";
 import { useShortcut, useShortcutScope } from "../shortcuts/shortcutManager";
 import { useEditorDialogsContext } from "../editor/EditorDialogsContext";
 import { useRecentOpenStore } from "../editor/recentOpenStore";
@@ -299,6 +299,14 @@ export const TopMenuBar: React.FC = () => {
                 onClick={() => {
                   setOpenMenu(null);
                   commandContext.ui.openConversionCaptureDialog?.();
+                }}
+              />
+              <MenuItem
+                text={t('conversion.scanCurrent')}
+                disabled={!getActiveDocument()?.meta}
+                onClick={() => {
+                  setOpenMenu(null);
+                  void executeCommand(COMMAND_ID.CONVERSION_SCAN_CURRENT, commandContext, undefined);
                 }}
               />
             </>

@@ -38,5 +38,6 @@ export const COMMAND_ID = {
   CONVERSION_SCAN_ALL: "conversion.scanAll",
   CONVERSION_SCAN_SPECIFIC: "conversion.scanSpecific",
   CONVERSION_SCAN_DEVICE: "conversion.scanDevice",
+  CONVERSION_SCAN_CURRENT: "conversion.scanCurrent",
   CONVERSION_EXECUTE: "conversion.execute",
 } as const;

@@ -444,9 +444,6 @@ class TestExecute(unittest.TestCase):
                     matchY=10,
                     matchW=100,
                     matchH=80,
-                    definitionType="template",
-                    definitionName="Single.Btn",
-                    definitionDisplayName="btn.png",
                 ),
             ]
         )
@@ -456,7 +453,12 @@ class TestExecute(unittest.TestCase):
             (res / "multi" / "scene.png.json").read_text(encoding="utf-8")
         )
         self.assertIn("existing_def", multi_meta["definitions"])
-        self.assertIn("Single.Btn", multi_meta["definitions"]["auto_Btn"]["name"])
+        self.assertTrue(
+            any(
+                defn.get("name") == "Single.Btn" and defn.get("displayName") == "btn.png"
+                for defn in multi_meta["definitions"].values()
+            )
+        )
         # 验证：single 文档被删除
         self.assertFalse((res / "single" / "btn.png.json").exists())
         self.assertFalse((res / "single" / "btn.png").exists())
@@ -489,9 +491,6 @@ class TestExecute(unittest.TestCase):
                     matchY=0,
                     matchW=100,
                     matchH=80,
-                    definitionType="template",
-                    definitionName="Single.Btn",
-                    definitionDisplayName="btn.png",
                     targetMetaPath="resources/target/doc.png.json",
                 ),
             ]
@@ -499,7 +498,7 @@ class TestExecute(unittest.TestCase):
 
         self.assertIn("resources/target/doc.png.json", result.modifiedMetaPaths)
         meta = json.loads((res / "target" / "doc.png.json").read_text(encoding="utf-8"))
-        self.assertIn("auto_Btn", meta["definitions"])
+        self.assertTrue(len(meta["definitions"]) > 0)
 
     def test_creates_new_multi_when_not_exists(self):
         """当目标 meta 文件不存在时，应创建新的 multi 文档。"""
@@ -521,9 +520,6 @@ class TestExecute(unittest.TestCase):
                     matchY=0,
                     matchW=100,
                     matchH=80,
-                    definitionType="template",
-                    definitionName="NewMulti.Doc",
-                    definitionDisplayName="doc.png",
                 ),
             ]
         )
@@ -532,6 +528,10 @@ class TestExecute(unittest.TestCase):
         # meta 文件创建在 pyproject_root 下
         meta_abs = self.tmp_path / "new_multi" / "doc.png.json"
         self.assertTrue(meta_abs.exists())
+        # 验证生成的 name/displayName 来自路径 fallback
+        meta = json.loads(meta_abs.read_text(encoding="utf-8"))
+        gen_name = next(iter(meta["definitions"].values())).get("name")
+        self.assertEqual(gen_name, "Single.Btn")
 
 
 def write_json(path: Path, data: Any) -> None:

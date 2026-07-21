@@ -13,6 +13,7 @@ import {
   canSaveActiveDocument,
   canSaveAnyDocument,
   canUndoInActiveDocument,
+  getActiveDocument,
   getActiveDocumentId,
   hasAnyDocument,
   canAiInferSelectedDefinition,
@@ -434,6 +435,18 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     showInPalette: true,
     run: async () => {
       await editorActions.conversion.scanWithScreenshot("");
+    },
+  },
+  [COMMAND_ID.CONVERSION_SCAN_CURRENT]: {
+    id: COMMAND_ID.CONVERSION_SCAN_CURRENT,
+    title: t('conversion.scanCurrent'),
+    keywords: ["conversion", "scan", "current", "single"],
+    showInPalette: true,
+    when: () => !!getActiveDocument()?.meta,
+    run: async () => {
+      const doc = getActiveDocument();
+      if (!doc) return;
+      await editorActions.conversion.scanCurrentDocument(doc.image.path);
     },
   },
   [COMMAND_ID.CONVERSION_EXECUTE]: {

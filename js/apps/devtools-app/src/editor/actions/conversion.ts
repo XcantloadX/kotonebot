@@ -92,6 +92,14 @@ export async function scanWithScreenshot(screenshotPath: string) {
   });
 }
 
+/** 扫描当前文档（只匹配当前打开的 single 文档）。 */
+export async function scanCurrentDocument(imagePath: string) {
+  return startScanAndPoll(i18n.t("conversion.scanCurrentTab"), {
+    mode: "current",
+    singleImagePath: imagePath,
+  });
+}
+
 /** 取消当前扫描。 */
 export async function cancelScan() {
   const store = useConversionResultStore.getState();
@@ -109,15 +117,20 @@ export async function cancelScan() {
   store.setError(i18n.t("conversion.scanCancelled"));
 }
 
-/** 执行转换：确认的匹配写入 multi 文档，删除 single 文档。 */
+/** 执行转换：选中的匹配写入 multi 文档，删除 single 文档。 */
 export async function executeConversion() {
   const store = useConversionResultStore.getState();
-  const confirmed = store.getConfirmed();
-  if (confirmed.length === 0) {
-    toaster.show({ message: i18n.t("conversion.noConfirmed"), intent: Intent.WARNING, timeout: 3000 });
+  const selected = store.getSelected();
+  if (selected.length === 0) {
+    toaster.show({ message: i18n.t("conversion.noSelection"), intent: Intent.WARNING, timeout: 3000 });
     return;
   }
-  const executeMatches: conversionApi.ConfirmedMatch[] = confirmed.map((m) => ({
+  const singlePaths = selected.map(m => m.singleImagePath);
+  if (new Set(singlePaths).size !== singlePaths.length) {
+    toaster.show({ message: i18n.t("conversion.duplicateSingle"), intent: Intent.DANGER, timeout: 5000 });
+    return;
+  }
+  const executeMatches: conversionApi.ConfirmedMatch[] = selected.map((m) => ({
     singleMetaPath: m.singleMetaPath,
     singleImagePath: m.singleImagePath,
     matchedImagePath: m.matchedImagePath,
@@ -125,15 +138,12 @@ export async function executeConversion() {
     matchY: m.matchY,
     matchW: m.matchW,
     matchH: m.matchH,
-    definitionType: m.definitionType,
-    definitionName: m.definitionName,
-    definitionDisplayName: m.definitionDisplayName,
   }));
   const result = await conversionApi.executeConversion(executeMatches);
   toaster.show({
     message: i18n.t("conversion.executeDone", {
       modified: result.modifiedMetaPaths.length,
-      deleted: result.deletedSingleMetaPaths.length,
+      deleted: result.deletedSingleImagePaths.length,
     }),
     intent: Intent.SUCCESS,
     timeout: 5000,

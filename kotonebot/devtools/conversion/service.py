@@ -2,8 +2,11 @@
 
 import json
 import logging
+import os
 import threading
+import uuid
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Callable
 
@@ -25,7 +28,7 @@ from kotonebot.devtools.meta.models import (
 )
 from kotonebot.devtools.meta.parser import parse_meta_file
 from kotonebot.devtools.meta.scanner import DocRef, scan_docs
-from kotonebot.devtools.path_utils import get_safe_path
+from kotonebot.devtools.path_utils import from_rel, get_safe_path, to_rel
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.resgen.utils import to_camel_case
 from kotonebot.devtools.resgen.validation import detect_and_validate_meta_schema
@@ -76,9 +79,13 @@ class ConversionService:
                 # 裸 PNG，等价于默认 single 文档
                 singles.append((ref, SingleMetaModel(
                     isSimple=True,
-                    definition=SingleDefinitionModel(),
+                    definition=SingleDefinitionModel(
+                        type="prefab",
+                        prefab_id="TemplateMatchPrefab",
+                    ),
                 )))
                 continue
+            assert ref.abs_json_path is not None
             try:
                 data = json.loads(ref.abs_json_path.read_text(encoding="utf-8"))
                 info = detect_and_validate_meta_schema(data)
@@ -96,6 +103,89 @@ class ConversionService:
             logger.debug("Single meta: %s", s[0].image_path)
         return singles, multis
 
+    @staticmethod
+    def _process_single(
+        single_ref: DocRef,
+        single_meta: SingleMetaModel,
+        target_images: list[tuple[str, cv2.typing.MatLike]],
+        pyproject_root: Path,
+        cancel_event: threading.Event | None = None,
+    ) -> tuple[str, list[ConversionMatch]]:
+        """在单个线程中处理一个 single 文档的模板匹配。
+
+        :param target_images: list of (image_rel_path, pre_loaded_image_array)
+        """
+        rel_path = to_rel(single_ref.image_path, pyproject_root)
+        defn = single_meta.definition
+        if defn.type not in ("template", "prefab"):
+            return rel_path, []
+
+        single_img = cv2.imread(str(single_ref.abs_image_path))
+        if single_img is None:
+            logger.warning("无法读取 single 图片: %s", single_ref.abs_image_path)
+            return rel_path, []
+
+        props = defn.props or {}
+        image_prop = props.get("template") or props.get("image", {})
+        tx1: int = 0
+        ty1: int = 0
+        tx2: int = 0
+        ty2: int = 0
+        if isinstance(image_prop, dict) and image_prop.get("kind") == "image":
+            x1 = image_prop.get("x1")
+            y1 = image_prop.get("y1")
+            x2 = image_prop.get("x2")
+            y2 = image_prop.get("y2")
+            if (
+                isinstance(x1, (int, float))
+                and isinstance(y1, (int, float))
+                and isinstance(x2, (int, float))
+                and isinstance(y2, (int, float))
+            ):
+                tx1, ty1, tx2, ty2 = int(x1), int(y1), int(x2), int(y2)
+            else:
+                tx1, ty1 = 0, 0
+                tx2, ty2 = single_img.shape[1], single_img.shape[0]
+        else:
+            tx1, ty1 = 0, 0
+            tx2, ty2 = single_img.shape[1], single_img.shape[0]
+
+        tw = tx2 - tx1
+        th = ty2 - ty1
+        if tw <= 0 or th <= 0 or ty2 > single_img.shape[0] or tx2 > single_img.shape[1]:
+            return rel_path, []
+
+        template = single_img[ty1:ty2, tx1:tx2]
+        local_results: list[ConversionMatch] = []
+
+        for target_img_rel, target_img in target_images:
+            if cancel_event and cancel_event.is_set():
+                break
+
+            th_i, tw_i = template.shape[:2]
+            if th_i > target_img.shape[0] or tw_i > target_img.shape[1]:
+                logger.warning("模板大于目标图片: %s", target_img_rel)
+                continue
+
+            match_result = cv2.matchTemplate(target_img, template, cv2.TM_CCOEFF_NORMED)
+            _min_val, max_val, _min_loc, max_loc = cv2.minMaxLoc(match_result)
+            if max_val >= 0.95:
+                mx, my = max_loc
+                local_results.append(
+                    ConversionMatch(
+                        singleMetaPath=to_rel(single_ref.json_path, pyproject_root) if single_ref.json_path else None,
+                        singleImagePath=to_rel(single_ref.image_path, pyproject_root),
+                        matchedImagePath=to_rel(target_img_rel, pyproject_root),
+                        matchScore=round(float(max_val), 4),
+                        matchX=mx,
+                        matchY=my,
+                        matchW=tw_i,
+                        matchH=th_i,
+                    )
+                )
+
+        return rel_path, local_results
+
     def compute_match_results(
         self,
         singles: list[tuple[DocRef, SingleMetaModel]],
@@ -112,106 +202,47 @@ class ConversionService:
         """
         results: list[ConversionMatch] = []
         total = len(singles)
-        for idx, (single_ref, single_meta) in enumerate(singles):
-            if cancel_event and cancel_event.is_set():
-                logger.info("扫描任务被取消")
-                return results
+        if total == 0:
+            return results
 
-            defn = single_meta.definition
-            def_type = defn.type
-            if def_type not in ("template", "prefab"):
-                if progress_callback:
-                    progress_callback(idx + 1, total, single_ref.image_path)
+        # 预加载所有 target 图片，避免不同线程重复读盘
+        preloaded_targets: list[tuple[str, cv2.typing.MatLike]] = []
+        for img_rel, _ in target_image_infos:
+            target_abs = get_safe_path(img_rel, self.project)
+            img = cv2.imread(str(target_abs))
+            if img is None:
+                logger.warning("无法读取目标图片: %s", img_rel)
                 continue
+            preloaded_targets.append((img_rel, img))
 
-            single_img_abs = single_ref.abs_image_path
-            single_img = cv2.imread(str(single_img_abs))
-            if single_img is None:
-                logger.warning("无法读取 single 图片: %s", single_img_abs)
-                if progress_callback:
-                    progress_callback(idx + 1, total, single_ref.image_path)
-                continue
+        if not preloaded_targets:
+            return results
 
-            props = defn.props or {}
-            image_prop = props.get("template") or props.get("image", {})
-            use_full_image = False
-            if isinstance(image_prop, dict) and image_prop.get("kind") == "image":
-                x1 = image_prop.get("x1")
-                y1 = image_prop.get("y1")
-                x2 = image_prop.get("x2")
-                y2 = image_prop.get("y2")
-                if (
-                    isinstance(x1, (int, float))
-                    and isinstance(y1, (int, float))
-                    and isinstance(x2, (int, float))
-                    and isinstance(y2, (int, float))
-                ):
-                    tx1, ty1, tx2, ty2 = int(x1), int(y1), int(x2), int(y2)
-                else:
-                    use_full_image = True
-            else:
-                use_full_image = True
-
-            if use_full_image:
-                tx1, ty1 = 0, 0
-                tx2, ty2 = single_img.shape[1], single_img.shape[0]
-
-            tw = tx2 - tx1
-            th = ty2 - ty1
-            if tw <= 0 or th <= 0:
-                if progress_callback:
-                    progress_callback(idx + 1, total, single_ref.image_path)
-                continue
-            if ty2 > single_img.shape[0] or tx2 > single_img.shape[1]:
-                if progress_callback:
-                    progress_callback(idx + 1, total, single_ref.image_path)
-                continue
-            template = single_img[ty1:ty2, tx1:tx2]
-
-            for target_img_rel, _ in target_image_infos:
-                if cancel_event and cancel_event.is_set():
-                    logger.info("扫描任务被取消")
-                    return results
-
-                target_abs = get_safe_path(target_img_rel, self.project)
-                target_img = cv2.imread(str(target_abs))
-                if target_img is None:
-                    logger.warning("无法读取目标图片: %s", target_img_rel)
-                    continue
-                th_i, tw_i = template.shape[:2]
-                if th_i > target_img.shape[0] or tw_i > target_img.shape[1]:
-                    logger.warning("模板大于目标图片: %s", target_img_rel)
-                    continue
-
-                match_result = cv2.matchTemplate(
-                    target_img, template, cv2.TM_CCOEFF_NORMED
+        n_workers = min(32, (os.cpu_count() or 4) + 2)
+        with ThreadPoolExecutor(max_workers=n_workers) as pool:
+            futures = [
+                pool.submit(
+                    self._process_single,
+                    ref,
+                    meta,
+                    preloaded_targets,
+                    self.pyproject_root,
+                    cancel_event,
                 )
-                _min_val, max_val, _min_loc, max_loc = cv2.minMaxLoc(match_result)
-                if max_val >= 0.95:
-                    mx, my = max_loc
-                    definition_name = self.path_to_definition_name(
-                        single_ref.image_path
-                    )
-                    file_name = Path(single_ref.image_path).name
+                for ref, meta in singles
+            ]
 
-                    results.append(
-                        ConversionMatch(
-                            singleMetaPath=single_ref.json_path,
-                            singleImagePath=single_ref.image_path,
-                            matchedImagePath=target_img_rel,
-                            matchScore=round(float(max_val), 4),
-                            matchX=mx,
-                            matchY=my,
-                            matchW=tw_i,
-                            matchH=th_i,
-                            definitionType=def_type,
-                            definitionName=definition_name,
-                            definitionDisplayName=file_name,
-                        )
-                    )
-
-            if progress_callback:
-                progress_callback(idx + 1, total, single_ref.image_path)
+            done = 0
+            for f in as_completed(futures):
+                rel_path, matches = f.result()
+                results.extend(matches)
+                done += 1
+                if progress_callback:
+                    progress_callback(done, total, rel_path)
+                if cancel_event and cancel_event.is_set():
+                    for f2 in futures:
+                        f2.cancel()
+                    break
 
         return results
 
@@ -252,12 +283,25 @@ class ConversionService:
         thread.start()
         return task_id
 
+    def start_scan_current(self, single_image_path: str) -> str:
+        """在后台线程启动当前文档扫描，只匹配指定 single 文档，返回 task_id。"""
+        task_id = self._task_manager.create_task()
+        thread = threading.Thread(
+            target=self._run_scan_task,
+            args=(task_id, "current"),
+            kwargs={"single_image_path": single_image_path},
+            daemon=True,
+        )
+        thread.start()
+        return task_id
+
     def _run_scan_task(
         self,
         task_id: str,
         mode: str,
         image_paths: list[str] | None = None,
         screenshot_path: str | None = None,
+        single_image_path: str | None = None,
     ):
         """后台扫描任务入口。"""
         mgr = self._task_manager
@@ -278,12 +322,25 @@ class ConversionService:
                 mgr.update_progress(task_id, state=ScanTaskState.COMPLETED, matches=[])
                 return
 
+            target_infos: list[tuple[str, str | None]]
             if mode == "all":
                 target_infos = [(m.image_path, m.json_path) for m in multis]
             elif mode == "files" and image_paths is not None:
                 target_infos = [(ip, ip + ".json") for ip in image_paths]
             elif mode == "device" and screenshot_path is not None:
                 target_infos = [(screenshot_path, None)]
+            elif mode == "current" and single_image_path is not None:
+                target_infos = [(m.image_path, m.json_path) for m in multis]
+                singles = [
+                    (ref, meta)
+                    for ref, meta in singles
+                    if ref.image_path == single_image_path
+                ]
+                if not singles:
+                    mgr.update_progress(
+                        task_id, state=ScanTaskState.COMPLETED, matches=[]
+                    )
+                    return
             else:
                 mgr.update_progress(
                     task_id,
@@ -362,31 +419,50 @@ class ConversionService:
                 existing_defs = {}
 
             for match in group:
-                last_part = (
-                    match.definitionName.rsplit(".", 1)[-1]
-                    if "." in match.definitionName
-                    else match.definitionName
-                )
-                def_id = f"auto_{last_part}"
-                if def_id in existing_defs:
-                    idx = 1
-                    while f"{def_id}_{idx}" in existing_defs:
-                        idx += 1
-                    def_id = f"{def_id}_{idx}"
+                def_id = str(uuid.uuid4())
+
+                # 从 single JSON 或裸 PNG 读取定义信息
+                if match.singleMetaPath:
+                    single_model = SingleMetaModel.model_validate(
+                        json.loads(
+                            get_safe_path(match.singleMetaPath, self.project).read_text(encoding="utf-8")
+                        )
+                    )
+                    def_data = single_model.definition.model_dump(by_alias=True, exclude_none=True)
+                else:
+                    def_data = {
+                        "type": "prefab",
+                        "prefab_id": "TemplateMatchPrefab",
+                    }
+
+                single_img_abs = from_rel(match.singleImagePath, self.pyproject_root)
+                rel_to_res = to_rel(str(single_img_abs), self.project_root)
+
+                def_type = def_data.get("type") or "template"
+                name = def_data.get("name") or self.path_to_definition_name(rel_to_res)
+                display_name = def_data.get("displayName") or Path(rel_to_res).name
+
+                raw_props = def_data.get("props") or {}
+                props: dict[str, Any] = dict(raw_props) if isinstance(raw_props, dict) else {}
+                props.pop("template", None)
+                props.pop("image", None)
+                props["template"] = {
+                    "kind": "image",
+                    "x1": match.matchX,
+                    "y1": match.matchY,
+                    "x2": match.matchX + match.matchW,
+                    "y2": match.matchY + match.matchH,
+                }
 
                 new_def = DefinitionMultiModel(
-                    type=match.definitionType,
-                    name=match.definitionName,
-                    displayName=match.definitionDisplayName,
-                    props={
-                        "image": {
-                            "kind": "image",
-                            "x1": match.matchX,
-                            "y1": match.matchY,
-                            "x2": match.matchX + match.matchW,
-                            "y2": match.matchY + match.matchH,
-                        }
-                    },
+                    type=def_type,
+                    name=name,
+                    displayName=display_name,
+                    description=def_data.get("description"),
+                    prefab_id=def_data.get("prefab_id"),
+                    variant=def_data.get("variant"),
+                    variant_policy=def_data.get("variant_policy"),  # type: ignore[arg-type]
+                    props=props,
                 )
                 existing_defs[def_id] = new_def.model_dump(
                     by_alias=True, exclude_none=True

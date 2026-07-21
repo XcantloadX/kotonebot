@@ -100,6 +100,7 @@ import {
   scanAllDocuments,
   scanWithImages,
   scanWithScreenshot,
+  scanCurrentDocument,
   executeConversion,
   cancelScan,
 } from "./conversion";
@@ -113,6 +114,7 @@ const conversionActions = {
   scanAllDocuments,
   scanWithImages,
   scanWithScreenshot,
+  scanCurrentDocument,
   executeConversion,
   cancelScan,
 };
