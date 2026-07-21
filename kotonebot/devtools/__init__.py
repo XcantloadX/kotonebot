@@ -5,7 +5,6 @@ from .project.schema import EditorMetadata
 
 if TYPE_CHECKING:
     from .resgen import (
-        BasicSpriteParser,
         ClassNode,
         CodeWriter,
         DocstringPolicy,
@@ -44,7 +43,6 @@ _RESGEN_EXPORTS = [
     # parsers
     "ParserRegistry",
     "KotoneV1Parser",
-    "BasicSpriteParser",
 
     # utils
     "to_camel_case",

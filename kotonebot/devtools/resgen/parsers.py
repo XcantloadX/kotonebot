@@ -110,9 +110,9 @@ def load_resgen_project_context(
     resolved_meta_files = meta_files
     if resolved_meta_files is None:
         if project.conf.variant is not None:
-            from kotonebot.devtools.meta import scan_meta_files
+            from kotonebot.devtools.meta import scan_docs
             resource_path = _require_resource_path(project)
-            resolved_meta_files = [entry.meta_path for entry in scan_meta_files(Path(resource_path))]
+            resolved_meta_files = [doc.json_path for doc in scan_docs(Path(resource_path)) if doc.json_path is not None]
         else:
             resolved_meta_files = []
     return _build_project_context(
@@ -137,8 +137,8 @@ def load_resgen_runtime_context(
     resolved_meta_files = meta_files
     if resolved_meta_files is None:
         if project.conf.variant is not None:
-            from kotonebot.devtools.meta import scan_meta_files
-            resolved_meta_files = [entry.meta_path for entry in scan_meta_files(Path(resolved_root_scan_path))]
+            from kotonebot.devtools.meta import scan_docs
+            resolved_meta_files = [doc.json_path for doc in scan_docs(Path(resolved_root_scan_path)) if doc.json_path is not None]
         else:
             resolved_meta_files = []
 
@@ -175,29 +175,37 @@ class ParserRegistry:
 
 class KotoneV1Parser(SchemaParser):
     def can_parse(self, file_path: str) -> bool:
-        if not file_path.endswith('.png.json'):
-            return False
-        # 使用统一的 schema 检测逻辑：只有在结构被认为是合法的
-        # single/multi meta 时才返回 True。
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            info = detect_and_validate_meta_schema(data)
-            if info.format == "multi":
-                parse_meta_file(Path(file_path))
-            # 支持 single 与 multi 两种格式
-            return info.format in ("single", "multi")
-        except (json.JSONDecodeError, OSError, MetaValidationError):
-            return False
-        except ValueError:
-            return False
+        if file_path.endswith('.png.json'):
+            # 使用统一的 schema 检测逻辑：只有在结构被认为是合法的
+            # single/multi meta 时才返回 True。
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                info = detect_and_validate_meta_schema(data)
+                if info.format == "multi":
+                    parse_meta_file(Path(file_path))
+                # 支持 single 与 multi 两种格式
+                return info.format in ("single", "multi")
+            except (json.JSONDecodeError, OSError, MetaValidationError):
+                return False
+            except ValueError:
+                return False
+        # 裸 PNG → 作为 single 文档处理
+        if file_path.endswith('.png') and not Path(file_path + '.json').exists():
+            return True
+        return False
 
     def parse(self, file_path: str, context: Dict[str, Any]) -> List[ResourceNode]:
         """解析多定义 meta（multi）。Context 需要包含: 'output_img_dir'。"""
+        output_dir = context.get('output_img_dir', 'tmp')
+
+        # 裸 PNG → 作为单文档处理（默认 type=template）
+        if file_path.endswith('.png') and not Path(file_path + '.json').exists():
+            return self._parse_bare_png(file_path, output_dir, context)
+
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         schema_info = detect_and_validate_meta_schema(data)
-        output_dir = context.get('output_img_dir', 'tmp')
         png_file = file_path.replace('.json', '')
 
         if schema_info.format == "single":
@@ -484,7 +492,7 @@ class KotoneV1Parser(SchemaParser):
 
         针对简单格式：
         - `name` 与 `displayName` 均可为空或缺省；
-        - 当为空时，按照原有简单格式（BasicSpriteParser）的逻辑自动推导：
+        - 当为空时，按照裸 PNG 的逻辑自动推导：
           * name: 由文件名转换得到的 CamelCase 属性名；
           * displayName: 使用原始文件名（含扩展名）。
 
@@ -497,7 +505,7 @@ class KotoneV1Parser(SchemaParser):
                 f"Simple meta currently only supports type 'template' or 'prefab', got '{def_type}'."
             )
 
-        # --- 基于文件路径的默认推导（复用 BasicSpriteParser 逻辑） ---
+        # --- 基于文件路径的默认推导 ---
         root_scan_path = context.get('root_scan_path', '')
         png_path = Path(png_file)
         file_name = png_path.name
@@ -575,46 +583,33 @@ class KotoneV1Parser(SchemaParser):
 
         return [node]
 
-
-# --- 2. Basic Sprite Parser (无 Json 的普通图片) ---
-
-class BasicSpriteParser(SchemaParser):
-    def can_parse(self, file_path: str) -> bool:
-        # 只有是 png 且没有对应的 json 文件时
-        if not file_path.endswith('.png'):
-            return False
-        if Path(file_path + '.json').exists():
-            return False
-        return True
-
-    def parse(self, file_path: str, context: Dict[str, Any]) -> List[ResourceNode]:
-        output_dir = context.get('output_img_dir', 'tmp')
+    def _parse_bare_png(self, file_path: str, output_dir: str, context: Dict[str, Any]) -> List[ResourceNode]:
+        """解析裸 PNG 为 single 文档（默认 type=template）。"""
         root_scan_path = context.get('root_scan_path', '')
-        
+
         p = Path(file_path)
         file_name = p.name
         name_no_ext = file_name.replace('.png', '')
-        
-        # 计算 class path: 相对路径文件夹转 CamelCase
+
         rel_dir = p.parent.relative_to(root_scan_path).as_posix()
         class_path = [to_camel_case(p) for p in rel_dir.split('/') if p and p != '.']
-        
-        # 复制图片
+
         img_uuid = str(uuid.uuid4())
         new_name = f"{img_uuid}.png"
         final_path = ImageProcessor.copy_image(file_path, output_dir, new_name)
-        
+
         attr_name = to_camel_case(name_no_ext)
         display_name = file_name
-        
+
         metadata = {
             'class_path': class_path,
             'origin_file': str(p.resolve()),
             'abs_path': final_path,
-            'display_name': display_name
+            'display_name': display_name,
+            'isSimple': True,
         }
 
-        doc = f"名称：{display_name}\\n\n模块：`{'.'.join(class_path)}`\\n"
+        doc = f"名称：{display_name}\n\n模块：`{'.'.join(class_path)}`\n"
 
         return [ResourceNode(
             name=attr_name,

@@ -17,7 +17,7 @@ from ...diagnostics.codes import (
 )
 from ...diagnostics.models import Diagnostic
 from ..corpus import ParsedMetaDoc, build_corpus_from_meta_paths
-from ..scanner import MetaFileRef
+from ..scanner import DocRef
 from ..validator import validate_meta_corpus
 
 
@@ -205,13 +205,13 @@ def _project_symbols_for_doc(
 
 def build_indexing_projection(
     *,
-    meta_refs: list[MetaFileRef],
+    doc_refs: list[DocRef],
     prefab_schema: dict[str, Any],
     resource_variants: list[str] | None,
     base_variant: str | None,
     variant_configured: bool = False,
 ) -> IndexingProjection:
-    ref_by_path = {ref.meta_path: ref for ref in meta_refs}
+    ref_by_path = {ref.json_path: ref for ref in doc_refs if ref.json_path is not None}
     corpus, parse_diagnostics = build_corpus_from_meta_paths(list(ref_by_path.keys()))
 
     files: dict[str, IndexedFile] = {}

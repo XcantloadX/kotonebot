@@ -111,12 +111,13 @@ class DocumentIndexView:
     def build_full(self) -> None:
         """基于资源快照全量构建文档索引。"""
         self.resource_index_store.build_full()
-        refs = self.resource_index_store.snapshot.meta_refs
+        refs = self.resource_index_store.snapshot.doc_refs
         documents_by_image: dict[str, DocumentEntry] = {}
         groups: dict[str, list[DocumentEntry]] = {}
         for ref in refs:
+            # 裸露 PNG 没有 JSON，meta_path 传 None（_build_document_entry 会用 image_path 回退）
             image_path = Path(ref.image_path)
-            meta_path = Path(ref.meta_path)
+            meta_path = Path(ref.json_path) if ref.json_path is not None else None
             entry = self._build_document_entry(image_path=image_path, meta_path=meta_path)
             documents_by_image[entry.image_path] = entry
             groups.setdefault(entry.group_key, []).append(entry)
@@ -169,8 +170,12 @@ class DocumentIndexView:
         parts.append("$")
         return (re.compile("".join(parts)), seen_fields)
 
-    def _build_document_entry(self, *, image_path: Path, meta_path: Path) -> DocumentEntry:
+    def _build_document_entry(self, *, image_path: Path, meta_path: Path | None) -> DocumentEntry:
         """将单个 image/meta 路径解析为文档条目。"""
+        # WORKAROUND: 裸 PNG 没有 JSON，用 image_path 作为 meta_path 回退。
+        # 这使 DocumentEntry 保持非空 meta_path，但 rename 逻辑会因路径相同（PNG == meta）
+        # 而在一致性检查中跳过它，不会意外重命名。
+        meta_path = meta_path or image_path
         if image_path.suffix.lower() not in self.image_suffixes:
             raise InvalidImageError(f"Image path is not supported: {image_path}")
         variant_config = self._get_variant_config()
@@ -432,6 +437,9 @@ class DocumentIndexView:
         for member in group_members:
             source_member_image = Path(member.image_path)
             source_member_meta = Path(member.meta_path)
+            # WORKAROUND: 裸 PNG 的 meta_path 被回退为 image_path，跳过避免误重命名
+            if source_member_meta.as_posix() == source_member_image.as_posix():
+                continue
             source_image_exists = source_member_image.exists()
             source_meta_exists = source_member_meta.exists()
             if source_image_exists != source_meta_exists:

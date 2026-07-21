@@ -298,7 +298,7 @@ class RestApiLogic:
         """返回 workspace 内所有 PNG 文件路径（含无 JSON 的新文件）。"""
         self.workspace.resource_index_store.ensure_ready()
         root = self.pyproject_root
-        indexed = {Path(ref.image_path) for ref in self.workspace.resource_index_store.snapshot.meta_refs}
+        indexed = {Path(ref.image_path) for ref in self.workspace.resource_index_store.snapshot.doc_refs}
         all_pngs = set(self.project_root.rglob("*.png"))
         return {"imagePaths": sorted(to_rel(p, root) for p in (indexed | all_pngs))}
 

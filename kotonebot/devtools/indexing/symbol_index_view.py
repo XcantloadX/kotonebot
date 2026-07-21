@@ -171,9 +171,9 @@ class SymbolIndexView:
         """全量重建符号索引投影。"""
         start = time.perf_counter()
         self._resource_index_store.build_full()
-        refs = self._resource_index_store.snapshot.meta_refs
+        refs = self._resource_index_store.snapshot.doc_refs
         projection = build_indexing_projection(
-            meta_refs=refs,
+            doc_refs=refs,
             prefab_schema=self._prefab_schema,
             resource_variants=self._resource_variants,
             base_variant=self._base_variant,
@@ -201,9 +201,9 @@ class SymbolIndexView:
         removed_symbol_keys = [k for k, v in previous_snapshot.symbols.items() if v.meta_path == normalized_meta_path]
 
         self._resource_index_store.build_full()
-        refs = self._resource_index_store.snapshot.meta_refs
+        refs = self._resource_index_store.snapshot.doc_refs
         projection = build_indexing_projection(
-            meta_refs=refs,
+            doc_refs=refs,
             prefab_schema=self._prefab_schema,
             resource_variants=self._resource_variants,
             base_variant=self._base_variant,
@@ -305,6 +305,6 @@ class SymbolIndexView:
         resolved = path.resolve()
         if not str(resolved).startswith(str(self._resource_root)):
             raise PathSafetyError(f"Meta path is outside resource root: {resolved}")
-        if not resolved.as_posix().endswith(".png.json"):
-            raise ValidationError("Meta path must end with .png.json")
+        if not (resolved.as_posix().endswith(".png.json") or resolved.as_posix().endswith(".png")):
+            raise ValidationError("Meta path must end with .png.json or .png")
         return resolved.as_posix()

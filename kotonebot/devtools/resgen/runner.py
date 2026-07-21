@@ -18,7 +18,6 @@ from kotonebot.devtools.errors import CommandError, ValidationError
 from .codegen import StandardGenerator
 from .diagnostics import print_diagnostics_report
 from .parsers import (
-    BasicSpriteParser,
     KotoneV1Parser,
     ParserRegistry,
     load_resgen_runtime_context,
@@ -77,7 +76,6 @@ def generate_resources(
 
     registry = ParserRegistry()
     registry.register(KotoneV1Parser())
-    registry.register(BasicSpriteParser())
 
     all_files = _scan_files(root_scan_path)
     all_resources = []
@@ -86,8 +84,6 @@ def generate_resources(
     def parse_all_files() -> None:
         nonlocal parsed_file_count
         for file_path in all_files:
-            if file_path.endswith(".png") and Path(file_path + ".json").exists():
-                continue
             try:
                 parsed_resources = registry.parse_file(file_path, context)
             except Exception:
@@ -120,9 +116,6 @@ def generate_resources(
                 p = Path(file_path)
                 rel_file_path = p.relative_to(root_scan_path).as_posix()
                 progress.update(task_id, current_file=rel_file_path)
-                if file_path.endswith(".png") and Path(file_path + ".json").exists():
-                    progress.advance(task_id)
-                    continue
                 try:
                     parsed_resources = registry.parse_file(file_path, context)
                 except Exception:

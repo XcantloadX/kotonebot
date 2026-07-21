@@ -4,6 +4,7 @@ import json
 import logging
 import threading
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Callable
 
 import cv2
@@ -19,10 +20,11 @@ from kotonebot.devtools.conversion.types import (
 from kotonebot.devtools.meta.models import (
     DefinitionMultiModel,
     MetaMultiModel,
+    SingleDefinitionModel,
     SingleMetaModel,
 )
 from kotonebot.devtools.meta.parser import parse_meta_file
-from kotonebot.devtools.meta.scanner import MetaFileRef, scan_meta_files
+from kotonebot.devtools.meta.scanner import DocRef, scan_docs
 from kotonebot.devtools.path_utils import get_safe_path
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.resgen.utils import to_camel_case
@@ -59,19 +61,26 @@ class ConversionService:
 
     def classify_metas(
         self,
-    ) -> tuple[list[tuple[MetaFileRef, SingleMetaModel]], list[MetaFileRef]]:
-        """扫描所有 meta 文件并分类为 single 和 multi。
+    ) -> tuple[list[tuple[DocRef, SingleMetaModel]], list[DocRef]]:
+        """扫描所有文档并分类为 single 和 multi。
 
         :returns: (singles, multis)
-            - singles: list of (MetaFileRef, SingleMetaModel)
-            - multis: list of MetaFileRef
+            - singles: list of (DocRef, SingleMetaModel)
+            - multis: list of DocRef
         """
-        all_refs = scan_meta_files(self.project_root)
-        singles: list[tuple[MetaFileRef, SingleMetaModel]] = []
-        multis: list[MetaFileRef] = []
+        all_refs = scan_docs(self.project_root)
+        singles: list[tuple[DocRef, SingleMetaModel]] = []
+        multis: list[DocRef] = []
         for ref in all_refs:
+            if ref.json_path is None:
+                # 裸 PNG，等价于默认 single 文档
+                singles.append((ref, SingleMetaModel(
+                    isSimple=True,
+                    definition=SingleDefinitionModel(),
+                )))
+                continue
             try:
-                data = json.loads(ref.abs_meta_path.read_text(encoding="utf-8"))
+                data = json.loads(ref.abs_json_path.read_text(encoding="utf-8"))
                 info = detect_and_validate_meta_schema(data)
                 if info.format == "single":
                     singles.append((ref, SingleMetaModel.model_validate(data)))
@@ -79,24 +88,24 @@ class ConversionService:
                     multis.append(ref)
             except Exception:
                 logger.warning(
-                    "无法解析 meta 文件: %s", ref.abs_meta_path, exc_info=True
+                    "无法解析 meta 文件: %s", ref.abs_json_path, exc_info=True
                 )
                 continue
-        
+
         for s in singles:
-            logger.debug("Single meta: %s", s[0].abs_meta_path)
+            logger.debug("Single meta: %s", s[0].image_path)
         return singles, multis
 
     def compute_match_results(
         self,
-        singles: list[tuple[MetaFileRef, SingleMetaModel]],
+        singles: list[tuple[DocRef, SingleMetaModel]],
         target_image_infos: list[tuple[str, str | None]],
         progress_callback: Callable[[int, int, str], None] | None = None,
         cancel_event: threading.Event | None = None,
     ) -> list[ConversionMatch]:
         """遍历每个 single 文档，在目标图片上做模板匹配。
 
-        :param singles: list of (MetaFileRef, SingleMetaModel)
+        :param singles: list of (DocRef, SingleMetaModel)
         :param target_image_infos: list of (image_rel_path, meta_rel_path_or_None)
         :param progress_callback: 进度回调，参数 (current, total, current_file)
         :param cancel_event: 取消事件，检查后应退出
@@ -115,7 +124,7 @@ class ConversionService:
                     progress_callback(idx + 1, total, single_ref.image_path)
                 continue
 
-            single_img_abs = single_ref.abs_meta_path.with_suffix("")
+            single_img_abs = single_ref.abs_image_path
             single_img = cv2.imread(str(single_img_abs))
             if single_img is None:
                 logger.warning("无法读取 single 图片: %s", single_img_abs)
@@ -183,11 +192,11 @@ class ConversionService:
                     definition_name = self.path_to_definition_name(
                         single_ref.image_path
                     )
-                    file_name = single_ref.abs_meta_path.with_suffix("").name
+                    file_name = Path(single_ref.image_path).name
 
                     results.append(
                         ConversionMatch(
-                            singleMetaPath=single_ref.meta_path,
+                            singleMetaPath=single_ref.json_path,
                             singleImagePath=single_ref.image_path,
                             matchedImagePath=target_img_rel,
                             matchScore=round(float(max_val), 4),
@@ -270,7 +279,7 @@ class ConversionService:
                 return
 
             if mode == "all":
-                target_infos = [(m.image_path, m.meta_path) for m in multis]
+                target_infos = [(m.image_path, m.json_path) for m in multis]
             elif mode == "files" and image_paths is not None:
                 target_infos = [(ip, ip + ".json") for ip in image_paths]
             elif mode == "device" and screenshot_path is not None:
@@ -404,7 +413,8 @@ class ConversionService:
 
         seen_singles: set[str] = set()
         for m in matches:
-            if m.singleMetaPath not in seen_singles:
+            # 裸 PNG 没有 JSON 文件可删除
+            if m.singleMetaPath is not None and m.singleMetaPath not in seen_singles:
                 seen_singles.add(m.singleMetaPath)
                 single_meta_abs = get_safe_path(m.singleMetaPath, self.project)
                 if single_meta_abs.exists():

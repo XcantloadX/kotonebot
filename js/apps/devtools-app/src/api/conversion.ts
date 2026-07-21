@@ -3,8 +3,8 @@
 import { fetchJson, postJson, del } from "./client";
 
 export interface ConversionMatch {
-  /** Single 文档的 JSON 元数据文件相对路径。 */
-  singleMetaPath: string;
+  /** Single 文档的 JSON 元数据文件相对路径，null 表示裸 PNG。 */
+  singleMetaPath: string | null;
   /** Single 文档对应的图片文件相对路径。 */
   singleImagePath: string;
   /** 匹配命中的目标图片相对路径。 */
@@ -28,8 +28,8 @@ export interface ConversionMatch {
 }
 
 export interface ConfirmedMatch {
-  /** Single 文档的 JSON 元数据文件相对路径。 */
-  singleMetaPath: string;
+  /** Single 文档的 JSON 元数据文件相对路径，null 表示裸 PNG。 */
+  singleMetaPath: string | null;
   /** Single 文档对应的图片文件相对路径。 */
   singleImagePath: string;
   /** 匹配命中的目标图片相对路径。 */

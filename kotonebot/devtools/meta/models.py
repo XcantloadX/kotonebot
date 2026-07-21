@@ -31,7 +31,7 @@ class SingleDefinitionModel(BaseModel):
 
     model_config = ConfigDict(extra="ignore", strict=True)
 
-    type: str | None = None
+    type: str | None = "template"
     """定义类型。"""
     name: str | None = None
     """定义名称（大驼峰）。"""

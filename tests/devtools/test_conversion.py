@@ -165,6 +165,16 @@ class TestClassifyMetas(unittest.TestCase):
         self.assertEqual(len(singles), 1)
         self.assertEqual(len(multis), 1)
 
+    def test_bare_png_classified_as_single(self):
+        png = self.tmp_path / "resources" / "bare" / "image.png"
+        png.parent.mkdir(parents=True, exist_ok=True)
+        _make_checkerboard_image(png)
+        singles, multis = self.service.classify_metas()
+        self.assertEqual(len(singles), 1)
+        self.assertEqual(len(multis), 0)
+        self.assertIn("bare/image.png", singles[0][0].image_path)
+        self.assertIsNone(singles[0][0].json_path)
+
     def test_skips_invalid(self):
         meta = self.tmp_path / "resources" / "bad.png.json"
         meta.parent.mkdir(parents=True, exist_ok=True)
@@ -192,7 +202,7 @@ class TestComputeMatchResults(unittest.TestCase):
     def _create_single_and_ref(
         self, image_rel_path: str, meta_data: dict
     ) -> tuple[Any, Any]:
-        """创建 single 文档并返回 (MetaFileRef-like, SingleMetaModel)。"""
+        """创建 single 文档并返回 (DocRef, SingleMetaModel)。"""
         png_abs = self.tmp_path / "resources" / image_rel_path
         png_abs.parent.mkdir(parents=True, exist_ok=True)
         _make_checkerboard_image(png_abs)
@@ -200,14 +210,15 @@ class TestComputeMatchResults(unittest.TestCase):
         meta_abs.write_text(json.dumps(meta_data), encoding="utf-8")
 
         from kotonebot.devtools.meta.models import SingleMetaModel
-        from kotonebot.devtools.meta.scanner import MetaFileRef
+        from kotonebot.devtools.meta.scanner import DocRef
 
-        ref = MetaFileRef(
-            meta_path=str(meta_abs.relative_to(self.tmp_path / "resources").as_posix()),
-            image_path=str(png_abs.relative_to(self.tmp_path / "resources").as_posix()),
-            abs_meta_path=meta_abs,
-            mtime_ns=int(meta_abs.stat().st_mtime_ns),
-            size=meta_abs.stat().st_size,
+        ref = DocRef(
+            image_path=png_abs.as_posix(),
+            abs_image_path=png_abs,
+            json_path=meta_abs.as_posix(),
+            abs_json_path=meta_abs,
+            mtime_ns=int(png_abs.stat().st_mtime_ns),
+            size=png_abs.stat().st_size,
         )
         model = SingleMetaModel.model_validate(meta_data)
         return ref, model
@@ -248,10 +259,10 @@ class TestComputeMatchResults(unittest.TestCase):
         )
         self.assertEqual(len(results), 0)
 
-    def test_skips_non_template_type(self):
+    def test_skips_unknown_type(self):
         ref, model = self._create_single_and_ref(
             "single/hint.png",
-            _make_single_meta(type_="hint-box"),
+            _make_single_meta(type_="unknown"),
         )
         res = self.tmp_path / "resources"
         target = res / "multi" / "scene.png"
@@ -281,6 +292,36 @@ def _wait_for_scan(
             return prog
         time.sleep(0.1)
     raise TimeoutError(f"扫描任务 {task_id} 在 {timeout}s 内未完成")
+
+
+    def test_bare_png_matches(self):
+        png_abs = self.tmp_path / "resources" / "bare" / "btn.png"
+        png_abs.parent.mkdir(parents=True, exist_ok=True)
+        _make_checkerboard_image(png_abs)
+
+        from kotonebot.devtools.meta.scanner import DocRef
+        from kotonebot.devtools.meta.models import SingleMetaModel
+
+        ref = DocRef(
+            image_path=png_abs.as_posix(),
+            abs_image_path=png_abs,
+            mtime_ns=int(png_abs.stat().st_mtime_ns),
+            size=png_abs.stat().st_size,
+        )
+        model = SingleMetaModel(isSimple=True, definition={"type": "template"})
+
+        res = self.tmp_path / "resources"
+        target = res / "multi" / "scene.png"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _make_target_with_template(target)
+
+        results = self.service.compute_match_results(
+            [(ref, model)],
+            [(self._target_rel("scene.png"), None)],
+        )
+        self.assertEqual(len(results), 1)
+        self.assertGreaterEqual(results[0].matchScore, 0.95)
+        self.assertIsNone(results[0].singleMetaPath)
 
 
 class TestScanIntegration(unittest.TestCase):
@@ -326,6 +367,7 @@ class TestScanIntegration(unittest.TestCase):
         target = res / "multi" / "scene.png"
         target.parent.mkdir(parents=True, exist_ok=True)
         _make_target_with_template(target)
+        write_json(res / "multi" / "scene.png.json", _make_multi_meta())
 
         task_id = self.service.start_scan_files(["resources/multi/scene.png"])
         progress = _wait_for_scan(self.service, task_id)

@@ -11,7 +11,7 @@ from .models import (
 from .parser import parse_meta_file
 from .pipeline import build_meta_state
 from .projections import IndexingProjection, build_indexing_projection, build_variant_projection_for_resgen
-from .scanner import MetaFileRef, scan_meta_files
+from .scanner import DocRef, scan_docs
 from .state import MetaState
 from .validator import collect_variant_groups, validate_meta_corpus
 from .resolver import (
@@ -36,12 +36,12 @@ __all__ = [
     "build_meta_state",
     "DefinitionModel",
     "DefinitionMultiModel",
-    "MetaFileRef",
+    "DocRef",
     "MetaModel",
     "MetaMultiModel",
     "VariantPolicy",
     "parse_meta_file",
-    "scan_meta_files",
+    "scan_docs",
     "validate_meta_corpus",
     "collect_variant_groups",
     "IndexingProjection",

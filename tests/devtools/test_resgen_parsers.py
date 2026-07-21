@@ -10,7 +10,6 @@ from unittest.mock import patch
 from kotonebot.devtools.resgen.parsers import (
     ParserRegistry,
     KotoneV1Parser,
-    BasicSpriteParser,
     load_resgen_project_context,
     load_resgen_runtime_context,
 )
@@ -46,7 +45,7 @@ class TestParserRegistry(unittest.TestCase):
         """Test registering multiple parsers"""
         registry = ParserRegistry()
         parser1 = KotoneV1Parser()
-        parser2 = BasicSpriteParser()
+        parser2 = KotoneV1Parser()
         
         registry.register(parser1)
         registry.register(parser2)
@@ -58,7 +57,7 @@ class TestParserRegistry(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             test_png = write_min_png(Path(tmpdir) / "test.png")
             registry = ParserRegistry()
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             registry.register(parser)
             
             result = registry.parse_file(test_png.as_posix(), _resgen_context(tmpdir))
@@ -116,10 +115,9 @@ class TestKotoneV1Parser(unittest.TestCase):
         self.assertFalse(parser.can_parse("test.txt"))
 
     def test_can_parse_with_non_json_file(self):
-        """Test can_parse with non-JSON file"""
+        """Test can_parse with non-JSON file (bare PNG is now accepted)"""
         parser = KotoneV1Parser()
-        
-        self.assertFalse(parser.can_parse("test.png"))
+        self.assertTrue(parser.can_parse("test.png"))
         self.assertFalse(parser.can_parse("test.txt"))
 
     def test_can_parse_with_invalid_json(self):
@@ -210,25 +208,20 @@ class TestKotoneV1Parser(unittest.TestCase):
             self.assertEqual(node.metadata.get("display_name"), "button.png")
 
 
-class TestBasicSpriteParser(unittest.TestCase):
-    """Test BasicSpriteParser class"""
-
-    def test_initialization(self):
-        """Test BasicSpriteParser initialization"""
-        parser = BasicSpriteParser()
-        self.assertTrue(isinstance(parser, BasicSpriteParser))
+class TestKotoneV1ParserBarePng(unittest.TestCase):
+    """Test KotoneV1Parser with bare PNG (no .png.json)"""
 
     def test_can_parse_png_file(self):
         """Test can_parse with PNG file without JSON"""
         with tempfile.TemporaryDirectory() as tmpdir:
             png_file = write_min_png(Path(tmpdir) / "test.png")
             
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             self.assertTrue(parser.can_parse(png_file.as_posix()))
 
     def test_can_parse_rejects_non_png(self):
         """Test can_parse rejects non-PNG files"""
-        parser = BasicSpriteParser()
+        parser = KotoneV1Parser()
         
         self.assertFalse(parser.can_parse("test.txt"))
         self.assertFalse(parser.can_parse("test.jpg"))
@@ -241,7 +234,7 @@ class TestBasicSpriteParser(unittest.TestCase):
             json_file = Path(png_file.as_posix() + ".json")
             write_json(json_file, {})
             
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             self.assertFalse(parser.can_parse(png_file.as_posix()))
 
     def test_parse_single_sprite(self):
@@ -249,12 +242,11 @@ class TestBasicSpriteParser(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             png_file = write_min_png(Path(tmpdir) / "button.png")
             
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             result = parser.parse(png_file.as_posix(), _resgen_context(tmpdir))
             
             self.assertEqual(len(result), 1)
             self.assertEqual(result[0].type, "template")
-            # BasicSpriteParser converts to CamelCase
             self.assertEqual(result[0].name, "Button")
 
     def test_parse_sprite_with_path(self):
@@ -262,14 +254,12 @@ class TestBasicSpriteParser(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             png_file = write_min_png(Path(tmpdir) / "ui" / "buttons" / "submit_button.png")
             
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             result = parser.parse(png_file.as_posix(), _resgen_context(tmpdir))
             
             self.assertEqual(len(result), 1)
-            # class_path should contain Ui and Buttons
             metadata = result[0].metadata
             self.assertIn("class_path", metadata)
-            # Verify the class path is built correctly
             self.assertTrue(isinstance(metadata["class_path"], list))
 
     def test_parse_returns_resource_node(self):
@@ -277,7 +267,7 @@ class TestBasicSpriteParser(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             png_file = write_min_png(Path(tmpdir) / "test.png")
             
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             result = parser.parse(png_file.as_posix(), _resgen_context(tmpdir))
             
             self.assertEqual(len(result), 1)
@@ -285,7 +275,6 @@ class TestBasicSpriteParser(unittest.TestCase):
             self.assertTrue(isinstance(node, ResourceNode))
             self.assertEqual(node.type, "template")
             self.assertTrue(isinstance(node.value, ImageAsset))
-            # path 应该存在并指向输出目录
             self.assertTrue(os.path.exists(node.value.path))
 
     def test_parse_metadata_content(self):
@@ -293,7 +282,7 @@ class TestBasicSpriteParser(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             png_file = write_min_png(Path(tmpdir) / "sprite.png")
             
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             result = parser.parse(png_file.as_posix(), _resgen_context(tmpdir))
             
             metadata = result[0].metadata
@@ -309,7 +298,7 @@ class TestBasicSpriteParser(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             png_file = write_min_png(Path(tmpdir) / "test.png")
             
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             result = parser.parse(png_file.as_posix(), _resgen_context(tmpdir))
             
             docstring = result[0].docstring
@@ -319,7 +308,7 @@ class TestBasicSpriteParser(unittest.TestCase):
     def test_parse_multiple_files(self):
         """Test parsing multiple sprite files"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             context = _resgen_context(tmpdir)
             
             files = ["sprite1.png", "sprite2.png", "sprite3.png"]
@@ -332,10 +321,8 @@ class TestBasicSpriteParser(unittest.TestCase):
                 result = parser.parse(png_file.as_posix(), context)
                 results.extend(result)
             
-            # Each file should produce one ResourceNode
             self.assertEqual(len(results), 3)
             names = {r.name for r in results}
-            # BasicSpriteParser converts to CamelCase
             self.assertIn("Sprite1", names)
             self.assertIn("Sprite2", names)
             self.assertIn("Sprite3", names)

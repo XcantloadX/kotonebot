@@ -9,7 +9,6 @@ from kotonebot.devtools.resgen import (
     StandardGenerator,
     ParserRegistry,
     KotoneV1Parser,
-    BasicSpriteParser,
     unify_path,
     build_class_tree,
 )
@@ -25,7 +24,7 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
             tmp_path = Path(tmpdir)
             png_file = write_min_png(tmp_path / "ui" / "button.png")
             
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             resources = parser.parse(png_file.as_posix(), make_resgen_context(tmp_path))
             
             tree = build_class_tree(resources)
@@ -51,7 +50,6 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
             
             registry = ParserRegistry()
             registry.register(KotoneV1Parser())
-            registry.register(BasicSpriteParser())
             
             context = make_resgen_context(tmp_path)
             
@@ -195,7 +193,7 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
             tmp_path = Path(tmpdir)
             png_file = write_min_png(tmp_path / "test.png")
             
-            parser = BasicSpriteParser()
+            parser = KotoneV1Parser()
             resources = parser.parse(png_file.as_posix(), make_resgen_context(tmp_path))
             
             # Verify metadata is present

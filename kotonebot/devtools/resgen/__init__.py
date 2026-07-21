@@ -17,7 +17,6 @@ from .core import (
     SchemaParser,
 )
 from .parsers import (
-    BasicSpriteParser,
     KotoneV1Parser,
     ParserRegistry,
 )
@@ -55,7 +54,6 @@ __all__ = [
     # parsers
     "ParserRegistry",
     "KotoneV1Parser",
-    "BasicSpriteParser",
 
     # runner
     "ResgenGenerateResult",

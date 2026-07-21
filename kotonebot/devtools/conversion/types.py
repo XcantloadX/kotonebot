@@ -8,8 +8,8 @@ from pydantic import BaseModel
 class ConversionMatch(BaseModel):
     """单个匹配结果：single 文档模板在目标图片中的命中记录。"""
 
-    singleMetaPath: str
-    """Single 文档的 JSON 元数据文件相对路径。"""
+    singleMetaPath: str | None
+    """Single 文档的 JSON 元数据文件相对路径，_None_ 表示裸 PNG。"""
     singleImagePath: str
     """Single 文档对应的图片文件相对路径。"""
     matchedImagePath: str
@@ -35,8 +35,8 @@ class ConversionMatch(BaseModel):
 class ConfirmedMatch(BaseModel):
     """用户确认后的单条转换项。"""
 
-    singleMetaPath: str
-    """Single 文档的 JSON 元数据文件相对路径。"""
+    singleMetaPath: str | None
+    """Single 文档的 JSON 元数据文件相对路径，_None_ 表示裸 PNG。"""
     singleImagePath: str
     """Single 文档对应的图片文件相对路径。"""
     matchedImagePath: str
