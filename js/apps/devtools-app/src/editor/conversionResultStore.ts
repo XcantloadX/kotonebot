@@ -21,10 +21,6 @@ export interface ConversionProgress {
 }
 
 interface ConversionResultState {
-  /** 当前结果标签页的标题。 */
-  tabLabel: string;
-  /** 当前标签页 ID。 */
-  tabId: string;
   /** 是否正在加载中（扫描进行中）。 */
   isLoading: boolean;
   /** 扫描进度。 */
@@ -35,8 +31,8 @@ interface ConversionResultState {
   taskId: string | null;
   /** 匹配结果列表。 */
   items: ConversionResultItem[];
-  /** 进入 loading 状态并打开标签页。 */
-  setLoading: (tabId: string, tabLabel: string) => void;
+  /** 进入 loading 状态。 */
+  setLoading: () => void;
   /** 设置任务 ID（启动扫描后调用）。 */
   setTaskId: (taskId: string) => void;
   /** 设置扫描进度（轮询中调用）。 */
@@ -44,7 +40,7 @@ interface ConversionResultState {
   /** 扫描出错。 */
   setError: (error: string) => void;
   /** 设置结果列表（扫描完成后）。 */
-  setItems: (tabLabel: string, matches: ConversionMatch[]) => void;
+  setItems: (matches: ConversionMatch[]) => void;
   /** 清除所有状态。 */
   clear: () => void;
   /** 切换指定索引项的勾选状态。 */
@@ -63,17 +59,13 @@ interface ConversionResultState {
 
 export const useConversionResultStore = create<ConversionResultState>()(
   immer((set, get) => ({
-    tabLabel: "",
-    tabId: "",
     isLoading: false,
     progress: null,
     error: null,
     taskId: null,
     items: [],
 
-    setLoading: (tabId, tabLabel) => set((state) => {
-      state.tabId = tabId;
-      state.tabLabel = tabLabel;
+    setLoading: () => set((state) => {
       state.isLoading = true;
       state.progress = null;
       state.error = null;
@@ -111,8 +103,7 @@ export const useConversionResultStore = create<ConversionResultState>()(
       state.progress = null;
     }),
 
-    setItems: (tabLabel, matches) => set((state) => {
-      state.tabLabel = tabLabel;
+    setItems: (matches) => set((state) => {
       state.isLoading = false;
       state.progress = null;
       state.error = null;
@@ -125,7 +116,6 @@ export const useConversionResultStore = create<ConversionResultState>()(
     }),
 
     clear: () => set((state) => {
-      state.tabId = "";
       state.isLoading = false;
       state.progress = null;
       state.error = null;

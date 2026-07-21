@@ -8,6 +8,8 @@ import { getImageUrl, writeText } from '../api/fs';
 import { toaster } from '../ui/toaster';
 import { useSymbolIndexStore } from './symbolIndexStore';
 import i18n from '../i18n';
+import type { ITab } from "./tabSystem/types";
+export type { ITab };
 
 enablePatches();
 
@@ -76,19 +78,8 @@ export interface DefinitionClipboard {
   definition: DefinitionModel;
 }
 
-export type Tab =
-  | { kind: "welcome" }
-  | { kind: "document"; docId: string }
-  | { kind: "conversion-result"; id: string; label: string };
-
-export function tabId(t: Tab): string {
-  if (t.kind === "welcome") return "welcome";
-  if (t.kind === "conversion-result") return t.id;
-  return t.docId;
-}
-
 interface AppState {
-  tabs: Tab[];
+  tabs: ITab[];
   activeTabId: string | null;
   documents: Record<string, DocumentState>;
   focusSpotlight: FocusSpotlightState | null;
@@ -99,7 +90,7 @@ interface AppState {
   activeResourceType: ResourceType;
 
   // Tab primitives
-  openTab: (tab: Tab) => void;
+  openTab: (tab: ITab) => void;
   closeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
 
@@ -136,7 +127,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
   immer((set) => ({
-    tabs: [{ kind: "welcome" } as Tab],
+    tabs: [{ id: "welcome", kind: "welcome", label: "欢迎", closable: false } as ITab],
     activeTabId: "welcome",
     documents: {},
     focusSpotlight: null,
@@ -146,8 +137,8 @@ export const useAppStore = create<AppState>()(
     activeResourceType: "hint-box",
 
     openTab: (tab) => set((state) => {
-      const id = tabId(tab);
-      const existing = state.tabs.find(t => tabId(t) === id);
+      const id = tab.id;
+      const existing = state.tabs.find(t => t.id === id);
       if (existing) {
         state.activeTabId = id;
       } else {
@@ -157,13 +148,13 @@ export const useAppStore = create<AppState>()(
     }),
 
     closeTab: (tabIdStr) => set((state) => {
-      const tabIndex = state.tabs.findIndex(t => tabId(t) === tabIdStr);
+      const tabIndex = state.tabs.findIndex(t => t.id === tabIdStr);
       if (tabIndex === -1) return;
       state.tabs.splice(tabIndex, 1);
       if (state.activeTabId === tabIdStr) {
         if (state.tabs.length > 0) {
           const newIndex = Math.min(tabIndex, state.tabs.length - 1);
-          state.activeTabId = tabId(state.tabs[newIndex]);
+          state.activeTabId = state.tabs[newIndex].id;
         } else {
           state.activeTabId = null;
         }
@@ -194,8 +185,14 @@ export const useAppStore = create<AppState>()(
           transaction: null,
         }
       };
-      if (!state.tabs.find(t => tabId(t) === path)) {
-        state.tabs.push({ kind: "document", docId: path });
+      if (!state.tabs.find(t => t.id === path)) {
+        state.tabs.push({
+          id: path,
+          kind: "document",
+          label: path.split("/").pop() || path,
+          closable: true,
+          metadata: { docId: path },
+        });
       }
       state.activeTabId = path;
     }),
@@ -222,9 +219,12 @@ export const useAppStore = create<AppState>()(
       }
       doc.meta.path = nextMetaPath;
       state.documents[newId] = doc;
-      const tab = state.tabs.find(t => tabId(t) === oldId);
+      const tab = state.tabs.find(t => t.id === oldId);
       if (tab && tab.kind === "document") {
-        tab.docId = newId;
+        tab.id = newId;
+        if (tab.metadata) {
+          tab.metadata.docId = newId;
+        }
       }
       if (state.activeTabId === oldId) {
         state.activeTabId = newId;
@@ -277,9 +277,12 @@ export const useAppStore = create<AppState>()(
         state.documents[item.newId] = item.doc;
       }
       for (const { oldId, newId } of renames) {
-        const tab = state.tabs.find(t => tabId(t) === oldId);
+        const tab = state.tabs.find(t => t.id === oldId);
         if (tab && tab.kind === "document") {
-          tab.docId = newId;
+          tab.id = newId;
+          if (tab.metadata) {
+            tab.metadata.docId = newId;
+          }
         }
       }
       if (state.activeTabId) {
@@ -307,9 +310,9 @@ export const useAppStore = create<AppState>()(
     
     setActiveTool: (tool) => set((state) => {
         state.activeTool = tool;
-        const activeTab = state.tabs.find(t => tabId(t) === state.activeTabId);
+        const activeTab = state.tabs.find(t => t.id === state.activeTabId);
         if (activeTab?.kind === "document") {
-          const doc = state.documents[activeTab.docId];
+          const doc = state.documents[activeTab.metadata?.docId as string];
           if (doc) {
             doc.mode = { kind: "idle" };
           }

@@ -24,9 +24,9 @@ async function startScanAndPoll(
   const appStore = useAppStore.getState();
 
   // 1. 立即打开 loading tab
-  const tabId = `conversion-${Date.now()}`;
-  store.setLoading(tabId, tabLabel);
-  appStore.openTab({ kind: "conversion-result", id: tabId, label: tabLabel });
+  const id = `conversion-${Date.now()}`;
+  store.setLoading();
+  appStore.openTab({ id, kind: "conversion-result", label: tabLabel, closable: true });
 
   let taskId: string | null = null;
   try {

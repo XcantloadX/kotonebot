@@ -5,15 +5,16 @@ import { Button, Checkbox, NonIdealState, ProgressBar, Spinner, Tooltip, Intent 
 import { useTranslation } from "react-i18next";
 import { useConversionResultStore } from "../editor/conversionResultStore";
 import { editorActions } from "../editor/actions";
+import type { ITab } from "../editor/tabSystem/types";
 
 /** Conversion 扫描结果展示面板。 */
-export const ConversionResultPanel: React.FC = () => {
+export const ConversionResultPanel: React.FC<{ tab: ITab }> = ({ tab }) => {
   const { t } = useTranslation();
   const isLoading = useConversionResultStore((s) => s.isLoading);
   const progress = useConversionResultStore((s) => s.progress);
   const error = useConversionResultStore((s) => s.error);
   const items = useConversionResultStore((s) => s.items);
-  const tabLabel = useConversionResultStore((s) => s.tabLabel);
+  const tabLabel = tab.label;
   const toggleItem = useConversionResultStore((s) => s.toggleItem);
   const selectAll = useConversionResultStore((s) => s.selectAll);
   const deselectAll = useConversionResultStore((s) => s.deselectAll);

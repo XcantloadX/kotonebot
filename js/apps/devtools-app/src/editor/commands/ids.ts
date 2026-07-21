@@ -28,8 +28,6 @@ export const COMMAND_ID = {
   TAB_CLOSE: "tab.close",
   TAB_CLOSE_OTHERS: "tab.closeOthers",
   TAB_CLOSE_ALL: "tab.closeAll",
-  DOCUMENT_CLOSE: "document.close",
-  DOCUMENT_CLOSE_MANY: "document.closeMany",
   NAVIGATION_JUMP_TO_SYMBOL: "navigation.jumpToSymbol",
   NAVIGATION_JUMP_TO_DIAGNOSTIC: "navigation.jumpToDiagnostic",
   APP_OPEN_WELCOME: "app.openWelcome",

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from './state';
 import { selectActiveTab } from './commands/selectors';
 import { getPrefabSchema } from '../api/prefabs';
-import { StageView } from './konva/StageView';
 import { LeftToolBar } from '../ui/LeftToolBar';
 import { RightProperties } from '../ui/RightProperties';
 import { TabBar } from '../ui/TabBar';
@@ -11,9 +10,10 @@ import { useSymbolIndexStore } from './symbolIndexStore';
 import { TopMenuBar } from '../ui/TopMenuBar';
 import { ProblemsPanel } from '../ui/ProblemsPanel';
 import { WelcomePanel } from '../ui/WelcomePanel';
-import { ConversionResultPanel } from '../ui/ConversionResultPanel';
 import { HierarchyPanel } from '../ui/HierarchyPanel';
 import { ProjectPanel } from '../ui/ProjectPanel';
+import { getTabComponent } from './tabSystem';
+import './tabSystem/kinds';
 import { useSettingsStore } from './settings';
 import { FocusSpotlightOverlay } from './FocusSpotlightOverlay';
 import { useShortcutScope } from '../shortcuts/shortcutManager';
@@ -90,7 +90,10 @@ export const EditorApp: React.FC = () => {
           <div style={{ flex: 1, background: '#f5f8fa', position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             {singleTabMode ? null : <TabBar />}
             <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-              {activeTab?.kind === "document" ? <StageView /> : activeTab?.kind === "conversion-result" ? <ConversionResultPanel /> : <WelcomePanel />}
+              {(() => {
+                const TabComponent = activeTab ? getTabComponent(activeTab.kind) : null;
+                return TabComponent && activeTab ? <TabComponent tab={activeTab} /> : <WelcomePanel />;
+              })()}
             </div>
             {!isHostMode ? (
               <ProblemsPanel

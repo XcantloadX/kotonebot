@@ -1,14 +1,14 @@
-import { useAppStore, tabId, type Tab, type DocumentState } from "../state";
+import { useAppStore, type ITab, type DocumentState } from "../state";
 
 /** 根据 state 推导当前激活的 tab。 */
-export function selectActiveTab(state: { tabs: Tab[]; activeTabId: string | null }): Tab | null {
-  return state.tabs.find(t => tabId(t) === state.activeTabId) ?? null;
+export function selectActiveTab(state: { tabs: ITab[]; activeTabId: string | null }): ITab | null {
+  return state.tabs.find(t => t.id === state.activeTabId) ?? null;
 }
 
 /** 根据 state 推导当前激活文档 ID。 */
-export function selectActiveDocumentId(state: { tabs: Tab[]; activeTabId: string | null }): string | null {
+export function selectActiveDocumentId(state: { tabs: ITab[]; activeTabId: string | null }): string | null {
   const tab = selectActiveTab(state);
-  return tab?.kind === "document" ? tab.docId : null;
+  return tab?.kind === "document" ? (tab.metadata?.docId as string | undefined) ?? null : null;
 }
 
 /** 读取当前激活文档 ID。 */

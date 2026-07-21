@@ -1,6 +1,7 @@
 import { editorActions } from "../actions";
-import { useAppStore, tabId } from "../state";
+import { useAppStore } from "../state";
 import { useSettingsStore } from "../settings";
+import { getTabKind } from "../tabSystem";
 import { COMMAND_ID } from "./ids";
 import {
   canPasteDefinitionFromClipboardInActiveDocument,
@@ -298,13 +299,13 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     title: t('menuItem.closeDocument'),
     keywords: ["close", "tab"],
     showInPalette: false,
-    run: async (_, args) => {
+    run: async (ctx, args) => {
       const state = useAppStore.getState();
-      const tab = state.tabs.find(t => tabId(t) === args.id);
+      const tab = state.tabs.find(t => t.id === args.id);
       if (!tab) return;
-      if (tab.kind === "document") {
-        const ok = await editorActions.document.close(tab.docId);
-        if (!ok) return;
+      const kindDef = getTabKind(tab.kind);
+      if (kindDef?.onClose) {
+        await kindDef.onClose(tab, ctx);
       } else {
         state.closeTab(args.id);
       }
@@ -315,17 +316,19 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     title: t('tabBar.closeOthers'),
     keywords: ["close", "others", "tab"],
     showInPalette: false,
-    run: async (_, args) => {
+    run: async (ctx, args) => {
       const state = useAppStore.getState();
       const keepId = args?.id ?? state.activeTabId ?? "";
-      const others = state.tabs.filter(t => tabId(t) !== keepId);
-      const docTabs = others.filter(t => t.kind === "document");
-      const nonDocIds = others.filter(t => t.kind !== "document").map(tabId);
-      if (docTabs.length > 0) {
-        const ok = await editorActions.document.closeMany(docTabs.map(t => t.docId));
-        if (!ok) return;
+      const others = [...state.tabs].filter(t => t.id !== keepId);
+      for (const tab of others) {
+        const kindDef = getTabKind(tab.kind);
+        if (kindDef?.onClose) {
+          const ok = await kindDef.onClose(tab, ctx);
+          if (!ok) break;
+        } else {
+          state.closeTab(tab.id);
+        }
       }
-      nonDocIds.forEach(id => useAppStore.getState().closeTab(id));
     },
   },
   [COMMAND_ID.TAB_CLOSE_ALL]: {
@@ -333,33 +336,18 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     title: t('menuItem.closeAllDocuments'),
     keywords: ["close", "all", "tab"],
     showInPalette: false,
-    run: async () => {
+    run: async (ctx) => {
       const state = useAppStore.getState();
-      const docTabs = state.tabs.filter(t => t.kind === "document");
-      const nonDocIds = state.tabs.filter(t => t.kind !== "document").map(tabId);
-      if (docTabs.length > 0) {
-        const ok = await editorActions.document.closeMany(docTabs.map(t => t.docId));
-        if (!ok) return;
+      const tabsCopy = [...state.tabs];
+      for (const tab of tabsCopy) {
+        const kindDef = getTabKind(tab.kind);
+        if (kindDef?.onClose) {
+          const ok = await kindDef.onClose(tab, ctx);
+          if (!ok) break;
+        } else {
+          state.closeTab(tab.id);
+        }
       }
-      nonDocIds.forEach(id => useAppStore.getState().closeTab(id));
-    },
-  },
-  [COMMAND_ID.DOCUMENT_CLOSE]: {
-    id: COMMAND_ID.DOCUMENT_CLOSE,
-    title: t('menuItem.closeDocument'),
-    keywords: ["close", "document"],
-    showInPalette: false,
-    run: async (_, args) => {
-      await editorActions.document.close(args.id);
-    },
-  },
-  [COMMAND_ID.DOCUMENT_CLOSE_MANY]: {
-    id: COMMAND_ID.DOCUMENT_CLOSE_MANY,
-    title: t('commands.closeDocuments'),
-    keywords: ["close", "documents"],
-    showInPalette: false,
-    run: async (_, args) => {
-      await editorActions.document.closeMany(args.ids);
     },
   },
   [COMMAND_ID.NAVIGATION_JUMP_TO_SYMBOL]: {
@@ -386,7 +374,7 @@ const commands: { [K in EditorCommandId]: EditorCommandDefinition<K> } = {
     keywords: ["welcome", "start"],
     showInPalette: true,
     run: async () => {
-      useAppStore.getState().openTab({ kind: "welcome" });
+      useAppStore.getState().openTab({ id: "welcome", kind: "welcome", label: t('welcome.tabLabel'), closable: false });
     },
   },
   [COMMAND_ID.AI_INFER_SELECTED]: {

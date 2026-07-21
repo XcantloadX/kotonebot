@@ -62,10 +62,6 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.TAB_CLOSE_OTHERS]: { id: string } | undefined;
   /** 关闭所有 tab。 */
   [COMMAND_ID.TAB_CLOSE_ALL]: undefined;
-  /** 关闭指定文档。 */
-  [COMMAND_ID.DOCUMENT_CLOSE]: { id: string };
-  /** 批量关闭指定文档。 */
-  [COMMAND_ID.DOCUMENT_CLOSE_MANY]: { ids: string[] };
   /** 跳转到目标符号。 */
   [COMMAND_ID.NAVIGATION_JUMP_TO_SYMBOL]: { symbol: SymbolLite };
   /** 跳转到目标诊断项。 */
