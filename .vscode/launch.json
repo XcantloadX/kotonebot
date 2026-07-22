@@ -4,7 +4,18 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
+        {
+            "name": "Devtools Backend Server",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "kotonebot.devtools.cli.main",
+            "args": [
+                "devtools"
+            ],
+            "cwd": "${input:devtoolsWorkingDir}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
         {
             "name": "Python Debugger: Current File",
             "type": "debugpy",
@@ -29,6 +40,14 @@
             "outFiles": [
                 "${workspaceFolder}/extensions/kotonebot-vscode/dist/**/*.js"
             ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "devtoolsWorkingDir",
+            "type": "promptString",
+            "description": "Devtools working directory",
+            "default": "."
         }
     ]
 }
