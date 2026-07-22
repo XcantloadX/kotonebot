@@ -8,6 +8,9 @@ Devtool:
 5. [feat] 新增 AI 自动建议对象 Name 与 DisplayName 以及 Fixed 属性的值。
 6. [feat] 优化 Devtool CLI 的启动速度。
 
+Library：
+1. [feat] Win32 置窗口前台改用 AttachThreadInput + SwitchToThisWindow 混合方案。
+
 ## v0.17.0
 Framework:
 1. [feat] 为 RunStatus 类新增 对 Flow 的封装，即暂停、停止与恢复任务执行的方法。

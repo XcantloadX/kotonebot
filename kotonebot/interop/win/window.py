@@ -106,9 +106,34 @@ class Win32Window:
         )
     
     def bring_foreground(self) -> None:
-        """将窗口置于前台"""
+        """将窗口置于前台。
+        
+        先尝试 AttachThreadInput + SetForegroundWindow，不成功则用
+        SwitchToThisWindow 作为兜底（模拟 Alt+Tab 切换，更可靠）。
+        """
         _load_deps()
-        win32gui.SetForegroundWindow(self.hwnd)
+        import ctypes
+        user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
+
+        if win32gui.GetForegroundWindow() == self.hwnd:
+            return
+
+        foreground_hwnd = win32gui.GetForegroundWindow()
+        attached = False
+        if foreground_hwnd != 0:
+            foreground_tid = user32.GetWindowThreadProcessId(foreground_hwnd, None)
+            current_tid = kernel32.GetCurrentThreadId()
+            if foreground_tid != 0 and user32.AttachThreadInput(current_tid, foreground_tid, True):
+                attached = True
+        try:
+            if not win32gui.SetForegroundWindow(self.hwnd):
+                raise ctypes.WinError()
+        except Exception:
+            user32.SwitchToThisWindow(self.hwnd, True)
+        finally:
+            if attached:
+                user32.AttachThreadInput(current_tid, foreground_tid, False)
 
     def send_message(self, msg: int, wparam: int, lparam: int) -> int:
         _load_deps()
