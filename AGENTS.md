@@ -14,13 +14,62 @@
 
 ---
 
-## Style
+## 通用 Style
 
 ### 通用原则
 
 * 在改动或重构时，不可以删除原来用户的注释。除非相关代码已经被移除。如果代码逻辑变动，则需要一并修改注释内容
 
 ### 注释规范
+
+#### Docstring 格式（Python）
+
+使用 **reStructuredText (RST)** 格式，中文撰写：
+
+```python
+def func(param1: str, param2: int) -> bool:
+    """简要描述功能。
+
+    :param param1: 参数说明
+    :param param2: 参数说明
+    :returns: 返回值说明
+    :raises SomeError: 异常说明
+    """
+```
+
+##### 覆盖范围
+
+| 元素 | 必须 | 格式 |
+|------|------|------|
+| 模块 | 是 | 文件顶部一行中文描述 |
+| 类 | 是 | 类定义下方，中文 |
+| 公开方法 | 是 | RST，中文 |
+| 私有方法 | 推荐 | 一行 `#` 注释或 docstring |
+| 属性（dataclass / pydantic field） | 是 | 字段后的注释 |
+
+#### Docstring 格式（TypeScript / React）
+
+使用 **JSDoc** 风格，中文撰写：
+
+```ts
+/** 简要描述功能。
+ *
+ * @param param1 - 参数说明
+ * @param param2 - 参数说明
+ * @returns 返回值说明
+ */
+function func(param1: string, param2: number): boolean { ... }
+```
+
+##### 覆盖范围
+
+| 元素 | 必须 | 格式 |
+|------|------|------|
+| 模块/文件 | 是 | 文件顶部 `/** ... */` 或行注释 |
+| 组件 | 是 | JSDoc，中文 |
+| 公开函数/方法 | 是 | JSDoc，中文 |
+| 私有方法/辅助函数 | 推荐 | JSDoc 或行注释 |
+| Props 接口 / 类型定义 | 是 | 字段后注释 |
 
 #### 代码行内注释
 
@@ -58,6 +107,10 @@
 - **绝对不允许**任何形式的"简化处理"或"placeholder 代码"。如果是因为用户要求模糊导致，总是停下来询问用户，直到得出明确清晰的实现为止才开始编写代码。
 - 总是遵循 fail fast 原则。
 
+### 杂项
+
+- 除非用户要求，否则**禁止私自**格式化代码。
+
 ---
 
 ## Python 代码规范
@@ -88,6 +141,7 @@
 ### 杂项
 
 - **任何时候都绝对禁止**使用 `from __future__ import annotations`。
+- 除非 atrr name 真的是动态的，否则**严格禁止**使用 `getattr` 与 `setattr`。
 
 ---
 
@@ -98,7 +152,6 @@
 | 范围 | 命令 | 说明 |
 |------|------|------|
 | Python lint | `uv run ruff check .` | ruff 规则检查 |
-| Python format | `uv run black --check .` | black 格式检查 |
 | Python tests | `uv run python -m unittest discover` | 全部单测 |
 | JS/TS build | `cd js/apps/devtools-app && npm run build` | 类型检查 + 构建 |
 
@@ -114,7 +167,11 @@
 | **devtools** | `kotonebot/devtools/` + `js/apps/devtools-app/` |
 | **devtools:backend** | `kotonebot/devtools/` Python 代码 |
 | **devtools:frontend** | `js/apps/devtools-app/` |
+| **devtools:conversion** | `kotonebot/devtools/conversion/` Single→Multi 转换模块 |
 | **ext** | `js/apps/vscode-ext/` |
 | **docs** | `docs/`、`AGENTS.md`、`README.md` |
 | **deps** | 依赖升级 |
 | **ci** | `.github/workflows/`、构建配置 |
+
+## 专用 Style
+- 对于 OpenCV Image，Python 类型标注为 cv2.typing.MatLike 而不是 np.ndarray
