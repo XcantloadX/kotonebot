@@ -14,7 +14,7 @@ from setuptools.build_meta import (
 )
 
 ROOT = Path(__file__).resolve().parent
-FRONTEND_DIR = ROOT / "kotonebot-devtools2"
+FRONTEND_DIR = ROOT / "js" / "apps" / "devtools-app"
 FRONTEND_DIST = FRONTEND_DIR / "dist"
 PACKAGE_DIST = ROOT / "kotonebot" / "devtools" / "web" / "dist"
 
