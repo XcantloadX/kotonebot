@@ -1,21 +1,10 @@
-import asyncio
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from kotonebot.devtools.project.project import Project
-from kotonebot.devtools.web.server.rest_api import (
-    CopySelectedPrefabToVariantRequest,
-    PrecheckCopySelectedPrefabToVariantRequest,
-    create_rest_router,
-)
-from tests.devtools._testkit import in_cwd, write_json, write_min_png, write_pyproject
-
-
-def _build_router(pyproject_path: Path):
-    with in_cwd(pyproject_path.parent):
-        project = Project(conf_path=str(pyproject_path))
-    return create_rest_router(project)
+from kotonebot.devtools.services.context import DevtoolsContext
+from tests.devtools._testkit import build_test_app, in_cwd, write_json, write_min_png, write_pyproject
 
 
 def _prepare_project(tmp_path: Path):
@@ -28,18 +17,11 @@ def _prepare_project(tmp_path: Path):
         variant_base="base",
         variant_path_pattern="nest",
     )
-    return resources, _build_router(pyproject_path)
-
-
-def _route_endpoint(router, path: str, method: str):
-    for route in router.routes:
-        if route.path == path and method in route.methods:
-            return route.endpoint
-    raise AssertionError(f"Route not found: {method} {path}")
-
-
-def _json_body(response):
-    return json.loads(response.body.decode("utf-8"))
+    with in_cwd(pyproject_path.parent):
+        project = Project(conf_path=str(pyproject_path))
+    ctx = DevtoolsContext(project)
+    client = build_test_app(ctx)
+    return resources, client
 
 
 def _norm_path(path: str) -> str:
@@ -49,7 +31,7 @@ def _norm_path(path: str) -> str:
 def test_copy_selected_prefab_to_variant_precheck_and_execute():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path)
+        resources, client = _prepare_project(tmp_path)
         source_image = write_min_png(resources / "base" / "ui" / "button.png")
         target_image = write_min_png(resources / "en" / "ui" / "button.png")
         source_meta = Path(source_image.as_posix() + ".json")
@@ -70,37 +52,29 @@ def test_copy_selected_prefab_to_variant_precheck_and_execute():
             },
         )
 
-        precheck_api = _route_endpoint(router, "/api/meta/variant/copy_selected_prefab/precheck", "POST")
-        precheck_payload = _json_body(
-            asyncio.run(
-                precheck_api(
-                    body=PrecheckCopySelectedPrefabToVariantRequest(
-                        sourceMetaPath=source_meta.as_posix(),
-                        sourceDefinitionId="btn",
-                        baseImagePath=source_image.as_posix(),
-                        variant="en",
-                    )
-                )
-            )
-        )
+        precheck_payload = client.post(
+            "/api/meta/variant/copy_selected_prefab/precheck",
+            json={
+                "sourceMetaPath": source_meta.as_posix(),
+                "sourceDefinitionId": "btn",
+                "baseImagePath": source_image.as_posix(),
+                "variant": "en",
+            },
+        ).json()
         assert precheck_payload["success"] is True
-        assert _norm_path(precheck_payload["data"]["targetImagePath"]) == _norm_path(target_image.as_posix())
+        assert _norm_path(str(tmp_path / precheck_payload["data"]["targetImagePath"])) == _norm_path(target_image.as_posix())
         assert precheck_payload["data"]["targetDefinitionExists"] is False
 
-        copy_api = _route_endpoint(router, "/api/meta/variant/copy_selected_prefab", "POST")
-        copy_payload = _json_body(
-            asyncio.run(
-                copy_api(
-                    body=CopySelectedPrefabToVariantRequest(
-                        sourceMetaPath=source_meta.as_posix(),
-                        sourceDefinitionId="btn",
-                        baseImagePath=source_image.as_posix(),
-                        variant="en",
-                        forceOverwrite=False,
-                    )
-                )
-            )
-        )
+        copy_payload = client.post(
+            "/api/meta/variant/copy_selected_prefab",
+            json={
+                "sourceMetaPath": source_meta.as_posix(),
+                "sourceDefinitionId": "btn",
+                "baseImagePath": source_image.as_posix(),
+                "variant": "en",
+                "forceOverwrite": False,
+            },
+        ).json()
         assert copy_payload["success"] is True
         target_meta = Path(target_image.as_posix() + ".json")
         target_data = json.loads(target_meta.read_text(encoding="utf-8"))
@@ -111,7 +85,7 @@ def test_copy_selected_prefab_to_variant_precheck_and_execute():
 def test_copy_selected_prefab_to_variant_requires_overwrite_flag():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path)
+        resources, client = _prepare_project(tmp_path)
         source_image = write_min_png(resources / "base" / "ui" / "button.png")
         target_image = write_min_png(resources / "en" / "ui" / "button.png")
         source_meta = Path(source_image.as_posix() + ".json")
@@ -144,37 +118,29 @@ def test_copy_selected_prefab_to_variant_requires_overwrite_flag():
             },
         )
 
-        copy_api = _route_endpoint(router, "/api/meta/variant/copy_selected_prefab", "POST")
-
-        first_payload = _json_body(
-            asyncio.run(
-                copy_api(
-                    body=CopySelectedPrefabToVariantRequest(
-                        sourceMetaPath=source_meta.as_posix(),
-                        sourceDefinitionId="btn",
-                        baseImagePath=source_image.as_posix(),
-                        variant="en",
-                        forceOverwrite=False,
-                    )
-                )
-            )
-        )
+        first_payload = client.post(
+            "/api/meta/variant/copy_selected_prefab",
+            json={
+                "sourceMetaPath": source_meta.as_posix(),
+                "sourceDefinitionId": "btn",
+                "baseImagePath": source_image.as_posix(),
+                "variant": "en",
+                "forceOverwrite": False,
+            },
+        ).json()
         assert first_payload["success"] is False
         assert "Target definition already exists" in first_payload["message"]
 
-        second_payload = _json_body(
-            asyncio.run(
-                copy_api(
-                    body=CopySelectedPrefabToVariantRequest(
-                        sourceMetaPath=source_meta.as_posix(),
-                        sourceDefinitionId="btn",
-                        baseImagePath=source_image.as_posix(),
-                        variant="en",
-                        forceOverwrite=True,
-                    )
-                )
-            )
-        )
+        second_payload = client.post(
+            "/api/meta/variant/copy_selected_prefab",
+            json={
+                "sourceMetaPath": source_meta.as_posix(),
+                "sourceDefinitionId": "btn",
+                "baseImagePath": source_image.as_posix(),
+                "variant": "en",
+                "forceOverwrite": True,
+            },
+        ).json()
         assert second_payload["success"] is True
         rewritten = json.loads(target_meta.read_text(encoding="utf-8"))
         assert rewritten["definitions"]["btn"]["props"] == {}

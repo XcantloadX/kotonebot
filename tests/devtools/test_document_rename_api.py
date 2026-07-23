@@ -1,21 +1,9 @@
-import asyncio
-import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from kotonebot.devtools.project.project import Project
-from kotonebot.devtools.web.server.rest_api import (
-    ExecuteRenameDocumentRequest,
-    PrecheckRenameDocumentRequest,
-    create_rest_router,
-)
-from tests.devtools._testkit import in_cwd, write_json, write_min_png, write_pyproject
-
-
-def _build_router(pyproject_path: Path):
-    with in_cwd(pyproject_path.parent):
-        project = Project(conf_path=str(pyproject_path))
-    return create_rest_router(project)
+from kotonebot.devtools.services.context import DevtoolsContext
+from tests.devtools._testkit import build_test_app, in_cwd, write_json, write_min_png, write_pyproject
 
 
 def _prepare_project(
@@ -34,18 +22,11 @@ def _prepare_project(
         variant_base=variant_base,
         variant_path_pattern=variant_path_pattern,
     )
-    return resources, _build_router(pyproject_path)
-
-
-def _route_endpoint(router, path: str, method: str):
-    for route in router.routes:
-        if route.path == path and method in route.methods:
-            return route.endpoint
-    raise AssertionError(f"Route not found: {method} {path}")
-
-
-def _json_body(response):
-    return json.loads(response.body.decode("utf-8"))
+    with in_cwd(pyproject_path.parent):
+        project = Project(conf_path=str(pyproject_path))
+    ctx = DevtoolsContext(project)
+    client = build_test_app(ctx)
+    return resources, client
 
 
 def _norm_path(path: str) -> str:
@@ -60,7 +41,7 @@ def _write_png_with_meta(path: Path) -> None:
 def test_rename_document_precheck_nest_includes_related_variants():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(
+        resources, client = _prepare_project(
             tmp_path,
             variant_variants=["en"],
             variant_base="jp",
@@ -69,17 +50,13 @@ def test_rename_document_precheck_nest_includes_related_variants():
         _write_png_with_meta(resources / "jp" / "story" / "screen_a.png")
         _write_png_with_meta(resources / "en" / "story" / "screen_a.png")
 
-        precheck_api = _route_endpoint(router, "/api/fs/rename_document/precheck", "POST")
-        payload = _json_body(
-            asyncio.run(
-                precheck_api(
-                    body=PrecheckRenameDocumentRequest(
-                        sourceImagePath=(resources / "jp" / "story" / "screen_a.png").as_posix(),
-                        targetImagePath=(resources / "jp" / "story" / "screen_b.png").as_posix(),
-                    )
-                )
-            )
-        )
+        payload = client.post(
+            "/api/fs/rename_document/precheck",
+            json={
+                "sourceImagePath": (resources / "jp" / "story" / "screen_a.png").as_posix(),
+                "targetImagePath": (resources / "jp" / "story" / "screen_b.png").as_posix(),
+            },
+        ).json()
         assert payload["success"] is True
         assert payload["data"]["hasConflicts"] is False
         docs = payload["data"]["documents"]
@@ -91,7 +68,7 @@ def test_rename_document_precheck_nest_includes_related_variants():
 def test_rename_document_execute_moves_image_and_meta_for_group():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(
+        resources, client = _prepare_project(
             tmp_path,
             variant_variants=["en"],
             variant_base="jp",
@@ -102,17 +79,13 @@ def test_rename_document_execute_moves_image_and_meta_for_group():
         _write_png_with_meta(base_source)
         _write_png_with_meta(variant_source)
 
-        execute_api = _route_endpoint(router, "/api/fs/rename_document/execute", "POST")
-        payload = _json_body(
-            asyncio.run(
-                execute_api(
-                    body=ExecuteRenameDocumentRequest(
-                        sourceImagePath=base_source.as_posix(),
-                        targetImagePath=(resources / "jp" / "story" / "screen_b.png").as_posix(),
-                    )
-                )
-            )
-        )
+        payload = client.post(
+            "/api/fs/rename_document/execute",
+            json={
+                "sourceImagePath": base_source.as_posix(),
+                "targetImagePath": (resources / "jp" / "story" / "screen_b.png").as_posix(),
+            },
+        ).json()
         assert payload["success"] is True
         assert payload["data"]["renamedDocumentCount"] == 2
 
@@ -131,7 +104,7 @@ def test_rename_document_execute_moves_image_and_meta_for_group():
 def test_rename_document_precheck_reports_target_conflict():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(
+        resources, client = _prepare_project(
             tmp_path,
             variant_variants=["en"],
             variant_base="jp",
@@ -141,17 +114,13 @@ def test_rename_document_precheck_reports_target_conflict():
         _write_png_with_meta(resources / "en" / "story" / "screen_a.png")
         _write_png_with_meta(resources / "jp" / "story" / "screen_b.png")
 
-        precheck_api = _route_endpoint(router, "/api/fs/rename_document/precheck", "POST")
-        payload = _json_body(
-            asyncio.run(
-                precheck_api(
-                    body=PrecheckRenameDocumentRequest(
-                        sourceImagePath=(resources / "jp" / "story" / "screen_a.png").as_posix(),
-                        targetImagePath=(resources / "jp" / "story" / "screen_b.png").as_posix(),
-                    )
-                )
-            )
-        )
+        payload = client.post(
+            "/api/fs/rename_document/precheck",
+            json={
+                "sourceImagePath": (resources / "jp" / "story" / "screen_a.png").as_posix(),
+                "targetImagePath": (resources / "jp" / "story" / "screen_b.png").as_posix(),
+            },
+        ).json()
         assert payload["success"] is True
         assert payload["data"]["hasConflicts"] is True
         conflicts = payload["data"]["conflicts"]

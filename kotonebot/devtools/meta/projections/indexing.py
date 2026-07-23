@@ -176,7 +176,7 @@ def _project_symbols_for_doc(
                     search_tokens=dedup_tokens,
                 )
             )
-        except ValueError as exc:
+        except (ValueError, ValidationError) as exc:
             definition_range = doc.ranges.of_definition(definition_id)
             diagnostics.append(
                 Diagnostic(

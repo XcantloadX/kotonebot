@@ -1,5 +1,3 @@
-import asyncio
-import io
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -9,19 +7,8 @@ from kotonebot.devtools.diagnostics.codes import (
     INDEX_VARIANT_INVALID,
 )
 from kotonebot.devtools.project.project import Project
-from kotonebot.devtools.web.server.rest_api import (
-    CloneVariantToImageRequest,
-    UpdateIndexRequest,
-    create_rest_router,
-)
-from starlette.datastructures import UploadFile
-from tests.devtools._testkit import in_cwd, write_json, write_min_png, write_pyproject
-
-
-def _build_router(pyproject_path: Path):
-    with in_cwd(pyproject_path.parent):
-        project = Project(conf_path=str(pyproject_path))
-    return create_rest_router(project)
+from kotonebot.devtools.services.context import DevtoolsContext
+from tests.devtools._testkit import build_test_app, in_cwd, write_json, write_min_png, write_pyproject
 
 
 def _prepare_project(
@@ -39,18 +26,11 @@ def _prepare_project(
         variant_base=variant_base,
         variant_path_pattern=variant_path_pattern,
     )
-    return resources, _build_router(pyproject_path)
-
-
-def _route_endpoint(router, path: str, method: str):
-    for route in router.routes:
-        if route.path == path and method in route.methods:
-            return route.endpoint
-    raise AssertionError(f"Route not found: {method} {path}")
-
-
-def _json_body(response):
-    return json.loads(response.body.decode("utf-8"))
+    with in_cwd(pyproject_path.parent):
+        project = Project(conf_path=str(pyproject_path))
+    ctx = DevtoolsContext(project)
+    client = build_test_app(ctx)
+    return resources, client
 
 
 def _norm_path(path: str) -> str:
@@ -60,7 +40,8 @@ def _norm_path(path: str) -> str:
 def test_meta_index_snapshot_and_diagnostics():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path)
+        resources, client = _prepare_project(tmp_path)
+        write_min_png(resources / "button.png")
         meta_path = resources / "button.png.json"
         write_json(
             meta_path,
@@ -83,20 +64,17 @@ def test_meta_index_snapshot_and_diagnostics():
             },
         )
 
-        get_meta_index = _route_endpoint(router, "/api/meta/index", "GET")
-        get_meta_diagnostics = _route_endpoint(router, "/api/meta/diagnostics", "GET")
-
-        payload = _json_body(asyncio.run(get_meta_index()))
+        payload = client.get("/api/meta/index").json()
         assert payload["success"] is True
         assert payload["data"]["stats"]["fileCount"] == 1
         assert payload["data"]["stats"]["symbolCount"] == 1
         assert payload["data"]["stats"]["diagnosticCount"] == 1
         assert payload["data"]["symbols"][0]["definitionId"] == "ok"
 
-        diag_payload = _json_body(asyncio.run(get_meta_diagnostics()))
+        diag_payload = client.get("/api/meta/diagnostics").json()
         assert diag_payload["success"] is True
         diagnostics_by_file = diag_payload["data"]["diagnosticsByFile"]
-        diag_key_map = {_norm_path(k): k for k in diagnostics_by_file.keys()}
+        diag_key_map = {_norm_path(str(tmp_path / k)): k for k in diagnostics_by_file.keys()}
         resolved_meta = _norm_path(meta_path.as_posix())
         assert resolved_meta in diag_key_map
         assert diagnostics_by_file[diag_key_map[resolved_meta]][0]["code"] == INDEX_DEF_PARSE_ERROR.code
@@ -105,7 +83,8 @@ def test_meta_index_snapshot_and_diagnostics():
 def test_meta_index_incremental_update():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path)
+        resources, client = _prepare_project(tmp_path)
+        write_min_png(resources / "button.png")
         meta_path = resources / "button.png.json"
         write_json(
             meta_path,
@@ -121,10 +100,7 @@ def test_meta_index_incremental_update():
             },
         )
 
-        get_meta_index = _route_endpoint(router, "/api/meta/index", "GET")
-        update_meta_index = _route_endpoint(router, "/api/meta/index/update", "POST")
-
-        first = _json_body(asyncio.run(get_meta_index()))
+        first = client.get("/api/meta/index").json()
         assert first["success"] is True
         assert first["data"]["stats"]["symbolCount"] == 1
 
@@ -142,11 +118,12 @@ def test_meta_index_incremental_update():
             },
         )
 
-        update_payload = _json_body(
-            asyncio.run(update_meta_index(body=UpdateIndexRequest(metaPath=meta_path.as_posix())))
-        )
+        update_payload = client.post(
+            "/api/meta/index/update",
+            json={"metaPath": meta_path.as_posix()},
+        ).json()
         assert update_payload["success"] is True
-        assert _norm_path(update_payload["data"]["updatedMetaPath"]) == _norm_path(meta_path.as_posix())
+        assert _norm_path(str(tmp_path / update_payload["data"]["updatedMetaPath"])) == _norm_path(meta_path.as_posix())
         removed = update_payload["data"]["removedSymbolKeys"]
         assert len(removed) == 1
         assert removed[0].endswith("::before")
@@ -156,7 +133,8 @@ def test_meta_index_incremental_update():
 def test_meta_index_symbol_contains_variant():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path, variant_variants=["en"], variant_base="base")
+        resources, client = _prepare_project(tmp_path, variant_variants=["en"], variant_base="base")
+        write_min_png(resources / "button.png")
         meta_path = resources / "button.png.json"
         write_json(
             meta_path,
@@ -178,8 +156,7 @@ def test_meta_index_symbol_contains_variant():
             },
         )
 
-        get_meta_index = _route_endpoint(router, "/api/meta/index", "GET")
-        payload = _json_body(asyncio.run(get_meta_index()))
+        payload = client.get("/api/meta/index").json()
         symbols = payload["data"]["symbols"]
         by_def = {s["definitionId"]: s for s in symbols}
         assert by_def["base"]["variant"] is None
@@ -189,7 +166,8 @@ def test_meta_index_symbol_contains_variant():
 def test_meta_index_variant_missing_base_diagnostic():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path, variant_variants=["en"], variant_base="base")
+        resources, client = _prepare_project(tmp_path, variant_variants=["en"], variant_base="base")
+        write_min_png(resources / "button.png")
         meta_path = resources / "button.png.json"
         write_json(
             meta_path,
@@ -206,8 +184,7 @@ def test_meta_index_variant_missing_base_diagnostic():
             },
         )
 
-        get_meta_diagnostics = _route_endpoint(router, "/api/meta/diagnostics", "GET")
-        payload = _json_body(asyncio.run(get_meta_diagnostics()))
+        payload = client.get("/api/meta/diagnostics").json()
         diagnostics = payload["data"]["diagnosticsByFile"]
         all_codes = [item["code"] for entries in diagnostics.values() for item in entries]
         assert INDEX_VARIANT_INVALID.code in all_codes
@@ -216,9 +193,9 @@ def test_meta_index_variant_missing_base_diagnostic():
 def test_meta_variant_clone_to_image():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path, variant_variants=["en", "jp"], variant_base="base")
+        resources, client = _prepare_project(tmp_path, variant_variants=["en", "jp"], variant_base="base")
 
-        source_image = write_min_png(resources / "source.png")
+        write_min_png(resources / "source.png")
         target_image = write_min_png(resources / "target.png")
 
         source_meta = resources / "source.png.json"
@@ -245,19 +222,15 @@ def test_meta_variant_clone_to_image():
             },
         )
 
-        clone_api = _route_endpoint(router, "/api/meta/variant/clone_to_image", "POST")
-        payload = _json_body(
-            asyncio.run(
-                clone_api(
-                    body=CloneVariantToImageRequest(
-                        sourceMetaPath=source_meta.as_posix(),
-                        targetImagePath=target_image.as_posix(),
-                        variant="en",
-                        forceOverwrite=False,
-                    )
-                )
-            )
-        )
+        payload = client.post(
+            "/api/meta/variant/clone_to_image",
+            json={
+                "sourceMetaPath": source_meta.as_posix(),
+                "targetImagePath": target_image.as_posix(),
+                "variant": "en",
+                "forceOverwrite": False,
+            },
+        ).json()
         assert payload["success"] is True
         target_meta = Path(target_image.as_posix() + ".json")
         data = json.loads(target_meta.read_text(encoding="utf-8"))
@@ -269,35 +242,32 @@ def test_meta_variant_clone_to_image():
 def test_meta_variant_import_image_writes_target_file():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(
+        resources, client = _prepare_project(
             tmp_path,
             variant_variants=["en"],
             variant_base="base",
             variant_path_pattern="flat",
         )
         base_image = write_min_png(resources / "ui" / "home" / "button.png")
-        import_api = _route_endpoint(router, "/api/meta/variant/import_image", "POST")
         image_payload = b"\x89PNG\r\n\x1a\nimported"
-        upload = UploadFile(filename="clipboard.png", file=io.BytesIO(image_payload))
-        payload = _json_body(
-            asyncio.run(
-                import_api(
-                    baseImagePath=base_image.as_posix(),
-                    variant="en",
-                    image=upload,
-                )
-            )
-        )
+        payload = client.post(
+            "/api/meta/variant/import_image",
+            data={
+                "baseImagePath": base_image.as_posix(),
+                "variant": "en",
+            },
+            files={"image": ("clipboard.png", image_payload, "image/png")},
+        ).json()
         assert payload["success"] is True
-        target_image_path = Path(payload["data"]["targetImagePath"])
-        assert _norm_path(target_image_path.as_posix()) == _norm_path((resources / "ui" / "home" / "button_en.png").as_posix())
+        target_image_path = tmp_path / payload["data"]["targetImagePath"]
+        assert _norm_path(str(target_image_path)) == _norm_path(str(resources / "ui" / "home" / "button_en.png"))
         assert target_image_path.read_bytes() == image_payload
 
 
 def test_meta_variant_import_image_replaces_existing_target_when_requested():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(
+        resources, client = _prepare_project(
             tmp_path,
             variant_variants=["en"],
             variant_base="base",
@@ -309,43 +279,37 @@ def test_meta_variant_import_image_replaces_existing_target_when_requested():
         target_meta_path = Path(target_image_path.as_posix() + ".json")
         write_json(target_meta_path, {"version": 3, "definitions": {"old": {"type": "template", "name": "old", "props": {}}}})
 
-        import_api = _route_endpoint(router, "/api/meta/variant/import_image", "POST")
-
-        first_upload = UploadFile(filename="clipboard.png", file=io.BytesIO(b"\x89PNG\r\n\x1a\nfirst"))
-        first_payload = _json_body(
-            asyncio.run(
-                import_api(
-                    baseImagePath=base_image.as_posix(),
-                    variant="en",
-                    image=first_upload,
-                    deleteExistingTarget=False,
-                )
-            )
-        )
+        first_payload = client.post(
+            "/api/meta/variant/import_image",
+            data={
+                "baseImagePath": base_image.as_posix(),
+                "variant": "en",
+                "deleteExistingTarget": "false",
+            },
+            files={"image": ("clipboard.png", b"\x89PNG\r\n\x1a\nfirst", "image/png")},
+        ).json()
         assert first_payload["success"] is False
         assert "Target image already exists" in first_payload["message"]
 
-        second_image_payload = b"\x89PNG\r\n\x1a\nsecond"
-        second_upload = UploadFile(filename="clipboard.png", file=io.BytesIO(second_image_payload))
-        second_payload = _json_body(
-            asyncio.run(
-                import_api(
-                    baseImagePath=base_image.as_posix(),
-                    variant="en",
-                    image=second_upload,
-                    deleteExistingTarget=True,
-                )
-            )
-        )
+        second_payload = client.post(
+            "/api/meta/variant/import_image",
+            data={
+                "baseImagePath": base_image.as_posix(),
+                "variant": "en",
+                "deleteExistingTarget": "true",
+            },
+            files={"image": ("clipboard.png", b"\x89PNG\r\n\x1a\nsecond", "image/png")},
+        ).json()
         assert second_payload["success"] is True
-        assert target_image_path.read_bytes() == second_image_payload
+        assert target_image_path.read_bytes() == b"\x89PNG\r\n\x1a\nsecond"
         assert not target_meta_path.exists()
 
 
 def test_project_symbol_tree_groups_symbols_by_name_segments():
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        resources, router = _prepare_project(tmp_path, variant_variants=["jp"], variant_base="base")
+        resources, client = _prepare_project(tmp_path, variant_variants=["jp"], variant_base="base")
+        write_min_png(resources / "scene.png")
         meta_path = resources / "scene.png.json"
         write_json(
             meta_path,
@@ -372,8 +336,7 @@ def test_project_symbol_tree_groups_symbols_by_name_segments():
             },
         )
 
-        get_symbol_tree = _route_endpoint(router, "/api/project/symbol_tree", "GET")
-        payload = _json_body(asyncio.run(get_symbol_tree()))
+        payload = client.get("/api/project/symbol_tree").json()
         assert payload["success"] is True
 
         roots = payload["data"]
@@ -401,5 +364,3 @@ def test_project_symbol_tree_groups_symbols_by_name_segments():
         )
         tip_variants = {node["label"]: node for node in tip_symbol["children"]}
         assert "base" in tip_variants
-
-

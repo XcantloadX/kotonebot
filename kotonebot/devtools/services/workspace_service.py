@@ -1,3 +1,6 @@
+"""工作区服务：项目域操作编排。"""
+
+import base64
 import json
 import logging
 import os
@@ -13,13 +16,12 @@ from kotonebot.devtools.errors import (
     ValidationError,
     VariantNotDeclaredError,
     InvalidImageError,
-    CommandError,
 )
 from kotonebot.devtools.indexing.symbol_index_view import (
     SymbolSnapshotLiteModel, SymbolUpdateResultModel,
     MetaDiagnosticsSnapshotModel, SymbolIndexHealthModel,
 )
-from kotonebot.devtools.server_commands.commands import (
+from kotonebot.devtools.commands.commands import (
     SERVER_COMMAND_META_REFETCH,
     SERVER_COMMAND_META_UPDATE_FILE,
     SERVER_COMMAND_RENAME_DOCUMENT_EXECUTE,
@@ -30,26 +32,11 @@ from kotonebot.devtools.server_commands.commands import (
     SERVER_COMMAND_VARIANT_COPY_SELECTED_PREFAB_PRECHECK,
     SERVER_COMMAND_VARIANT_IMPORT_IMAGE,
 )
-from kotonebot.devtools.server_commands.types import (
-    ServerCommandResponse,
-    ServerCommandRequest,
+from kotonebot.devtools.commands.types import (
     ServerCommandSpec,
-    MetaRefetchResult,
-    MetaRefetchCommand,
-    MetaUpdateFileCommand,
-    RenameDocumentExecuteCommand,
-    RenameDocumentPrecheckCommand,
-    RenameSymbolExecuteCommand,
-    RenameSymbolPrecheckCommand,
     RenameSymbolPrecheckResult,
-    RenameSymbolExecuteResult,
     RenameSymbolTargetModel,
-    VariantCloneToImageCommand,
-    VariantCloneToImageResult,
-    VariantCopySelectedPrefabPrecheckCommand,
-    VariantCopySelectedPrefabPrecheckResult,
-    VariantImportImageResult,
-    VariantImportImageCommand,
+    RenameSymbolExecuteResult,
 )
 from kotonebot.devtools.indexing.document_index_view import (
     DocumentIndexView,
@@ -68,19 +55,25 @@ from kotonebot.devtools.meta import DefinitionMultiModel, merge_prefab_definitio
 from kotonebot.devtools.project.project import Project
 from kotonebot.devtools.project.scanner import scan_prefabs
 from kotonebot.devtools.path_utils import get_safe_path, to_rel, unify_path
+from .types import (
+    ProjectRootData, PrefabsSchema, VariantCloneResult,
+    VariantImportPrecheckResult, VariantImportResult,
+    CopyPrefabPrecheckResult, CopyPrefabResult, CreateDocumentResult,
+    SymbolTreeFileNode, SymbolTreeGroupNode, SymbolTreeSymbolNode, SymbolTreeVariantNode,
+)
 
 
 class WorkspaceService:
     def __init__(self, project: Project):
         self.project = project
-        self._prefabs_cache: Optional[dict[str, Any]] = None
+        self._prefabs_cache: Optional[PrefabsSchema] = None
 
         if project.conf is None or project.conf.editor is None or project.conf.editor.resource_path is None:
             raise ValidationError("Missing [tool.kotonebot.editor.resource_path] in pyproject.toml")
         self.project_root = Path(project.conf.editor.resource_path).resolve()
 
         try:
-            prefab_schema_for_index = self.get_prefabs_schema().get("prefabs", {})
+            prefab_schema_for_index = self.get_prefabs_schema().prefabs
         except Exception:
             logging.exception("Failed to preload prefab schema for index store")
             prefab_schema_for_index = {}
@@ -110,6 +103,10 @@ class WorkspaceService:
         }
 
     def list_server_commands(self) -> list[ServerCommandSpec]:
+        """列出所有可用的服务端命令。
+
+        :returns: 服务端命令规范列表
+        """
         return [
             ServerCommandSpec(id=SERVER_COMMAND_META_REFETCH, title="Refetch meta index and diagnostics", args_schema={}),
             ServerCommandSpec(id=SERVER_COMMAND_META_UPDATE_FILE, title="Update one meta file in index", args_schema={"metaPath": "string"}),
@@ -160,91 +157,53 @@ class WorkspaceService:
             ),
         ]
 
-    def execute_server_command(self, request: ServerCommandRequest) -> ServerCommandResponse:
-        if isinstance(request, MetaRefetchCommand):
-            return MetaRefetchResult(
-                index=self.get_meta_index(),
-                diagnostics=self.get_meta_diagnostics(),
-            )
-        if isinstance(request, MetaUpdateFileCommand):
-            return self.update_meta_index(request.args.metaPath)
-        if isinstance(request, RenameDocumentPrecheckCommand):
-            return self.precheck_rename_document(
-                source_image_path=request.args.sourceImagePath,
-                target_image_path=request.args.targetImagePath,
-            )
-        if isinstance(request, RenameDocumentExecuteCommand):
-            return self.execute_rename_document(
-                source_image_path=request.args.sourceImagePath,
-                target_image_path=request.args.targetImagePath,
-            )
-        if isinstance(request, RenameSymbolPrecheckCommand):
-            return self.precheck_rename_symbol(
-                source_meta_path=request.args.metaPath,
-                source_definition_id=request.args.definitionId,
-                new_name=request.args.newName,
-            )
-        if isinstance(request, RenameSymbolExecuteCommand):
-            return self.execute_rename_symbol(
-                source_meta_path=request.args.metaPath,
-                source_definition_id=request.args.definitionId,
-                new_name=request.args.newName,
-            )
-        if isinstance(request, VariantCloneToImageCommand):
-            result = self.clone_variant_to_image(
-                source_meta_path=request.args.sourceMetaPath,
-                target_image_path=request.args.targetImagePath,
-                variant=request.args.variant,
-                force_overwrite=request.args.forceOverwrite,
-            )
-            return VariantCloneToImageResult(**result)
-        if isinstance(request, VariantImportImageCommand):
-            image_data = self._decode_base64(request.args.imageDataBase64)
-            result = self.import_variant_image(
-                base_image_path=request.args.baseImagePath,
-                variant=request.args.variant,
-                image_data=image_data,
-                delete_existing_target=request.args.deleteExistingTarget,
-            )
-            return VariantImportImageResult(**result)
-        if isinstance(request, VariantCopySelectedPrefabPrecheckCommand):
-            result = self.precheck_copy_selected_prefab_to_variant(
-                source_meta_path=request.args.sourceMetaPath,
-                source_definition_id=request.args.sourceDefinitionId,
-                base_image_path=request.args.baseImagePath,
-                variant=request.args.variant,
-            )
-            return VariantCopySelectedPrefabPrecheckResult(**result)
-        raise CommandError(f"Unsupported server command: {request.command}")
+    def get_project_root_data(self) -> ProjectRootData:
+        """获取项目根数据。
 
-    def get_project_root_data(self) -> dict[str, Any]:
+        :returns: 项目根数据，包含资源路径、编辑器配置、变体配置
+        """
         root = self.project.pyproject_root
-        data: dict[str, Any] = {"resource_root": to_rel(self.project_root, root)}
-        if self.project.conf and self.project.conf.editor:
-            data["editor"] = self.project.conf.editor.model_dump()
-        if self.project.conf and self.project.conf.variant:
-            data["variant"] = self.project.conf.variant.model_dump()
-        return data
+        editor = self.project.conf.editor.model_dump() if self.project.conf and self.project.conf.editor else None
+        variant = self.project.conf.variant.model_dump() if self.project.conf and self.project.conf.variant else None
+        return ProjectRootData(
+            resource_root=to_rel(self.project_root, root),
+            editor=editor,
+            variant=variant,
+        )
 
-    def get_prefabs_schema(self) -> dict[str, Any]:
+    def get_prefabs_schema(self) -> PrefabsSchema:
+        """获取 prefab schema，带缓存。
+
+        :returns: Prefab 模式版本和定义
+        """
         if self._prefabs_cache is not None:
             return self._prefabs_cache
         if not self.project.conf or not self.project.conf.editor or not self.project.conf.editor.prefabs_module:
-            self._prefabs_cache = {"version": 1, "prefabs": {}}
+            self._prefabs_cache = PrefabsSchema(version=1, prefabs={})
             return self._prefabs_cache
-        self._prefabs_cache = scan_prefabs(self.project.conf.editor.prefabs_module)
-        if not isinstance(self._prefabs_cache, dict):
+        raw = scan_prefabs(self.project.conf.editor.prefabs_module)
+        if not isinstance(raw, dict):
             raise ValidationError("Invalid prefab schema response")
-        self._prefabs_cache.setdefault("prefabs", {})
+        raw.setdefault("prefabs", {})
+        self._prefabs_cache = PrefabsSchema(**raw)
         return self._prefabs_cache
 
     def get_meta_index(self) -> SymbolSnapshotLiteModel:
+        """获取元数据索引快照。
+
+        :returns: 符号索引快照，含符号列表和统计信息
+        """
         result = self.symbol_index_view.get_snapshot_lite()
         root = self.project.pyproject_root
         result.symbols = [self._convert_symbol_lite(s, root) for s in result.symbols]
         return result
 
     def update_meta_index(self, meta_path: str) -> SymbolUpdateResultModel:
+        """增量更新指定元数据文件的索引。
+
+        :param meta_path: 元数据文件路径
+        :returns: 更新结果，含新增/删除的符号和诊断信息
+        """
         result = self.symbol_index_view.update_file(meta_path=meta_path)
         root = self.project.pyproject_root
         result.updatedMetaPath = to_rel(result.updatedMetaPath, root)
@@ -253,6 +212,10 @@ class WorkspaceService:
         return result
 
     def get_meta_diagnostics(self) -> MetaDiagnosticsSnapshotModel:
+        """获取全部元数据诊断信息。
+
+        :returns: 按文件分组的诊断快照
+        """
         result = self.symbol_index_view.get_diagnostics()
         root = self.project.pyproject_root
         result.diagnosticsByFile = {
@@ -496,7 +459,7 @@ class WorkspaceService:
         target_image_path: str,
         variant: str,
         force_overwrite: bool,
-    ) -> dict[str, Any]:
+    ) -> VariantCloneResult:
         variant_name = self._assert_variant_declared(variant)
         source_meta = get_safe_path(source_meta_path, self.project)
         target_image = get_safe_path(target_image_path, self.project)
@@ -525,7 +488,10 @@ class WorkspaceService:
         payload = {"version": 3, "definitions": target_definitions}
         target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         root = self.project.pyproject_root
-        return {"targetMetaPath": to_rel(target_meta_path, root), "definitionCount": len(target_definitions)}
+        return VariantCloneResult(
+            targetMetaPath=to_rel(target_meta_path, root),
+            definitionCount=len(target_definitions),
+        )
 
     def precheck_variant_import_path(
         self,
@@ -534,7 +500,7 @@ class WorkspaceService:
         base_image_path: str,
         variant: str,
         uploaded_image_data: bytes,
-    ) -> dict[str, Any]:
+    ) -> VariantImportPrecheckResult:
         variant_name = self._assert_variant_declared(variant)
         source_meta = get_safe_path(source_meta_path, self.project)
         base_image = get_safe_path(base_image_path, self.project)
@@ -556,14 +522,14 @@ class WorkspaceService:
         )
         target_meta_path = Path(str(target_image_path) + ".json")
         root = self.project.pyproject_root
-        return {
-            "targetImagePath": to_rel(target_image_path, root),
-            "targetImageExists": target_image_path.exists(),
-            "targetMetaPath": to_rel(target_meta_path, root),
-            "targetMetaExists": target_meta_path.exists(),
-            "copiedDefinitions": plan["copiedDefinitions"],
-            "skippedDefinitions": plan["skippedDefinitions"],
-        }
+        return VariantImportPrecheckResult(
+            targetImagePath=to_rel(target_image_path, root),
+            targetImageExists=target_image_path.exists(),
+            targetMetaPath=to_rel(target_meta_path, root),
+            targetMetaExists=target_meta_path.exists(),
+            copiedDefinitions=plan["copiedDefinitions"],
+            skippedDefinitions=plan["skippedDefinitions"],
+        )
 
     def import_variant_image(
         self,
@@ -572,7 +538,7 @@ class WorkspaceService:
         variant: str,
         image_data: bytes,
         delete_existing_target: bool,
-    ) -> dict[str, Any]:
+    ) -> VariantImportResult:
         variant_name = self._assert_variant_declared(variant)
         base_image = get_safe_path(base_image_path, self.project)
         if not base_image.exists():
@@ -594,7 +560,10 @@ class WorkspaceService:
         temp_path.write_bytes(image_data)
         os.replace(temp_path, target_image_path)
         root = self.project.pyproject_root
-        return {"targetImagePath": to_rel(target_image_path, root), "size": len(image_data)}
+        return VariantImportResult(
+            targetImagePath=to_rel(target_image_path, root),
+            size=len(image_data),
+        )
 
     def precheck_copy_selected_prefab_to_variant(
         self,
@@ -603,7 +572,7 @@ class WorkspaceService:
         source_definition_id: str,
         base_image_path: str,
         variant: str,
-    ) -> dict[str, Any]:
+    ) -> CopyPrefabPrecheckResult:
         variant_name = self._assert_variant_declared(variant)
         source_meta = get_safe_path(source_meta_path, self.project)
         base_image = get_safe_path(base_image_path, self.project)
@@ -640,20 +609,20 @@ class WorkspaceService:
             target_definition_exists = source_definition_id in target_meta_data.definitions
 
         root = self.project.pyproject_root
-        return {
-            "targetImagePath": to_rel(target_image_path, root),
-            "targetImageExists": target_image_path.exists(),
-            "targetMetaPath": to_rel(target_meta_path, root),
-            "targetMetaExists": target_meta_path.exists(),
-            "targetDefinitionExists": target_definition_exists,
-            "sourceDefinitionId": source_definition_id,
-            "sourceDefinitionName": source_definition.name,
-            "targetDefinition": self._build_prefab_variant_definition(
+        return CopyPrefabPrecheckResult(
+            targetImagePath=to_rel(target_image_path, root),
+            targetImageExists=target_image_path.exists(),
+            targetMetaPath=to_rel(target_meta_path, root),
+            targetMetaExists=target_meta_path.exists(),
+            targetDefinitionExists=target_definition_exists,
+            sourceDefinitionId=source_definition_id,
+            sourceDefinitionName=source_definition.name,
+            targetDefinition=self._build_prefab_variant_definition(
                 definition=source_definition,
                 base_by_name=base_by_name,
                 target_variant=variant_name,
             ),
-        }
+        )
 
     def copy_selected_prefab_to_variant(
         self,
@@ -663,18 +632,18 @@ class WorkspaceService:
         base_image_path: str,
         variant: str,
         force_overwrite: bool,
-    ) -> dict[str, Any]:
+    ) -> CopyPrefabResult:
         precheck = self.precheck_copy_selected_prefab_to_variant(
             source_meta_path=source_meta_path,
             source_definition_id=source_definition_id,
             base_image_path=base_image_path,
             variant=variant,
         )
-        target_meta_path = get_safe_path(precheck["targetMetaPath"], self.project)
-        target_definition = precheck["targetDefinition"]
-        if not precheck["targetImageExists"]:
-            raise NotFoundError(f"Target image not found: {precheck['targetImagePath']}")
-        if precheck["targetMetaExists"]:
+        target_meta_path = get_safe_path(precheck.targetMetaPath, self.project)
+        target_definition = precheck.targetDefinition
+        if not precheck.targetImageExists:
+            raise NotFoundError(f"Target image not found: {precheck.targetImagePath}")
+        if precheck.targetMetaExists:
             target_meta_data = parse_meta_file(target_meta_path)
             target_definitions = {
                 definition_id: definition.model_dump(by_alias=True, exclude_none=True)
@@ -693,17 +662,15 @@ class WorkspaceService:
         payload = {"version": 3, "definitions": target_definitions}
         target_meta_path.parent.mkdir(parents=True, exist_ok=True)
         target_meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {
-            "targetImagePath": precheck["targetImagePath"],
-            "targetMetaPath": precheck["targetMetaPath"],
-            "definitionId": source_definition_id,
-            "definitionName": precheck["sourceDefinitionName"],
-            "targetDefinitionOverwritten": precheck["targetDefinitionExists"],
-        }
+        return CopyPrefabResult(
+            targetImagePath=precheck.targetImagePath,
+            targetMetaPath=precheck.targetMetaPath,
+            definitionId=source_definition_id,
+            definitionName=precheck.sourceDefinitionName,
+            targetDefinitionOverwritten=precheck.targetDefinitionExists,
+        )
 
     def _decode_base64(self, value: str) -> bytes:
-        import base64
-
         decoded = base64.b64decode(value.encode("ascii"), validate=True)
         if len(decoded) == 0:
             raise ValidationError("decoded payload is empty")
@@ -791,7 +758,7 @@ class WorkspaceService:
             raise ValidationError("variant.path_pattern must be 'nest', 'flat', or 'pattern: <template>'")
         if rendered == "":
             raise ValidationError("variant.path_pattern resolved to empty path")
-        target_image_path = get_safe_path(rendered, self.project)
+        target_image_path = get_safe_path(str(self.project_root / rendered), self.project)
         if target_image_path.suffix.lower() not in self.image_suffixes:
             raise InvalidImageError(f"target image extension is not supported: {target_image_path.suffix}")
         return target_image_path
@@ -1019,3 +986,131 @@ class WorkspaceService:
             "copiedDefinitions": copied_definitions,
             "skippedDefinitions": skipped_definitions,
         }
+
+    def list_workspace_images(self) -> list[str]:
+        """返回 workspace 内所有 PNG 文件路径（含无 JSON 的新文件）。"""
+        self.resource_index_store.ensure_ready()
+        root = self.project.pyproject_root
+        indexed = {Path(ref.image_path) for ref in self.resource_index_store.snapshot.doc_refs}
+        all_pngs = set(self.project_root.rglob("*.png"))
+        return sorted(to_rel(p, root) for p in (indexed | all_pngs))
+
+    def create_document(self, image_data: bytes, target_path: str) -> CreateDocumentResult:
+        """创建文档（图片+空元数据 JSON）。"""
+
+        safe_target = get_safe_path(target_path, self.project)
+        if not safe_target.parent.exists():
+            safe_target.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = safe_target.with_name(f"{safe_target.name}.create_tmp_{uuid.uuid4().hex}")
+        try:
+            temp_path.write_bytes(image_data)
+            os.replace(temp_path, safe_target)
+        except Exception:
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
+        meta_path = safe_target.with_suffix(safe_target.suffix + ".json")
+        if not meta_path.exists():
+            meta_path.write_text(json.dumps({"version": 3, "definitions": {}}), encoding="utf-8")
+        root = self.project.pyproject_root
+        return CreateDocumentResult(
+            imagePath=to_rel(safe_target, root),
+            metaPath=to_rel(meta_path, root),
+        )
+
+    def get_symbol_tree(self) -> list[SymbolTreeGroupNode | SymbolTreeSymbolNode]:
+        """构建项目符号树。
+
+        :returns: 按名称层级分组的符号树节点列表
+        """
+        self.symbol_index_view.ensure_ready()
+        symbols = list(self.symbol_index_view.snapshot.symbols.values())
+        root_path = self.project.pyproject_root
+        root = SymbolTreeGroupNode(kind="group", label="__root__", children=[])
+        group_map: dict[str, SymbolTreeGroupNode] = {"": root}
+
+        for symbol in symbols:
+            if symbol.name.strip() == "":
+                continue
+            parts = symbol.name.split(".")
+            if len(parts) == 0 or any(part.strip() == "" for part in parts):
+                continue
+
+            current_path = ""
+            current_group = root
+            for segment in parts[:-1]:
+                current_path = segment if current_path == "" else f"{current_path}.{segment}"
+                next_group = group_map.get(current_path)
+                if next_group is None:
+                    next_group = SymbolTreeGroupNode(kind="group", label=segment, children=[])
+                    group_map[current_path] = next_group
+                    current_group.children.append(next_group)
+                current_group = next_group
+
+            leaf_label = parts[-1]
+            full_name = ".".join(parts)
+            symbol_node = None
+            for node in current_group.children:
+                if isinstance(node, SymbolTreeSymbolNode) and node.full_name == full_name:
+                    symbol_node = node
+                    break
+
+            if symbol_node is None:
+                symbol_node = SymbolTreeSymbolNode(
+                    kind="symbol",
+                    label=leaf_label,
+                    full_name=full_name,
+                    display_name=symbol.display_name,
+                    children=[],
+                )
+                current_group.children.append(symbol_node)
+            elif symbol_node.display_name is None and symbol.display_name is not None:
+                symbol_node.display_name = symbol.display_name
+
+            variant_label = "base" if symbol.variant is None else symbol.variant
+            variant_node = None
+            for node in symbol_node.children:
+                if node.label == variant_label:
+                    variant_node = node
+                    break
+            if variant_node is None:
+                variant_node = SymbolTreeVariantNode(kind="variant", label=variant_label, children=[])
+                symbol_node.children.append(variant_node)
+
+            already_exists = any(
+                item.meta_path == symbol.meta_path and item.definition_id == symbol.definition_id
+                for item in variant_node.children
+            )
+            if not already_exists:
+                variant_node.children.append(
+                    SymbolTreeFileNode(
+                        kind="file",
+                        label=Path(symbol.meta_path).name,
+                        meta_path=to_rel(symbol.meta_path, root_path),
+                        image_path=to_rel(symbol.image_path, root_path),
+                        definition_id=symbol.definition_id,
+                        variant=symbol.variant,
+                    )
+                )
+
+        def sort_nodes(nodes: list[SymbolTreeGroupNode | SymbolTreeSymbolNode]) -> list[SymbolTreeGroupNode | SymbolTreeSymbolNode]:
+            groups: list[SymbolTreeGroupNode] = []
+            symbol_nodes: list[SymbolTreeSymbolNode] = []
+            for node in nodes:
+                if isinstance(node, SymbolTreeGroupNode):
+                    node.children = sort_nodes(node.children)
+                    groups.append(node)
+                    continue
+                if isinstance(node, SymbolTreeSymbolNode):
+                    node.children.sort(key=lambda item: item.label)
+                    for variant in node.children:
+                        variant.children.sort(key=lambda item: item.meta_path)
+                    symbol_nodes.append(node)
+                    continue
+                raise ValueError(f"Unexpected root node kind: {node.kind}")
+
+            groups.sort(key=lambda item: item.label)
+            symbol_nodes.sort(key=lambda item: item.full_name)
+            return [*groups, *symbol_nodes]
+
+        return sort_nodes(root.children)

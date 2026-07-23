@@ -1,26 +1,31 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from kotonebot.devtools.server_commands.commands import (
+from kotonebot.devtools.commands.commands import (
     SERVER_COMMAND_META_REFETCH,
     SERVER_COMMAND_RENAME_SYMBOL_EXECUTE,
     SERVER_COMMAND_RENAME_SYMBOL_PRECHECK,
 )
-from kotonebot.devtools.server_commands.types import parse_server_command_request
-from kotonebot.devtools.lsp.server import (
+from kotonebot.devtools.commands.types import parse_server_command_request
+from kotonebot.devtools.transports.lsp.server import (
     _first_argument_dict,
     DevtoolsLspServer,
 )
+from kotonebot.devtools.services.context import DevtoolsContext
+from kotonebot.devtools.project.project import Project
 from tests.devtools._testkit import in_cwd, write_png_with_meta, write_pyproject
+from kotonebot.devtools.errors import CommandError
 from kotonebot.devtools.meta import parse_meta_file
 
 
 def _server(tmp_path: Path) -> DevtoolsLspServer:
     resources = tmp_path / "resources"
-    resources.mkdir()
+    resources.mkdir(exist_ok=True)
     write_pyproject(tmp_path / "pyproject.toml", resource_path="resources")
     with in_cwd(tmp_path):
-        return DevtoolsLspServer(workspace=tmp_path.as_posix())
+        project = Project(conf_path=str(tmp_path / "pyproject.toml"))
+        ctx = DevtoolsContext(project)
+    return DevtoolsLspServer(ctx)
 
 
 def test_first_argument_dict_accepts_empty():
@@ -30,19 +35,19 @@ def test_first_argument_dict_accepts_empty():
 def test_first_argument_dict_rejects_multiple():
     try:
         _first_argument_dict(({}, {}))
-    except ValueError as exc:
+    except CommandError as exc:
         assert "at most one object" in str(exc)
     else:
-        raise AssertionError("expected ValueError")
+        raise AssertionError("expected CommandError")
 
 
 def test_first_argument_dict_requires_object():
     try:
         _first_argument_dict(("x",))
-    except ValueError as exc:
+    except CommandError as exc:
         assert "must be object" in str(exc)
     else:
-        raise AssertionError("expected ValueError")
+        raise AssertionError("expected CommandError")
 
 
 def test_server_execute_server_command_smoke():
@@ -56,10 +61,10 @@ def test_server_execute_server_command_smoke():
 def test_parse_server_command_request_requires_command():
     try:
         parse_server_command_request({"args": {}})
-    except ValueError as exc:
+    except CommandError as exc:
         assert "command" in str(exc)
     else:
-        raise AssertionError("expected ValueError")
+        raise AssertionError("expected CommandError")
 
 
 def test_server_symbol_tree_groups_name_and_variant():
@@ -83,7 +88,7 @@ def test_server_symbol_tree_groups_name_and_variant():
             },
         )
         with in_cwd(tmp_path):
-            server = DevtoolsLspServer(workspace=tmp_path.as_posix())
+            server = _server(tmp_path)
             tree = server.get_symbol_tree()
             assert len(tree) == 1
             assert tree[0]["kind"] == "group"
@@ -139,7 +144,7 @@ def test_server_rename_symbol_precheck_collects_all_name_matches():
             },
         )
         with in_cwd(tmp_path):
-            server = DevtoolsLspServer(workspace=tmp_path.as_posix())
+            server = _server(tmp_path)
             result = server.execute_server_command(
                 SERVER_COMMAND_RENAME_SYMBOL_PRECHECK,
                 (
@@ -190,7 +195,7 @@ def test_server_rename_symbol_execute_updates_all_name_matches():
             },
         )
         with in_cwd(tmp_path):
-            server = DevtoolsLspServer(workspace=tmp_path.as_posix())
+            server = _server(tmp_path)
             result = server.execute_server_command(
                 SERVER_COMMAND_RENAME_SYMBOL_EXECUTE,
                 (

@@ -85,7 +85,7 @@ all = [
 ]
 
 [project.scripts]
-kbot = "kotonebot.devtools.cli:main"
+kbot = "kotonebot.devtools.transports.cli:main"
 
 [tool.setuptools]
 package-dir = { "kotonebot" = "kotonebot" }

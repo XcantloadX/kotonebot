@@ -10,7 +10,6 @@ from .commands import (
     SERVER_COMMAND_VARIANT_IMPORT_IMAGE,
     ensure_server_command_id,
 )
-from .workspace_service import WorkspaceService
 
 __all__ = [
     "ServerCommandId",
@@ -23,5 +22,4 @@ __all__ = [
     "SERVER_COMMAND_VARIANT_COPY_SELECTED_PREFAB_PRECHECK",
     "SERVER_COMMAND_VARIANT_IMPORT_IMAGE",
     "ensure_server_command_id",
-    "WorkspaceService",
 ]

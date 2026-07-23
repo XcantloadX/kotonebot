@@ -8,7 +8,7 @@
             "name": "Devtools Backend Server",
             "type": "debugpy",
             "request": "launch",
-            "module": "kotonebot.devtools.cli.main",
+            "module": "kotonebot.devtools.transports.cli.main",
             "args": [
                 "devtools"
             ],

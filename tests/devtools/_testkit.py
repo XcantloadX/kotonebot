@@ -71,3 +71,13 @@ def in_cwd(path: Path):
         yield
     finally:
         os.chdir(previous)
+
+
+def build_test_app(ctx):
+    """创建 FastAPI TestClient，用于测试 transports/http/routes/。"""
+    from starlette.testclient import TestClient
+
+    from kotonebot.devtools.transports.http.app import create_app
+
+    app = create_app(ctx)
+    return TestClient(app)

@@ -355,7 +355,7 @@ class DocumentIndexView:
                 if member.variant is None:
                     raise ValidationError("variant member requires variant name")
                 rel = f"{member.variant}/{target_descriptor.file_dir}/{file_name_ext}" if target_descriptor.file_dir else f"{member.variant}/{file_name_ext}"
-                return get_safe_path(rel, self.project)
+                return (self.resource_root / rel).resolve()
             if source_descriptor.role == "base":
                 scoped_base = target_descriptor.scoped_base
             else:
@@ -364,7 +364,7 @@ class DocumentIndexView:
                 rel = f"{base_variant}/{target_descriptor.file_dir}/{file_name_ext}" if target_descriptor.file_dir else f"{base_variant}/{file_name_ext}"
             else:
                 rel = f"{target_descriptor.file_dir}/{file_name_ext}" if target_descriptor.file_dir else file_name_ext
-            return get_safe_path(rel, self.project)
+            return (self.resource_root / rel).resolve()
         if member.strategy == "flat":
             if member.role == "variant":
                 if member.variant is None:
@@ -373,7 +373,7 @@ class DocumentIndexView:
             else:
                 file_name_ext = f"{target_descriptor.file_name}.{target_descriptor.file_ext}"
             rel = f"{target_descriptor.file_dir}/{file_name_ext}" if target_descriptor.file_dir else file_name_ext
-            return get_safe_path(rel, self.project)
+            return (self.resource_root / rel).resolve()
         if member.strategy == "pattern":
             if member.template is None:
                 raise ValidationError("pattern member requires template")
@@ -395,7 +395,7 @@ class DocumentIndexView:
             ).strip()
             if rendered == "":
                 raise ValidationError("variant.path_pattern resolved to empty path")
-            return get_safe_path(rendered, self.project)
+            return (self.resource_root / rendered).resolve()
         if member.strategy == "none":
             return get_safe_path(target_descriptor.image_path, self.project)
         raise ValidationError(f"Unsupported strategy: {member.strategy}")
