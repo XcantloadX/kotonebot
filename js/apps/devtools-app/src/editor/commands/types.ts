@@ -1,9 +1,6 @@
 import type { DiagnosticItem, SymbolLite } from "../../model/symbolIndex";
 import { COMMAND_ID } from "./ids";
 
-/** 所有编辑器命令 ID 的联合类型。 */
-export type EditorCommandId = typeof COMMAND_ID[keyof typeof COMMAND_ID];
-
 /** 命令参数映射表，键为命令 ID，值为执行该命令所需参数。 */
 export interface EditorCommandArgsMap {
   /** 打开命令面板。 */
@@ -78,9 +75,14 @@ export interface EditorCommandArgsMap {
   [COMMAND_ID.CONVERSION_SCAN_SPECIFIC]: undefined;
   /** 扫描设备画面（转换 Single → Multi）。 */
   [COMMAND_ID.CONVERSION_SCAN_DEVICE]: undefined;
+  /** 扫描当前文档（转换 Single → Multi）。 */
+  [COMMAND_ID.CONVERSION_SCAN_CURRENT]: undefined;
   /** 执行转换（写入 multi 文档 + 删除 single 文档）。 */
   [COMMAND_ID.CONVERSION_EXECUTE]: undefined;
 }
+
+/** 所有编辑器命令 ID 的联合类型。 */
+export type EditorCommandId = keyof EditorCommandArgsMap;
 
 /** 无参数命令 ID 集合。 */
 export type NoArgCommandId = {
