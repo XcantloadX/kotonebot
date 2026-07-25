@@ -46,7 +46,7 @@ from kotonebot.backend.ocr import (
 from kotonebot.backend.core import Image, HintBox
 from kotonebot.errors import ContextNotInitializedError, KotonebotWarning
 from kotonebot.backend.preprocessor import PreprocessorProtocol
-from kotonebot.primitives import Rect
+from kotonebot.primitives import Rect, ImageLike
 
 OcrLanguage = Literal['jp', 'en']
 ScreenshotMode = Literal['auto', 'manual', 'manual-inherit']
@@ -433,8 +433,8 @@ class ContextImage:
 
     def wait_for(
             self,
-            template: MatLike | str | Image,
-            mask: MatLike | str | None = None,
+            template: ImageLike,
+            mask: ImageLike | None = None,
             threshold: float = 0.8,
             timeout: float = DEFAULT_TIMEOUT,
             colored: bool = False,
@@ -471,8 +471,8 @@ class ContextImage:
 
     def wait_for_any(
             self,
-            templates: list[str | Image],
-            masks: list[str | None] | None = None,
+            templates: list[ImageLike],
+            masks: list[ImageLike | None] | None = None,
             threshold: float = 0.8,
             timeout: float = DEFAULT_TIMEOUT,
             colored: bool = False,
@@ -512,8 +512,8 @@ class ContextImage:
 
     def expect_wait(
             self,
-            template: str | Image,
-            mask: str | None = None,
+            template: ImageLike,
+            mask: ImageLike | None = None,
             threshold: float = 0.8,
             timeout: float = DEFAULT_TIMEOUT,
             colored: bool = False,
@@ -550,8 +550,8 @@ class ContextImage:
 
     def expect_wait_any(
             self,
-            templates: list[str | Image],
-            masks: list[str | None] | None = None,
+            templates: list[ImageLike],
+            masks: list[ImageLike | None] | None = None,
             threshold: float = 0.8,
             timeout: float = DEFAULT_TIMEOUT,
             colored: bool = False,

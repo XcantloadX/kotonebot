@@ -13,17 +13,6 @@ else:
     from kotonebot.primitives.visual import Image as _PrimitivesImage
     Image = deprecated('Use kotonebot.primitives.Image instead.')(_PrimitivesImage)
 
-@deprecated('unused')
-class Ocr:
-    def __init__(
-        self,
-        text: str | Callable[[str], bool],
-        *,
-        language: str = 'jp',
-    ):
-        self.text = text
-        self.language = language
-
 
 # TODO: 这里的其他类应该移动到 primitives 模块下面
 class HintBox(Rect):
@@ -62,6 +51,7 @@ class HintPoint(Point):
     def __repr__(self) -> str:
         return f'HintPoint<"{self.name}" at ({self.x}, {self.y})>'
 
+@deprecated('use coerce')
 def unify_image(image: MatLike | str | Image, transparent: bool = False) -> MatLike:
     if isinstance(image, str):
         if not transparent:

@@ -8,6 +8,7 @@ import numpy as np
 from cv2.typing import MatLike, Rect as CvRect
 
 from .core import Image, unify_image
+from ..primitives import ImageLike
 from .preprocessor import PreprocessorProtocol
 from kotonebot.primitives import Point as KbPoint, Rect as KbRect, Size as KbSize
 
@@ -15,7 +16,7 @@ logger = getLogger(__name__)
 
 class TemplateNoMatchError(Exception):
     """模板未找到异常。"""
-    def __init__(self, image: MatLike | Image, template: MatLike | str | Image):
+    def __init__(self, image: MatLike | Image, template: ImageLike):
         self.image = image
         self.template = template
         super().__init__(f"Template not found: {template}")
@@ -94,7 +95,7 @@ def _draw_result(image: MatLike, matches: Sequence[ResultProtocol] | ResultProto
         cv2.rectangle(result_image, match.rect.xywh, (0, 0, 255), 2)
     return result_image
 
-def _img2str(image: MatLike | str | Image | None) -> str:
+def _img2str(image: ImageLike | None) -> str:
     if image is None:
         return 'None'
     if isinstance(image, str):
@@ -109,7 +110,7 @@ def _img2str(image: MatLike | str | Image | None) -> str:
     else:
         return '<opencv Mat>'
 
-def _imgs2str(images: Sequence[MatLike | str | Image | None] | None) -> str:
+def _imgs2str(images: Sequence[ImageLike | None] | None) -> str:
     if images is None:
         return 'None'
     return ', '.join([_img2str(image) for image in images])
@@ -127,9 +128,9 @@ def _results2str(results: Sequence[TemplateMatchResult | MultipleTemplateMatchRe
 # TODO: 应该把 template_match 和 find、wait、expect 等函数的公共参数提取出来
 # TODO: 需要在调试结果中输出 preprocessors 处理后的图像
 def template_match(
-    template: MatLike | str | Image,
-    image: MatLike | str | Image,
-    mask: MatLike | str | Image | None = None,
+    template: ImageLike,
+    image: ImageLike,
+    mask: ImageLike | None = None,
     *,
     rect: KbRect | None = None,
     transparent: bool = False,
@@ -159,7 +160,7 @@ def template_match(
     """
     # 统一参数
     template = unify_image(template, transparent)
-    image = unify_image(image)
+    image = Image.coerce(image).pixels
     th, tw = template.shape[:2]
     ih, iw = image.shape[:2]
     if th > ih or tw > iw:
@@ -345,9 +346,9 @@ def hist_match(
     return avg_score >= threshold
 
 def find_all_crop(
-    image: MatLike | str | Image,
-    template: MatLike | str | Image,
-    mask: MatLike | str | Image | None = None,
+    image: ImageLike,
+    template: ImageLike,
+    mask: ImageLike | None = None,
     transparent: bool = False,
     threshold: float = 0.8,
     *,
@@ -394,8 +395,8 @@ def find_all_crop(
 
 def find(
     image: MatLike,
-    template: MatLike | str | Image,
-    mask: MatLike | str | Image | None = None,
+    template: ImageLike,
+    mask: ImageLike | None = None,
     *,
     rect: KbRect | None = None,
     transparent: bool = False,
@@ -451,8 +452,8 @@ def find(
 
 def find_all(
     image: MatLike,
-    template: MatLike | str | Image,
-    mask: MatLike | str | Image | None = None,
+    template: ImageLike,
+    mask: ImageLike | None = None,
     *,
     rect: KbRect | None = None,
     transparent: bool = False,
@@ -503,8 +504,8 @@ def find_all(
 
 def find_multi(
     image: MatLike,
-    templates: Sequence[MatLike | str | Image],
-    masks: Sequence[MatLike | str | Image | None] | None = None,
+    templates: Sequence[ImageLike],
+    masks: Sequence[ImageLike | None] | None = None,
     *,
     rect: KbRect | None = None,
     transparent: bool = False,
@@ -576,8 +577,8 @@ def find_multi(
 
 def find_all_multi(
     image: MatLike,
-    templates: list[MatLike | str | Image],
-    masks: list[MatLike | str | Image | None] | None = None,
+    templates: list[ImageLike],
+    masks: list[ImageLike | None] | None = None,
     *,
     rect: KbRect | None = None,
     transparent: bool = False,
@@ -665,8 +666,8 @@ def find_all_multi(
 
 def count(
     image: MatLike,
-    template: MatLike | str | Image,
-    mask: MatLike | str | Image | None = None,
+    template: ImageLike,
+    mask: ImageLike | None = None,
     *,
     rect: KbRect | None = None,
     transparent: bool = False,
@@ -721,8 +722,8 @@ def count(
 
 def expect(
     image: MatLike,
-    template: MatLike | str | Image,
-    mask: MatLike | str | Image | None = None,
+    template: ImageLike,
+    mask: ImageLike | None = None,
     *,
     rect: KbRect | None = None,
     transparent: bool = False,

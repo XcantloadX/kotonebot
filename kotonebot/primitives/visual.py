@@ -2,6 +2,7 @@ import logging
 import warnings
 from functools import cache
 from os import PathLike
+from typing import Self, TypeAlias
 
 import cv2
 from cv2.typing import MatLike
@@ -9,6 +10,7 @@ from cv2.typing import MatLike
 from .geometry import Size, Rect
 from kotonebot.util import cv2_imread, cv2_imwrite
 
+ImageLike: TypeAlias = 'Image | MatLike | str'
 logger = logging.getLogger(__name__)
 
 
@@ -241,6 +243,20 @@ class Image:
         # 传入像素数据而不是文件
         if pixels is not None:
             self.__pixels = pixels
+
+    @staticmethod
+    def coerce(data: ImageLike) -> 'Image':
+        """转换 MatLike、Image 对象或文件路径到 Image 对象。
+
+        :param data: 输入数据。
+        :return: Image 对象。
+        """
+        if isinstance(data, str):
+            return Image(file_path=data)
+        elif isinstance(data, Image):
+            return data
+        else:
+            return Image(pixels=data)
 
     @property
     def pixels(self) -> MatLike:

@@ -1,4 +1,8 @@
 # 更新日志
+## v0.19.0
+Library:
+1. [feat] **BREAKING** `kotonebot.backend.core.Ocr` 已移除。`kotonebot.backend.core.unify_image` 进入废弃状态，改用 `kotonebot.primitives.Image.coerce()` 作为替代。
+
 ## v0.18.0
 Devtool:
 1. [feat] 为命令面板新增支持文件搜索。

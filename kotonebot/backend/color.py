@@ -6,8 +6,7 @@ import numpy as np
 import cv2
 from cv2.typing import MatLike
 
-from .core import unify_image
-from ..primitives import RectTuple, Rect
+from ..primitives import RectTuple, Rect, Image
 # from .debug import result as debug_result, debug, color as debug_color
 
 RgbColorTuple = tuple[int, int, int]
@@ -136,7 +135,7 @@ def find(
     ret_similarity = 0
     found_color = None
     color = _unify_color(color)
-    image = unify_image(image)
+    image = Image.coerce(image).pixels
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     # 将目标颜色转换为HSL
@@ -233,7 +232,7 @@ def color_distance_map(
     # 统一颜色格式
     color = _unify_color(color)
     # 统一图像格式
-    image = unify_image(image)
+    image = Image.coerce(image).pixels
     
     # # 如果指定了rect，裁剪图像
     if rect is not None:
@@ -470,7 +469,7 @@ def dominant_color(
     """
     _rect: RectTuple | None = rect.xywh if rect is not None else None
     # 载入/裁剪图像
-    img = unify_image(image)
+    img = Image.coerce(image).pixels
     if _rect is not None:
         x, y, w, h = _rect
         img = img[y:y+h, x:x+w]
