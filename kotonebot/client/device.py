@@ -1,7 +1,6 @@
 import threading
 from typing import Callable, Literal, overload, TYPE_CHECKING
 
-import numpy as np
 from cv2.typing import MatLike
 from typing_extensions import deprecated
 
@@ -342,14 +341,14 @@ class Device:
     @overload
     def click(self, rect: Rect, *, log: "LogLevel | None" = None) -> None:
         """
-        从屏幕上的某个矩形区域随机选择一个点并点击
+        点击矩形区域的中心位置
         """
         ...
 
     @overload
     def click(self, clickable: ClickableObjectProtocol, *, log: "LogLevel | None" = None) -> None:
         """
-        点击屏幕上的某个可点击对象
+        点击可点击对象的中心位置
         """
         ...
 
@@ -362,8 +361,8 @@ class Device:
             return
         if len(args) == 1 and isinstance(args[0], Rect):
             rect = args[0]
-            x = rect.x1 + rect.w // 2 + np.random.randint(-int(rect.w * 0.3), int(rect.w * 0.3))
-            y = rect.y1 + rect.h // 2 + np.random.randint(-int(rect.h * 0.3), int(rect.h * 0.3))
+            x = rect.x1 + rect.w // 2
+            y = rect.y1 + rect.h // 2
             point = Point(int(x), int(y))
             self.click(point, log=log)
             return
@@ -427,14 +426,14 @@ class Device:
     @overload
     def double_click(self, rect: Rect, interval: float = 0.4, *, log: "LogLevel | None" = None) -> None:
         """
-        双击屏幕上的某个矩形区域
+        双击矩形区域的中心位置
         """
         ...
     
     @overload
     def double_click(self, clickable: ClickableObjectProtocol, interval: float = 0.4, *, log: "LogLevel | None" = None) -> None:
         """
-        双击屏幕上的某个可点击对象
+        双击可点击对象的中心位置
         """
         ...
     

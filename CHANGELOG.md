@@ -2,6 +2,7 @@
 ## v0.19.0
 Library:
 1. [feat] **BREAKING** `kotonebot.backend.core.Ocr` 已移除。`kotonebot.backend.core.unify_image` 进入废弃状态，改用 `kotonebot.primitives.Image.coerce()` 作为替代。
+2. [feat] **BREAKING** `Device.click` 与 `Device.double_click` 方法现在总是点击范围中心，而不是在范围内随机选取点击。
 
 ## v0.18.0
 Devtool:
