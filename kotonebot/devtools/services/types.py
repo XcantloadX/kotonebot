@@ -2,45 +2,54 @@
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class SymbolTreeFileNode(BaseModel):
+class AliasModel(BaseModel):
+    """基础模型：允许按 Python 字段名构造，但按 alias 序列化。"""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    def model_dump(self, *, by_alias: bool = True, **kwargs):
+        return super().model_dump(by_alias=by_alias, **kwargs)
+
+
+class SymbolTreeFileNode(AliasModel):
     kind: Literal["file"]
     label: str
-    meta_path: str
-    image_path: str
-    definition_id: str
+    meta_path: str = Field(alias="metaPath")
+    image_path: str = Field(alias="imagePath")
+    definition_id: str = Field(alias="definitionId")
     variant: str | None = None
 
 
-class SymbolTreeVariantNode(BaseModel):
+class SymbolTreeVariantNode(AliasModel):
     kind: Literal["variant"]
     label: str
     children: list[SymbolTreeFileNode]
 
 
-class SymbolTreeSymbolNode(BaseModel):
+class SymbolTreeSymbolNode(AliasModel):
     kind: Literal["symbol"]
     label: str
-    full_name: str
-    display_name: str | None = None
+    full_name: str = Field(alias="fullName")
+    display_name: str | None = Field(default=None, alias="displayName")
     children: list[SymbolTreeVariantNode]
 
 
-class SymbolTreeGroupNode(BaseModel):
+class SymbolTreeGroupNode(AliasModel):
     kind: Literal["group"]
     label: str
     children: list["SymbolTreeGroupNode | SymbolTreeSymbolNode"]
 
 
-class DirEntry(BaseModel):
+class DirEntry(AliasModel):
     """目录条目。"""
 
     name: str
-    is_directory: bool
+    is_directory: bool = Field(alias="isDirectory")
     path: str
-    is_image: bool
+    is_image: bool = Field(alias="isImage")
 
 
 class FolderTreeNode(BaseModel):
