@@ -3,6 +3,7 @@
 Library:
 1. [feat] **BREAKING** `kotonebot.backend.core.Ocr` 已移除。`kotonebot.backend.core.unify_image` 进入废弃状态，改用 `kotonebot.primitives.Image.coerce()` 作为替代。
 2. [feat] **BREAKING** `Device.click` 与 `Device.double_click` 方法现在总是点击范围中心，而不是在范围内随机选取点击。
+3. [feat] MuMu12V5Host 新增获取 MuMu 模拟器版本号的方法。
 
 Framework:
 1. [feat] 新增 Pipeline 体系，类似于 MaaFW 的 Pipeline，提供了一套简化但仍然高度可自定义的流水线编写代码的方式。

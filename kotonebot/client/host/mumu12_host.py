@@ -249,6 +249,28 @@ class Mumu12V5Host(Mumu12Host):
     InstanceClass: 'Type[Mumu12V5Instance]'
 
     @classmethod
+    def get_mumu_version(cls) -> str:
+        """获取 MuMu Player 12 v5.x 的版本号。
+
+        :returns: 版本号字符串，如 `6.3.2.0`。
+        :raises RuntimeError: 当无法解析输出时抛出。
+        """
+        output = cls._invoke_manager(['version'])
+        # {
+        #     "version": "6.3.2.0"
+        # }
+        try:
+            data: dict[str, Any] = json.loads(output)
+            version = data.get('version', None)
+            if isinstance(version, str) and version:
+                return version
+            else:
+                logger.warning('Unexpected version value: %s', repr(version))
+                raise RuntimeError(f'Failed to parse version from output: {output}')
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f'Failed to parse output: {e}') from e
+
+    @classmethod
     def check_app_keptlive(cls, instance_id: str) -> bool:
         """检查某个实例是否开启了 APP 后台保活功能。
 
