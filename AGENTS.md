@@ -142,6 +142,7 @@ function func(param1: string, param2: number): boolean { ... }
 
 - **任何时候都绝对禁止**使用 `from __future__ import annotations`。
 - 除非 atrr name 真的是动态的，否则**严格禁止**使用 `getattr` 与 `setattr`。
+- 返回 `Pipeline` / `Fragment` 的**工厂函数**（即「定义流程」的函数）使用**大驼峰命名**（如 `Daily`、`ClosePopup`），与类名一致；`@node` 节点回调保持小写（如 `buy`、`finish`）。
 
 ---
 

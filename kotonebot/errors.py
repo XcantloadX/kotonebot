@@ -138,3 +138,22 @@ class EmulatorNotFoundError(UserFriendlyError):
         super().__init__(f'未找到模拟器「{emulator_name}」，请确认已正确安装。')
 
 
+class PipelineGraphFrozenError(RuntimeError):
+    """表示 Pipeline 构图完成后仍尝试修改图结构。"""
+
+
+class PipelineGraphError(ValueError):
+    """表示 Pipeline 图结构在装配期不合法。
+
+    继承 ``ValueError``，便于既有以 ``ValueError`` 捕获装配错误的代码继续工作。
+    """
+
+
+class PipelineRunningError(RuntimeError):
+    """表示同一 Pipeline 实例正在执行顶层 ``run`` / ``try_run`` 时发生重入。"""
+
+
+class NodeAlreadyWiredError(RuntimeError):
+    """表示 Node 已有后继候选，不能再次使用 ``>>``；请用 ``next = [...]``。"""
+
+

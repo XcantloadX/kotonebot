@@ -2,7 +2,8 @@ import logging
 import warnings
 from functools import cache
 from os import PathLike
-from typing import Self, TypeAlias
+from typing import Sequence, TypeAlias, Union
+from typing_extensions import overload
 
 import cv2
 from cv2.typing import MatLike
@@ -10,7 +11,7 @@ from cv2.typing import MatLike
 from .geometry import Size, Rect
 from kotonebot.util import cv2_imread, cv2_imwrite
 
-ImageLike: TypeAlias = 'Image | MatLike | str'
+ImageLike: TypeAlias = Union['Image', MatLike, str]
 logger = logging.getLogger(__name__)
 
 
@@ -244,6 +245,7 @@ class Image:
         if pixels is not None:
             self.__pixels = pixels
 
+    @overload
     @staticmethod
     def coerce(data: ImageLike) -> 'Image':
         """转换 MatLike、Image 对象或文件路径到 Image 对象。
@@ -251,6 +253,28 @@ class Image:
         :param data: 输入数据。
         :return: Image 对象。
         """
+        ...
+
+    @overload
+    @staticmethod
+    def coerce(data: Sequence[ImageLike]) -> 'list[Image]':
+        """转换 MatLike、Image 对象或文件路径到 Image 对象。
+
+        :param data: 输入数据。
+        :return: Image 对象。
+        """
+        ...
+
+    @staticmethod
+    def coerce(data: ImageLike | Sequence[ImageLike]) -> 'Image | list[Image]':
+        """转换 MatLike、Image 对象或文件路径到 Image 对象。
+
+        :param data: 输入数据。
+        :return: Image 对象。
+        """
+        if isinstance(data, Sequence):
+            return [Image.coerce(x) for x in data]
+        
         if isinstance(data, str):
             return Image(file_path=data)
         elif isinstance(data, Image):
