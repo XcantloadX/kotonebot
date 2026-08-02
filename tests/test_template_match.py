@@ -185,3 +185,46 @@ class TestTemplateMatch(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             template_match(template, image, rect=rect)
+
+    def test_rect_negative_position_raises(self):
+        """rect 左上角坐标为负数时应抛出异常，避免 numpy 静默将负下标解释为从图像末端倒数。"""
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        template = np.zeros((10, 10, 3), dtype=np.uint8)
+
+        for rect in (
+            Rect(-1, 0, 20, 20),
+            Rect(0, -1, 20, 20),
+            Rect(-10, -10, 20, 20),
+        ):
+            with self.subTest(rect=rect):
+                with self.assertRaises(ValueError):
+                    template_match(template, image, rect=rect)
+
+    def test_rect_exceeds_image_bounds_raises(self):
+        """rect 超出图像右/下边界时应抛出异常，避免 numpy 静默截断搜索区域。"""
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        template = np.zeros((10, 10, 3), dtype=np.uint8)
+
+        for rect in (
+            Rect(45, 0, 20, 20),
+            Rect(0, 45, 20, 20),
+            Rect(45, 45, 20, 20),
+            Rect(0, 0, 60, 20),
+        ):
+            with self.subTest(rect=rect):
+                with self.assertRaises(ValueError):
+                    template_match(template, image, rect=rect)
+
+    def test_rect_on_image_boundary_ok(self):
+        """rect 恰好贴住图像边界（含右下角）时应正常匹配，不抛出异常。"""
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        template = np.zeros((10, 10, 3), dtype=np.uint8)
+
+        for rect in (
+            Rect(0, 0, 10, 10),
+            Rect(40, 40, 10, 10),
+            Rect(0, 0, 50, 50),
+        ):
+            with self.subTest(rect=rect):
+                # 不应抛出异常
+                template_match(template, image, rect=rect)
