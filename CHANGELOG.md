@@ -7,6 +7,7 @@ Library:
 
 Framework:
 1. [feat] 新增 Pipeline 体系，类似于 MaaFW 的 Pipeline，提供了一套简化但仍然高度可自定义的流水线编写代码的方式。
+2. [fix] **BREAKING** 纠正了 `kotonebot.config.LoopConfig` 的回调类型标注的返回值类型错误的问题，从 `None` 改为了 `bool`。运行时行为未发生改变。
 
 ## v0.18.0
 Devtool:

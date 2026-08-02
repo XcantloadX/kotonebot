@@ -25,7 +25,7 @@ class DeviceConfig:
 
 @dataclass
 class LoopConfig:
-    loop_callbacks: 'list[Callable[[Loop], None]]' = field(default_factory=list)
+    loop_callbacks: 'list[Callable[[Loop], bool]]' = field(default_factory=list)
     """全局 Loop 回调函数。
     
     每次 Loop 循环一次时，都会调用此处的处理函数。
