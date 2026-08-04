@@ -1,7 +1,6 @@
 """Tests for kotonebot.devtools.resgen.parsers module"""
 
 import os
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -78,14 +77,14 @@ class TestParserRegistry(unittest.TestCase):
                 return file_path.endswith(".test")
             
             def parse(self, file_path, context):
-                return [ResourceNode(name="mock1", type="test", value="mock1")]
+                return [ResourceNode(name="mock1", type="test", value=ImageAsset(path="mock1.png", rect=None))]
         
         class MockParser2:
             def can_parse(self, file_path):
                 return file_path.endswith(".test")
             
             def parse(self, file_path, context):
-                return [ResourceNode(name="mock2", type="test", value="mock2")]
+                return [ResourceNode(name="mock2", type="test", value=ImageAsset(path="mock2.png", rect=None))]
         
         registry = ParserRegistry()
         registry.register(MockParser1())

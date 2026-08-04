@@ -60,12 +60,12 @@ class TestStandardGenerator(unittest.TestCase):
         attr1 = ResourceNode(
             name="sprite1",
             type="template",
-            value='Image(path="test1.png")',
+            value=ImageAsset(path="test1.png", rect=None),
         )
         attr2 = ResourceNode(
             name="sprite2",
             type="template",
-            value='Image(path="test2.png")',
+            value=ImageAsset(path="test2.png", rect=None),
         )
         
         node = ClassNode(name="TestClass", attributes=[attr1, attr2])
@@ -73,8 +73,8 @@ class TestStandardGenerator(unittest.TestCase):
         content = gen.writer.get_content()
         
         self.assertIn("class TestClass:", content)
-        self.assertIn("sprite1 = Image(path=\"test1.png\")", content)
-        self.assertIn("sprite2 = Image(path=\"test2.png\")", content)
+        self.assertIn('sprite1 = ImageSlice(file_path=sprite_path("test1.png"), name="sprite1", slice_rect=None)', content)
+        self.assertIn('sprite2 = ImageSlice(file_path=sprite_path("test2.png"), name="sprite2", slice_rect=None)', content)
 
     def test_render_nested_classes(self):
         """Test rendering nested class structure"""
@@ -95,7 +95,7 @@ class TestStandardGenerator(unittest.TestCase):
         attr = ResourceNode(
             name="sprite",
             type="template",
-            value='Image(path="test.png")',
+            value=ImageAsset(path="test.png", rect=None),
         )
         child = ClassNode(name="SubClass")
         parent = ClassNode(
@@ -108,7 +108,7 @@ class TestStandardGenerator(unittest.TestCase):
         content = gen.writer.get_content()
         
         self.assertIn("class MainClass:", content)
-        self.assertIn("sprite = Image(path=\"test.png\")", content)
+        self.assertIn('sprite = ImageSlice(file_path=sprite_path("test.png"), name="sprite", slice_rect=None)', content)
         self.assertIn("class SubClass:", content)
 
     def test_render_attribute_without_docstring(self):
@@ -117,13 +117,13 @@ class TestStandardGenerator(unittest.TestCase):
         attr = ResourceNode(
             name="test_attr",
             type="template",
-            value="test_value",
+            value=ImageAsset(path="test_value", rect=None),
         )
         
         gen.render_attribute(attr)
         content = gen.writer.get_content()
         
-        self.assertIn("test_attr = test_value", content)
+        self.assertIn('test_attr = ImageSlice(file_path=sprite_path("test_value"), name="test_attr", slice_rect=None)', content)
         # Should not have docstring in production
         self.assertNotIn('"""', content)
 
@@ -145,12 +145,12 @@ class TestStandardGenerator(unittest.TestCase):
         attr1 = ResourceNode(
             name="button",
             type="template",
-            value='Image(path="button.png")',
+            value=ImageAsset(path="button.png", rect=None),
         )
         attr2 = ResourceNode(
             name="background",
             type="template",
-            value='Image(path="bg.png")',
+            value=ImageAsset(path="bg.png", rect=None),
         )
         
         ui_class = ClassNode(name="Ui", attributes=[attr1, attr2])
@@ -161,8 +161,8 @@ class TestStandardGenerator(unittest.TestCase):
         self.assertIn("from kotonebot.backend.core import Image, HintBox, HintPoint", content)
         self.assertIn("class Resources:", content)
         self.assertIn("class Ui:", content)
-        self.assertIn("button = Image(path=\"button.png\")", content)
-        self.assertIn("background = Image(path=\"bg.png\")", content)
+        self.assertIn('button = ImageSlice(file_path=sprite_path("button.png"), name="button", slice_rect=None)', content)
+        self.assertIn('background = ImageSlice(file_path=sprite_path("bg.png"), name="background", slice_rect=None)', content)
 
     def test_generate_multiple_root_nodes(self):
         """Test generate with multiple root nodes"""
@@ -183,7 +183,7 @@ class TestStandardGenerator(unittest.TestCase):
         attr = ResourceNode(
             name="test",
             type="template",
-            value="val",
+            value=ImageAsset(path="val", rect=None),
             docstring="Test docstring",
             metadata={}
         )
@@ -225,7 +225,7 @@ class TestStandardGenerator(unittest.TestCase):
         attr = ResourceNode(
             name="dialog_box",
             type="hint-box",
-            value='HintBox(x1=10, y1=20, x2=100, y2=200, source_resolution=(720, 1280))',
+            value=BoxData(x1=10, y1=20, x2=100, y2=200),
         )
         node = ClassNode(name="Hints", attributes=[attr])
         
@@ -241,7 +241,7 @@ class TestStandardGenerator(unittest.TestCase):
         attr = ResourceNode(
             name="touch_point",
             type="hint-point",
-            value='HintPoint(x=360, y=640)',
+            value=PointData(x=360, y=640),
         )
         node = ClassNode(name="Hints", attributes=[attr])
         
@@ -270,8 +270,8 @@ class TestStandardGenerator(unittest.TestCase):
         """Test empty lines between attributes"""
         gen = StandardGenerator(production=True)
         
-        attr1 = ResourceNode(name="attr1", type="template", value="val1")
-        attr2 = ResourceNode(name="attr2", type="template", value="val2")
+        attr1 = ResourceNode(name="attr1", type="template", value=ImageAsset(path="val1", rect=None))
+        attr2 = ResourceNode(name="attr2", type="template", value=ImageAsset(path="val2", rect=None))
         node = ClassNode(name="Test", attributes=[attr1, attr2])
         
         gen.render_class(node)
@@ -388,6 +388,8 @@ class TestEntityGenerator(unittest.TestCase):
         self.assertIn('title="Preview"', out)
 
     def test_fallback_unknown_type_uses_standard_assignment(self):
+        # 渲染器按 value 的 IR 类型分发，而非 node.type 字符串。
+        # 无法再构造"未知类型"的 value（联合类型限制），此处用 BoxData 走标准赋值分支。
         gen = EntityGenerator(production=True)
 
         node = ClassNode(
@@ -396,13 +398,13 @@ class TestEntityGenerator(unittest.TestCase):
                 ResourceNode(
                     name="Unknown",
                     type="unknown",
-                    value="abc",
+                    value=BoxData(x1=1, y1=2, x2=3, y2=4),
                 )
             ],
         )
 
         out = gen.generate([node])
-        self.assertIn("    Unknown = abc", out)
+        self.assertIn("    Unknown = HintBox(x1=1, y1=2, x2=3, y2=4, source_resolution=(720, 1280))", out)
 
     def test_variant_prefab_generates_dispatch(self):
         gen = EntityGenerator(production=True)
@@ -522,7 +524,7 @@ class TestGeneratorExtensibility(unittest.TestCase):
         gen = StandardGenerator(production=True, renderer_registry=registry)
         node = ClassNode(
             name="Root",
-            attributes=[ResourceNode(name="Unknown", type="unknown", value="abc")],
+            attributes=[ResourceNode(name="Unknown", type="unknown", value=ImageAsset(path="abc", rect=None))],
         )
 
         out = gen.generate([node])
@@ -569,7 +571,7 @@ class TestGeneratorExtensibility(unittest.TestCase):
         attr = ResourceNode(
             name="Answer",
             type="unknown",
-            value="42",
+            value=ImageAsset(path="42.png", rect=None),
             docstring="Original doc",
             metadata={"abs_path": "/tmp/a.png"},
         )

@@ -12,6 +12,7 @@ from kotonebot.devtools.resgen import (
     unify_path,
     build_class_tree,
 )
+from kotonebot.devtools.resgen.core import BoxData, ImageAsset, PointData
 from tests.devtools._testkit import make_resgen_context, write_json, write_min_png
 
 
@@ -61,31 +62,31 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
 
     def test_nested_class_tree_generation(self):
         """Test generation of nested class structure"""
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory():
             # Create multiple resources with nested paths
             resources = [
                 ResourceNode(
                     name="submit",
                     type="template",
-                    value='Image(path="submit.png")',
+                    value=ImageAsset(path="submit.png", rect=None),
                     metadata={"class_path": ["Ui", "Buttons"]}
                 ),
                 ResourceNode(
                     name="cancel",
                     type="template",
-                    value='Image(path="cancel.png")',
+                    value=ImageAsset(path="cancel.png", rect=None),
                     metadata={"class_path": ["Ui", "Buttons"]}
                 ),
                 ResourceNode(
                     name="dialog",
                     type="template",
-                    value='Image(path="dialog.png")',
+                    value=ImageAsset(path="dialog.png", rect=None),
                     metadata={"class_path": ["Ui", "Dialogs"]}
                 ),
                 ResourceNode(
                     name="background",
                     type="template",
-                    value='Image(path="bg.png")',
+                    value=ImageAsset(path="bg.png", rect=None),
                     metadata={"class_path": ["Images"]}
                 ),
             ]
@@ -104,10 +105,10 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
             self.assertIn("class Images:", code)
             
             # Verify attributes
-            self.assertIn("submit = Image(path=\"submit.png\")", code)
-            self.assertIn("cancel = Image(path=\"cancel.png\")", code)
-            self.assertIn("dialog = Image(path=\"dialog.png\")", code)
-            self.assertIn("background = Image(path=\"bg.png\")", code)
+            self.assertIn('submit = ImageSlice(file_path=sprite_path("submit.png"), name="submit", slice_rect=None)', code)
+            self.assertIn('cancel = ImageSlice(file_path=sprite_path("cancel.png"), name="cancel", slice_rect=None)', code)
+            self.assertIn('dialog = ImageSlice(file_path=sprite_path("dialog.png"), name="dialog", slice_rect=None)', code)
+            self.assertIn('background = ImageSlice(file_path=sprite_path("bg.png"), name="background", slice_rect=None)', code)
 
     def test_hint_resources_integration(self):
         """Test integration with HintBox and HintPoint resources"""
@@ -115,13 +116,13 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
             ResourceNode(
                 name="dialog_area",
                 type="hint-box",
-                value='HintBox(x1=10, y1=20, x2=710, y2=1270, source_resolution=(720, 1280))',
+                value=BoxData(x1=10, y1=20, x2=710, y2=1270),
                 metadata={"class_path": ["Hints"]}
             ),
             ResourceNode(
                 name="button_touch",
                 type="hint-point",
-                value='HintPoint(x=360, y=640)',
+                value=PointData(x=360, y=640),
                 metadata={"class_path": ["Hints"]}
             ),
         ]
@@ -140,7 +141,7 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
             ResourceNode(
                 name="my_button",
                 type="template",
-                value='Image(path="test.png")',
+                value=ImageAsset(path="test.png", rect=None),
                 metadata={"class_path": ["Ui", "MainButtons"]}  # Already CamelCase in metadata
             ),
         ]
@@ -159,7 +160,7 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
             ResourceNode(
                 name="attr1",
                 type="template",
-                value="val1",
+                value=ImageAsset(path="val1", rect=None),
                 metadata={"class_path": ["Level1", "Level2", "Level3"]}
             ),
         ]
@@ -214,7 +215,7 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
             ResourceNode(
                 name="test",
                 type="template",
-                value="Image()",
+                value=ImageAsset(path="test.png", rect=None),
                 docstring="Test sprite",
                 metadata={}
             ),
@@ -270,7 +271,7 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
                 ResourceNode(
                     name=f"sprite{i}",
                     type="template",
-                    value=f"Image(path=\"sprite{i}.png\")",
+                    value=ImageAsset(path=f"sprite{i}.png", rect=None),
                     metadata={"class_path": ["Ui", f"Section{i}"]}
                 )
             )
@@ -281,7 +282,7 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
         
         # Verify all sprites are in code
         for i in range(10):
-            self.assertIn(f"sprite{i} = Image(path=\"sprite{i}.png\")", code)
+            self.assertIn(f'sprite{i} = ImageSlice(file_path=sprite_path("sprite{i}.png"), name="sprite{i}", slice_rect=None)', code)
             self.assertIn(f"class Section{i}:", code)
 
     def test_special_characters_in_docstring(self):
@@ -289,7 +290,7 @@ class TestIntegrationFullWorkflow(unittest.TestCase):
         resource = ResourceNode(
             name="test",
             type="template",
-            value="Image()",
+            value=ImageAsset(path="test.png", rect=None),
             docstring="Test with special chars: <>&\"'",
             metadata={"class_path": ["Test"]}  # Need class_path for tree building
         )

@@ -2,9 +2,11 @@
 
 import unittest
 from kotonebot.devtools.resgen.core import (
-    CodeWriter,
-    ResourceNode,
+    BoxData,
     ClassNode,
+    CodeWriter,
+    ImageAsset,
+    ResourceNode,
 )
 
 
@@ -107,11 +109,11 @@ class TestResourceNode(unittest.TestCase):
         node = ResourceNode(
             name="test_sprite",
             type="template",
-            value='Image(path="test.png")',
+            value=ImageAsset(path="test.png", rect=None),
         )
         self.assertEqual(node.name, "test_sprite")
         self.assertEqual(node.type, "template")
-        self.assertEqual(node.value, 'Image(path="test.png")')
+        self.assertEqual(node.value, ImageAsset(path="test.png", rect=None))
         self.assertEqual(node.docstring, "")
         self.assertEqual(node.metadata, {})
 
@@ -120,7 +122,7 @@ class TestResourceNode(unittest.TestCase):
         node = ResourceNode(
             name="test_sprite",
             type="template",
-            value='Image(path="test.png")',
+            value=ImageAsset(path="test.png", rect=None),
             docstring="This is a test sprite",
         )
         self.assertEqual(node.docstring, "This is a test sprite")
@@ -135,7 +137,7 @@ class TestResourceNode(unittest.TestCase):
         node = ResourceNode(
             name="test_sprite",
             type="template",
-            value='Image(path="test.png")',
+            value=ImageAsset(path="test.png", rect=None),
             metadata=metadata,
         )
         self.assertEqual(node.metadata, metadata)
@@ -149,7 +151,7 @@ class TestResourceNode(unittest.TestCase):
             node = ResourceNode(
                 name=f"test_{node_type}",
                 type=node_type,
-                value="test_value",
+                value=ImageAsset(path="test.png", rect=None),
             )
             self.assertEqual(node.type, node_type)
 
@@ -158,19 +160,19 @@ class TestResourceNode(unittest.TestCase):
         node1 = ResourceNode(
             name="test",
             type="template",
-            value="Image()",
+            value=ImageAsset(path="test.png", rect=None),
         )
         node2 = ResourceNode(
             name="test",
             type="template",
-            value="Image()",
+            value=ImageAsset(path="test.png", rect=None),
         )
         # Dataclass with same values should be equal
         self.assertEqual(node1, node2)
 
     def test_resource_node_with_complex_value(self):
         """Test ResourceNode with complex value"""
-        value = 'HintBox(x1=10, y1=20, x2=100, y2=200, source_resolution=(720, 1280))'
+        value = BoxData(x1=10, y1=20, x2=100, y2=200)
         node = ResourceNode(
             name="hint_box",
             type="hint-box",
@@ -194,7 +196,7 @@ class TestClassNode(unittest.TestCase):
         attr = ResourceNode(
             name="sprite1",
             type="template",
-            value="Image()",
+            value=ImageAsset(path="test.png", rect=None),
         )
         node = ClassNode(name="TestClass", attributes=[attr])
         self.assertEqual(len(node.attributes), 1)
@@ -216,7 +218,7 @@ class TestClassNode(unittest.TestCase):
         node_with_attr = ClassNode(
             name="NotEmpty",
             attributes=[
-                ResourceNode(name="attr", type="template", value="val")
+                ResourceNode(name="attr", type="template", value=ImageAsset(path="test.png", rect=None))
             ]
         )
         self.assertFalse(node_with_attr.is_empty())
@@ -239,7 +241,7 @@ class TestClassNode(unittest.TestCase):
 
     def test_class_node_mixed_content(self):
         """Test ClassNode with both children and attributes"""
-        attr = ResourceNode(name="attr1", type="template", value="val")
+        attr = ResourceNode(name="attr1", type="template", value=ImageAsset(path="test.png", rect=None))
         child = ClassNode(name="Child")
         
         node = ClassNode(

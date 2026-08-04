@@ -9,7 +9,7 @@ from kotonebot.devtools.resgen.utils import (
     build_class_tree,
     ImageProcessor,
 )
-from kotonebot.devtools.resgen.core import ResourceNode
+from kotonebot.devtools.resgen.core import ImageAsset, ResourceNode
 
 
 class TestToCamelCase(unittest.TestCase):
@@ -120,7 +120,7 @@ class TestBuildClassTree(unittest.TestCase):
         resource = ResourceNode(
             name="sprite",
             type="template",
-            value="Image()",
+            value=ImageAsset(path="test.png", rect=None),
             metadata={}
         )
         result = build_class_tree([resource])
@@ -131,7 +131,7 @@ class TestBuildClassTree(unittest.TestCase):
         resource = ResourceNode(
             name="sprite",
             type="template",
-            value="Image()",
+            value=ImageAsset(path="test.png", rect=None),
             metadata={"class_path": ["Images"]}
         )
         result = build_class_tree([resource])
@@ -146,7 +146,7 @@ class TestBuildClassTree(unittest.TestCase):
         resource = ResourceNode(
             name="button",
             type="template",
-            value="Image()",
+            value=ImageAsset(path="test.png", rect=None),
             metadata={"class_path": ["Ui", "Buttons"]}
         )
         result = build_class_tree([resource])
@@ -163,9 +163,9 @@ class TestBuildClassTree(unittest.TestCase):
     def test_multiple_resources_same_class(self):
         """Test multiple resources in same class"""
         resources = [
-            ResourceNode(name="sprite1", type="template", value="val1",
+            ResourceNode(name="sprite1", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Images"]}),
-            ResourceNode(name="sprite2", type="template", value="val2",
+            ResourceNode(name="sprite2", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Images"]}),
         ]
         result = build_class_tree(resources)
@@ -177,9 +177,9 @@ class TestBuildClassTree(unittest.TestCase):
     def test_multiple_resources_different_classes(self):
         """Test multiple resources in different classes"""
         resources = [
-            ResourceNode(name="sprite1", type="template", value="val1",
+            ResourceNode(name="sprite1", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Ui"]}),
-            ResourceNode(name="sprite2", type="template", value="val2",
+            ResourceNode(name="sprite2", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Images"]}),
         ]
         result = build_class_tree(resources)
@@ -193,11 +193,11 @@ class TestBuildClassTree(unittest.TestCase):
     def test_multiple_resources_shared_parent(self):
         """Test multiple resources sharing parent class"""
         resources = [
-            ResourceNode(name="button", type="template", value="val",
+            ResourceNode(name="button", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Ui", "Controls"]}),
-            ResourceNode(name="checkbox", type="template", value="val",
+            ResourceNode(name="checkbox", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Ui", "Controls"]}),
-            ResourceNode(name="textbox", type="template", value="val",
+            ResourceNode(name="textbox", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Ui", "Controls"]}),
         ]
         result = build_class_tree(resources)
@@ -215,7 +215,7 @@ class TestBuildClassTree(unittest.TestCase):
         resource = ResourceNode(
             name="sprite",
             type="template",
-            value="Image()",
+            value=ImageAsset(path="test.png", rect=None),
             metadata={"class_path": ["Level1", "Level2", "Level3", "Level4"]}
         )
         result = build_class_tree([resource])
@@ -240,11 +240,11 @@ class TestBuildClassTree(unittest.TestCase):
     def test_complex_tree_structure(self):
         """Test complex tree with multiple branches"""
         resources = [
-            ResourceNode(name="btn", type="template", value="val",
+            ResourceNode(name="btn", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Ui", "Buttons"]}),
-            ResourceNode(name="check", type="template", value="val",
+            ResourceNode(name="check", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Ui", "Checkboxes"]}),
-            ResourceNode(name="dialog", type="template", value="val",
+            ResourceNode(name="dialog", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Dialogs"]}),
         ]
         result = build_class_tree(resources)
@@ -260,11 +260,11 @@ class TestBuildClassTree(unittest.TestCase):
     def test_no_duplicate_parent_nodes(self):
         """Test that parent nodes are not duplicated"""
         resources = [
-            ResourceNode(name="sprite1", type="template", value="val",
+            ResourceNode(name="sprite1", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Parent", "Child"]}),
-            ResourceNode(name="sprite2", type="template", value="val",
+            ResourceNode(name="sprite2", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Parent", "Child"]}),
-            ResourceNode(name="sprite3", type="template", value="val",
+            ResourceNode(name="sprite3", type="template", value=ImageAsset(path="test.png", rect=None),
                         metadata={"class_path": ["Parent", "OtherChild"]}),
         ]
         result = build_class_tree(resources)
