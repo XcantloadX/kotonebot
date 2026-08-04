@@ -483,12 +483,19 @@ class Pipeline:
             return False
         last_cycle = time.monotonic()
         while True:
+            # 结束条件判定
             if current is self._exit:
                 logger.debug("node: %s(id=%s) -> exit", current.label, current.instance_id)
                 return True
             if self._exit is None and not current._next:
                 logger.debug("node: %s(id=%s) -> exit", current.label, current.instance_id)
                 return True
+
+            # 截图数据更新
+            from kotonebot import device
+            device.screenshot()
+
+            # 选择下一个候选
             selected: Node | None = None
             for candidate in current._next:
                 if candidate.call():
@@ -517,6 +524,7 @@ class Pipeline:
                         self._entry.instance_id,
                     )
                     return False
+
             # 最小轮次间隔
             if schedule.interval > 0:
                 elapsed = time.monotonic() - last_cycle
