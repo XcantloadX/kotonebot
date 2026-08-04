@@ -5,6 +5,7 @@ Library:
 2. [feat] **BREAKING** `Device.click` 与 `Device.double_click` 方法现在总是点击范围中心，而不是在范围内随机选取点击。
 3. [feat] MuMu12V5Host 新增获取 MuMu 模拟器版本号的方法。
 4. [feat] 为模板匹配加入了非法坐标（越界、负数）的校验。
+5. [fix] 修复新版 MuMu 上无法正确找到 external_renderer_ipc.dll 导致 `NemuIpcImpl` 无法正确初始化的问题。
 
 Framework:
 1. [feat] 新增 Pipeline 体系，类似于 MaaFW 的 Pipeline，提供了一套简化但仍然高度可自定义的流水线编写代码的方式。

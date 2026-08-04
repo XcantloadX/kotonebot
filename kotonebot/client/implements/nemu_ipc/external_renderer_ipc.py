@@ -201,10 +201,18 @@ class ExternalRendererIpc:
     # ------------------------------------------------------------------
 
     def __load_dll(self, mumu_root_folder: str) -> ctypes.CDLL:
-        """尝试多条路径加载 DLL。传入为 MuMu 根目录。"""
+        """尝试多条路径加载 DLL。传入为 MuMu 根目录。
+
+        优先级：优先 nx_main，其次动态枚举 nx_device 下的各引擎目录，
+        最后回退到老版本 MuMu 的固定路径。
+        """
         candidate_paths = [
-            # <= 4.x
-            os.path.join(mumu_root_folder, "shell", "sdk", "external_renderer_ipc.dll"),
+            # 优先：主程序目录（nx_main）
+            os.path.join(mumu_root_folder, "nx_main", "sdk", "external_renderer_ipc.dll"),
+            # 其次：动态枚举 nx_device 下的所有引擎版本目录
+            *self.__enum_engine_dll_paths(mumu_root_folder),
+            # 老目录结构兜底
+            # < 5.x
             os.path.join(
                 mumu_root_folder,
                 "shell",
@@ -213,19 +221,33 @@ class ExternalRendererIpc:
                 "sdk",
                 "external_renderer_ipc.dll",
             ),
-            # >= 5.x
-            os.path.join(
-                mumu_root_folder, "nx_device", "12.0", "shell", "sdk", "external_renderer_ipc.dll"
-            ),
+            # <= 4.x
+            os.path.join(mumu_root_folder, "shell", "sdk", "external_renderer_ipc.dll"),
         ]
         for p in candidate_paths:
             if not os.path.exists(p):
                 continue
             try:
-                return ctypes.CDLL(p)
+                dll = ctypes.CDLL(p)
+                logger.debug("Loaded external_renderer_ipc.dll from %s", p)
+                return dll
             except OSError as e:  # pragma: no cover
                 logger.warning("Failed to load DLL (%s): %s", p, e)
         raise NemuIpcIncompatible("external_renderer_ipc.dll not found or failed to load.")
+
+    def __enum_engine_dll_paths(self, mumu_root_folder: str) -> list[str]:
+        """枚举 nx_device 下各引擎目录中的 external_renderer_ipc.dll 路径。"""
+        nx_device_root = os.path.join(mumu_root_folder, "nx_device")
+        if not os.path.isdir(nx_device_root):
+            return []
+        paths = []
+        for engine in sorted(os.listdir(nx_device_root)):
+            p = os.path.join(
+                nx_device_root, engine, "shell", "sdk", "external_renderer_ipc.dll"
+            )
+            if os.path.exists(p):
+                paths.append(p)
+        return paths
 
     def __declare_prototypes(self) -> None:
         """声明 DLL 函数原型，确保 ctypes 类型安全。"""
