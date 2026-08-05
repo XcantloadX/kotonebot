@@ -35,10 +35,10 @@
             "type": "extensionHost",
             "request": "launch",
             "args": [
-                "--extensionDevelopmentPath=${workspaceFolder}/extensions/kotonebot-vscode"
+                "--extensionDevelopmentPath=${workspaceFolder}/js/apps/vscode-ext"
             ],
             "outFiles": [
-                "${workspaceFolder}/extensions/kotonebot-vscode/dist/**/*.js"
+                "${workspaceFolder}/js/apps/vscode-ext/dist/**/*.js"
             ]
         }
     ],
