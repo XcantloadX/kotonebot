@@ -157,7 +157,7 @@ def template_match(
     :param remove_duplicate: 是否移除重复结果，默认为 True。
     :param colored: 是否匹配颜色，默认为 False。
     :param preprocessors: 预处理列表，默认为 None。
-    :raises ValueError: 若模板尺寸大于图像、rect 超出图像边界或 rect 尺寸小于模板尺寸时抛出。
+    :raises ValueError: 若模板尺寸大于图像或 rect 尺寸小于模板尺寸时抛出。
     """
     # 统一参数
     template = unify_image(template, transparent)
@@ -173,14 +173,12 @@ def template_match(
         x, y, w, h = rect.xywh
         # 校验 rect 左上角不为负，避免 numpy 切片将负下标解释为从图像末端倒数
         if x < 0 or y < 0:
-            raise ValueError(
-                f"rect position ({x}, {y}) must not be negative."
-            )
+            logger.error(f"rect position ({x}, {y}) must not be negative.")
+            return []
         # 校验 rect 不超出图像右/下边界，避免 numpy 切片静默截断搜索区域
         if x + w > iw or y + h > ih:
-            raise ValueError(
-                f"rect {rect.xywh} exceeds image bounds ({iw}x{ih})."
-            )
+            logger.error(f"rect {rect.xywh} exceeds image bounds ({iw}x{ih}).")
+            return []
         if h < th or w < tw:
             raise ValueError(
                 f"rect size ({w}x{h}) is smaller than template size ({tw}x{th})."
