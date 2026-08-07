@@ -2,6 +2,7 @@
 ## v0.19.1
 Library：
 1. [feat] 模板匹配越界校验从抛出异常降级为仅错误日志输出。
+2. [feat] `NemuIpcImpl` 新增捕获 DLL 的调试输出，避免污染 stdout/stderr。
 
 ## v0.19.0
 Library:

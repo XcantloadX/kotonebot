@@ -42,6 +42,8 @@ class NemuIpcImplConfig(ImplConfig):
     """目标应用包名，用于自动获取 display_id。"""
     app_index: int = 0
     """多开应用索引，传给 get_display_id 方法。"""
+    capture_dll_output: bool = True
+    """是否重定向并收集 external_renderer_ipc.dll 的 stdout/stderr 调试日志。"""
     wait_package_timeout: float = 60  # 单位秒，-1 表示永远等待，0 表示不等待，立即抛出异常
     wait_package_interval: float = 0.1  # 单位秒
 
@@ -61,8 +63,15 @@ class NemuIpcImpl(MultiTouchable, Screenshotable, Lifecycle, SimpleInputDriver, 
         self.nemu_folder = config.nemu_folder
 
         # --------------------------- DLL 封装 ---------------------------
-        self._ipc = ExternalRendererIpc(config.nemu_folder)
+        self._ipc = ExternalRendererIpc(config.nemu_folder, capture_output=config.capture_dll_output)
         logger.info("ExternalRendererIpc initialized and DLL loaded")
+
+    def dll_logs(self) -> list[str]:
+        """取回并清空 external_renderer_ipc.dll 已收集的 stdout/stderr 日志。
+
+        :returns: DLL 写入 stdout/stderr 的已收集日志行列表；未启用捕获时返回空列表。
+        """
+        return self._ipc.get_dll_logs()
 
     @property
     def width(self) -> int:
