@@ -41,6 +41,8 @@ export interface QuickPickOptions<TValue> {
   canOutsideClickClose?: boolean;
   /** 首次打开时希望默认高亮的列表项 ID。 */
   initialSelectedItemId?: string;
+  /** 将输入框原始查询转换为高亮匹配词（用于 ">"、 "#" 等带前缀的搜索模式）。 */
+  highlightQuery?: (query: string) => string;
 }
 
 /** 面向字符串列表的快捷选择参数。 */
@@ -107,6 +109,49 @@ export const useQuickPick = (): QuickPickApi => {
     throw new Error("useQuickPick must be used within QuickPickProvider");
   }
   return value;
+};
+
+/** 将文本中命中查询关键字的片段加粗并高亮，其余部分保持原样（类似 VSCode 的匹配高亮）。 */
+const HighlightedText: React.FC<{ text: string; query: string }> = ({ text, query }) => {
+  const parts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const segments: { text: string; match: boolean }[] = [];
+    if (q.length === 0) {
+      return [{ text, match: false }];
+    }
+    const lower = text.toLowerCase();
+    let index = 0;
+    // 逐个寻找命中区间，重叠时并入同一段，保证不遗漏也不重复。
+    while (index < text.length) {
+      const found = lower.indexOf(q, index);
+      if (found < 0) {
+        if (index < text.length) {
+          segments.push({ text: text.slice(index), match: false });
+        }
+        break;
+      }
+      if (found > index) {
+        segments.push({ text: text.slice(index, found), match: false });
+      }
+      segments.push({ text: text.slice(found, found + q.length), match: true });
+      index = found + q.length;
+    }
+    return segments;
+  }, [text, query]);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.match ? (
+          <span key={i} style={{ fontWeight: 700, background: "#ffe58f", borderRadius: 2 }}>
+            {part.text}
+          </span>
+        ) : (
+          <span key={i}>{part.text}</span>
+        )
+      )}
+    </>
+  );
 };
 
 /** Quick Pick 全局 Provider，负责队列、键盘交互与弹层渲染。 */
@@ -301,6 +346,11 @@ export const QuickPickProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     settleCurrent(picked.value);
   }, [items, selectedIndex, settleCurrent]);
 
+  // 高亮用匹配词：允许调用方对原始查询做前缀剥离，避免 ">"、"#" 等前缀破坏匹配。
+  const highlightTerm = current?.options.highlightQuery
+    ? current.options.highlightQuery(query)
+    : query;
+
   return (
     <QuickPickContext.Provider value={api}>
       {children}
@@ -409,12 +459,18 @@ export const QuickPickProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                         settleCurrent(item.value);
                       }}
                     >
-                      <div style={{ fontSize: 13, color: "#182026" }}>{item.label}</div>
+                      <div style={{ fontSize: 13, color: "#182026" }}>
+                        <HighlightedText text={item.label} query={highlightTerm} />
+                      </div>
                       {item.description ? (
-                        <div style={{ fontSize: 12, color: "#5c7080", marginTop: 2 }}>{item.description}</div>
+                        <div style={{ fontSize: 12, color: "#5c7080", marginTop: 2 }}>
+                          <HighlightedText text={item.description} query={highlightTerm} />
+                        </div>
                       ) : null}
                       {item.detail ? (
-                        <div style={{ fontSize: 11, color: "#8a9ba8", marginTop: 2 }}>{item.detail}</div>
+                        <div style={{ fontSize: 11, color: "#8a9ba8", marginTop: 2 }}>
+                          <HighlightedText text={item.detail} query={highlightTerm} />
+                        </div>
                       ) : null}
                     </div>
                   );

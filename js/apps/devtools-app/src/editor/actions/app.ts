@@ -185,6 +185,16 @@ export async function openCommandPalette(): Promise<void> {
     emptyText: i18n.t('commandPalette.empty'),
     canOutsideClickClose: true,
     canEscapeKeyClose: true,
+    highlightQuery: (q) => {
+      // 命令/符号模式分别以 ">"、"#" 前缀区分搜索模式，高亮时需剥离前缀才能命中标题文本。
+      if (q.startsWith(">")) {
+        return q.slice(1).trim();
+      }
+      if (q.startsWith("#")) {
+        return q.slice(1).trim();
+      }
+      return q;
+    },
     getItems: async (query) => {
       const activeDocumentId = selectActiveDocumentId(useAppStore.getState());
       const { symbols, recentSymbolKeys } = useSymbolIndexStore.getState();
