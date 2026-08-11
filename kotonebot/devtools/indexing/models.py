@@ -28,7 +28,6 @@ class IndexedSymbol(BaseModel):
     image_path: str
     primary_prop_key: str | None
     primary_geometry: dict[str, Any] | None
-    search_tokens: list[str]
 
 
 class IndexSnapshot(BaseModel):

@@ -25,8 +25,6 @@ export interface SymbolLite {
   imagePath: string;
   /** 主要几何信息。 */
   primaryGeometry: Record<string, unknown> | null;
-  /** 搜索文本。 */
-  searchText: string;
 }
 
 /** Meta 索引快照。 */
@@ -165,7 +163,6 @@ function parseSymbolLite(raw: unknown): SymbolLite {
     metaPath: requireString(raw, "metaPath"),
     imagePath: requireString(raw, "imagePath"),
     primaryGeometry: primaryGeometryRaw as Record<string, unknown> | null,
-    searchText: requireString(raw, "searchText"),
   };
 }
 

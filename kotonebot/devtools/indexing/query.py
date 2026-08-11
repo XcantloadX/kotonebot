@@ -16,5 +16,4 @@ def symbol_to_lite(symbol: IndexedSymbol) -> dict:
         "metaPath": symbol.meta_path,
         "imagePath": symbol.image_path,
         "primaryGeometry": symbol.primary_geometry,
-        "searchText": " ".join(symbol.search_tokens),
     }

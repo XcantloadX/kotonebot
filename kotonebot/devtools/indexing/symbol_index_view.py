@@ -30,7 +30,6 @@ class SymbolLiteModel(BaseModel):
     metaPath: str
     imagePath: str
     primaryGeometry: dict[str, Any] | None
-    searchText: str
 
 
 class SymbolSnapshotStatsModel(BaseModel):

@@ -16,7 +16,6 @@ export interface SymbolLite {
   metaPath: string;
   imagePath: string;
   primaryGeometry?: PrimaryGeometry | null;
-  searchText: string;
 }
 
 export interface SymbolSnapshotLite {

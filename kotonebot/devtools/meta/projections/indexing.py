@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
@@ -21,8 +19,6 @@ from ..scanner import DocRef
 from ..validator import validate_meta_corpus
 
 
-_TOKEN_SPLIT_RE = re.compile(r"[\s._\-]+")
-_CAMEL_CASE_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _GEOMETRY_KINDS = ("image", "rect", "point")
 
 
@@ -30,16 +26,6 @@ class IndexingProjection(BaseModel):
     files: dict[str, IndexedFile]
     symbols: dict[str, IndexedSymbol]
     diagnostics: dict[str, list[Diagnostic]]
-
-
-def _split_tokens(text: str) -> list[str]:
-    raw = _CAMEL_CASE_RE.sub(" ", text)
-    tokens = []
-    for part in _TOKEN_SPLIT_RE.split(raw):
-        part = part.strip().lower()
-        if part:
-            tokens.append(part)
-    return tokens
 
 
 def _validate_geometry(prop_key: str, value: Any) -> dict[str, Any] | None:
@@ -138,26 +124,6 @@ def _project_symbols_for_doc(
                 prefab_schema=prefab_schema,
             )
 
-            search_tokens: list[str] = []
-            for source in (
-                display_name,
-                name,
-                definition_id,
-                prefab_id,
-                Path(doc.meta_path).name,
-                Path(doc.image_path).name,
-            ):
-                if source is None:
-                    continue
-                search_tokens.extend(_split_tokens(source))
-
-            seen: set[str] = set()
-            dedup_tokens: list[str] = []
-            for token in search_tokens:
-                if token not in seen:
-                    seen.add(token)
-                    dedup_tokens.append(token)
-
             symbol_key = f"{doc.meta_path}::{definition_id}"
             symbols.append(
                 IndexedSymbol(
@@ -173,7 +139,6 @@ def _project_symbols_for_doc(
                     image_path=doc.image_path,
                     primary_prop_key=primary_prop_key,
                     primary_geometry=primary_geometry,
-                    search_tokens=dedup_tokens,
                 )
             )
         except (ValueError, ValidationError) as exc:

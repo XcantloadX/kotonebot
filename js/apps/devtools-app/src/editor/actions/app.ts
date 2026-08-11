@@ -40,13 +40,52 @@ type CommandPaletteValue =
   | CommandPaletteSymbolValue
   | CommandPaletteDocumentValue;
 
-/** 将输入文本切分为可用于匹配的 token。 */
-function splitQueryTokens(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[\s._\-]+/g)
-    .map((token) => token.trim())
+/** 统一分词：先拆驼峰，再拆分隔符并转小写（与检索文本的分词规则保持一致）。 */
+function splitTokens(text: string): string[] {
+  const raw = text.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  return raw
+    .split(/[\s._\-]+/)
+    .map((token) => token.trim().toLowerCase())
     .filter((token) => token.length > 0);
+}
+
+/** 由符号字段构建可检索文本。 */
+function buildSymbolSearchText(symbol: SymbolLite): string {
+  const sources: Array<string | null> = [
+    symbol.displayName,
+    symbol.name,
+    symbol.definitionId,
+    symbol.prefabId,
+    symbol.metaPath.split("/").pop() ?? null,
+    symbol.imagePath.split("/").pop() ?? null,
+  ];
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+  for (const source of sources) {
+    if (source === null) {
+      continue;
+    }
+    for (const token of splitTokens(source)) {
+      if (!seen.has(token)) {
+        seen.add(token);
+        tokens.push(token);
+      }
+    }
+  }
+  return tokens.join(" ");
+}
+
+/** 符号可检索文本缓存，避免逐键重复分词。 */
+const symbolSearchTextCache = new WeakMap<SymbolLite, string>();
+
+/** 读取符号可检索文本（带缓存）。 */
+function getSymbolSearchText(symbol: SymbolLite): string {
+  let text = symbolSearchTextCache.get(symbol);
+  if (text === undefined) {
+    text = buildSymbolSearchText(symbol);
+    symbolSearchTextCache.set(symbol, text);
+  }
+  return text;
 }
 
 /** 生成符号结果主标题。 */
@@ -63,7 +102,7 @@ function buildResultTitle(symbol: SymbolLite): string {
 function rankSymbol(symbol: SymbolLite, query: string, tokens: string[], activeDocumentId: string | null, recentOrder: Map<string, number>): number {
   const label = buildResultTitle(symbol).toLowerCase();
   const full = query.toLowerCase();
-  const haystack = symbol.searchText.toLowerCase();
+  const haystack = getSymbolSearchText(symbol);
 
   let score = 0;
   if (label === full || symbol.definitionId.toLowerCase() === full) {
@@ -153,7 +192,7 @@ export async function openCommandPalette(): Promise<void> {
       // ">" 前缀：命令搜索。
       if (query.startsWith(">")) {
         const raw = query.slice(1);
-        const queryTokens = splitQueryTokens(raw);
+        const queryTokens = splitTokens(raw);
         return getPaletteCommands(commandContext)
           .map((command) => ({
             command,
@@ -180,7 +219,7 @@ export async function openCommandPalette(): Promise<void> {
         if (raw.length === 0) {
           return [];
         }
-        const queryTokens = splitQueryTokens(raw);
+        const queryTokens = splitTokens(raw);
         const recentOrder = new Map<string, number>();
         for (let i = 0; i < recentSymbolKeys.length; i += 1) {
           recentOrder.set(recentSymbolKeys[i], i);
@@ -201,14 +240,13 @@ export async function openCommandPalette(): Promise<void> {
               label: buildResultTitle(symbol),
               description: subtitle,
               detail: symbol.metaPath,
-              searchText: symbol.searchText,
               value: { kind: "symbol", symbol } as const,
             };
           });
       }
 
       // 无前缀：workspace 文档搜索。
-      const queryTokens = splitQueryTokens(query);
+      const queryTokens = splitTokens(query);
       const imagePaths = await listWorkspaceImages();
       return imagePaths
         .map((imagePath) => ({

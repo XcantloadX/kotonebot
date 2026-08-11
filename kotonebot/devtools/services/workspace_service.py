@@ -237,7 +237,6 @@ class WorkspaceService:
             metaPath=to_rel(symbol.metaPath, root),
             imagePath=to_rel(symbol.imagePath, root),
             primaryGeometry=symbol.primaryGeometry,
-            searchText=symbol.searchText,
         )
 
     @staticmethod
