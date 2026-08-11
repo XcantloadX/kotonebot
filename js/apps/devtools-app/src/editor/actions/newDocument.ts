@@ -1,5 +1,5 @@
-import { openImageWithMeta } from "./image";
+import { openStrict } from "./image";
 
 export async function openNewDocumentFromPath(imagePath: string): Promise<void> {
-  await openImageWithMeta(imagePath, { source: "other" });
+  await openStrict(imagePath, { source: "other" });
 }

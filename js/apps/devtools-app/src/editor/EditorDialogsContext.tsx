@@ -203,7 +203,7 @@ export const EditorDialogsProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const handleSelectImages = useCallback(async (paths: string[]) => {
-    await editorActions.image.openWithChecks(paths);
+    await editorActions.image.open(paths);
     setImageDialogOpen(false);
   }, []);
 

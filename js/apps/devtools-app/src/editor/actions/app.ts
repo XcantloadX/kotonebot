@@ -8,8 +8,7 @@ import { getGlobalCommandContext } from "../EditorDialogsContext";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import i18n from "../../i18n";
 import { listWorkspaceImages } from "../../api/fs";
-import { openImageWithMeta } from "./image";
-
+import { open } from "./image";
 /** 命令面板中“命令项”返回值。 */
 interface CommandPaletteCommandValue {
   /** 结果类型标识。 */
@@ -283,7 +282,8 @@ export async function openCommandPalette(): Promise<void> {
     return;
   }
   if (selected.kind === "document") {
-    await openImageWithMeta(selected.imagePath);
+    // 与「文件 → 打开」对话框一致：使用带 meta 检查的批量打开逻辑。
+    await open([selected.imagePath]);
     return;
   }
   if (selected.kind === "symbol") {

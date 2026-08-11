@@ -145,7 +145,7 @@ export const TopMenuBar: React.FC = () => {
                   style={{ maxWidth: "none" }}
                   onClick={() => {
                     setOpenMenu(null);
-                    void editorActions.image.openWithMeta(item.imagePath, { allowHostDelegate: true, source: "other" });
+                    void editorActions.image.open([item.imagePath], { allowHostDelegate: true, source: "other" });
                   }}
                 />
               ))}

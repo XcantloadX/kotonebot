@@ -17,7 +17,7 @@ export const WelcomePanel: React.FC = () => {
   });
 
   const handleOpenRecent = async (imagePath: string) => {
-    await editorActions.image.openWithMeta(imagePath, { allowHostDelegate: true, source: "other" });
+    await editorActions.image.open([imagePath], { allowHostDelegate: true, source: "other" });
   };
 
   return (

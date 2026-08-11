@@ -11,7 +11,7 @@ import { toaster } from "../../ui/toaster";
 import { useSymbolIndexStore } from "../symbolIndexStore";
 import { useAppStore } from "../state";
 import { getActiveDocumentId } from "../commands/selectors";
-import { openImageWithMeta } from "./image";
+import { openStrict } from "./image";
 import { useProjectInfoStore } from "../../app/projectInfoStore";
 import { useSettingsStore } from "../settings";
 import i18n from "../../i18n";
@@ -86,7 +86,7 @@ export async function selectVariantImageForActiveDocument(
     });
   }
   await useSymbolIndexStore.getState().patchMetaPath(`${targetImagePath}.json`);
-  await openImageWithMeta(targetImagePath);
+  await openStrict(targetImagePath);
   toaster.show({ message: i18n.t('variant.variantDocumentCreated', { variant }), intent: "success" });
 }
 
@@ -356,7 +356,7 @@ export async function copySelectedPrefabToVariantForActiveDocument(
   });
 
   await useSymbolIndexStore.getState().patchMetaPath(result.targetMetaPath);
-  await openImageWithMeta(result.targetImagePath);
+  await openStrict(result.targetImagePath);
   toaster.show({
     message: i18n.t('variant.copiedPrefab', { name: result.definitionName, variant: targetVariant }),
     intent: "success",

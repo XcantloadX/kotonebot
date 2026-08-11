@@ -14,7 +14,7 @@ import {
   selectDefinition,
 } from "./definition";
 import { openNewDocumentFromPath } from "./newDocument";
-import { openImageWithMeta, openImagesWithChecks, replaceActiveDocumentImage } from "./image";
+import { open, openStrict, replaceActiveDocumentImage } from "./image";
 import { jumpToDiagnostic, jumpToSymbol } from "./navigation";
 import { promptAndRenameActiveDocument } from "./rename";
 import { saveActiveDocumentWithToast, saveAllDocumentsWithToast } from "./save";
@@ -34,10 +34,10 @@ const newDocumentActions = {
 };
 
 const imageActions = {
-  /** 打开单个图片并加载其元数据。 */
-  openWithMeta: openImageWithMeta,
-  /** 批量打开图片并执行必要检查。 */
-  openWithChecks: openImagesWithChecks,
+  /** 高级：用户触发打开（文件对话框/命令面板/最近打开），批量 + 容错恢复 meta。 */
+  open,
+  /** 低级：程序化打开单个已知文档，严格校验 meta。 */
+  openStrict,
   /** 替换当前文档的图片文件。 */
   replaceActive: replaceActiveDocumentImage,
 };

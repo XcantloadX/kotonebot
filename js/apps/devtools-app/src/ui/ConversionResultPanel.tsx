@@ -216,7 +216,7 @@ export const ConversionResultPanel: React.FC<{ tab: ITab }> = ({ tab }) => {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        void editorActions.image.openWithMeta(item.match.matchedImagePath);
+                        void editorActions.image.open([item.match.matchedImagePath]);
                       }}
                       style={{ color: "#137cbd", textDecoration: "none" }}
                     >

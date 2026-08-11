@@ -2,7 +2,7 @@ import { messageBox } from "../../ui/messageBox";
 import { useAppStore } from "../state";
 import { getActiveDocumentId } from "../commands/selectors";
 import { useSymbolIndexStore } from "../symbolIndexStore";
-import { openImageWithMeta } from "./image";
+import { openStrict } from "./image";
 import i18n from "../../i18n";
 
 interface VariantSymbolRef {
@@ -25,7 +25,7 @@ async function applyVariantRenames(variantSymbols: VariantSymbolRef[], newName: 
   for (const [imagePath, definitionIds] of updatesByImagePath.entries()) {
     const currentDoc = useAppStore.getState().documents[imagePath];
     if (!currentDoc) {
-      await openImageWithMeta(imagePath);
+      await openStrict(imagePath);
     }
     const targetDoc = useAppStore.getState().documents[imagePath];
     if (!targetDoc || !targetDoc.meta) {
