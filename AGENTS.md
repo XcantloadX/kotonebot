@@ -174,5 +174,16 @@ function func(param1: string, param2: number): boolean { ... }
 | **deps** | 依赖升级 |
 | **ci** | `.github/workflows/`、构建配置 |
 
+## Changelog 规范
+
+`CHANGELOG.md` 是写给**下游使用用户**看的，记录用户在升级后可直接察觉的行为变化。
+
+- **面向用户**：只记录用户可察觉的变化（功能、行为、配置格式、破坏性变更）。**禁止**写入内部实现细节，例如内部 API 更名、代码结构重构、内部模块调整等。
+- **条目格式**：`[类型] 描述`，类型为 `feat`（新功能）、`fix`（修复）、`refactor`（用户可见行为变化的重构）、`chore` 等，描述使用中文。
+- **分组**：按模块分组，依次为 `Devtool:` / `Devtools:`、`Library:`、`Framework:` 等，组内条目编号。
+- **破坏性变更**：在条目内标注 `**BREAKING**`，必要时另起段落说明迁移方式。
+- **版本号**：已有未发布版本条目时追加到该版本；新版本条目加在文件顶部。
+- **提交**：changelog 更新与对应代码改动在同一个 commit 中提交。
+
 ## 专用 Style
 - 对于 OpenCV Image，Python 类型标注为 cv2.typing.MatLike 而不是 np.ndarray
