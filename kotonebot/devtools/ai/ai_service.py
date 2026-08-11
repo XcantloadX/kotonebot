@@ -1,10 +1,13 @@
 import base64
 import json
 import logging
+import os
 from typing import Any
 
 import cv2
-import litellm
+# 必须在导入 litellm 之前禁用其启动时的远程 model cost map 拉取，
+# 否则冷启动会发起网络请求（失败后回退本地备份），显著拖慢启动并造成抖动
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "true")
 import numpy as np
 
 from kotonebot.devtools.errors import DevtoolsError
@@ -137,6 +140,7 @@ def suggest_document_path(
     if endpoint:
         litellm_params["api_base"] = endpoint
 
+    import litellm
     try:
         response = litellm.completion(**litellm_params)
         content = response.choices[0].message.content
@@ -339,6 +343,8 @@ def infer_definitions(
     if endpoint:
         litellm_params["api_base"] = endpoint
 
+    # 懒加载 litellm：重依赖，仅在实际调用 AI 时导入（参见模块顶部注释）
+    import litellm
     try:
         response = litellm.completion(**litellm_params)
         content = response.choices[0].message.content
