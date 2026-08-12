@@ -3,7 +3,7 @@ import unittest
 import cv2
 import numpy as np
 
-from kotonebot.backend.image import template_match, find_all_crop
+from kotonebot.backend.image import template_match
 from kotonebot.primitives import Rect
 
 def save(image, name: str):
@@ -58,18 +58,6 @@ class TestTemplateMatch(unittest.TestCase):
         self.__assert_pos(result[0], 167, 829)
         self.__assert_pos(result[1], 306, 829)
         self.__assert_pos(result[2], 444, 829)
-
-    def test_crop(self):
-        result = find_all_crop(
-            self.image,
-            self.template,
-            self.mask,
-            threshold=0.999,
-        )
-        for i, r in enumerate(result):
-            cv2.imwrite(f'./tests/output_images/TestTemplateMatch.crop_{i}.png', r.image)
-
-        self.assertEqual(len(result), 3)
 
     def test_rect_parameter(self):
         """测试 rect 参数是否将匹配限制在指定区域内"""

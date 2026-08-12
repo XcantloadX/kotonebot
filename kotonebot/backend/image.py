@@ -74,16 +74,6 @@ class MultipleTemplateMatchResult(NamedTuple):
             index=index
         )
 
-class CropResult(NamedTuple):
-    score: float
-    position: KbPoint
-    size: KbSize
-    image: MatLike
-
-    @property
-    def rect(self) -> KbRect:
-        return KbRect(self.position[0], self.position[1], self.size[0], self.size[1])
-
 def _draw_result(image: MatLike, matches: Sequence[ResultProtocol] | ResultProtocol | None) -> MatLike:
     """在图像上绘制匹配结果的矩形框。"""
     if matches is None:
@@ -353,54 +343,6 @@ def hist_match(
     # 计算平均相似度
     avg_score = total_score / 3
     return avg_score >= threshold
-
-def find_all_crop(
-    image: ImageLike,
-    template: ImageLike,
-    mask: ImageLike | None = None,
-    transparent: bool = False,
-    threshold: float = 0.8,
-    *,
-    rect: KbRect | None = None,
-    colored: bool = False,
-    remove_duplicate: bool = True,
-    preprocessors: list[PreprocessorProtocol] | None = None,
-) -> list[CropResult]:
-    """
-    指定一个模板，在输入图像中寻找其出现的所有位置，并裁剪出结果。
-
-    :param image: 图像，可以是图像路径或 cv2.Mat。
-    :param template: 模板图像，可以是图像路径或 cv2.Mat。
-    :param mask: 掩码图像，可以是图像路径或 cv2.Mat。
-    :param transparent: 若为 True，则认为输入模板是透明的，并自动将透明模板转换为 Mask 图像。
-    :param threshold: 阈值，默认为 0.8。
-    :param rect: 如果指定，则只在指定矩形区域内进行匹配。
-    :param colored: 是否匹配颜色，默认为 False。
-    :param remove_duplicate: 是否移除重复结果，默认为 True。
-    :param preprocessors: 预处理列表，默认为 None。
-    """
-    matches = template_match(
-        template,
-        image,
-        mask,
-        rect=rect,
-        transparent=transparent,
-        threshold=threshold,
-        max_results=-1,
-        remove_duplicate=remove_duplicate,
-        colored=colored,
-        preprocessors=preprocessors,
-    )
-    # logger.debug(
-    #     f'find_all_crop(): template: {_img2str(template)} image: {_img2str(image)} mask: {_img2str(mask)} '
-    #     f'matches: {_results2str(matches)}'
-    # )
-    return [CropResult(
-        match.score,
-        match.position,
-        match.size,
-        image[match.rect.y1:match.rect.y1+match.rect.h, match.rect.x1:match.rect.x1+match.rect.w]
-    ) for match in matches]
 
 def find(
     image: MatLike,

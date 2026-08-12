@@ -28,7 +28,6 @@ from kotonebot.util import Interval
 import kotonebot.backend.image as raw_image
 from kotonebot.backend.image import (
     TemplateMatchResult,
-    find_all_crop,
     expect,
     find as image_find,
     find_multi as image_find_multi,
@@ -616,10 +615,6 @@ class ContextImage:
     @context(image_find_all_multi)
     def find_all_multi(self, *args, **kwargs):
         return image_find_all_multi(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
-
-    @context(find_all_crop)
-    def find_all_crop(self, *args, **kwargs):
-        return find_all_crop(ContextStackVars.ensure_current().screenshot, *args, **kwargs)
 
     @context(image_count)
     def count(self, *args, **kwargs):
