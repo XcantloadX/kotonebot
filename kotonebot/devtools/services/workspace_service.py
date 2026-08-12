@@ -72,17 +72,11 @@ class WorkspaceService:
             raise ValidationError("Missing [tool.kotonebot.editor.resource_path] in pyproject.toml")
         self.project_root = Path(project.conf.editor.resource_path).resolve()
 
-        try:
-            prefab_schema_for_index = self.get_prefabs_schema().prefabs
-        except Exception:
-            logging.exception("Failed to preload prefab schema for index store")
-            prefab_schema_for_index = {}
-
         self.resource_index_store = ResourceIndexStore(resource_root=self.project_root)
         self.symbol_index_view = SymbolIndexView(
             resource_root=self.project_root,
             resource_index_store=self.resource_index_store,
-            prefab_schema=prefab_schema_for_index,
+            prefab_schema_provider=self._load_prefab_schema_for_index,
             resource_variants=project.conf.variant.variants if project.conf.variant and project.conf.variant.variants is not None else None,
             base_variant=project.conf.variant.base if project.conf.variant is not None else None,
             variant_configured=project.conf.variant is not None,
@@ -187,6 +181,18 @@ class WorkspaceService:
         raw.setdefault("prefabs", {})
         self._prefabs_cache = PrefabsSchema(**raw)
         return self._prefabs_cache
+
+    def _load_prefab_schema_for_index(self) -> dict:
+        """懒加载 prefab schema 供索引构建使用。
+
+        prefab 扫描（子进程）耗时约 1.7s，不应在 devtools 冷启动时执行；
+        延迟到首次构建索引时才触发。扫描失败时回退为空 schema 并记录日志。
+        """
+        try:
+            return self.get_prefabs_schema().prefabs
+        except Exception:
+            logging.exception("Failed to load prefab schema for index store")
+            return {}
 
     def get_meta_index(self) -> SymbolSnapshotLiteModel:
         """获取元数据索引快照。

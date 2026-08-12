@@ -9,7 +9,6 @@ from kotonebot.devtools.transports.http.app import (
     start_http_background,
     stop_http_background,
 )
-from kotonebot.devtools.transports.lsp.server import run_lsp
 
 
 def main():
@@ -64,6 +63,9 @@ def main():
     if args.command == "devtools":
         start_http(ctx, host=args.host, port=args.port, open_browser=not args.no_browser)
     elif args.command == "devtools-host":
+        # LSP 栈（pygls/lsprotocol）仅在 devtools-host 模式下需要，
+        # 放在分支内懒加载，避免拖慢纯 HTTP 的 devtools 冷启动
+        from kotonebot.devtools.transports.lsp.server import run_lsp
         handle = start_http_background(ctx, host=args.host, port=args.port)
         try:
             run_lsp(ctx)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from pydantic import BaseModel
 
@@ -130,15 +130,19 @@ class SymbolIndexView:
         *,
         resource_root: Path,
         resource_index_store: ResourceIndexStore | None = None,
-        prefab_schema: dict[str, Any] | None = None,
+        prefab_schema_provider: Callable[[], dict[str, Any]] | None = None,
         resource_variants: list[str] | None = None,
         base_variant: str | None = None,
         variant_configured: bool = False,
     ):
-        """初始化符号索引视图。"""
+        """初始化符号索引视图。
+
+        :param prefab_schema_provider: 懒加载 prefab schema 的工厂，
+            首次构建索引时才调用，避免 devtools 冷启动时执行 scan_prefabs 子进程
+        """
         self._resource_root = resource_root.resolve()
         self._resource_index_store = resource_index_store or ResourceIndexStore(resource_root=self._resource_root)
-        self._prefab_schema = prefab_schema or {}
+        self._prefab_schema_provider = prefab_schema_provider or (lambda: {})
         self._resource_variants = resource_variants
         self._base_variant = base_variant
         self._variant_configured = variant_configured
@@ -173,7 +177,7 @@ class SymbolIndexView:
         refs = self._resource_index_store.snapshot.doc_refs
         projection = build_indexing_projection(
             doc_refs=refs,
-            prefab_schema=self._prefab_schema,
+            prefab_schema=self._prefab_schema_provider(),
             resource_variants=self._resource_variants,
             base_variant=self._base_variant,
             variant_configured=self._variant_configured,
@@ -203,7 +207,7 @@ class SymbolIndexView:
         refs = self._resource_index_store.snapshot.doc_refs
         projection = build_indexing_projection(
             doc_refs=refs,
-            prefab_schema=self._prefab_schema,
+            prefab_schema=self._prefab_schema_provider(),
             resource_variants=self._resource_variants,
             base_variant=self._base_variant,
             variant_configured=self._variant_configured,
