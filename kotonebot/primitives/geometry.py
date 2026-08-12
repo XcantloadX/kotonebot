@@ -742,6 +742,35 @@ class Rect:
     def __str__(self) -> str:
         return f'(x={self.x1}, y={self.y1}, w={self.w}, h={self.h})'
 
+    def __getitem__(self, item: int) -> int:
+        """按 OpenCV 的 `(x, y, w, h)` 顺序通过索引访问矩形参数。"""
+        if item == 0:
+            return self.x1
+        elif item == 1:
+            return self.y1
+        elif item == 2:
+            return self.w
+        elif item == 3:
+            return self.h
+        else:
+            raise IndexError
+
+    def __iter__(self):
+        yield self.x1
+        yield self.y1
+        yield self.w
+        yield self.h
+
+    def __eq__(self, value: object) -> bool:
+        """比较两个矩形是否相等（仅比较几何参数，忽略名称）。"""
+        if isinstance(value, Rect):
+            return (self.x1, self.y1, self.w, self.h) == (value.x1, value.y1, value.w, value.h)
+        return False
+
+    def __hash__(self) -> int:
+        """基于几何参数的哈希，与 `__eq__` 保持一致。"""
+        return hash((self.x1, self.y1, self.w, self.h))
+
     def copy(self) -> 'Rect':
         """
         返回一个与当前对象完全相同的**新** `Rect` 对象。

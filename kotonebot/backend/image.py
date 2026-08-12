@@ -399,7 +399,7 @@ def find_all_crop(
         match.score,
         match.position,
         match.size,
-        image[match.rect[1]:match.rect[1]+match.rect[3], match.rect[0]:match.rect[0]+match.rect[2]] # type: ignore
+        image[match.rect.y1:match.rect.y1+match.rect.h, match.rect.x1:match.rect.x1+match.rect.w]
     ) for match in matches]
 
 def find(

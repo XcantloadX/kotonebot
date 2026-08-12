@@ -9,6 +9,10 @@ Devtool:
 3. [feat] 优化 Devtool 命令启动速度。
 4. [fix] 修复 AI 推断对象 Name/DisplayName/Fixed 属性无法写入的问题。
 
+Library:
+1. [feat] `Rect` 新增值语义：支持 `==` 比较、按 `(x, y, w, h)` 索引访问、迭代与哈希。
+2. [fix] 修复 `find_all_crop` 因 `Rect` 不支持下标访问而抛出 `TypeError` 的问题。
+
 ## v0.19.1
 Library：
 1. [feat] 模板匹配越界校验从抛出异常降级为仅错误日志输出。
