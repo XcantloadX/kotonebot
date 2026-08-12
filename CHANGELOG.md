@@ -13,6 +13,7 @@ Library:
 1. [feat] `Rect` 新增值语义：支持 `==` 比较、按 `(x, y, w, h)` 索引访问、迭代与哈希。
 2. [fix] 修复 `find_all_crop` 因 `Rect` 不支持下标访问而抛出 `TypeError` 的问题。
 3. [feat] **BREAKING** 移除 `image.find_all_crop` 与 `CropResult` 类型。需要裁剪匹配区域时，请使用 `image.find_all` 获取匹配结果后自行按 `result.rect` 切片裁剪。
+4. [feat] **BREAKING** 移除 `Loop.when`、`Loop.until`、`Loop.click_if` 方法与 `LoopAction` 类。请改用普通的 `if` / `while` 条件判断结合 `image.find` / `device.click` 实现等价逻辑。
 
 ## v0.19.1
 Library：

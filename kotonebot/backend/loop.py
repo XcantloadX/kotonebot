@@ -1,71 +1,11 @@
 ﻿import time
-from functools import partial
-from typing import Callable, Any, overload, Generic, TypeVar, cast, get_args
-from typing_extensions import deprecated
+from typing import Any, Generic, TypeVar, cast, get_args
 
 from cv2.typing import MatLike
 
 from kotonebot.config.config import conf
-from kotonebot import device, image, ocr
-from kotonebot.backend.core import Image
-from kotonebot.backend.ocr import TextComparator
-from kotonebot.client.protocol import ClickableObjectProtocol
+from kotonebot import device
 from .context import vars
-
-@deprecated('No longer used.')
-class LoopAction:
-    def __init__(self, loop: 'Loop', func: Callable[[], ClickableObjectProtocol | None]):
-        self.loop = loop
-        self.func = func
-        self.result: ClickableObjectProtocol | None = None
-
-    @property
-    def found(self):
-        """
-        是否找到结果。若父 Loop 未在运行中，则返回 False。
-        """
-        if not self.loop.running:
-            return False
-        return bool(self.result)
-
-    def __bool__(self):
-        return self.found
-
-    def reset(self):
-        """
-        重置 LoopAction，以复用此对象。
-        """
-        self.result = None
-
-    def do(self):
-        """
-        执行 LoopAction。
-        :return: 执行结果。
-        """
-        if not self.loop.running:
-            return
-        if self.loop.found_anything:
-            # 本轮循环已执行任意操作，因此不需要再继续检测
-            return
-        self.result = self.func()
-        if self.result:
-            self.loop.found_anything = True
-
-    def click(self, *, at: tuple[int, int] | None = None):
-        """
-        点击寻找结果。若结果为空，会跳过执行。
-
-        :return:
-        """
-        if self.result:
-            if at is not None:
-                device.click(*at)
-            else:
-                device.click(self.result)
-
-    def call(self, func: Callable[[ClickableObjectProtocol], Any]):
-        pass
-
 
 class Loop:
     def __init__(
@@ -131,56 +71,6 @@ class Loop:
         结束循环。
         """
         self.running = False
-
-    @overload
-    @deprecated('Use plain if statement instead.')
-    def when(self, condition: Image) -> LoopAction:
-        ...
-
-    @overload
-    @deprecated('Use plain if statement instead.')
-    def when(self, condition: TextComparator) -> LoopAction:
-        ...
-
-    @deprecated('Use plain if statement instead.')
-    def when(self, condition: Any):
-        """
-        判断某个条件是否成立。
-
-        :param condition:
-        :return:
-        """
-        if isinstance(condition, Image):
-            func = partial(image.find, condition)
-        elif isinstance(condition, TextComparator):
-            func = partial(ocr.find, condition)
-        else:
-            raise ValueError('Invalid condition type.')
-        la = LoopAction(self, func)
-        la.reset()
-        la.do()
-        return la
-
-    @deprecated('Use plain if statement instead.')
-    def until(self, condition: Any):
-        """
-        当满足指定条件时，结束循环。
-
-        等价于 ``loop.when(...).call(lambda _: loop.exit())``
-        """
-        return self.when(condition).call(lambda _: self.exit())
-
-    @deprecated('Use image.find() and device.click() instead.')
-    def click_if(self, condition: Any, *, at: tuple[int, int] | None = None):
-        """
-        检测指定对象是否出现，若出现，点击该对象或指定位置。
-
-        ``click_if()`` 等价于 ``loop.when(...).click(...)``。
-
-        :param condition: 检测目标。
-        :param at: 点击位置。若为 None，表示点击找到的目标。
-        """
-        return self.when(condition).click(at=at)
 
 StateType = TypeVar('StateType')
 class StatedLoop(Loop, Generic[StateType]):
