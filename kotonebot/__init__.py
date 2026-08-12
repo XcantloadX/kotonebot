@@ -32,6 +32,5 @@ from .backend.ocr import (
     contains,
     equals,
 )
-from .backend.bot import KotoneBot
 from .backend.loop import Loop
 from .ui import user

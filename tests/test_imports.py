@@ -79,7 +79,6 @@ class TestImportAll(unittest.TestCase):
         }), patch('kotonebot.util.is_windows', return_value=True):
             import kotonebot
             import kotonebot.backend
-            import kotonebot.backend.bot
             import kotonebot.backend.color
             import kotonebot.backend.context
             import kotonebot.backend.core
