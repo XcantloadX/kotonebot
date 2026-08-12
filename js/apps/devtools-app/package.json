@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gen:api": "openapi-typescript src/api/openapi.json -o src/api/schema.d.ts",
+    "gen:api:spec": "uv run python ../../../tools/gen_openapi.py",
+    "gen:api:full": "npm run gen:api:spec && npm run gen:api"
   },
   "dependencies": {
     "@blueprintjs/core": "^5.0.0",
@@ -16,6 +19,7 @@
     "i18next-browser-languagedetector": "^8.2.1",
     "immer": "^10.0.0",
     "konva": "^9.0.0",
+    "openapi-fetch": "^0.17.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-i18next": "^17.0.1",
@@ -29,6 +33,7 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.0.0",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.0.0",
     "vite": "^5.0.0"
   }

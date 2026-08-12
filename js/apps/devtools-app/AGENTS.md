@@ -36,6 +36,17 @@ function func(param1: string, param2: number): boolean { ... }
 - 使用 `//`，中文
 - **只写「为什么」不写「做了什么」**
 
+### API 请求层（代码生成）
+
+- 后端 FastAPI 的 OpenAPI 规范导出为 `src/api/openapi.json`，再由 `openapi-typescript` 生成 `src/api/schema.d.ts`（`paths`/`components` 类型）。**禁止手写请求/响应类型**，一律从 `schema.d.ts` 引用（`components["schemas"]["X"]`）。
+- 后端路由签名或响应模型变更后，重新生成：`npm run gen:api:full`（等价于 `npm run gen:api:spec && npm run gen:api`）。
+- 客户端统一走 `src/api/client.ts`：
+  - `client`：`createClient<paths>()` 类型化客户端，JSON 请求直接 `client.GET/POST/...`。
+  - `unwrap(req)`：解包 `ResponseModel` 信封并返回 `data`，失败时抛错。
+  - `postForm(url, formData)`：multipart/form-data 上传（openapi-fetch 对二进制字段类型支持不佳，单独封装）。
+- **禁止在组件/action 中直接调用 `client`、`unwrap`、`postForm` 或拼接 API URL**；所有请求封装为 `src/api/*` 模块中的具名函数，组件只 import 函数。
+- 若客户端视图模型（如 `model/symbolIndex.ts` 的富类型）比线格式更窄，允许在 api 模块边界做受控的 `as` 断言并加中文注释说明原因。
+
 ---
 
 ### 快捷键系统

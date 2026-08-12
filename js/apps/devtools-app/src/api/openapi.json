@@ -1,0 +1,5061 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "KotoneBot DevTools",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/fs/list_dir": {
+      "get": {
+        "tags": [
+          "filesystem"
+        ],
+        "summary": "List Dir",
+        "operationId": "list_dir_api_fs_list_dir_get",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_ListDirResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fs/read_text": {
+      "get": {
+        "tags": [
+          "filesystem"
+        ],
+        "summary": "Read Text",
+        "operationId": "read_text_api_fs_read_text_get",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_ReadTextResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fs/write_text": {
+      "put": {
+        "tags": [
+          "filesystem"
+        ],
+        "summary": "Write Text",
+        "operationId": "write_text_api_fs_write_text_put",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteTextRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fs/rename": {
+      "post": {
+        "tags": [
+          "filesystem"
+        ],
+        "summary": "Rename Path",
+        "operationId": "rename_path_api_fs_rename_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenamePathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_RenameResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fs/copy_file": {
+      "post": {
+        "tags": [
+          "filesystem"
+        ],
+        "summary": "Copy File",
+        "operationId": "copy_file_api_fs_copy_file_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_CopyResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fs/upload_file": {
+      "post": {
+        "tags": [
+          "filesystem"
+        ],
+        "summary": "Upload File",
+        "operationId": "upload_file_api_fs_upload_file_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_api_fs_upload_file_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_UploadResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fs/reveal_in_explorer": {
+      "post": {
+        "tags": [
+          "filesystem"
+        ],
+        "summary": "Reveal In Explorer",
+        "operationId": "reveal_in_explorer_api_fs_reveal_in_explorer_post",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fs/folder_tree": {
+      "get": {
+        "tags": [
+          "filesystem"
+        ],
+        "summary": "Get Folder Tree",
+        "operationId": "get_folder_tree_api_fs_folder_tree_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_list_FolderTreeNode__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project/root": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get Project Root",
+        "operationId": "get_project_root_api_project_root_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_ProjectRootData_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project/list_images": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List Workspace Images",
+        "operationId": "list_workspace_images_api_project_list_images_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_ListImagesResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project/symbol_tree": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get Project Symbol Tree",
+        "operationId": "get_project_symbol_tree_api_project_symbol_tree_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_list_Union_SymbolTreeGroupNode__SymbolTreeSymbolNode___"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/image": {
+      "get": {
+        "tags": [
+          "image"
+        ],
+        "summary": "Get Image",
+        "operationId": "get_image_api_image_get",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/image/thumbnail": {
+      "get": {
+        "tags": [
+          "image"
+        ],
+        "summary": "Get Image Thumbnail",
+        "operationId": "get_image_thumbnail_api_image_thumbnail_get",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2048,
+              "minimum": 1,
+              "default": 128,
+              "title": "Size"
+            }
+          },
+          {
+            "name": "x1",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X1"
+            }
+          },
+          {
+            "name": "y1",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Y1"
+            }
+          },
+          {
+            "name": "x2",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X2"
+            }
+          },
+          {
+            "name": "y2",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Y2"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/image/hover_preview": {
+      "get": {
+        "tags": [
+          "image"
+        ],
+        "summary": "Get Image Hover Preview",
+        "operationId": "get_image_hover_preview_api_image_hover_preview_get",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 4096,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Size"
+            }
+          },
+          {
+            "name": "x1",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X1"
+            }
+          },
+          {
+            "name": "y1",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Y1"
+            }
+          },
+          {
+            "name": "x2",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X2"
+            }
+          },
+          {
+            "name": "y2",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Y2"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/prefabs/schema": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Prefabs Schema",
+        "operationId": "get_prefabs_schema_api_prefabs_schema_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_PrefabsSchema_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta/index": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Meta Index",
+        "operationId": "get_meta_index_api_meta_index_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_SymbolSnapshotLiteModel_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta/index/update": {
+      "post": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Update Meta Index",
+        "operationId": "update_meta_index_api_meta_index_update_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIndexRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_SymbolUpdateResultModel_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta/diagnostics": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Meta Diagnostics",
+        "operationId": "get_meta_diagnostics_api_meta_diagnostics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_MetaDiagnosticsSnapshotModel_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta/index/health": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Meta Index Health",
+        "operationId": "get_meta_index_health_api_meta_index_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_SymbolIndexHealthModel_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta/variant/clone_to_image": {
+      "post": {
+        "tags": [
+          "variant"
+        ],
+        "summary": "Clone Variant To Image",
+        "operationId": "clone_variant_to_image_api_meta_variant_clone_to_image_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneVariantToImageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_VariantCloneResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta/variant/import/precheck_path": {
+      "post": {
+        "tags": [
+          "variant"
+        ],
+        "summary": "Precheck Variant Import Path",
+        "operationId": "precheck_variant_import_path_api_meta_variant_import_precheck_path_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_precheck_variant_import_path_api_meta_variant_import_precheck_path_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_VariantImportPrecheckResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta/variant/import_image": {
+      "post": {
+        "tags": [
+          "variant"
+        ],
+        "summary": "Import Variant Image",
+        "operationId": "import_variant_image_api_meta_variant_import_image_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_variant_image_api_meta_variant_import_image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_VariantImportResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta/variant/copy_selected_prefab/precheck": {
+      "post": {
+        "tags": [
+          "variant"
+        ],
+        "summary": "Precheck Copy Selected Prefab To Variant",
+        "operationId": "precheck_copy_selected_prefab_to_variant_api_meta_variant_copy_selected_prefab_precheck_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrecheckCopySelectedPrefabToVariantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_CopyPrefabPrecheckResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta/variant/copy_selected_prefab": {
+      "post": {
+        "tags": [
+          "variant"
+        ],
+        "summary": "Copy Selected Prefab To Variant",
+        "operationId": "copy_selected_prefab_to_variant_api_meta_variant_copy_selected_prefab_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopySelectedPrefabToVariantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_CopyPrefabResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fs/rename_document/precheck": {
+      "post": {
+        "tags": [
+          "document"
+        ],
+        "summary": "Precheck Rename Document",
+        "operationId": "precheck_rename_document_api_fs_rename_document_precheck_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrecheckRenameDocumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_RenameDocumentPrecheckResultModel_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fs/rename_document/execute": {
+      "post": {
+        "tags": [
+          "document"
+        ],
+        "summary": "Execute Rename Document",
+        "operationId": "execute_rename_document_api_fs_rename_document_execute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteRenameDocumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_RenameDocumentExecuteResultModel_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/document/create": {
+      "post": {
+        "tags": [
+          "document"
+        ],
+        "summary": "Create Document",
+        "operationId": "create_document_api_document_create_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_document_api_document_create_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_CreateDocumentResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ai/suggest_path": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Suggest Document Path",
+        "operationId": "suggest_document_path_api_ai_suggest_path_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_suggest_document_path_api_ai_suggest_path_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_SuggestPathResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ai/infer_definitions": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Infer Definitions",
+        "operationId": "infer_definitions_api_ai_infer_definitions_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_infer_definitions_api_ai_infer_definitions_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_InferDefinitionsResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/device/adb/list": {
+      "get": {
+        "tags": [
+          "device"
+        ],
+        "summary": "List Adb Devices",
+        "operationId": "list_adb_devices_api_device_adb_list_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_DeviceListResult_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/device/adb/screenshot": {
+      "get": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Capture Adb Screenshot",
+        "operationId": "capture_adb_screenshot_api_device_adb_screenshot_get",
+        "parameters": [
+          {
+            "name": "serial",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Serial"
+            }
+          },
+          {
+            "name": "displayId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Displayid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_CaptureScreenshotResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversion/execute": {
+      "post": {
+        "tags": [
+          "conversion"
+        ],
+        "summary": "Conversion Execute",
+        "operationId": "conversion_execute_api_conversion_execute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteConversionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_ConversionExecuteResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversion/scan": {
+      "post": {
+        "tags": [
+          "conversion"
+        ],
+        "summary": "Conversion Scan",
+        "operationId": "conversion_scan_api_conversion_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_ScanStartResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversion/scan_progress/{task_id}": {
+      "get": {
+        "tags": [
+          "conversion"
+        ],
+        "summary": "Conversion Scan Progress",
+        "operationId": "conversion_scan_progress_api_conversion_scan_progress__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_ScanProgress_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversion/scan/{task_id}": {
+      "delete": {
+        "tags": [
+          "conversion"
+        ],
+        "summary": "Conversion Cancel Scan",
+        "operationId": "conversion_cancel_scan_api_conversion_scan__task_id__delete",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/server/commands": {
+      "get": {
+        "tags": [
+          "commands"
+        ],
+        "summary": "Get Server Commands",
+        "operationId": "get_server_commands_api_server_commands_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_list_ServerCommandSpec__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/server/execute_command": {
+      "post": {
+        "tags": [
+          "commands"
+        ],
+        "summary": "Execute Server Command",
+        "operationId": "execute_server_command_api_server_execute_command_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_Union_MetaRefetchResult__SymbolUpdateResultModel__RenameDocumentPrecheckResultModel__RenameDocumentExecuteResultModel__RenameSymbolPrecheckResult__RenameSymbolExecuteResult__VariantCloneToImageResult__VariantImportImageResult__VariantCopySelectedPrefabPrecheckResult__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Check",
+        "operationId": "health_check_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModel_HealthResult_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{_path}": {
+      "get": {
+        "summary": "Spa Catchall",
+        "operationId": "spa_catchall___path__get",
+        "parameters": [
+          {
+            "name": "_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": " Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_create_document_api_document_create_post": {
+        "properties": {
+          "targetPath": {
+            "type": "string",
+            "title": "Targetpath"
+          },
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "title": "Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetPath",
+          "image"
+        ],
+        "title": "Body_create_document_api_document_create_post"
+      },
+      "Body_import_variant_image_api_meta_variant_import_image_post": {
+        "properties": {
+          "baseImagePath": {
+            "type": "string",
+            "title": "Baseimagepath"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "title": "Image"
+          },
+          "deleteExistingTarget": {
+            "type": "boolean",
+            "title": "Deleteexistingtarget",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "baseImagePath",
+          "variant",
+          "image"
+        ],
+        "title": "Body_import_variant_image_api_meta_variant_import_image_post"
+      },
+      "Body_infer_definitions_api_ai_infer_definitions_post": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "title": "Image"
+          },
+          "definitionsJson": {
+            "type": "string",
+            "title": "Definitionsjson"
+          },
+          "imagePath": {
+            "type": "string",
+            "title": "Imagepath"
+          },
+          "providerType": {
+            "type": "string",
+            "title": "Providertype"
+          },
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint",
+            "default": ""
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "default": ""
+          },
+          "apiKey": {
+            "type": "string",
+            "title": "Apikey",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "image",
+          "definitionsJson",
+          "imagePath",
+          "providerType"
+        ],
+        "title": "Body_infer_definitions_api_ai_infer_definitions_post"
+      },
+      "Body_precheck_variant_import_path_api_meta_variant_import_precheck_path_post": {
+        "properties": {
+          "sourceMetaPath": {
+            "type": "string",
+            "title": "Sourcemetapath"
+          },
+          "baseImagePath": {
+            "type": "string",
+            "title": "Baseimagepath"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "title": "Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourceMetaPath",
+          "baseImagePath",
+          "variant",
+          "image"
+        ],
+        "title": "Body_precheck_variant_import_path_api_meta_variant_import_precheck_path_post"
+      },
+      "Body_suggest_document_path_api_ai_suggest_path_post": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "title": "Image"
+          },
+          "providerType": {
+            "type": "string",
+            "title": "Providertype"
+          },
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint",
+            "default": ""
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "default": ""
+          },
+          "apiKey": {
+            "type": "string",
+            "title": "Apikey",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "image",
+          "providerType"
+        ],
+        "title": "Body_suggest_document_path_api_ai_suggest_path_post"
+      },
+      "Body_upload_file_api_fs_upload_file_post": {
+        "properties": {
+          "targetPath": {
+            "type": "string",
+            "title": "Targetpath"
+          },
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetPath",
+          "file"
+        ],
+        "title": "Body_upload_file_api_fs_upload_file_post"
+      },
+      "CaptureScreenshotResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "imagePath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagepath"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "CaptureScreenshotResponse",
+        "description": "设备截图响应。\n\n成功时填充 ``imagePath`` 与 ``imageUrl``，失败时仅填充 ``success=False`` 与 ``error``。"
+      },
+      "CloneVariantToImageRequest": {
+        "properties": {
+          "sourceMetaPath": {
+            "type": "string",
+            "title": "Sourcemetapath"
+          },
+          "targetImagePath": {
+            "type": "string",
+            "title": "Targetimagepath"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "forceOverwrite": {
+            "type": "boolean",
+            "title": "Forceoverwrite",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourceMetaPath",
+          "targetImagePath",
+          "variant"
+        ],
+        "title": "CloneVariantToImageRequest"
+      },
+      "ConfirmedMatch": {
+        "properties": {
+          "singleMetaPath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Singlemetapath"
+          },
+          "singleImagePath": {
+            "type": "string",
+            "title": "Singleimagepath"
+          },
+          "matchedImagePath": {
+            "type": "string",
+            "title": "Matchedimagepath"
+          },
+          "matchX": {
+            "type": "integer",
+            "title": "Matchx"
+          },
+          "matchY": {
+            "type": "integer",
+            "title": "Matchy"
+          },
+          "matchW": {
+            "type": "integer",
+            "title": "Matchw"
+          },
+          "matchH": {
+            "type": "integer",
+            "title": "Matchh"
+          },
+          "targetMetaPath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetmetapath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "singleMetaPath",
+          "singleImagePath",
+          "matchedImagePath",
+          "matchX",
+          "matchY",
+          "matchW",
+          "matchH"
+        ],
+        "title": "ConfirmedMatch",
+        "description": "用户确认后的单条转换项。"
+      },
+      "ConversionExecuteResponse": {
+        "properties": {
+          "modifiedMetaPaths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Modifiedmetapaths"
+          },
+          "deletedSingleMetaPaths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deletedsinglemetapaths"
+          },
+          "deletedSingleImagePaths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deletedsingleimagepaths"
+          }
+        },
+        "type": "object",
+        "required": [
+          "modifiedMetaPaths",
+          "deletedSingleMetaPaths",
+          "deletedSingleImagePaths"
+        ],
+        "title": "ConversionExecuteResponse",
+        "description": "转换执行结果。"
+      },
+      "ConversionMatch": {
+        "properties": {
+          "singleMetaPath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Singlemetapath"
+          },
+          "singleImagePath": {
+            "type": "string",
+            "title": "Singleimagepath"
+          },
+          "matchedImagePath": {
+            "type": "string",
+            "title": "Matchedimagepath"
+          },
+          "matchScore": {
+            "type": "number",
+            "title": "Matchscore"
+          },
+          "matchX": {
+            "type": "integer",
+            "title": "Matchx"
+          },
+          "matchY": {
+            "type": "integer",
+            "title": "Matchy"
+          },
+          "matchW": {
+            "type": "integer",
+            "title": "Matchw"
+          },
+          "matchH": {
+            "type": "integer",
+            "title": "Matchh"
+          }
+        },
+        "type": "object",
+        "required": [
+          "singleMetaPath",
+          "singleImagePath",
+          "matchedImagePath",
+          "matchScore",
+          "matchX",
+          "matchY",
+          "matchW",
+          "matchH"
+        ],
+        "title": "ConversionMatch",
+        "description": "单个匹配结果：single 文档模板在目标图片中的命中记录。"
+      },
+      "CopyFileRequest": {
+        "properties": {
+          "sourcePath": {
+            "type": "string",
+            "title": "Sourcepath"
+          },
+          "targetPath": {
+            "type": "string",
+            "title": "Targetpath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourcePath",
+          "targetPath"
+        ],
+        "title": "CopyFileRequest",
+        "description": "文件拷贝覆盖请求。"
+      },
+      "CopyPrefabPrecheckResult": {
+        "properties": {
+          "targetImagePath": {
+            "type": "string",
+            "title": "Targetimagepath"
+          },
+          "targetImageExists": {
+            "type": "boolean",
+            "title": "Targetimageexists"
+          },
+          "targetMetaPath": {
+            "type": "string",
+            "title": "Targetmetapath"
+          },
+          "targetMetaExists": {
+            "type": "boolean",
+            "title": "Targetmetaexists"
+          },
+          "targetDefinitionExists": {
+            "type": "boolean",
+            "title": "Targetdefinitionexists"
+          },
+          "sourceDefinitionId": {
+            "type": "string",
+            "title": "Sourcedefinitionid"
+          },
+          "sourceDefinitionName": {
+            "type": "string",
+            "title": "Sourcedefinitionname"
+          },
+          "targetDefinition": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Targetdefinition"
+          },
+          "targetDefinitionOverwritten": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetdefinitionoverwritten"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetImagePath",
+          "targetImageExists",
+          "targetMetaPath",
+          "targetMetaExists",
+          "targetDefinitionExists",
+          "sourceDefinitionId",
+          "sourceDefinitionName",
+          "targetDefinition"
+        ],
+        "title": "CopyPrefabPrecheckResult",
+        "description": "复制 Prefab 预检结果。"
+      },
+      "CopyPrefabResult": {
+        "properties": {
+          "targetImagePath": {
+            "type": "string",
+            "title": "Targetimagepath"
+          },
+          "targetMetaPath": {
+            "type": "string",
+            "title": "Targetmetapath"
+          },
+          "definitionId": {
+            "type": "string",
+            "title": "Definitionid"
+          },
+          "definitionName": {
+            "type": "string",
+            "title": "Definitionname"
+          },
+          "targetDefinitionOverwritten": {
+            "type": "boolean",
+            "title": "Targetdefinitionoverwritten"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetImagePath",
+          "targetMetaPath",
+          "definitionId",
+          "definitionName",
+          "targetDefinitionOverwritten"
+        ],
+        "title": "CopyPrefabResult",
+        "description": "复制 Prefab 结果。"
+      },
+      "CopyResult": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "target_path": {
+            "type": "string",
+            "title": "Target Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "target_path"
+        ],
+        "title": "CopyResult",
+        "description": "拷贝结果。"
+      },
+      "CopySelectedPrefabToVariantRequest": {
+        "properties": {
+          "sourceMetaPath": {
+            "type": "string",
+            "title": "Sourcemetapath"
+          },
+          "sourceDefinitionId": {
+            "type": "string",
+            "title": "Sourcedefinitionid"
+          },
+          "baseImagePath": {
+            "type": "string",
+            "title": "Baseimagepath"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "forceOverwrite": {
+            "type": "boolean",
+            "title": "Forceoverwrite",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourceMetaPath",
+          "sourceDefinitionId",
+          "baseImagePath",
+          "variant"
+        ],
+        "title": "CopySelectedPrefabToVariantRequest"
+      },
+      "CreateDocumentResult": {
+        "properties": {
+          "imagePath": {
+            "type": "string",
+            "title": "Imagepath"
+          },
+          "metaPath": {
+            "type": "string",
+            "title": "Metapath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "imagePath",
+          "metaPath"
+        ],
+        "title": "CreateDocumentResult",
+        "description": "创建文档结果。"
+      },
+      "DeviceInfo": {
+        "properties": {
+          "serial": {
+            "type": "string",
+            "title": "Serial"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "serial",
+          "state",
+          "name"
+        ],
+        "title": "DeviceInfo",
+        "description": "ADB 设备信息。"
+      },
+      "DeviceListResult": {
+        "properties": {
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/DeviceInfo"
+            },
+            "type": "array",
+            "title": "Devices"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "devices"
+        ],
+        "title": "DeviceListResult",
+        "description": "ADB 设备列表结果。"
+      },
+      "DiagnosticPayloadModel": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "meta_path": {
+            "type": "string",
+            "title": "Meta Path"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "definition_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition Id"
+          },
+          "field_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Path"
+          },
+          "line": {
+            "type": "integer",
+            "title": "Line"
+          },
+          "column": {
+            "type": "integer",
+            "title": "Column"
+          },
+          "endLine": {
+            "type": "integer",
+            "title": "Endline"
+          },
+          "endColumn": {
+            "type": "integer",
+            "title": "Endcolumn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "meta_path",
+          "severity",
+          "definition_id",
+          "field_path",
+          "line",
+          "column",
+          "endLine",
+          "endColumn"
+        ],
+        "title": "DiagnosticPayloadModel"
+      },
+      "EditorData": {
+        "properties": {
+          "prefabs_module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefabs Module"
+          },
+          "resource_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Path"
+          },
+          "r_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "R File"
+          }
+        },
+        "type": "object",
+        "title": "EditorData"
+      },
+      "ExecuteConversionRequest": {
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/ConfirmedMatch"
+            },
+            "type": "array",
+            "title": "Matches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matches"
+        ],
+        "title": "ExecuteConversionRequest"
+      },
+      "ExecuteRenameDocumentRequest": {
+        "properties": {
+          "sourceImagePath": {
+            "type": "string",
+            "title": "Sourceimagepath"
+          },
+          "targetImagePath": {
+            "type": "string",
+            "title": "Targetimagepath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourceImagePath",
+          "targetImagePath"
+        ],
+        "title": "ExecuteRenameDocumentRequest",
+        "description": "文档重命名执行请求。"
+      },
+      "FolderTreeNode": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/FolderTreeNode"
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "children"
+        ],
+        "title": "FolderTreeNode",
+        "description": "目录树节点。"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResult": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "service"
+        ],
+        "title": "HealthResult",
+        "description": "健康检查结果。"
+      },
+      "InferDefinitionsResult": {
+        "properties": {
+          "definitions": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Definitions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "definitions"
+        ],
+        "title": "InferDefinitionsResult",
+        "description": "AI 定义推断结果。"
+      },
+      "ListDirItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "isDirectory": {
+            "type": "boolean",
+            "title": "Isdirectory"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "isImage": {
+            "type": "boolean",
+            "title": "Isimage"
+          },
+          "thumbnailUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnailurl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "isDirectory",
+          "path",
+          "isImage"
+        ],
+        "title": "ListDirItem",
+        "description": "目录条目（HTTP 响应）。\n\n``thumbnailUrl`` 仅在条目为图片时由路由填充，否则为 None。"
+      },
+      "ListDirResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ListDirItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ListDirResponse",
+        "description": "列出目录响应。"
+      },
+      "ListImagesResponse": {
+        "properties": {
+          "imagePaths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Imagepaths"
+          }
+        },
+        "type": "object",
+        "required": [
+          "imagePaths"
+        ],
+        "title": "ListImagesResponse",
+        "description": "工作区图片列表响应。"
+      },
+      "MetaDiagnosticsSnapshotModel": {
+        "properties": {
+          "indexVersion": {
+            "type": "integer",
+            "title": "Indexversion"
+          },
+          "diagnosticsByFile": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/DiagnosticPayloadModel"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Diagnosticsbyfile"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/MetaDiagnosticsStatsModel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "indexVersion",
+          "diagnosticsByFile",
+          "stats"
+        ],
+        "title": "MetaDiagnosticsSnapshotModel",
+        "description": "诊断快照。"
+      },
+      "MetaDiagnosticsStatsModel": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "error": {
+            "type": "integer",
+            "title": "Error"
+          },
+          "warning": {
+            "type": "integer",
+            "title": "Warning"
+          },
+          "info": {
+            "type": "integer",
+            "title": "Info"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "error",
+          "warning",
+          "info"
+        ],
+        "title": "MetaDiagnosticsStatsModel",
+        "description": "诊断统计。"
+      },
+      "MetaRefetchResult": {
+        "properties": {
+          "index": {
+            "$ref": "#/components/schemas/SymbolSnapshotLiteModel"
+          },
+          "diagnostics": {
+            "$ref": "#/components/schemas/MetaDiagnosticsSnapshotModel"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "index",
+          "diagnostics"
+        ],
+        "title": "MetaRefetchResult"
+      },
+      "PrecheckCopySelectedPrefabToVariantRequest": {
+        "properties": {
+          "sourceMetaPath": {
+            "type": "string",
+            "title": "Sourcemetapath"
+          },
+          "sourceDefinitionId": {
+            "type": "string",
+            "title": "Sourcedefinitionid"
+          },
+          "baseImagePath": {
+            "type": "string",
+            "title": "Baseimagepath"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourceMetaPath",
+          "sourceDefinitionId",
+          "baseImagePath",
+          "variant"
+        ],
+        "title": "PrecheckCopySelectedPrefabToVariantRequest"
+      },
+      "PrecheckRenameDocumentRequest": {
+        "properties": {
+          "sourceImagePath": {
+            "type": "string",
+            "title": "Sourceimagepath"
+          },
+          "targetImagePath": {
+            "type": "string",
+            "title": "Targetimagepath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourceImagePath",
+          "targetImagePath"
+        ],
+        "title": "PrecheckRenameDocumentRequest",
+        "description": "文档重命名预检请求。"
+      },
+      "PrefabsSchema": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "prefabs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Prefabs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "prefabs"
+        ],
+        "title": "PrefabsSchema",
+        "description": "Prefab 模式版本。"
+      },
+      "ProjectRootData": {
+        "properties": {
+          "resource_root": {
+            "type": "string",
+            "title": "Resource Root"
+          },
+          "editor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EditorData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "resource_root"
+        ],
+        "title": "ProjectRootData",
+        "description": "项目根数据。"
+      },
+      "ReadTextResponse": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "ReadTextResponse",
+        "description": "读取文本响应。"
+      },
+      "RenameDocumentExecuteResultModel": {
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/RenameDocumentItemModel"
+            },
+            "type": "array",
+            "title": "Documents"
+          },
+          "fileRenames": {
+            "items": {
+              "$ref": "#/components/schemas/RenameFileItemModel"
+            },
+            "type": "array",
+            "title": "Filerenames"
+          },
+          "renamedFileCount": {
+            "type": "integer",
+            "title": "Renamedfilecount"
+          },
+          "renamedDocumentCount": {
+            "type": "integer",
+            "title": "Renameddocumentcount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documents",
+          "fileRenames",
+          "renamedFileCount",
+          "renamedDocumentCount"
+        ],
+        "title": "RenameDocumentExecuteResultModel",
+        "description": "文档重命名执行结果。"
+      },
+      "RenameDocumentItemModel": {
+        "properties": {
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "sourceImagePath": {
+            "type": "string",
+            "title": "Sourceimagepath"
+          },
+          "targetImagePath": {
+            "type": "string",
+            "title": "Targetimagepath"
+          },
+          "sourceMetaPath": {
+            "type": "string",
+            "title": "Sourcemetapath"
+          },
+          "targetMetaPath": {
+            "type": "string",
+            "title": "Targetmetapath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variant",
+          "sourceImagePath",
+          "targetImagePath",
+          "sourceMetaPath",
+          "targetMetaPath"
+        ],
+        "title": "RenameDocumentItemModel",
+        "description": "文档重命名单项。"
+      },
+      "RenameDocumentPrecheckResultModel": {
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/RenameDocumentItemModel"
+            },
+            "type": "array",
+            "title": "Documents"
+          },
+          "fileRenames": {
+            "items": {
+              "$ref": "#/components/schemas/RenameFileItemModel"
+            },
+            "type": "array",
+            "title": "Filerenames"
+          },
+          "conflicts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Conflicts"
+          },
+          "hasConflicts": {
+            "type": "boolean",
+            "title": "Hasconflicts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documents",
+          "fileRenames",
+          "conflicts",
+          "hasConflicts"
+        ],
+        "title": "RenameDocumentPrecheckResultModel",
+        "description": "文档重命名预检结果。"
+      },
+      "RenameFileItemModel": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "meta"
+            ],
+            "title": "Kind"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "sourcePath": {
+            "type": "string",
+            "title": "Sourcepath"
+          },
+          "targetPath": {
+            "type": "string",
+            "title": "Targetpath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "variant",
+          "sourcePath",
+          "targetPath"
+        ],
+        "title": "RenameFileItemModel",
+        "description": "文件重命名单项。"
+      },
+      "RenamePathRequest": {
+        "properties": {
+          "sourcePath": {
+            "type": "string",
+            "title": "Sourcepath"
+          },
+          "targetPath": {
+            "type": "string",
+            "title": "Targetpath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourcePath",
+          "targetPath"
+        ],
+        "title": "RenamePathRequest",
+        "description": "单文件重命名请求。"
+      },
+      "RenameResult": {
+        "properties": {
+          "source_path": {
+            "type": "string",
+            "title": "Source Path"
+          },
+          "target_path": {
+            "type": "string",
+            "title": "Target Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_path",
+          "target_path"
+        ],
+        "title": "RenameResult",
+        "description": "重命名结果。"
+      },
+      "RenameSymbolExecuteResult": {
+        "properties": {
+          "sourceMetaPath": {
+            "type": "string",
+            "title": "Sourcemetapath"
+          },
+          "sourceDefinitionId": {
+            "type": "string",
+            "title": "Sourcedefinitionid"
+          },
+          "oldName": {
+            "type": "string",
+            "title": "Oldname"
+          },
+          "newName": {
+            "type": "string",
+            "title": "Newname"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/RenameSymbolTargetModel"
+            },
+            "type": "array",
+            "title": "Targets"
+          },
+          "affectedMetaCount": {
+            "type": "integer",
+            "title": "Affectedmetacount"
+          },
+          "affectedDefinitionCount": {
+            "type": "integer",
+            "title": "Affecteddefinitioncount"
+          },
+          "updatedIndexVersion": {
+            "type": "integer",
+            "title": "Updatedindexversion"
+          },
+          "updatedContentHash": {
+            "type": "string",
+            "title": "Updatedcontenthash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sourceMetaPath",
+          "sourceDefinitionId",
+          "oldName",
+          "newName",
+          "targets",
+          "affectedMetaCount",
+          "affectedDefinitionCount",
+          "updatedIndexVersion",
+          "updatedContentHash"
+        ],
+        "title": "RenameSymbolExecuteResult"
+      },
+      "RenameSymbolPrecheckResult": {
+        "properties": {
+          "sourceMetaPath": {
+            "type": "string",
+            "title": "Sourcemetapath"
+          },
+          "sourceDefinitionId": {
+            "type": "string",
+            "title": "Sourcedefinitionid"
+          },
+          "oldName": {
+            "type": "string",
+            "title": "Oldname"
+          },
+          "newName": {
+            "type": "string",
+            "title": "Newname"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/RenameSymbolTargetModel"
+            },
+            "type": "array",
+            "title": "Targets"
+          },
+          "affectedMetaCount": {
+            "type": "integer",
+            "title": "Affectedmetacount"
+          },
+          "affectedDefinitionCount": {
+            "type": "integer",
+            "title": "Affecteddefinitioncount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sourceMetaPath",
+          "sourceDefinitionId",
+          "oldName",
+          "newName",
+          "targets",
+          "affectedMetaCount",
+          "affectedDefinitionCount"
+        ],
+        "title": "RenameSymbolPrecheckResult"
+      },
+      "RenameSymbolTargetModel": {
+        "properties": {
+          "symbolKey": {
+            "type": "string",
+            "title": "Symbolkey"
+          },
+          "metaPath": {
+            "type": "string",
+            "title": "Metapath"
+          },
+          "imagePath": {
+            "type": "string",
+            "title": "Imagepath"
+          },
+          "definitionId": {
+            "type": "string",
+            "title": "Definitionid"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "oldName": {
+            "type": "string",
+            "title": "Oldname"
+          },
+          "newName": {
+            "type": "string",
+            "title": "Newname"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "symbolKey",
+          "metaPath",
+          "imagePath",
+          "definitionId",
+          "variant",
+          "type",
+          "oldName",
+          "newName"
+        ],
+        "title": "RenameSymbolTargetModel"
+      },
+      "ResponseModel_CaptureScreenshotResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaptureScreenshotResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[CaptureScreenshotResponse]"
+      },
+      "ResponseModel_ConversionExecuteResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversionExecuteResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[ConversionExecuteResponse]"
+      },
+      "ResponseModel_CopyPrefabPrecheckResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CopyPrefabPrecheckResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[CopyPrefabPrecheckResult]"
+      },
+      "ResponseModel_CopyPrefabResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CopyPrefabResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[CopyPrefabResult]"
+      },
+      "ResponseModel_CopyResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CopyResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[CopyResult]"
+      },
+      "ResponseModel_CreateDocumentResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CreateDocumentResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[CreateDocumentResult]"
+      },
+      "ResponseModel_DeviceListResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeviceListResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[DeviceListResult]"
+      },
+      "ResponseModel_HealthResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[HealthResult]"
+      },
+      "ResponseModel_InferDefinitionsResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InferDefinitionsResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[InferDefinitionsResult]"
+      },
+      "ResponseModel_ListDirResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ListDirResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[ListDirResponse]"
+      },
+      "ResponseModel_ListImagesResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ListImagesResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[ListImagesResponse]"
+      },
+      "ResponseModel_MetaDiagnosticsSnapshotModel_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetaDiagnosticsSnapshotModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[MetaDiagnosticsSnapshotModel]"
+      },
+      "ResponseModel_NoneType_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "type": "null",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[NoneType]"
+      },
+      "ResponseModel_PrefabsSchema_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrefabsSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[PrefabsSchema]"
+      },
+      "ResponseModel_ProjectRootData_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectRootData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[ProjectRootData]"
+      },
+      "ResponseModel_ReadTextResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReadTextResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[ReadTextResponse]"
+      },
+      "ResponseModel_RenameDocumentExecuteResultModel_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RenameDocumentExecuteResultModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[RenameDocumentExecuteResultModel]"
+      },
+      "ResponseModel_RenameDocumentPrecheckResultModel_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RenameDocumentPrecheckResultModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[RenameDocumentPrecheckResultModel]"
+      },
+      "ResponseModel_RenameResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RenameResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[RenameResult]"
+      },
+      "ResponseModel_ScanProgress_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[ScanProgress]"
+      },
+      "ResponseModel_ScanStartResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanStartResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[ScanStartResponse]"
+      },
+      "ResponseModel_SuggestPathResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuggestPathResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[SuggestPathResponse]"
+      },
+      "ResponseModel_SymbolIndexHealthModel_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SymbolIndexHealthModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[SymbolIndexHealthModel]"
+      },
+      "ResponseModel_SymbolSnapshotLiteModel_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SymbolSnapshotLiteModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[SymbolSnapshotLiteModel]"
+      },
+      "ResponseModel_SymbolUpdateResultModel_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SymbolUpdateResultModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[SymbolUpdateResultModel]"
+      },
+      "ResponseModel_Union_MetaRefetchResult__SymbolUpdateResultModel__RenameDocumentPrecheckResultModel__RenameDocumentExecuteResultModel__RenameSymbolPrecheckResult__RenameSymbolExecuteResult__VariantCloneToImageResult__VariantImportImageResult__VariantCopySelectedPrefabPrecheckResult__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetaRefetchResult"
+              },
+              {
+                "$ref": "#/components/schemas/SymbolUpdateResultModel"
+              },
+              {
+                "$ref": "#/components/schemas/RenameDocumentPrecheckResultModel"
+              },
+              {
+                "$ref": "#/components/schemas/RenameDocumentExecuteResultModel"
+              },
+              {
+                "$ref": "#/components/schemas/RenameSymbolPrecheckResult"
+              },
+              {
+                "$ref": "#/components/schemas/RenameSymbolExecuteResult"
+              },
+              {
+                "$ref": "#/components/schemas/VariantCloneToImageResult"
+              },
+              {
+                "$ref": "#/components/schemas/VariantImportImageResult"
+              },
+              {
+                "$ref": "#/components/schemas/VariantCopySelectedPrefabPrecheckResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[Union[MetaRefetchResult, SymbolUpdateResultModel, RenameDocumentPrecheckResultModel, RenameDocumentExecuteResultModel, RenameSymbolPrecheckResult, RenameSymbolExecuteResult, VariantCloneToImageResult, VariantImportImageResult, VariantCopySelectedPrefabPrecheckResult]]"
+      },
+      "ResponseModel_UploadResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[UploadResult]"
+      },
+      "ResponseModel_VariantCloneResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantCloneResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[VariantCloneResult]"
+      },
+      "ResponseModel_VariantImportPrecheckResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantImportPrecheckResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[VariantImportPrecheckResult]"
+      },
+      "ResponseModel_VariantImportResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantImportResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[VariantImportResult]"
+      },
+      "ResponseModel_list_FolderTreeNode__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FolderTreeNode"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[list[FolderTreeNode]]"
+      },
+      "ResponseModel_list_ServerCommandSpec__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ServerCommandSpec"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[list[ServerCommandSpec]]"
+      },
+      "ResponseModel_list_Union_SymbolTreeGroupNode__SymbolTreeSymbolNode___": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SymbolTreeGroupNode"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SymbolTreeSymbolNode"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseModel[list[Union[SymbolTreeGroupNode, SymbolTreeSymbolNode]]]"
+      },
+      "ScanProgress": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ScanTaskState"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "current": {
+            "type": "integer",
+            "title": "Current",
+            "default": 0
+          },
+          "currentFile": {
+            "type": "string",
+            "title": "Currentfile",
+            "default": ""
+          },
+          "matches": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ConversionMatch"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matches"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taskId",
+          "state"
+        ],
+        "title": "ScanProgress",
+        "description": "扫描任务进度。"
+      },
+      "ScanRequest": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "imagePaths": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagepaths"
+          },
+          "screenshotPath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screenshotpath"
+          },
+          "singleImagePath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Singleimagepath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "ScanRequest",
+        "description": "启动扫描请求。"
+      },
+      "ScanStartResponse": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taskId"
+        ],
+        "title": "ScanStartResponse",
+        "description": "启动扫描响应。"
+      },
+      "ScanTaskState": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "classifying",
+          "scanning",
+          "completed",
+          "cancelled",
+          "error"
+        ],
+        "title": "ScanTaskState",
+        "description": "扫描任务状态枚举。"
+      },
+      "ServerCommandSpec": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "args_schema": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Args Schema"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "args_schema"
+        ],
+        "title": "ServerCommandSpec"
+      },
+      "SuggestPathResponse": {
+        "properties": {
+          "suggestedDir": {
+            "type": "string",
+            "title": "Suggesteddir"
+          },
+          "suggestedFilename": {
+            "type": "string",
+            "title": "Suggestedfilename"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "suggestedDir",
+          "suggestedFilename",
+          "reason"
+        ],
+        "title": "SuggestPathResponse",
+        "description": "AI 路径建议响应。\n\n直接透传 AI 服务返回的目录与文件名建议。"
+      },
+      "SymbolIndexHealthModel": {
+        "properties": {
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "indexVersion": {
+            "type": "integer",
+            "title": "Indexversion"
+          },
+          "lastBuildMs": {
+            "type": "integer",
+            "title": "Lastbuildms"
+          },
+          "fileCount": {
+            "type": "integer",
+            "title": "Filecount"
+          },
+          "symbolCount": {
+            "type": "integer",
+            "title": "Symbolcount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ready",
+          "indexVersion",
+          "lastBuildMs",
+          "fileCount",
+          "symbolCount"
+        ],
+        "title": "SymbolIndexHealthModel",
+        "description": "符号索引健康状态。"
+      },
+      "SymbolLiteModel": {
+        "properties": {
+          "symbolKey": {
+            "type": "string",
+            "title": "Symbolkey"
+          },
+          "definitionId": {
+            "type": "string",
+            "title": "Definitionid"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "displayName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayname"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "prefabId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefabid"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          },
+          "metaPath": {
+            "type": "string",
+            "title": "Metapath"
+          },
+          "imagePath": {
+            "type": "string",
+            "title": "Imagepath"
+          },
+          "primaryGeometry": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primarygeometry"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbolKey",
+          "definitionId",
+          "type",
+          "name",
+          "displayName",
+          "description",
+          "prefabId",
+          "variant",
+          "metaPath",
+          "imagePath",
+          "primaryGeometry"
+        ],
+        "title": "SymbolLiteModel",
+        "description": "符号轻量模型。"
+      },
+      "SymbolSnapshotLiteModel": {
+        "properties": {
+          "indexVersion": {
+            "type": "integer",
+            "title": "Indexversion"
+          },
+          "contentHash": {
+            "type": "string",
+            "title": "Contenthash"
+          },
+          "symbols": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolLiteModel"
+            },
+            "type": "array",
+            "title": "Symbols"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/SymbolSnapshotStatsModel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "indexVersion",
+          "contentHash",
+          "symbols",
+          "stats"
+        ],
+        "title": "SymbolSnapshotLiteModel",
+        "description": "符号索引轻量快照。"
+      },
+      "SymbolSnapshotStatsModel": {
+        "properties": {
+          "fileCount": {
+            "type": "integer",
+            "title": "Filecount"
+          },
+          "symbolCount": {
+            "type": "integer",
+            "title": "Symbolcount"
+          },
+          "diagnosticCount": {
+            "type": "integer",
+            "title": "Diagnosticcount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fileCount",
+          "symbolCount",
+          "diagnosticCount"
+        ],
+        "title": "SymbolSnapshotStatsModel",
+        "description": "符号快照统计。"
+      },
+      "SymbolTreeFileNode": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "file",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "metaPath": {
+            "type": "string",
+            "title": "Metapath"
+          },
+          "imagePath": {
+            "type": "string",
+            "title": "Imagepath"
+          },
+          "definitionId": {
+            "type": "string",
+            "title": "Definitionid"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "metaPath",
+          "imagePath",
+          "definitionId"
+        ],
+        "title": "SymbolTreeFileNode"
+      },
+      "SymbolTreeGroupNode": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "group",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "children": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SymbolTreeGroupNode"
+                },
+                {
+                  "$ref": "#/components/schemas/SymbolTreeSymbolNode"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "children"
+        ],
+        "title": "SymbolTreeGroupNode"
+      },
+      "SymbolTreeSymbolNode": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "symbol",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "fullName": {
+            "type": "string",
+            "title": "Fullname"
+          },
+          "displayName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayname"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolTreeVariantNode"
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "fullName",
+          "children"
+        ],
+        "title": "SymbolTreeSymbolNode"
+      },
+      "SymbolTreeVariantNode": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "variant",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolTreeFileNode"
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "children"
+        ],
+        "title": "SymbolTreeVariantNode"
+      },
+      "SymbolUpdateResultModel": {
+        "properties": {
+          "indexVersion": {
+            "type": "integer",
+            "title": "Indexversion"
+          },
+          "contentHash": {
+            "type": "string",
+            "title": "Contenthash"
+          },
+          "updatedMetaPath": {
+            "type": "string",
+            "title": "Updatedmetapath"
+          },
+          "removedSymbolKeys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Removedsymbolkeys"
+          },
+          "upsertedSymbols": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolLiteModel"
+            },
+            "type": "array",
+            "title": "Upsertedsymbols"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/DiagnosticPayloadModel"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "indexVersion",
+          "contentHash",
+          "updatedMetaPath",
+          "removedSymbolKeys",
+          "upsertedSymbols",
+          "diagnostics"
+        ],
+        "title": "SymbolUpdateResultModel",
+        "description": "符号索引增量更新结果。"
+      },
+      "UpdateIndexRequest": {
+        "properties": {
+          "metaPath": {
+            "type": "string",
+            "title": "Metapath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metaPath"
+        ],
+        "title": "UpdateIndexRequest"
+      },
+      "UploadResult": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "target_path": {
+            "type": "string",
+            "title": "Target Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "target_path"
+        ],
+        "title": "UploadResult",
+        "description": "上传结果。"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VariantCloneResult": {
+        "properties": {
+          "targetMetaPath": {
+            "type": "string",
+            "title": "Targetmetapath"
+          },
+          "definitionCount": {
+            "type": "integer",
+            "title": "Definitioncount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetMetaPath",
+          "definitionCount"
+        ],
+        "title": "VariantCloneResult",
+        "description": "变体克隆结果。"
+      },
+      "VariantCloneToImageResult": {
+        "properties": {
+          "targetMetaPath": {
+            "type": "string",
+            "title": "Targetmetapath"
+          },
+          "definitionCount": {
+            "type": "integer",
+            "title": "Definitioncount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "targetMetaPath",
+          "definitionCount"
+        ],
+        "title": "VariantCloneToImageResult"
+      },
+      "VariantCopySelectedPrefabPrecheckResult": {
+        "properties": {
+          "targetImagePath": {
+            "type": "string",
+            "title": "Targetimagepath"
+          },
+          "targetImageExists": {
+            "type": "boolean",
+            "title": "Targetimageexists"
+          },
+          "targetMetaPath": {
+            "type": "string",
+            "title": "Targetmetapath"
+          },
+          "targetMetaExists": {
+            "type": "boolean",
+            "title": "Targetmetaexists"
+          },
+          "targetDefinitionExists": {
+            "type": "boolean",
+            "title": "Targetdefinitionexists"
+          },
+          "sourceDefinitionId": {
+            "type": "string",
+            "title": "Sourcedefinitionid"
+          },
+          "sourceDefinitionName": {
+            "type": "string",
+            "title": "Sourcedefinitionname"
+          },
+          "targetDefinition": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Targetdefinition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "targetImagePath",
+          "targetImageExists",
+          "targetMetaPath",
+          "targetMetaExists",
+          "targetDefinitionExists",
+          "sourceDefinitionId",
+          "sourceDefinitionName",
+          "targetDefinition"
+        ],
+        "title": "VariantCopySelectedPrefabPrecheckResult"
+      },
+      "VariantData": {
+        "properties": {
+          "variants": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variants"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base"
+          },
+          "path_pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path Pattern"
+          }
+        },
+        "type": "object",
+        "title": "VariantData"
+      },
+      "VariantImportImageResult": {
+        "properties": {
+          "targetImagePath": {
+            "type": "string",
+            "title": "Targetimagepath"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "targetImagePath",
+          "size"
+        ],
+        "title": "VariantImportImageResult"
+      },
+      "VariantImportPrecheckResult": {
+        "properties": {
+          "targetImagePath": {
+            "type": "string",
+            "title": "Targetimagepath"
+          },
+          "targetImageExists": {
+            "type": "boolean",
+            "title": "Targetimageexists"
+          },
+          "targetMetaPath": {
+            "type": "string",
+            "title": "Targetmetapath"
+          },
+          "targetMetaExists": {
+            "type": "boolean",
+            "title": "Targetmetaexists"
+          },
+          "copiedDefinitions": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Copieddefinitions"
+          },
+          "skippedDefinitions": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Skippeddefinitions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetImagePath",
+          "targetImageExists",
+          "targetMetaPath",
+          "targetMetaExists",
+          "copiedDefinitions",
+          "skippedDefinitions"
+        ],
+        "title": "VariantImportPrecheckResult",
+        "description": "变体导入预检结果。"
+      },
+      "VariantImportResult": {
+        "properties": {
+          "targetImagePath": {
+            "type": "string",
+            "title": "Targetimagepath"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetImagePath",
+          "size"
+        ],
+        "title": "VariantImportResult",
+        "description": "变体导入结果。"
+      },
+      "WriteTextRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "WriteTextRequest"
+      }
+    }
+  }
+}

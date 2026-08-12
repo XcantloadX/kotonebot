@@ -4,6 +4,8 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from kotonebot.devtools.project.schema import EditorData, VariantData
+
 
 class AliasModel(BaseModel):
     """基础模型：允许按 Python 字段名构造，但按 alias 序列化。"""
@@ -103,8 +105,8 @@ class HealthResult(BaseModel):
 class ProjectRootData(BaseModel):
     """项目根数据。"""
     resource_root: str
-    editor: Optional[dict] = None
-    variant: Optional[dict] = None
+    editor: Optional[EditorData] = None
+    variant: Optional[VariantData] = None
 
 
 class PrefabsSchema(BaseModel):

@@ -1,19 +1,15 @@
-import { fetchJson } from "./client";
+import { client, unwrap } from "./client";
+import type { components } from "./schema";
 
-export interface ServerCommandSpec {
-  id: string;
-  title: string;
-  args_schema: Record<string, string>;
-}
+/** 服务端命令规范。 */
+export type ServerCommandSpec = components["schemas"]["ServerCommandSpec"];
 
 export async function getServerCommands(): Promise<ServerCommandSpec[]> {
-  return fetchJson<ServerCommandSpec[]>("/api/server/commands");
+  return unwrap(client.GET("/api/server/commands"));
 }
 
 export async function executeServerCommand<T>(command: string, args: Record<string, unknown>): Promise<T> {
-  return fetchJson<T>("/api/server/execute_command", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ command, args }),
-  });
+  const result = await unwrap(client.POST("/api/server/execute_command", { body: { command, args } }));
+  // server 命令为动态分发，单个端点返回多种结果形状，由调用方按命令 ID 断言
+  return result as unknown as T;
 }

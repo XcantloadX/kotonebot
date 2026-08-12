@@ -32,7 +32,7 @@ export async function inferSingleSelectedDefinition(): Promise<void> {
     [{ definitionId: defId, templateRect: rect }],
   );
 
-  const inferred = result[defId];
+  const inferred = result.definitions[defId];
   if (!inferred) {
     throw new Error("AI response did not include inferred properties for this definition");
   }
@@ -96,7 +96,7 @@ export async function inferBatchNullNames(): Promise<void> {
   let updatedCount = 0;
   const { updateMeta } = useAppStore.getState();
   updateMeta(docId, (draft) => {
-    for (const [defId, inferred] of Object.entries(result)) {
+    for (const [defId, inferred] of Object.entries(result.definitions)) {
       const d = draft.definitions[defId];
       if (!d || d.name !== null) continue;
       d.name = inferred.name;

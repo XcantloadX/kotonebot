@@ -13,6 +13,13 @@
 - Pydantic 模型统一放在对应模块的 `types.py` 中（如 `kotonebot/devtools/ai/types.py`），若仅在该模块内部使用也可内联定义。
 - 在决定类型定义位置前必须检索是否已经存在统一的合理的 type 存放位置，如有则存放在相应位置。
 
+### HTTP 路由返回类型
+
+- **所有 JSON 路由必须在装饰器中声明 `response_model=ResponseModel[X]`**，其中 `X` 为实际的 data 模型；函数返回类型注解为 `-> JSONResponse`（路由通过 `ok_response()` 返回 `JSONResponse`，FastAPI 对 Response 返回值不做校验，因此 `response_model` 仅用于生成 OpenAPI schema——供前端 `openapi-typescript` 生成客户端类型——不影响运行时输出）。不要用 `-> ResponseModel[X]` 作为返回注解，否则与实际的 `JSONResponse` 返回不匹配会触发类型检查器报错。
+- 无 data 的路由 `response_model=ResponseModel[None]`。
+- 响应模型优先复用服务层/索引层已有的模型；仅在需要新增 HTTP 专用形状时定义在 `transports/http/models.py`。
+- 修改路由签名或响应模型后，需重新生成前端类型：`cd js/apps/devtools-app && npm run gen:api:full`。
+
 ### 注释
 
 #### Docstring 格式

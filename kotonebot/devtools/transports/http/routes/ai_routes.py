@@ -1,16 +1,19 @@
 """AI 服务路由。"""
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi.responses import JSONResponse
 
 from kotonebot.devtools.ai.types import AiConfig
 from kotonebot.devtools.services.context import DevtoolsContext
+from kotonebot.devtools.services.types import InferDefinitionsResult
 from ..dependencies import get_context
+from ..models import ResponseModel, SuggestPathResponse
 from . import ok_response
 
 router = APIRouter(tags=["ai"])
 
 
-@router.post("/ai/suggest_path")
+@router.post("/ai/suggest_path", response_model=ResponseModel[SuggestPathResponse])
 async def suggest_document_path(
     image: UploadFile = File(...),
     providerType: str = Form(...),
@@ -18,7 +21,7 @@ async def suggest_document_path(
     model: str = Form(""),
     apiKey: str = Form(""),
     ctx: DevtoolsContext = Depends(get_context),
-):
+) -> JSONResponse:
     image_data = await image.read()
     ai_config = AiConfig(
         providerType=providerType, endpoint=endpoint, model=model, apiKey=apiKey,
@@ -26,7 +29,7 @@ async def suggest_document_path(
     return ok_response(ctx.ai.suggest_document_path(image_data, ai_config))
 
 
-@router.post("/ai/infer_definitions")
+@router.post("/ai/infer_definitions", response_model=ResponseModel[InferDefinitionsResult])
 async def infer_definitions(
     image: UploadFile = File(...),
     definitionsJson: str = Form(...),
@@ -36,7 +39,7 @@ async def infer_definitions(
     model: str = Form(""),
     apiKey: str = Form(""),
     ctx: DevtoolsContext = Depends(get_context),
-):
+) -> JSONResponse:
     image_data = await image.read()
     ai_config = AiConfig(
         providerType=providerType, endpoint=endpoint, model=model, apiKey=apiKey,

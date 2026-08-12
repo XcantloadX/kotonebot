@@ -1,120 +1,70 @@
-import { fetchJson } from "./client";
+import { client, unwrap, postForm } from "./client";
+import type { components } from "./schema";
 
-export interface FileItem {
-  name: string;
-  isDirectory: boolean;
-  path: string;
-  isImage?: boolean;
-  thumbnailUrl?: string;
-}
-
-export interface ProjectInfo {
-  resource_root: string;
-  variant?: {
-    variants?: string[];
-    base?: string;
-    path_pattern?: string;
-  };
-  editor?: {
-    resource_path?: string;
-    prefabs_module?: string;
-  };
-}
+/** 目录条目。 */
+export type FileItem = components["schemas"]["ListDirItem"];
+/** 项目根信息。 */
+export type ProjectInfo = components["schemas"]["ProjectRootData"];
+/** 文档重命名预检结果。 */
+export type RenameDocumentPrecheckResult = components["schemas"]["RenameDocumentPrecheckResultModel"];
+/** 文档重命名执行结果。 */
+export type RenameDocumentExecuteResult = components["schemas"]["RenameDocumentExecuteResultModel"];
+/** 创建文档结果。 */
+export type CreateDocumentResult = components["schemas"]["CreateDocumentResult"];
 
 export async function listDir(path: string): Promise<FileItem[]> {
-  const res = await fetchJson<{ items: FileItem[] }>(`/api/fs/list_dir?path=${encodeURIComponent(path)}`);
+  const res = await unwrap(client.GET("/api/fs/list_dir", { params: { query: { path } } }));
   return res.items;
 }
 
 export async function readText(path: string): Promise<string> {
-  const res = await fetchJson<{ content: string }>(`/api/fs/read_text?path=${encodeURIComponent(path)}`);
+  const res = await unwrap(client.GET("/api/fs/read_text", { params: { query: { path } } }));
   return res.content;
 }
 
 export async function writeText(path: string, content: string): Promise<void> {
-  await fetchJson(`/api/fs/write_text?path=${encodeURIComponent(path)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
-  });
+  await unwrap(client.PUT("/api/fs/write_text", {
+    params: { query: { path } },
+    body: { content },
+  }));
 }
 
 export async function renamePath(sourcePath: string, targetPath: string): Promise<void> {
-  await fetchJson("/api/fs/rename", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sourcePath, targetPath }),
-  });
-}
-
-export interface RenameDocumentPrecheckResult {
-  documents: Array<{
-    variant: string;
-    sourceImagePath: string;
-    targetImagePath: string;
-    sourceMetaPath: string;
-    targetMetaPath: string;
-  }>;
-  fileRenames: Array<{
-    kind: "image" | "meta";
-    variant: string;
-    sourcePath: string;
-    targetPath: string;
-  }>;
-  conflicts: string[];
-  hasConflicts: boolean;
-}
-
-export interface RenameDocumentExecuteResult {
-  documents: Array<{
-    variant: string;
-    sourceImagePath: string;
-    targetImagePath: string;
-    sourceMetaPath: string;
-    targetMetaPath: string;
-  }>;
-  fileRenames: Array<{
-    kind: "image" | "meta";
-    variant: string;
-    sourcePath: string;
-    targetPath: string;
-  }>;
-  renamedFileCount: number;
-  renamedDocumentCount: number;
+  await unwrap(client.POST("/api/fs/rename", {
+    body: { sourcePath, targetPath },
+  }));
 }
 
 export async function precheckRenameDocument(sourceImagePath: string, targetImagePath: string): Promise<RenameDocumentPrecheckResult> {
-  return fetchJson<RenameDocumentPrecheckResult>("/api/fs/rename_document/precheck", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sourceImagePath, targetImagePath }),
-  });
+  return unwrap(client.POST("/api/fs/rename_document/precheck", {
+    body: { sourceImagePath, targetImagePath },
+  }));
 }
 
 export async function executeRenameDocument(sourceImagePath: string, targetImagePath: string): Promise<RenameDocumentExecuteResult> {
-  return fetchJson<RenameDocumentExecuteResult>("/api/fs/rename_document/execute", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sourceImagePath, targetImagePath }),
-  });
+  return unwrap(client.POST("/api/fs/rename_document/execute", {
+    body: { sourceImagePath, targetImagePath },
+  }));
 }
 
 export async function copyFile(sourcePath: string, targetPath: string): Promise<void> {
-  await fetchJson("/api/fs/copy_file", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sourcePath, targetPath }),
-  });
+  await unwrap(client.POST("/api/fs/copy_file", {
+    body: { sourcePath, targetPath },
+  }));
 }
 
 export async function uploadFile(targetPath: string, file: File): Promise<void> {
   const formData = new FormData();
   formData.set("targetPath", targetPath);
   formData.set("file", file);
-  await fetchJson("/api/fs/upload_file", {
-    method: "POST",
-    body: formData,
-  });
+  await postForm("/api/fs/upload_file", formData);
+}
+
+export async function createDocument(targetPath: string, image: File): Promise<CreateDocumentResult> {
+  const formData = new FormData();
+  formData.set("targetPath", targetPath);
+  formData.set("image", image);
+  return postForm<CreateDocumentResult>("/api/document/create", formData);
 }
 
 export function getImageUrl(path: string): string {
@@ -131,14 +81,14 @@ export async function fetchImageAsFile(path: string, filename: string): Promise<
 }
 
 export async function getProjectInfo(): Promise<ProjectInfo> {
-  return fetchJson(`/api/project/root`);
+  return unwrap(client.GET("/api/project/root"));
 }
 
 export async function listWorkspaceImages(): Promise<string[]> {
-  const res = await fetchJson<{ imagePaths: string[] }>("/api/project/list_images");
+  const res = await unwrap(client.GET("/api/project/list_images"));
   return res.imagePaths;
 }
 
 export async function revealInExplorer(path: string): Promise<void> {
-  await fetchJson(`/api/fs/reveal_in_explorer?path=${encodeURIComponent(path)}`, { method: "POST" });
+  await unwrap(client.POST("/api/fs/reveal_in_explorer", { params: { query: { path } } }));
 }

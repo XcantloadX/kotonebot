@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Button, Classes, Dialog, InputGroup, NonIdealState, Tooltip } from "@blueprintjs/core";
 import { useTranslation } from "react-i18next";
-import { fetchJson } from "../../../api/client";
+import { suggestDocumentPath } from "../../../api/ai";
+import { createDocument } from "../../../api/fs";
 import { usePreferencesStore } from "../../../preferences/preferencesStore";
 import { useProjectInfoStore } from "../../../app/projectInfoStore";
 import { useShortcut } from "../../../shortcuts/shortcutManager";
@@ -146,17 +147,7 @@ export const NewDocumentDialog: React.FC<NewDocumentDialogProps> = ({ isOpen, on
     }
     setIsSuggesting(true);
     try {
-      const formData = new FormData();
-      formData.set("image", imageFile);
-      formData.set("providerType", ai.providerType);
-      formData.set("endpoint", ai.endpoint);
-      formData.set("model", ai.model);
-      formData.set("apiKey", ai.apiKey);
-
-      const result = await fetchJson<{ suggestedDir: string; suggestedFilename: string; reason: string }>(
-        "/api/ai/suggest_path",
-        { method: "POST", body: formData }
-      );
+      const result = await suggestDocumentPath(imageFile);
       setPendingSuggestion(result);
       setIsResultDialogOpen(true);
     } catch (e: any) {
@@ -172,14 +163,8 @@ export const NewDocumentDialog: React.FC<NewDocumentDialogProps> = ({ isOpen, on
     }
     const relativePath = targetDir ? `${targetDir}/${targetFilename}` : targetFilename;
     const targetPath = resourceRoot ? `${resourceRoot}/${relativePath}` : relativePath;
-    const formData = new FormData();
-    formData.set("targetPath", targetPath);
-    formData.set("image", imageFile);
     try {
-      const result = await fetchJson<{ imagePath: string; metaPath: string }>(
-        "/api/document/create",
-        { method: "POST", body: formData }
-      );
+      const result = await createDocument(targetPath, imageFile);
       await onConfirm(result.imagePath);
       onClose();
     } catch (e: any) {
