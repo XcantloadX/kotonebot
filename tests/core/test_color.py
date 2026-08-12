@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-from util import BaseTestCase
+from tests.util import BaseTestCase
 from kotonebot.backend.color import find, find_all
 from kotonebot.primitives import Rect
 
@@ -43,13 +43,13 @@ class TestColor(BaseTestCase):
     def test_find_rgb_with_rect(self):
         test_cases = [
             # #RRGGBB
-            ('#ffffff', (272, 685), (272, 685, 10, 10), 'tests/images/acquire_pdorinku.png'),
-            ('#dafcff', (171, 832), (154, 817, 137, 137), 'tests/images/acquire_pdorinku.png'),
-            ('#000000', None, (154, 817, 137, 137), 'tests/images/acquire_pdorinku.png'),
+            ('#ffffff', (272, 685), Rect(272, 685, 10, 10), 'tests/images/acquire_pdorinku.png'),
+            ('#dafcff', (171, 832), Rect(154, 817, 137, 137), 'tests/images/acquire_pdorinku.png'),
+            ('#000000', None, Rect(154, 817, 137, 137), 'tests/images/acquire_pdorinku.png'),
             # (r, g, b)
-            ((255, 255, 255), (272, 685), (272, 685, 10, 10), 'tests/images/acquire_pdorinku.png'),
-            ((218, 252, 255), (171, 832), (154, 817, 137, 137), 'tests/images/acquire_pdorinku.png'),
-            ((0, 0, 0), None, (154, 817, 137, 137), 'tests/images/acquire_pdorinku.png'),
+            ((255, 255, 255), (272, 685), Rect(272, 685, 10, 10), 'tests/images/acquire_pdorinku.png'),
+            ((218, 252, 255), (171, 832), Rect(154, 817, 137, 137), 'tests/images/acquire_pdorinku.png'),
+            ((0, 0, 0), None, Rect(154, 817, 137, 137), 'tests/images/acquire_pdorinku.png'),
         ]
         for color, expected, rect, path in test_cases:
             image = cv2.imread(path)

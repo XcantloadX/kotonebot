@@ -3,9 +3,9 @@ import time
 
 from kotonebot.backend.context import (
     interruptible, interruptible_class, vars, sleep,
-    image, ocr, color,
+    image, ocr, color, _c,
 )
-from util import BaseTestCase
+from tests.util import BaseTestCase
 
 
 class TestContextInterruptible(BaseTestCase):
@@ -74,11 +74,19 @@ class TestContextInterruptible(BaseTestCase):
             results.append("completed")
             return "success"
 
+        # Context 基于 ContextVar，子线程默认不继承主线程的 Context（_c）。
+        # 为了让子线程共享主线程的 FlowController（使主线程的中断请求能通知子线程），
+        # 需将主线程 Context 显式注入到每个子线程。
+        main_context = _c.get()
+
         def thread_func():
+            token = _c.set(main_context)
             try:
                 long_running_task(2)
             except KeyboardInterrupt as e:
                 exceptions.append(e)
+            finally:
+                _c.reset(token)
 
         # 创建并启动3个线程
         threads = [Thread(target=thread_func) for _ in range(3)]

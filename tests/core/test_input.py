@@ -492,8 +492,8 @@ class TestDeviceCompatibility(unittest.TestCase):
 		device.setup(screenshot=screenshot, touch=touch)
 		device.click_hooks_before.append(lambda x, y: (x + 10, y + 20))
 
-		with patch("kotonebot.client.device.np.random.randint", side_effect=[0, 0]):
-			device.click(Rect(10, 20, 8, 6))
+		# 矩形点击现由 Device.click 直接解析中心点并应用钩子，不再经过随机抖动
+		device.click(Rect(10, 20, 8, 6))
 
 		self.assertEqual(touch.events, [("click", 24, 43)])
 

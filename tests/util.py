@@ -74,10 +74,9 @@ class BaseTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.device = MockDevice()
-        from kotonebot.kaa.common import BaseConfig
-        from kotonebot.backend.context import init_context, inject_context
-        init_context(config_type=BaseConfig)
-        inject_context(device=cls.device)
+        from kotonebot.backend.context import init_context
+        # force=True：覆盖先前测试类残留的 Context，避免设备污染
+        init_context(force=True, target_device=cls.device)
 
     def assertPointInRect(
             self,

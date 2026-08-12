@@ -36,7 +36,8 @@ class TestTemplateMatchPrefab(unittest.TestCase):
 
         dev = Device(platform='test')
         dev.setup(screenshot=_FakeScreenshot(dev, self.img), touch=_FakeTouch(dev))
-        init_context(target_device=dev)
+        # force=True：覆盖先前测试（如 test_bot）残留的 Context，避免设备污染
+        init_context(force=True, target_device=dev)
         # 入栈上下文（自动截图模式）
         self.ctx = manual_context('auto')
         self.ctx.begin()
@@ -173,7 +174,8 @@ class TestOcrPrefab(unittest.TestCase):
 
         dev = Device(platform='test')
         dev.setup(screenshot=_FakeScreenshot(dev, self.img), touch=_FakeTouch(dev))
-        init_context(target_device=dev)
+        # force=True：覆盖先前测试（如 test_bot）残留的 Context，避免设备污染
+        init_context(force=True, target_device=dev)
         self.ctx = manual_context('auto')
         self.ctx.begin()
 

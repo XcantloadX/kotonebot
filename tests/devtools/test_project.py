@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from kotonebot.devtools.errors import ValidationError
 from kotonebot.devtools.project.project import Project
 from tests.devtools._testkit import in_cwd, write_pyproject
 
@@ -61,7 +62,7 @@ class TestProject(unittest.TestCase):
                 variant_base="base",
             )
             with in_cwd(tmp_path):
-                with self.assertRaises(ValueError):
+                with self.assertRaises(ValidationError):
                     Project(conf_path=str(conf_path))
 
     def test_load_with_variant_path_nest(self):
@@ -134,7 +135,7 @@ class TestProject(unittest.TestCase):
                 variant_path_pattern="   ",
             )
             with in_cwd(tmp_path):
-                with self.assertRaises(ValueError):
+                with self.assertRaises(ValidationError):
                     Project(conf_path=str(conf_path))
 
     def test_load_with_invalid_variant_path_raises(self):
@@ -150,7 +151,7 @@ class TestProject(unittest.TestCase):
                 variant_path_pattern="{file_dir}/{variant_name}/{file_name_ext}",
             )
             with in_cwd(tmp_path):
-                with self.assertRaises(ValueError):
+                with self.assertRaises(ValidationError):
                     Project(conf_path=str(conf_path))
 
     def test_load_with_variant_base(self):
@@ -183,7 +184,7 @@ class TestProject(unittest.TestCase):
                 variant_base="jp",
             )
             with in_cwd(tmp_path):
-                with self.assertRaises(ValueError):
+                with self.assertRaises(ValidationError):
                     Project(conf_path=str(conf_path))
 
     def test_load_with_r_file_resolves_relative_path(self):

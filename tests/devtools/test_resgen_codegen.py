@@ -448,9 +448,9 @@ class TestEntityGenerator(unittest.TestCase):
         self.assertIn("class Base:", out)
         self.assertIn("class En:", out)
         self.assertIn("class Jp:", out)
-        self.assertIn("_variant_classes = {", out)
+        self.assertIn("_variant_classes: dict[str, type[Base] | type[En] | type[Jp]] = {", out)
         self.assertIn("'base': Base", out)
-        self.assertIn("raise ValueError(f'Unsupported resource variant: {variant}')", out)
+        self.assertIn("raise MissingResourceVariant(variant,", out)
         self.assertIn("@classproperty", out)
         self.assertIn("def template(cls):", out)
 

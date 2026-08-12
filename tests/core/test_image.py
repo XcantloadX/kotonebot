@@ -1,6 +1,6 @@
 import cv2
 
-from util import BaseTestCase
+from tests.util import BaseTestCase
 from kotonebot.backend.image import *
 
 class TestImage(BaseTestCase):

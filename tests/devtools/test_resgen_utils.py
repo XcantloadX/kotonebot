@@ -3,12 +3,14 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from kotonebot.devtools.resgen.utils import (
     to_camel_case,
     unify_path,
     build_class_tree,
     ImageProcessor,
 )
+from kotonebot.devtools.errors import InvalidImageError
 from kotonebot.devtools.resgen.core import ImageAsset, ResourceNode
 
 
@@ -303,7 +305,7 @@ class TestImageProcessor(unittest.TestCase):
                 )
                 
                 self.assertTrue(os.path.exists(result_path))
-                self.assertIn(output_dir, result_path)
+                self.assertTrue(Path(result_path).is_relative_to(Path(output_dir).resolve()))
                 self.assertTrue(result_path.endswith(".png"))
                 
             except ImportError:
@@ -372,7 +374,7 @@ class TestImageProcessor(unittest.TestCase):
             result_path = ImageProcessor.copy_image(source_path, output_dir)
             
             self.assertTrue(os.path.exists(result_path))
-            self.assertIn(output_dir, result_path)
+            self.assertTrue(Path(result_path).is_relative_to(Path(output_dir).resolve()))
             self.assertEqual(os.path.basename(result_path), "source.txt")
 
     def test_copy_image_with_new_name(self):
@@ -435,7 +437,7 @@ class TestImageProcessor(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             output_dir = os.path.join(tmpdir, "output")
             
-            with self.assertRaises(ValueError):
+            with self.assertRaises(InvalidImageError):
                 ImageProcessor.save_crop(
                     "/nonexistent/file.png",
                     (10, 10, 50, 50),

@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from kotonebot.devtools.diagnostics.codes import META_VARIANT_INVALID
 from kotonebot.devtools.diagnostics.models import Diagnostic
+from kotonebot.devtools.errors import CommandError
 from kotonebot.devtools.resgen import StandardGenerator
 from kotonebot.devtools.resgen.parsers import ResgenProjectContext
 from kotonebot.devtools.resgen.runner import generate_resources
@@ -75,7 +76,7 @@ class TestResgenRunner(unittest.TestCase):
 
             output_img_dir = tmp_path / "out_img"
             output_code_file = tmp_path / "out_code" / "R.py"
-            with self.assertRaisesRegex(ValueError, "resgen aborted due to 1 error\\(s\\)"):
+            with self.assertRaisesRegex(CommandError, "resgen aborted due to 1 error\\(s\\)"):
                 generate_resources(
                     output_code_file=output_code_file.as_posix(),
                     output_img_dir=output_img_dir.as_posix(),
