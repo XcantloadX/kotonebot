@@ -29,6 +29,22 @@ class NemuIpcError(KotonebotError):
     pass
 
 
+class NemuIpcDisplayNotFoundError(NemuIpcError):
+    """等待超时后仍未找到目标应用包的 display_id。
+
+    通常表示目标应用（如游戏）未启动、已退出，或其显示画面已从模拟器中
+    消失，属于可预期的运行态条件而非 IPC 调用缺陷。上层（如任务框架）
+    可据此将错误分类为可预期问题，以友好提示处理而非作为系统错误上报。
+    """
+
+    def __init__(self, package_name: str, timeout: float):
+        self.package_name = package_name
+        self.timeout = timeout
+        super().__init__(
+            f"Failed to get display_id for package '{package_name}' within {timeout}s"
+        )
+
+
 @dataclass
 class NemuIpcImplConfig(ImplConfig):
     """nemu_ipc 能力的配置模型。"""
@@ -137,7 +153,7 @@ class NemuIpcImpl(MultiTouchable, Screenshotable, Lifecycle, SimpleInputDriver, 
                     break
                 sleep(interval)
             
-            raise NemuIpcError(f"Failed to get display_id for package '{self.config.target_package_name}' within {timeout}s")
+            raise NemuIpcDisplayNotFoundError(self.config.target_package_name, timeout)
 
         # 如果都没有设置，抛出错误
         raise NemuIpcError("display_id is None and target_package_name is not set. Please set display_id or target_package_name in config.")
