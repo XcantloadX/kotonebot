@@ -33,4 +33,3 @@ from .backend.ocr import (
     equals,
 )
 from .backend.loop import Loop
-from .ui import user

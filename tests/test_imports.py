@@ -140,7 +140,6 @@ class TestImportAll(unittest.TestCase):
             import kotonebot.logging
             import kotonebot.primitives
             import kotonebot.devtools
-            import kotonebot.ui
             import kotonebot.util
 
     def test_dynamic_import_all(self):
