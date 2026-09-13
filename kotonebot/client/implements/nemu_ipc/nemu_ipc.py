@@ -317,18 +317,29 @@ class NemuIpcImpl(MultiTouchable, Screenshotable, Lifecycle, SimpleInputDriver, 
         sleep(0.01)
         self._ipc.input_touch_up(self._connect_id, display_id)
 
+    def _validate_finger_id(self, pointer_id: int) -> int:
+        # DLL 侧只接受 1~max_contacts，因此先对 0 起始的 ID 做越界检查再 +1 转换
+        if pointer_id < 0 or pointer_id >= self.max_contacts:
+            raise ValueError(
+                f"pointer_id out of range: expected 0 <= pointer_id < {self.max_contacts}, "
+                f"got {pointer_id}"
+            )
+        return pointer_id + 1
+
     @override
     def multi_touch_down(self, x: int, y: int, pointer_id: int) -> None:
+        finger_id = self._validate_finger_id(pointer_id)
         self._ensure_connected()
         display_id = self._get_display_id()
         x, y = self.__convert_pos(x, y)
-        self._ipc.input_finger_touch_down(self._connect_id, display_id, pointer_id, x, y)
+        self._ipc.input_finger_touch_down(self._connect_id, display_id, finger_id, x, y)
 
     @override
-    def multi_touch_up(self, _: int, __: int, pointer_id: int) -> None:
+    def multi_touch_up(self, x: int, y: int, pointer_id: int) -> None:
+        finger_id = self._validate_finger_id(pointer_id)
         self._ensure_connected()
         display_id = self._get_display_id()
-        self._ipc.input_finger_touch_up(self._connect_id, display_id, pointer_id)
+        self._ipc.input_finger_touch_up(self._connect_id, display_id, finger_id)
 
     def touch_down(self, x: int, y: int, contact_id: int = 0) -> None:
         self.multi_touch_down(x, y, contact_id)

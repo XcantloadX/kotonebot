@@ -16,6 +16,7 @@ Library:
 4. [feat] **BREAKING** 移除 `Loop.when`、`Loop.until`、`Loop.click_if` 方法与 `LoopAction` 类。请改用普通的 `if` / `while` 条件判断结合 `image.find` / `device.click` 实现等价逻辑。
 5. [feat] **BREAKING** 移除废弃的 `kotonebot.backend.bot` 模块（旧版 `KotoneBot` 类及其配套 `KotoneBotEvents`）。请改用 `kotonebot.core.bot.KotoneBot`。
 6. [feat] **BREAKING** 现在 NemuIpcImpl 在等待 App 启动超时后会抛出 `NemuIpcDisplayNotFoundError` 而不是 `NemuIpcError`。
+7. [feat] **BREAKING** `NemuIpcImpl` 的多点触控现在会检验输入的指针 ID，必须符合范围 [1, 10]，否则会抛出异常。
 
 ## v0.19.1
 Library：
