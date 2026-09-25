@@ -1,3 +1,4 @@
+import struct
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,7 @@ from kotonebot.client.host.adb_common import CommonAdbCreateDeviceMixin
 from kotonebot.client.host.protocol import AdbHostConfig
 from kotonebot.client.implements.adb import AdbImpl
 from kotonebot.client.implements.scrcpy import ScrcpyConfig
+from kotonebot.errors import DeviceNotReadyError
 
 
 class FakeAdbInstance(CommonAdbCreateDeviceMixin):
@@ -86,6 +88,39 @@ class TestAdbImpl(unittest.TestCase):
         impl.swipe(1, 2, 3, 4)
 
         connection.shell.assert_called_once_with(['input', 'touchscreen', '-d', '1', 'swipe', '1', '2', '3', '4'])
+
+    def test_screenshot_truncated_oserror_raises_not_ready(self):
+        connection = self._mock_connection()
+        connection.screenshot.side_effect = OSError('image file is truncated')
+        impl = AdbImpl(connection)
+
+        with self.assertRaises(DeviceNotReadyError):
+            impl.screenshot()
+
+    def test_screenshot_broken_png_syntax_error_raises_not_ready(self):
+        connection = self._mock_connection()
+        connection.screenshot.side_effect = SyntaxError('broken PNG file (chunk b"")')
+        impl = AdbImpl(connection)
+
+        with self.assertRaises(DeviceNotReadyError):
+            impl.screenshot()
+
+    def test_screenshot_struct_error_raises_not_ready(self):
+        connection = self._mock_connection()
+        connection.screenshot.side_effect = struct.error(
+            'unpack_from requires a buffer of at least 4 bytes'
+        )
+        impl = AdbImpl(connection)
+
+        with self.assertRaises(DeviceNotReadyError):
+            impl.screenshot()
+
+    def test_detect_orientation_returns_none_on_screenshot_failure(self):
+        connection = self._mock_connection()
+        impl = AdbImpl(connection)
+
+        with patch.object(impl, 'screenshot', side_effect=DeviceNotReadyError('truncated')):
+            self.assertIsNone(impl.detect_orientation())
 
 
 class TestCommonAdbCreateDeviceMixin(unittest.TestCase):

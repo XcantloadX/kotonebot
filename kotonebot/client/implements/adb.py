@@ -1,7 +1,10 @@
+"""ADB 设备实现。"""
+
 import logging
 import re
+import struct
 from dataclasses import dataclass
-from typing import cast
+from typing import Literal, cast
 
 import cv2
 import numpy as np
@@ -17,6 +20,7 @@ except ImportError as _e:
 
 from ..protocol import AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver
 from ..registration import ImplConfig
+from kotonebot.errors import DeviceConnectionError, DeviceNotReadyError
 
 logger = logging.getLogger(__name__)
 
@@ -87,11 +91,24 @@ class AdbImpl(AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver):
         self.adb.install(path)
 
     @override
-    def detect_orientation(self):
+    def detect_orientation(self) -> Literal['portrait', 'landscape'] | None:
+        """检测当前设备方向。
+
+        通过截图宽高比判断方向。当截图不可用（例如截图数据截断）时
+        返回 None，表示无法检测，调用方可跳过方向相关逻辑。
+
+        :returns: 检测到的方向，无法检测时返回 None。
+        """
         # 判断方向：https://stackoverflow.com/questions/10040624/check-if-device-is-landscape-via-adb
         # 但是上面这种方法不准确
         # 因此这里直接通过截图判断方向
-        img = self.screenshot()
+        try:
+            img = self.screenshot()
+        except DeviceConnectionError as e:
+            # 截图失败属于瞬态故障（例如 screencap 数据截断），不向上传播，
+            # 返回 None 让调用方跳过方向判断。
+            logger.warning('Skipping orientation detection as screenshot is unavailable: %s', e)
+            return None
         if img.shape[0] > img.shape[1]:
             return 'portrait'
         return 'landscape'
@@ -128,15 +145,32 @@ class AdbImpl(AndroidCommandable, Touchable, Screenshotable, SimpleInputDriver):
         return spiltted
 
     def screenshot(self) -> MatLike:
+        """截取当前屏幕。
+
+        :returns: BGR 格式的截图数据。
+        :raises DeviceNotReadyError: 截图数据截断或图片损坏时抛出。
+        """
         # adbutils already converts the display index into the SurfaceFlinger display ID
         # required by "screencap -d".
         # Source:
         # https://android.googlesource.com/platform/frameworks/base/+/master/cmds/screencap/screencap.cpp
         try:
             image = self.adb.screenshot(display_id=self.display_id, error_ok=False)
+            image.load() # 立刻求值检验图片是否有效
         except AdbError as exc:
             raise AdbError(self._format_message(str(exc))) from exc
-        return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        except (OSError, SyntaxError, struct.error) as exc:
+            # PIL 解析截断 PNG 时的错误路径：
+            # OSError("image file is truncated")
+            # SyntaxError("broken PNG file")
+            # struct.error("unpack_from requires a buffer of ...")
+            logger.warning('ADB screenshot data is truncated, treating device as not ready: %s', exc)
+            raise DeviceNotReadyError(self._format_message(str(exc))) from exc
+        try:
+            return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        except (ValueError, cv2.error) as exc:
+            logger.warning('ADB screenshot conversion failed, treating device as not ready: %s', exc)
+            raise DeviceNotReadyError(self._format_message(str(exc))) from exc
 
     def click(self, x: int, y: int) -> None:
         self.adb.shell(self._build_input('tap', x, y))

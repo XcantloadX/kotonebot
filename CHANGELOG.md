@@ -18,6 +18,7 @@ Library:
 6. [feat] **BREAKING** 现在 NemuIpcImpl 在等待 App 启动超时后会抛出 `NemuIpcDisplayNotFoundError` 而不是 `NemuIpcError`。
 7. [feat] **BREAKING** `NemuIpcImpl` 的多点触控现在会检验输入的指针 ID，必须符合范围 [1, 10]，否则会抛出异常。
 8. [feat] OCR 引擎新增 `only_rec` 模式。此模式下跳过 OCR 模型的检测阶段，适合 ROI 就是文本本身的场景，准确率和速度都会提升。
+9. [fix] ADB 截图遇到截断的 PNG 数据时转译为可重试的 `DeviceNotReadyError`，方向检测失败时返回 `None` 而不是抛出异常。
 
 ## v0.19.1
 Library：

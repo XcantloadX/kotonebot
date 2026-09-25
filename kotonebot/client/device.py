@@ -1,3 +1,5 @@
+"""设备抽象与设备操作装饰器。"""
+
 import threading
 from typing import Callable, Literal, overload, TYPE_CHECKING
 
