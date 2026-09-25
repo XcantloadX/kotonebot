@@ -308,10 +308,11 @@ class ContextOcr:
         self,
         rect: Rect | None = None,
         lang: OcrLanguage | None = None,
+        only_rec: bool = False,
     ) -> OcrResultList:
         """OCR 当前设备画面或指定图像。"""
         engine = self._get_engine(lang)
-        return engine.ocr(ContextStackVars.ensure_current().screenshot, rect=rect)
+        return engine.ocr(ContextStackVars.ensure_current().screenshot, rect=rect, only_rec=only_rec)
 
     def find(
         self,
@@ -320,6 +321,7 @@ class ContextOcr:
         hint: HintBox | None = None,
         rect: Rect | None = None,
         lang: OcrLanguage | None = None,
+        only_rec: bool = False,
     ) -> OcrResult | None:
         """检查当前设备画面是否包含指定文本。"""
         engine = self._get_engine(lang)
@@ -328,6 +330,7 @@ class ContextOcr:
             pattern,
             hint=hint,
             rect=rect,
+            only_rec=only_rec,
         )
         self.context.device.last_find = ret.original_rect if ret else None
         return ret
@@ -339,6 +342,7 @@ class ContextOcr:
         hint: HintBox | None = None,
         rect: Rect | None = None,
         lang: OcrLanguage | None = None,
+        only_rec: bool = False,
     ) -> list[OcrResult | None]:
         engine = self._get_engine(lang)
         return engine.find_all(
@@ -346,6 +350,7 @@ class ContextOcr:
             list(patterns),
             hint=hint,
             rect=rect,
+            only_rec=only_rec,
         )
 
     def expect(
@@ -355,6 +360,7 @@ class ContextOcr:
         rect: Rect | None = None,
         hint: HintBox | None = None,
         lang: OcrLanguage | None = None,
+        only_rec: bool = False,
     ) -> OcrResult:
 
         """
@@ -363,7 +369,7 @@ class ContextOcr:
         与 `find()` 的区别在于，`expect()` 未找到时会抛出异常。
         """
         engine = self._get_engine(lang)
-        ret = engine.expect(ContextStackVars.ensure_current().screenshot, pattern, rect=rect, hint=hint)
+        ret = engine.expect(ContextStackVars.ensure_current().screenshot, pattern, rect=rect, hint=hint, only_rec=only_rec)
         self.context.device.last_find = ret.original_rect if ret else None
         return ret
 

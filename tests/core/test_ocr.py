@@ -3,7 +3,7 @@ import unittest
 
 import cv2
 
-from kotonebot.backend.ocr import jp
+from kotonebot.backend.ocr import jp, contains
 from kotonebot.primitives.geometry import Rect
 from kotonebot.backend.ocr import OcrResult, OcrResultList, bounding_box
 
@@ -71,6 +71,19 @@ class TestOcr(unittest.TestCase):
         self.assertAlmostEqual(y, 614, delta=10)
         self.assertAlmostEqual(w, 417, delta=10)
         self.assertAlmostEqual(h, 32, delta=10)
+
+    def test_ocr_only_rec_rect(self):
+        result = jp().ocr(self.img, rect=Rect(147, 614, 417, 32), only_rec=True)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].text, '受け取るPドリンクを選んでください。')
+        x, y, w, h = result[0].original_rect.xywh
+        self.assertEqual((x, y, w, h), (147, 614, 417, 32))
+
+    def test_find_only_rec(self):
+        self.assertTrue(jp().find(
+            self.img, contains('受け取る'),
+            rect=Rect(147, 614, 417, 32), only_rec=True,
+        ))
 
     def test_find(self):
         self.assertTrue(jp().find(self.img, '中間まで'))

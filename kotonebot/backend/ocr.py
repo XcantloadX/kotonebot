@@ -129,6 +129,13 @@ class TextNotFoundError(Exception):
         self.image = image
         super().__init__(f"Expected text not found: {pattern}")
 
+class OnlyRecEngineMissingError(Exception):
+    def __init__(self):
+        super().__init__(
+            "This Ocr has no dedicated only_rec recognition engine (use_det=False). "
+            "Construct Ocr via the jp() / en() factory functions instead."
+        )
+
 class TextComparator:
     def __init__(self, name: str, text: str, func: Callable[[str], bool]):
         self.name = name
@@ -307,8 +314,50 @@ def _draw_result(image: 'MatLike', result: list[OcrResult]) -> 'MatLike':
     return result_image
 
 class Ocr:
-    def __init__(self, engine: 'RapidOCR'):
+    def __init__(self, engine: 'RapidOCR', *, rec_engine: 'RapidOCR | None' = None):
         self.__engine = engine
+        self.__rec_engine = rec_engine
+
+    def _ocr_only_rec(
+        self,
+        img: 'MatLike',
+        rect: Rect | None,
+    ) -> OcrResultList:
+        """
+        直接识别，跳过 OCR 的检测流程。
+
+        适合 ROI 已经确定这里一定是文本的情况。
+        """
+        if self.__rec_engine is None:
+            raise OnlyRecEngineMissingError()
+        if rect is not None:
+            x, y, w, h = rect.xywh
+            crop = img[y:y+h, x:x+w]
+            result_rect = Rect(xywh=rect.xywh)
+        else:
+            crop = img
+            h, w = img.shape[:2]
+            result_rect = Rect(xywh=(0, 0, w, h))
+        result, _ = self.__rec_engine(crop)
+        if not result:
+            return OcrResultList()
+        texts: list[str] = []
+        confidences: list[float] = []
+        for item in result:
+            # only_rec 输出格式为 [文本, 置信度]，没有坐标信息
+            if not isinstance(item, (list, tuple)) or len(item) < 2 or not isinstance(item[0], str):
+                raise ValueError(f"Unparsable only_rec entry: {item!r}. Expected [text, confidence].")
+            texts.append(sanitize_text(item[0]))
+            try:
+                confidences.append(float(item[1]))
+            except (TypeError, ValueError):
+                raise ValueError(f"Unparsable only_rec confidence: {item[1]!r}.") from None
+        return OcrResultList([OcrResult(
+            text=''.join(texts),
+            rect=result_rect,
+            original_rect=result_rect,
+            confidence=sum(confidences) / len(confidences),
+        )])
 
     # TODO: 考虑缓存 OCR 结果，避免重复调用。
     def ocr(
@@ -317,6 +366,7 @@ class Ocr:
         *,
         rect: Rect | None = None,
         pad: bool = True,
+        only_rec: bool = False,
     ) -> OcrResultList:
         """
         OCR 一个 cv2 的图像。注意识别结果中的**全角字符会被转换为半角字符**。
@@ -329,8 +379,17 @@ class Ocr:
 
             对于 PaddleOCR 模型，图片尺寸太小会降低准确率。
             将图片周围填充放大，有助于提高准确率，降低耗时。
+
+            `only_rec=True` 时此参数被忽略（不做填充，原图直送识别）。
+        :param only_rec:
+            是否跳过检测、把裁图整块直送识别模型。默认为 False。
+
+            适用于 ROI 本身已经精确框住一小块文本（例如数字）的场景。
+            跳过检测可避免检测框在遮挡处切碎字符，且速度更快。
         :return: 所有识别结果
         """
+        if only_rec:
+            return self._ocr_only_rec(img, rect)
         if rect is not None:
             x, y, w, h = rect.xywh
             img = img[y:y+h, x:x+w]
@@ -399,6 +458,7 @@ class Ocr:
         hint: HintBox | None = None,
         rect: Rect | None = None,
         pad: bool = True,
+        only_rec: bool = False,
     ) -> OcrResult | None:
         """
         识别图像中的文本，并寻找满足指定要求的文本。
@@ -406,6 +466,7 @@ class Ocr:
         :param hint: 如果指定，则首先只识别 HintBox 范围内的文本，若未命中，再全局寻找。
         :param rect: 如果指定，则只识别指定矩形区域。此参数优先级低于 `hint`。
         :param pad: 见 `ocr` 的 `pad` 参数。
+        :param only_rec: 见 `ocr` 的 `only_rec` 参数。
         :return: 找到的文本，如果未找到则返回 None
         """
         if hint is not None:
@@ -416,7 +477,7 @@ class Ocr:
             logger.debug(f"find: {text} FAILED [hint={hint}]")
         
         start_time = time.time()
-        results = self.ocr(img, rect=rect, pad=pad)
+        results = self.ocr(img, rect=rect, pad=pad, only_rec=only_rec)
         end_time = time.time()
         target = None
         for result in results:
@@ -437,10 +498,12 @@ class Ocr:
         hint: HintBox | None = None,
         rect: Rect | None = None,
         pad: bool = True,
+        only_rec: bool = False,
     ) -> list[OcrResult | None]:
         """
         识别图像中的文本，并寻找多个满足指定要求的文本。
 
+        :param only_rec: 见 `ocr` 的 `only_rec` 参数。
         :return:
             所有找到的文本，结果顺序与输入顺序相同。
             若某个文本未找到，则该位置为 None。
@@ -448,12 +511,12 @@ class Ocr:
         # HintBox 处理
         if hint is not None:
             warnings.warn("使用 `rect` 参数代替")
-            result = self.find_all(img, texts, rect=Rect(xywh=hint.rect), pad=pad)
+            result = self.find_all(img, texts, rect=Rect(xywh=hint.rect), pad=pad, only_rec=only_rec)
             if all(result):
                 return result
 
         ret: list[OcrResult | None] = []
-        ocr_results = self.ocr(img, rect=rect, pad=pad)
+        ocr_results = self.ocr(img, rect=rect, pad=pad, only_rec=only_rec)
         logger.debug(f"ocr_results: {ocr_results}")
         for text in texts:
             for result in ocr_results:
@@ -472,6 +535,7 @@ class Ocr:
         hint: HintBox | None = None,
         rect: Rect | None = None,
         pad: bool = True,
+        only_rec: bool = False,
     ) -> OcrResult:
         """
         识别图像中的文本，并寻找满足指定要求的文本。如果未找到则抛出异常。
@@ -479,9 +543,10 @@ class Ocr:
         :param hint: 如果指定，则首先只识别 HintBox 范围内的文本，若未命中，再全局寻找。
         :param rect: 如果指定，则只识别指定矩形区域。此参数优先级高于 `hint`。
         :param pad: 见 `ocr` 的 `pad` 参数。
+        :param only_rec: 见 `ocr` 的 `only_rec` 参数。
         :return: 找到的文本
         """
-        ret = self.find(img, text, hint=hint, rect=rect, pad=pad)
+        ret = self.find(img, text, hint=hint, rect=rect, pad=pad, only_rec=only_rec)
         if ret is None:
             raise TextNotFoundError(text, img)
         return ret
@@ -489,12 +554,29 @@ class Ocr:
 # TODO: 这个路径需要能够独立设置
 _engine_jp: 'RapidOCR | None' = None
 _engine_en: 'RapidOCR | None' = None
+_engine_jp_rec: 'RapidOCR | None' = None
+_engine_en_rec: 'RapidOCR | None' = None
+
+def _rec_engine(rec_model_path: str) -> 'RapidOCR':
+    """
+    构造 only_rec 专用识别引擎（不做检测）。
+
+    :param rec_model_path: 与检测流程共用的识别模型路径。
+    :returns: 仅做识别的 RapidOCR 引擎。
+    """
+    from rapidocr_onnxruntime import RapidOCR
+    return RapidOCR(
+        rec_model_path=rec_model_path,
+        use_det=False,
+        use_cls=False,
+        use_rec=True,
+    )
 
 def jp() -> Ocr:
     """
     日语 OCR 引擎。
     """
-    global _engine_jp
+    global _engine_jp, _engine_jp_rec
     from rapidocr_onnxruntime import RapidOCR
     if _engine_jp is None:
         _engine_jp = RapidOCR(
@@ -503,13 +585,15 @@ def jp() -> Ocr:
             use_cls=False,
             use_rec=True,
         )
-    return Ocr(_engine_jp)
+    if _engine_jp_rec is None:
+        _engine_jp_rec = _rec_engine(lf_path('models/japan_PP-OCRv3_rec_infer.onnx'))
+    return Ocr(_engine_jp, rec_engine=_engine_jp_rec)
 
 def en() -> Ocr:
     """
     英语 OCR 引擎。
     """
-    global _engine_en
+    global _engine_en, _engine_en_rec
     from rapidocr_onnxruntime import RapidOCR
     if _engine_en is None:
         _engine_en = RapidOCR(
@@ -518,7 +602,9 @@ def en() -> Ocr:
             use_cls=False,
             use_rec=True,
         )
-    return Ocr(_engine_en)
+    if _engine_en_rec is None:
+        _engine_en_rec = _rec_engine(lf_path('models/en_PP-OCRv3_rec_infer.onnx'))
+    return Ocr(_engine_en, rec_engine=_engine_en_rec)
 
 
 if __name__ == '__main__':
