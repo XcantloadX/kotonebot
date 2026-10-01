@@ -138,3 +138,27 @@ class EmulatorNotFoundError(UserFriendlyError):
         super().__init__(f'未找到模拟器「{emulator_name}」，请确认已正确安装。')
 
 
+class WindowsScreenshotError(KotonebotError):
+    """Windows GDI 截图失败。"""
+
+    def __init__(self, hwnd: int, width: int, height: int, detail: str = '', cause: Exception | None = None):
+        """初始化异常。
+
+        :param hwnd: 目标窗口句柄。
+        :param width: 截图宽度。
+        :param height: 截图高度。
+        :param detail: 底层错误详情。
+        :param cause: 原始异常。
+        """
+        self.hwnd = hwnd
+        self.width = width
+        self.height = height
+        self.detail = detail
+        msg = f'Windows screenshot failed (hwnd={hwnd}, size={width}x{height})'
+        if detail:
+            msg += f': {detail}'
+        super().__init__(msg)
+        if cause is not None:
+            self.__cause__ = cause
+
+

@@ -1,4 +1,8 @@
 # 更新日志
+## v0.20.1
+Library:
+1. [fix] 修复 WindowsImpl 和 WindowsNativeImpl 存在的句柄泄露问题。
+
 ## v0.20.0
 Framework:
 1. [feat] **BREAKING** 移除 Pipeline 体系（`kotonebot.pipeline` 模块及其相关 API）。依赖该体系的代码需自行迁移到普通同步控制流（如 `Loop` / 任务循环）。
