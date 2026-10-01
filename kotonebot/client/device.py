@@ -20,8 +20,9 @@ from kotonebot.primitives import Rect, Point
 from functools import wraps
 from kotonebot.errors import (
     CapabilityNotSupportedError, DeviceAlreadyStartedError, DeviceThreadMismatchError,
-    DeviceConnectionError, DeviceNotReadyError, DeviceConnectRefusedError, DeviceConnectTimeoutError,
+    DeviceConnectionError,
 )
+from ._translate import translate_device_error
 from .protocol import ClickableObjectProtocol, Commandable, MultiTouchable, Touchable, Screenshotable, AndroidCommandable, WindowsCommandable, Lifecycle
 
 logger = logging.getLogger(__name__)
@@ -32,8 +33,9 @@ def device_operation(func):
     """
     标记一个方法为设备操作。
 
-    将底层 impl 抛出的连接相关异常（AdbError、AdbTimeout、socket 异常等）
-    统一转译为 DeviceConnectionError 子类，使调用方无需感知底层库细节。
+    将底层 impl 抛出的异常经 :func:`translate_device_error` 统一转译为
+    DeviceConnectionError 子类，使调用方无需感知底层库细节。
+    与连接无关的异常原样抛出。
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -41,23 +43,11 @@ def device_operation(func):
             return func(*args, **kwargs)
         except DeviceConnectionError:
             raise
-        except (ConnectionAbortedError, ConnectionResetError) as e:
-            raise DeviceNotReadyError(str(e)) from e
-        except ConnectionRefusedError as e:
-            raise DeviceConnectRefusedError('', e) from e
         except Exception as e:
-            msg = str(e)
-            try:
-                from adbutils import AdbTimeout
-                from adbutils.errors import AdbError
-                if isinstance(e, AdbTimeout):
-                    raise DeviceConnectTimeoutError() from e
-                if isinstance(e, AdbError):
-                    if any(k in msg for k in ('offline', 'closed', 'not found', 'screencap error')):
-                        raise DeviceNotReadyError(msg) from e
-            except ImportError:
-                pass
-            raise
+            translated = translate_device_error(e)
+            if translated is None:
+                raise
+            raise translated from e
     return wrapper
 
 

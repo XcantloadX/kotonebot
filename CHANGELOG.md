@@ -2,6 +2,7 @@
 ## v0.20.1
 Library:
 1. [fix] 修复 WindowsImpl 和 WindowsNativeImpl 存在的句柄泄露问题。
+2. [feat] **BREAKING** 设备连接类异常统一：ADB/IPC 底层错误（连接被拒、掉线、截图失败、lifecycle 未启动等）现在一律转译为 `DeviceConnectionError` 子类（`DeviceConnectRefusedError`/`DeviceNotReadyError`/`DeviceConnectTimeoutError`），不再漏出裸 `ValueError`/`RuntimeError`/`AdbError`/`NemuIpcError`。直接捕获这些裸异常的代码需改为捕获对应的连接异常。
 
 ## v0.20.0
 Framework:

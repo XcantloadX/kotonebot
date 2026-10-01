@@ -13,7 +13,7 @@ import numpy as np
 from cv2.typing import MatLike
 
 from kotonebot import logging
-from kotonebot.errors import WindowsScreenshotError
+from kotonebot.errors import DeviceNotReadyError, WindowsScreenshotError
 
 from ...device import Device
 from ...protocol import Touchable, Screenshotable, Lifecycle, SimpleInputDriver
@@ -97,7 +97,7 @@ class WindowsImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver):
 
     def _require_started(self) -> None:
         if not self._started:
-            raise RuntimeError("WindowsImpl lifecycle is not started.")
+            raise DeviceNotReadyError("WindowsImpl lifecycle is not started.")
 
     def _window(self) -> WindowsWindow:
         w = self._window_session.get_window()

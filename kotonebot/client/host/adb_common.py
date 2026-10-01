@@ -10,7 +10,7 @@ except ImportError as _e:
     from kotonebot.errors import MissingDependencyError
     raise MissingDependencyError(_e, 'android')
 from kotonebot import logging
-from kotonebot.client.device import AndroidDevice
+from kotonebot.client.device import AndroidDevice, device_operation
 from kotonebot.errors import DeviceConnectRefusedError
 from .protocol import AdbHostConfig, Device
 
@@ -38,6 +38,7 @@ class AdbTargetUsb:
 
 AdbTarget: TypeAlias = AdbTargetTcpip | AdbTargetUsb
 
+@device_operation
 def connect_adb(
     target: AdbTarget
 ) -> AdbDevice:

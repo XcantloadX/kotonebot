@@ -13,7 +13,7 @@ from cv2.typing import MatLike
 from ...protocol import MultiTouchable, Screenshotable, Lifecycle, SimpleInputDriver, TouchDriver
 from ...registration import ImplConfig
 from .external_renderer_ipc import ExternalRendererIpc
-from kotonebot.errors import KotonebotError
+from kotonebot.errors import DeviceNotReadyError, KotonebotError
 from kotonebot.util import windows_only
 
 logger = logging.getLogger(__name__)
@@ -118,7 +118,7 @@ class NemuIpcImpl(MultiTouchable, Screenshotable, Lifecycle, SimpleInputDriver, 
 
     def _ensure_connected(self) -> None:
         if not self.__connected:
-            raise RuntimeError("NemuIpcImpl lifecycle is not started.")
+            raise DeviceNotReadyError("NemuIpcImpl lifecycle is not started.")
 
     def _get_display_id(self) -> int:
         """获取有效的 display_id。"""

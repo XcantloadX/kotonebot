@@ -9,6 +9,7 @@ import numpy as np
 from cv2.typing import MatLike
 
 from ...protocol import MouseButton, MouseDriver, SimpleInputDriver, Touchable, Screenshotable, Lifecycle
+from kotonebot.errors import DeviceNotReadyError
 from kotonebot.interop.window import WindowQuery, WindowSession
 from kotonebot.interop.window.macos import MacOSWindow
 
@@ -219,7 +220,7 @@ class QuartzImpl(Screenshotable, MouseDriver, SimpleInputDriver, Touchable, Life
 
     def _require_started(self) -> None:
         if not self._started:
-            raise RuntimeError('QuartzImpl lifecycle is not started.')
+            raise DeviceNotReadyError('QuartzImpl lifecycle is not started.')
 
     # ------------------------------------------------------------------
     # 内部辅助
