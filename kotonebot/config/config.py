@@ -8,6 +8,20 @@ if TYPE_CHECKING:
 from kotonebot.primitives import Size
 
 @dataclass
+class DeviceRetryConfig:
+    attempts: int = 3
+    """读操作重连重试总次数（含首次执行）。"""
+    interval: float = 1.0
+    """每次重试前等待的秒数，固定间隔，不退避。"""
+
+    def __post_init__(self) -> None:
+        if self.attempts < 1:
+            raise ValueError(f"DeviceRetryConfig.attempts must be >= 1, got {self.attempts}.")
+        if self.interval < 0:
+            raise ValueError(f"DeviceRetryConfig.interval must be >= 0, got {self.interval}.")
+
+
+@dataclass
 class DeviceConfig:
     default_scaler_factory: 'Callable[[], AbstractScaler]'
     """Device 类默认使用缩放方法类的构造器。
@@ -21,6 +35,8 @@ class DeviceConfig:
     
     若为 None，则不进行缩放。
     """
+    retry: DeviceRetryConfig = field(default_factory=DeviceRetryConfig)
+    """读操作重连重试配置。"""
 
 
 @dataclass

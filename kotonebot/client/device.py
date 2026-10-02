@@ -1,7 +1,7 @@
 """设备抽象与设备操作装饰器。"""
 
 import threading
-from typing import Callable, Literal, overload, TYPE_CHECKING
+from typing import Any, Callable, Literal, TypeVar, cast, overload, TYPE_CHECKING
 
 from cv2.typing import MatLike
 from typing_extensions import deprecated
@@ -49,6 +49,36 @@ def device_operation(func):
                 raise
             raise translated from e
     return wrapper
+
+
+_ReadRetryFunc = TypeVar("_ReadRetryFunc", bound=Callable[..., Any])
+
+def _read_retry(func: _ReadRetryFunc) -> _ReadRetryFunc:
+    """为幂等读操作提供重连重试。
+
+    仅捕获 DeviceConnectionError；用尽次数后抛出最后一次异常。
+    重连失败时直接抛出重连异常，不再继续重试。
+    写操作与生命周期方法禁止使用本装饰器。
+    """
+    @wraps(func)
+    def wrapper(self: 'Device', *args: Any, **kwargs: Any) -> Any:
+        from kotonebot import sleep
+        retry = conf().device.retry
+        failures = 0
+        while True:
+            try:
+                return func(self, *args, **kwargs)
+            except DeviceConnectionError as e:
+                failures += 1
+                if failures >= retry.attempts:
+                    raise
+                logger.warning(
+                    "Device read operation failed, retrying after reconnect (%d/%d): %s",
+                    failures, retry.attempts, e,
+                )
+                self._reconnect_for_retry()
+                sleep(retry.interval)
+    return cast(_ReadRetryFunc, wrapper)
 
 
 class HookContextManager:
@@ -287,6 +317,15 @@ class Device:
             self._lifecycle_started = False
             self._lifecycle_thread = None
 
+    def _reconnect_for_retry(self) -> None:
+        """断开并重建设备连接，供读操作重试使用。
+
+        仅重建 ADB/IPC 连接，不拉起模拟器进程。
+        重连失败时异常直接抛出，调用方不再继续重试。
+        """
+        self.stop()
+        self.start()
+
     def __log(self, message: str, level: LogLevel | None = None, *args):
         """以指定的日志级别输出日志。
 
@@ -474,6 +513,7 @@ class Device:
         w, h = self.scaler.physical_to_logic(self.screen_size)
         self.swipe(int(w * x1), int(h * y1), int(w * x2), int(h * y2), duration, log=log)
     
+    @_read_retry
     @device_operation
     def screenshot(self) -> MatLike:
         """
@@ -491,6 +531,7 @@ class Device:
             img = self.screenshot_hook_after(img)
         return img
 
+    @_read_retry
     @device_operation
     def screenshot_raw(self) -> MatLike:
         """
@@ -504,6 +545,7 @@ class Device:
         """
         return HookContextManager(self, func)
 
+    @_read_retry
     @device_operation
     def _get_screen_size(self) -> tuple[int, int]:
         size = self._screenshot.screen_size
@@ -530,6 +572,7 @@ class Device:
         """
         return self._get_screen_size()
 
+    @_read_retry
     @device_operation
     def detect_orientation(self) -> Literal['portrait', 'landscape'] | None:
         """
@@ -546,6 +589,7 @@ class AndroidDevice(Device):
         self._adb: 'AdbUtilsDevice | None' = adb_connection
         self.commands: AndroidCommandable
         
+    @_read_retry
     @device_operation
     def current_package(self) -> str | None:
         """
