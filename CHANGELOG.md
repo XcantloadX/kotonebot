@@ -1,4 +1,8 @@
 # 更新日志
+## v0.20.2
+Library:
+1. [feat] **BREAKING** 现在 WindowsImpl 和 WindowsNativeImpl 进行 GDI 调用时会全局加锁。
+
 ## v0.20.1
 Library:
 1. [fix] 修复 WindowsImpl 和 WindowsNativeImpl 存在的句柄泄露问题。

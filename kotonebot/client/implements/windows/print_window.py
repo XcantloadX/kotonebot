@@ -5,6 +5,7 @@ from kotonebot.util import windows_only, require_windows
 
 import ctypes
 import ctypes.wintypes as wt
+import threading
 from typing import TYPE_CHECKING, Literal
 
 import cv2
@@ -42,6 +43,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_GDI_LOCK: threading.Lock = threading.Lock()
+
 PW_CLIENTONLY = 0x1
 PW_RENDERFULLCONTENT = 0x2
 
@@ -66,104 +69,106 @@ def capture_printwindow(hwnd: int) -> MatLike:
     mem_dc = None
     bmp = None
     old_obj = None
-    try:
-        hdc = win32gui.GetDC(hwnd)
-        if not hdc:
-            raise WindowsScreenshotError(hwnd, width, height, detail='GetDC failed')
-        # 任一 GDI 调用失败（例如 GDI 句柄耗尽时的 CreateCompatibleDC failed）
-        # 都会经由 except 转为 WindowsScreenshotError，finally 负责释放已创建的资源
+    # GDI 全程持锁：创建、PrintWindow、取像素、释放必须串行，否则并发下偶发 CreateCompatibleDC failed
+    with _GDI_LOCK:
         try:
-            mfc_dc = win32ui.CreateDCFromHandle(hdc)
-            mem_dc = mfc_dc.CreateCompatibleDC()
-            bmp = win32ui.CreateBitmap()
-            bmp.CreateCompatibleBitmap(mfc_dc, width, height)
+            hdc = win32gui.GetDC(hwnd)
+            if not hdc:
+                raise WindowsScreenshotError(hwnd, width, height, detail='GetDC failed')
+            # 任一 GDI 调用失败（例如 GDI 句柄耗尽时的 CreateCompatibleDC failed）
+            # 都会经由 except 转为 WindowsScreenshotError，finally 负责释放已创建的资源
+            try:
+                mfc_dc = win32ui.CreateDCFromHandle(hdc)
+                mem_dc = mfc_dc.CreateCompatibleDC()
+                bmp = win32ui.CreateBitmap()
+                bmp.CreateCompatibleBitmap(mfc_dc, width, height)
+            except Exception as e:
+                logger.error(f'Failed to create GDI objects (hwnd={hwnd}, size={width}x{height}): {e}')
+                raise WindowsScreenshotError(hwnd, width, height, detail=str(e), cause=e) from e
+            old_obj = mem_dc.SelectObject(bmp)
+
+            flags = PW_CLIENTONLY | PW_RENDERFULLCONTENT
+            res = ctypes.windll.user32.PrintWindow(hwnd, mem_dc.GetSafeHdc(), flags)
+            if res != 1:
+                logger.error(f'PrintWindow failed (hwnd={hwnd}, size={width}x{height}, res={res})')
+                raise WindowsScreenshotError(hwnd, width, height, detail=f'PrintWindow failed, res={res}')
+
+            # extract BGRA bits via GetDIBits (pywin32 does not expose BITMAPINFO)
+            class BITMAPINFOHEADER(ctypes.Structure):
+                _fields_ = [
+                    ("biSize", wt.DWORD),
+                    ("biWidth", wt.LONG),
+                    ("biHeight", wt.LONG),
+                    ("biPlanes", wt.WORD),
+                    ("biBitCount", wt.WORD),
+                    ("biCompression", wt.DWORD),
+                    ("biSizeImage", wt.DWORD),
+                    ("biXPelsPerMeter", wt.LONG),
+                    ("biYPelsPerMeter", wt.LONG),
+                    ("biClrUsed", wt.DWORD),
+                    ("biClrImportant", wt.DWORD),
+                ]
+
+            class BITMAPINFO(ctypes.Structure):
+                _fields_ = [("bmiHeader", BITMAPINFOHEADER), ("bmiColors", wt.DWORD * 3)]
+
+            bmi = BITMAPINFO()
+            bmi.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+            bmi.bmiHeader.biWidth = width
+            bmi.bmiHeader.biHeight = -height  # top-down
+            bmi.bmiHeader.biPlanes = 1
+            bmi.bmiHeader.biBitCount = 32
+            bmi.bmiHeader.biCompression = win32con.BI_RGB
+
+            buf = bytearray(width * height * 4)
+            bits_ok = ctypes.windll.gdi32.GetDIBits(
+                mem_dc.GetSafeHdc(),
+                bmp.GetHandle(),
+                0,
+                height,
+                ctypes.byref((ctypes.c_ubyte * len(buf)).from_buffer(buf)),
+                ctypes.byref(bmi),
+                win32con.DIB_RGB_COLORS,
+            )
+            if bits_ok == 0:
+                logger.error(f'GetDIBits failed (hwnd={hwnd}, size={width}x{height})')
+                raise WindowsScreenshotError(hwnd, width, height, detail='GetDIBits failed')
+
+            img = np.frombuffer(buf, dtype=np.uint8).reshape((height, width, 4))
+            img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+            return img
+        except WindowsScreenshotError:
+            raise
         except Exception as e:
-            logger.error(f'Failed to create GDI objects (hwnd={hwnd}, size={width}x{height}): {e}')
+            logger.error(f'Screenshot failed (hwnd={hwnd}, size={width}x{height}): {e}')
             raise WindowsScreenshotError(hwnd, width, height, detail=str(e), cause=e) from e
-        old_obj = mem_dc.SelectObject(bmp)
-
-        flags = PW_CLIENTONLY | PW_RENDERFULLCONTENT
-        res = ctypes.windll.user32.PrintWindow(hwnd, mem_dc.GetSafeHdc(), flags)
-        if res != 1:
-            logger.error(f'PrintWindow failed (hwnd={hwnd}, size={width}x{height}, res={res})')
-            raise WindowsScreenshotError(hwnd, width, height, detail=f'PrintWindow failed, res={res}')
-
-        # extract BGRA bits via GetDIBits (pywin32 does not expose BITMAPINFO)
-        class BITMAPINFOHEADER(ctypes.Structure):
-            _fields_ = [
-                ("biSize", wt.DWORD),
-                ("biWidth", wt.LONG),
-                ("biHeight", wt.LONG),
-                ("biPlanes", wt.WORD),
-                ("biBitCount", wt.WORD),
-                ("biCompression", wt.DWORD),
-                ("biSizeImage", wt.DWORD),
-                ("biXPelsPerMeter", wt.LONG),
-                ("biYPelsPerMeter", wt.LONG),
-                ("biClrUsed", wt.DWORD),
-                ("biClrImportant", wt.DWORD),
-            ]
-
-        class BITMAPINFO(ctypes.Structure):
-            _fields_ = [("bmiHeader", BITMAPINFOHEADER), ("bmiColors", wt.DWORD * 3)]
-
-        bmi = BITMAPINFO()
-        bmi.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
-        bmi.bmiHeader.biWidth = width
-        bmi.bmiHeader.biHeight = -height  # top-down
-        bmi.bmiHeader.biPlanes = 1
-        bmi.bmiHeader.biBitCount = 32
-        bmi.bmiHeader.biCompression = win32con.BI_RGB
-
-        buf = bytearray(width * height * 4)
-        bits_ok = ctypes.windll.gdi32.GetDIBits(
-            mem_dc.GetSafeHdc(),
-            bmp.GetHandle(),
-            0,
-            height,
-            ctypes.byref((ctypes.c_ubyte * len(buf)).from_buffer(buf)),
-            ctypes.byref(bmi),
-            win32con.DIB_RGB_COLORS,
-        )
-        if bits_ok == 0:
-            logger.error(f'GetDIBits failed (hwnd={hwnd}, size={width}x{height})')
-            raise WindowsScreenshotError(hwnd, width, height, detail='GetDIBits failed')
-
-        img = np.frombuffer(buf, dtype=np.uint8).reshape((height, width, 4))
-        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-        return img
-    except WindowsScreenshotError:
-        raise
-    except Exception as e:
-        logger.error(f'Screenshot failed (hwnd={hwnd}, size={width}x{height}): {e}')
-        raise WindowsScreenshotError(hwnd, width, height, detail=str(e), cause=e) from e
-    finally:
-        # 失败路径也必须释放 GDI 资源，否则句柄耗尽后会持续 CreateCompatibleDC failed
-        if mem_dc is not None and old_obj is not None:
-            try:
-                mem_dc.SelectObject(old_obj)
-            except Exception as e:
-                logger.warning(f'Failed to restore GDI bitmap (hwnd={hwnd}): {e}')
-        if bmp is not None:
-            try:
-                win32gui.DeleteObject(bmp.GetHandle())
-            except Exception as e:
-                logger.warning(f'Failed to delete GDI bitmap (hwnd={hwnd}): {e}')
-        if mem_dc is not None:
-            try:
-                mem_dc.DeleteDC()
-            except Exception as e:
-                logger.warning(f'Failed to delete memory DC (hwnd={hwnd}): {e}')
-        if mfc_dc is not None:
-            try:
-                mfc_dc.DeleteDC()
-            except Exception as e:
-                logger.warning(f'Failed to delete window DC (hwnd={hwnd}): {e}')
-        if hdc:
-            try:
-                win32gui.ReleaseDC(hwnd, hdc)
-            except Exception as e:
-                logger.warning(f'Failed to release DC (hwnd={hwnd}): {e}')
+        finally:
+            # 失败路径也必须释放 GDI 资源，否则句柄耗尽后会持续 CreateCompatibleDC failed
+            if mem_dc is not None and old_obj is not None:
+                try:
+                    mem_dc.SelectObject(old_obj)
+                except Exception as e:
+                    logger.warning(f'Failed to restore GDI bitmap (hwnd={hwnd}): {e}')
+            if bmp is not None:
+                try:
+                    win32gui.DeleteObject(bmp.GetHandle())
+                except Exception as e:
+                    logger.warning(f'Failed to delete GDI bitmap (hwnd={hwnd}): {e}')
+            if mem_dc is not None:
+                try:
+                    mem_dc.DeleteDC()
+                except Exception as e:
+                    logger.warning(f'Failed to delete memory DC (hwnd={hwnd}): {e}')
+            if mfc_dc is not None:
+                try:
+                    mfc_dc.DeleteDC()
+                except Exception as e:
+                    logger.warning(f'Failed to delete window DC (hwnd={hwnd}): {e}')
+            if hdc:
+                try:
+                    win32gui.ReleaseDC(hwnd, hdc)
+                except Exception as e:
+                    logger.warning(f'Failed to release DC (hwnd={hwnd}): {e}')
 
 
 @windows_only('"WindowsImpl" implementation')

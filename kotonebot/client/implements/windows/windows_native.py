@@ -4,6 +4,7 @@
 from kotonebot.util import windows_only, require_windows
 
 import ctypes
+import threading
 from typing import TYPE_CHECKING, Literal
 from dataclasses import dataclass, field
 
@@ -31,6 +32,8 @@ else:
     win32gui = None
 
 logger = logging.getLogger(__name__)
+
+_GDI_LOCK: threading.Lock = threading.Lock()
 
 def _load_deps():
     """WindowsNativeImpl 专用的依赖加载函数，不依赖 `ahk` 包。"""
@@ -150,74 +153,76 @@ class WindowsNativeImpl(Touchable, Screenshotable, Lifecycle, SimpleInputDriver)
         save_dc = None
         save_bitmap = None
         old_obj = None
-        try:
-            # 获取整个屏幕的截图
-            hwnd_dc = win32gui.GetWindowDC(0)
-            if not hwnd_dc:
-                logger.error(f'GetWindowDC failed (hwnd={hwnd}, size={w}x{h})')
-                raise WindowsScreenshotError(hwnd, w, h, detail='GetWindowDC failed')
+        # GDI 全程持锁：创建、BitBlt、取像素、释放必须串行，否则并发下偶发 CreateCompatibleDC failed
+        with _GDI_LOCK:
             try:
-                mfc_dc = win32ui.CreateDCFromHandle(hwnd_dc)
-                save_dc = mfc_dc.CreateCompatibleDC()
-                save_bitmap = win32ui.CreateBitmap()
-                save_bitmap.CreateCompatibleBitmap(mfc_dc, w, h)
+                # 获取整个屏幕的截图
+                hwnd_dc = win32gui.GetWindowDC(0)
+                if not hwnd_dc:
+                    logger.error(f'GetWindowDC failed (hwnd={hwnd}, size={w}x{h})')
+                    raise WindowsScreenshotError(hwnd, w, h, detail='GetWindowDC failed')
+                try:
+                    mfc_dc = win32ui.CreateDCFromHandle(hwnd_dc)
+                    save_dc = mfc_dc.CreateCompatibleDC()
+                    save_bitmap = win32ui.CreateBitmap()
+                    save_bitmap.CreateCompatibleBitmap(mfc_dc, w, h)
+                except Exception as e:
+                    logger.error(f'Failed to create GDI objects (hwnd={hwnd}, size={w}x{h}): {e}')
+                    raise WindowsScreenshotError(hwnd, w, h, detail=str(e), cause=e) from e
+
+                old_obj = save_dc.SelectObject(save_bitmap)
+
+                # 截图整个屏幕
+                bitblt_ok = ctypes.windll.gdi32.BitBlt(
+                    save_dc.GetSafeHdc(), 0, 0, w, h, mfc_dc.GetSafeHdc(), left, top, 0x00CC0020
+                )
+                if not bitblt_ok:
+                    logger.error(f'BitBlt failed (hwnd={hwnd}, size={w}x{h})')
+                    raise WindowsScreenshotError(hwnd, w, h, detail='BitBlt failed')
+
+                # 将截图转换为OpenCV格式
+                bmpinfo = save_bitmap.GetInfo()
+                bmpstr = save_bitmap.GetBitmapBits(True)
+                im = np.frombuffer(bmpstr, dtype=np.uint8)
+                im = im.reshape((bmpinfo['bmHeight'], bmpinfo['bmWidth'], 4))
+
+                # 裁剪出客户区域
+                cropped_im = im[client_top - top:client_bot - top, client_left - left:client_right - left]
+                # 将 RGBA 转换为 RGB
+                cropped_im = cv2.cvtColor(cropped_im, cv2.COLOR_RGBA2RGB)
+                return cropped_im
+            except WindowsScreenshotError:
+                raise
             except Exception as e:
-                logger.error(f'Failed to create GDI objects (hwnd={hwnd}, size={w}x{h}): {e}')
+                logger.error(f'Screenshot failed (hwnd={hwnd}, size={w}x{h}): {e}')
                 raise WindowsScreenshotError(hwnd, w, h, detail=str(e), cause=e) from e
-
-            old_obj = save_dc.SelectObject(save_bitmap)
-
-            # 截图整个屏幕
-            bitblt_ok = ctypes.windll.gdi32.BitBlt(
-                save_dc.GetSafeHdc(), 0, 0, w, h, mfc_dc.GetSafeHdc(), left, top, 0x00CC0020
-            )
-            if not bitblt_ok:
-                logger.error(f'BitBlt failed (hwnd={hwnd}, size={w}x{h})')
-                raise WindowsScreenshotError(hwnd, w, h, detail='BitBlt failed')
-
-            # 将截图转换为OpenCV格式
-            bmpinfo = save_bitmap.GetInfo()
-            bmpstr = save_bitmap.GetBitmapBits(True)
-            im = np.frombuffer(bmpstr, dtype=np.uint8)
-            im = im.reshape((bmpinfo['bmHeight'], bmpinfo['bmWidth'], 4))
-
-            # 裁剪出客户区域
-            cropped_im = im[client_top - top:client_bot - top, client_left - left:client_right - left]
-            # 将 RGBA 转换为 RGB
-            cropped_im = cv2.cvtColor(cropped_im, cv2.COLOR_RGBA2RGB)
-            return cropped_im
-        except WindowsScreenshotError:
-            raise
-        except Exception as e:
-            logger.error(f'Screenshot failed (hwnd={hwnd}, size={w}x{h}): {e}')
-            raise WindowsScreenshotError(hwnd, w, h, detail=str(e), cause=e) from e
-        finally:
-            # 失败路径也必须释放 GDI 资源，否则句柄耗尽后会持续 CreateCompatibleDC failed
-            if save_dc is not None and old_obj is not None:
-                try:
-                    save_dc.SelectObject(old_obj)
-                except Exception as e:
-                    logger.warning(f'Failed to restore GDI bitmap (hwnd={hwnd}): {e}')
-            if save_bitmap is not None:
-                try:
-                    win32gui.DeleteObject(save_bitmap.GetHandle())
-                except Exception as e:
-                    logger.warning(f'Failed to delete GDI bitmap (hwnd={hwnd}): {e}')
-            if save_dc is not None:
-                try:
-                    save_dc.DeleteDC()
-                except Exception as e:
-                    logger.warning(f'Failed to delete memory DC (hwnd={hwnd}): {e}')
-            if mfc_dc is not None:
-                try:
-                    mfc_dc.DeleteDC()
-                except Exception as e:
-                    logger.warning(f'Failed to delete window DC (hwnd={hwnd}): {e}')
-            if hwnd_dc:
-                try:
-                    win32gui.ReleaseDC(0, hwnd_dc)
-                except Exception as e:
-                    logger.warning(f'Failed to release DC (hwnd={hwnd}): {e}')
+            finally:
+                # 失败路径也必须释放 GDI 资源，否则句柄耗尽后会持续 CreateCompatibleDC failed
+                if save_dc is not None and old_obj is not None:
+                    try:
+                        save_dc.SelectObject(old_obj)
+                    except Exception as e:
+                        logger.warning(f'Failed to restore GDI bitmap (hwnd={hwnd}): {e}')
+                if save_bitmap is not None:
+                    try:
+                        win32gui.DeleteObject(save_bitmap.GetHandle())
+                    except Exception as e:
+                        logger.warning(f'Failed to delete GDI bitmap (hwnd={hwnd}): {e}')
+                if save_dc is not None:
+                    try:
+                        save_dc.DeleteDC()
+                    except Exception as e:
+                        logger.warning(f'Failed to delete memory DC (hwnd={hwnd}): {e}')
+                if mfc_dc is not None:
+                    try:
+                        mfc_dc.DeleteDC()
+                    except Exception as e:
+                        logger.warning(f'Failed to delete window DC (hwnd={hwnd}): {e}')
+                if hwnd_dc:
+                    try:
+                        win32gui.ReleaseDC(0, hwnd_dc)
+                    except Exception as e:
+                        logger.warning(f'Failed to release DC (hwnd={hwnd}): {e}')
 
     @property
     def screen_size(self) -> tuple[int, int]:
