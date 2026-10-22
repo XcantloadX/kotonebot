@@ -1,4 +1,8 @@
 # 更新日志
+## v0.21.0
+Library：
+1. [feat] 引入 MaaFramework 后端实现。后续将逐渐迁移后端实现到 MaaFw，废弃自有实现。
+
 ## v0.20.2
 Library:
 1. [feat] **BREAKING** 现在 WindowsImpl 和 WindowsNativeImpl 进行 GDI 调用时会全局加锁。

@@ -15,7 +15,7 @@ from kotonebot.errors import DeviceConnectRefusedError
 from .protocol import AdbHostConfig, Device
 
 logger = logging.getLogger(__name__)
-AdbRecipes = Literal['adb', 'uiautomator2', 'scrcpy']
+AdbRecipes = Literal['adb', 'uiautomator2', 'scrcpy', 'maa_adb']
 
 def is_adb_recipe(recipe: Any) -> TypeGuard[AdbRecipes]:
     return recipe in get_args(AdbRecipes)
@@ -112,6 +112,19 @@ class CommonAdbCreateDeviceMixin(ABC):
         :param connect: 创建设备实例前，是否连接 ADB（执行 adb connect）。
         :param disconnect: 创建设备实例前，是否先断开已有 ADB 连接（执行 adb disconnect）。
         """
+        if recipe == 'maa_adb':
+            from kotonebot.client.maa_backend.factory import create_maa_adb
+            from .protocol import MaaAdbHostConfig
+            target = self._adb_target(config.timeout, connect=connect, disconnect=disconnect)
+            connection = connect_adb(target)
+            if isinstance(config, MaaAdbHostConfig):
+                return create_maa_adb(
+                    target,
+                    connection,
+                    screencap_methods=config.screencap_methods,
+                    input_methods=config.input_methods,
+                )
+            return create_maa_adb(target, connection)
         target = self._adb_target(config.timeout, connect=connect, disconnect=disconnect)
         connection = connect_adb(target)
         d = AndroidDevice(connection)

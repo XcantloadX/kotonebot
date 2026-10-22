@@ -48,6 +48,15 @@ def translate_device_error(error: Exception) -> DeviceConnectionError | None:
         return None
     if isinstance(error, NemuIpcError):
         return DeviceNotReadyError(str(error))
+    # maa_backend 由并行任务创建，沿用 adbutils 的懒加载惯例避免循环导入
+    try:
+        from kotonebot.client.maa_backend.errors import MaaJobFailedError
+    except ImportError:
+        pass
+    else:
+        if isinstance(error, MaaJobFailedError):
+            # Maa 任务执行失败视为设备未就绪类的瞬态故障
+            return DeviceNotReadyError(str(error))
     # adbutils 为可选依赖，沿用 device_operation 的懒加载惯例
     try:
         from adbutils import AdbTimeout

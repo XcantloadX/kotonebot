@@ -23,6 +23,8 @@ dependencies = [
     "onnxruntime>=1.14, <2.0",
     "numpy",
     "mouse>=0.7.1, <0.8",
+    # MaaFW backend
+    "maafw>=5.14.2",
 ]
 
 [project.optional-dependencies]

@@ -5,13 +5,13 @@ from typing_extensions import assert_never
 from kotonebot import logging
 from kotonebot.client.device import WindowsDevice
 from kotonebot.util import require_windows
-from .protocol import Device, WindowsHostConfig, WindowsNativeHostConfig
+from .protocol import Device, MaaWin32HostConfig, WindowsHostConfig, WindowsNativeHostConfig
 
 logger = logging.getLogger(__name__)
-WindowsRecipes = Literal['windows', 'windows_native', 'windows_background']
+WindowsRecipes = Literal['windows', 'windows_native', 'windows_background', 'maa_win32']
 
 # Windows 相关的配置类型联合
-WindowsHostConfigs = WindowsHostConfig | WindowsNativeHostConfig
+WindowsHostConfigs = WindowsHostConfig | WindowsNativeHostConfig | MaaWin32HostConfig
 
 class CommonWindowsCreateDeviceMixin(ABC):
     """
@@ -27,6 +27,18 @@ class CommonWindowsCreateDeviceMixin(ABC):
         创建 Windows 设备。
         """
         require_windows('CommonWindowsCreateDeviceMixin.create_device', self.__class__)
+        if recipe == 'maa_win32':
+            from kotonebot.client.maa_backend.factory import create_maa_win32
+            if isinstance(config, MaaWin32HostConfig):
+                return create_maa_win32(
+                    config.window_query,
+                    screencap_method=config.screencap_method,
+                    mouse_method=config.mouse_method,
+                    keyboard_method=config.keyboard_method,
+                )
+            if not isinstance(config, (WindowsHostConfig, WindowsNativeHostConfig)):
+                raise ValueError(f"Expected WindowsHostConfig/WindowsNativeHostConfig/MaaWin32HostConfig for 'maa_win32' recipe, got {type(config)}")
+            return create_maa_win32(config.window_query)
         match recipe:
             case 'windows':
                 if not isinstance(config, WindowsHostConfig):

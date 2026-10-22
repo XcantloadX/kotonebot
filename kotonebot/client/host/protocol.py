@@ -1,13 +1,21 @@
 import time
 import socket
 from abc import ABC, abstractmethod
-from typing import Callable, TypeVar, Protocol, Any, Generic
+from typing import Callable, TypeVar, Protocol, Any, Generic, TYPE_CHECKING
 from dataclasses import dataclass
 
 from kotonebot import logging
 from kotonebot.client import Device, DeviceImpl
 from kotonebot.interop.window import WindowQuery
 from kotonebot.interop.win._mouse import AnimationParams
+
+if TYPE_CHECKING:
+    from maa.define import (
+        MaaAdbInputMethodEnum,
+        MaaAdbScreencapMethodEnum,
+        MaaWin32InputMethodEnum,
+        MaaWin32ScreencapMethodEnum,
+    )
 
 from kotonebot.util import Countdown, Interval
 
@@ -25,6 +33,14 @@ class AdbHostConfig:
     display_id: int | None = None
 
 @dataclass
+class MaaAdbHostConfig(AdbHostConfig):
+    """由外部为 Maa ADB 后端提供的配置。"""
+    screencap_methods: 'MaaAdbScreencapMethodEnum | int | None' = None
+    """Maa ADB 截图方式位掩码（可按位或），为 None 时使用 Toolkit 发现的最优掩码。"""
+    input_methods: 'MaaAdbInputMethodEnum | int | None' = None
+    """Maa ADB 输入方式位掩码（可按位或），为 None 时使用 Toolkit 发现的最优掩码。"""
+
+@dataclass
 class WindowsHostConfig:
     """由外部为 Windows 实现提供配置。"""
     window_query: WindowQuery
@@ -40,6 +56,17 @@ class WindowsNativeHostConfig:
     """点击前移动鼠标到目标位置时使用的动画参数。为 None 表示瞬间跳转，不做动画。"""
     swipe_animation: AnimationParams | None = None
     """swipe（拖拽）操作默认使用的动画参数。"""
+
+@dataclass
+class MaaWin32HostConfig:
+    """由外部为 Maa Win32 后端提供的配置。"""
+    window_query: WindowQuery
+    screencap_method: 'MaaWin32ScreencapMethodEnum | int | None' = None
+    """Maa Win32 截图方式（单掩码，可按位或），为 None 时使用 Maa 默认（后台截图掩码）。"""
+    mouse_method: 'MaaWin32InputMethodEnum | int | None' = None
+    """Maa Win32 鼠标输入方式（单选其一），为 None 时使用 Maa 默认（抢占式前台输入）。"""
+    keyboard_method: 'MaaWin32InputMethodEnum | int | None' = None
+    """Maa Win32 键盘输入方式（单选其一），为 None 时使用 Maa 默认（抢占式前台输入）。"""
 
 # --- 使用泛型改造 Instance 协议 ---
 T_HostConfig = TypeVar("T_HostConfig")
